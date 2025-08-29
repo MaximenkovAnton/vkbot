@@ -65,6 +65,7 @@ If you want to learn more about building native executables, please consult <htt
 - Reactive PostgreSQL client ([guide](https://quarkus.io/guides/reactive-sql-clients)): Connect to the PostgreSQL database using the reactive pattern
 - Quarkus Extension for Spring Data JPA API ([guide](https://quarkus.io/guides/spring-data-jpa)): Use Spring Data JPA annotations to create your data access layer
 - Reactive Routes ([guide](https://quarkus.io/guides/reactive-routes)): REST framework offering the route model to define non blocking endpoints
+- Quarkus LangChain4j ([guide](https://docs.quarkiverse.io/quarkus-langchain4j/dev/index.html)): Build intelligent, AI-infused applications by integrating Large Language Models into your Quarkus services with a declarative, developer-friendly API.
 
 ## Provided Code
 

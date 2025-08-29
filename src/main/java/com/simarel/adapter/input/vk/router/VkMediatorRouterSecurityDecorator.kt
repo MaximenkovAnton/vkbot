@@ -5,7 +5,6 @@ import io.quarkus.logging.Log
 import io.vertx.ext.web.RoutingContext
 import jakarta.decorator.Decorator
 import jakarta.decorator.Delegate
-import jakarta.enterprise.inject.Decorated
 import jakarta.inject.Inject
 import org.eclipse.microprofile.config.inject.ConfigProperty
 
