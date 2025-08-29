@@ -1,4 +1,4 @@
-package com.simarel.adapter.input.vk.router
+package com.simarel.adapter.input.vk
 
 import com.simarel.domain.exception.ExceptionStatus
 import com.simarel.domain.exception.VkBotAppException
@@ -25,6 +25,7 @@ open class ExceptionHandler {
         response.setStatusCode(
             when(status) {
                 ExceptionStatus.VALIDATION_FAILED -> HttpStatus.SC_BAD_REQUEST
+                ExceptionStatus.ACCESS_DENIED -> HttpStatus.SC_FORBIDDEN
                 ExceptionStatus.UNKNOWN -> HttpStatus.SC_SERVICE_UNAVAILABLE
             }
         ).end("{\"error\": \"${failure.message}\"}")
