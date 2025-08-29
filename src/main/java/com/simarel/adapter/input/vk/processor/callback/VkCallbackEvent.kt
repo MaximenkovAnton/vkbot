@@ -1,4 +1,4 @@
-package com.simarel.usecase.vk.callback
+package com.simarel.adapter.input.vk.processor.callback
 
 enum class VkCallbackEvent {
     MESSAGE_NEW,
@@ -6,7 +6,7 @@ enum class VkCallbackEvent {
     UNKNOWN;
 
     companion object {
-        private val entriesMap = VkCallbackEvent.entries.associateBy { it.name.lowercase() }
+        private val entriesMap = entries.associateBy { it.name.lowercase() }
 
         fun mapOrUnknown(event: String) = entriesMap.getOrDefault(event, UNKNOWN)
     }

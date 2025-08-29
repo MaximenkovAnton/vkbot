@@ -1,4 +1,4 @@
-package com.simarel.adapter.input.vk.route
+package com.simarel.adapter.input.vk.router
 
 import com.simarel.domain.exception.ExceptionStatus
 import com.simarel.domain.exception.VkBotAppException
