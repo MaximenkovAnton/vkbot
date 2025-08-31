@@ -8,12 +8,11 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class VkUnknownCommandUsecase: VkUnknownPort {
-    companion object {
-        val STATIC_RESPONSE = VkUnknownResponse("ok")
-    }
+    val okResponse = VkUnknownResponse("ok") // Отвечаем ок, чтоб вк не ддосил неподдерживаемыми ивентами
+
     override fun execute(request: VkUnknownRequest): VkUnknownResponse {
         Log.error("Unknown VK command: ${request.request}")
-        return STATIC_RESPONSE
+        return okResponse
     }
 
 }
