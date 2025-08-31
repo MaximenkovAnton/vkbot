@@ -81,17 +81,18 @@ POST("$host/vk/callback"){
         """.trimIndent(),
     )
 }
-POST("$host/vk/callback"){
+
+POST("$host/vk/callback") {
     contentType("application/json")
     body(
         """
-       {
-           "group_id": 232142875,
-           "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
-           "v": "5.199",
-           "type": "bla-bla-bla",
-           "secret": "incorrect secret"
-       }
-        """.trimIndent(),
+   {
+       "group_id": 232142875,
+       "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
+       "v": "5.199",
+       "type": "bla-bla-bla",
+       "secret": "incorrect secret"
+   }
+    """.trimIndent(),
     )
 }

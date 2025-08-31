@@ -7,9 +7,9 @@ import io.quarkus.vertx.web.Route
 import io.quarkus.vertx.web.RouteBase
 import io.vertx.ext.web.RoutingContext
 import jakarta.enterprise.context.ApplicationScoped
-import jakarta.inject.Singleton
+import jakarta.ws.rs.core.MediaType
 
-@RouteBase(path = "vk", produces = ["text/plain"])
+@RouteBase(path = "vk", produces = [MediaType.TEXT_PLAIN])
 @ApplicationScoped
 open class VkMediatorRouterImpl(@All processors: MutableList<VkCallbackEventProcessor>): VkMediatorRouter {
     val processors: Map<VkCallbackEvent, VkCallbackEventProcessor> = processors.associateBy { it.event() }

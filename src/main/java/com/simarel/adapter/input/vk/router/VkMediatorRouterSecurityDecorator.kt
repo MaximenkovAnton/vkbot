@@ -23,7 +23,7 @@ class VkMediatorRouterSecurityDecorator(): VkMediatorRouter {
             return delegate.callback(rc)
         } else {
             Log.error {"Vk Router message without secret! ${rc.body()}"}
-            throw AccessDeniedException("Secret code not provided")
+            throw AccessDeniedException("Secret code not provided or incorrect")
         }
     }
 }
