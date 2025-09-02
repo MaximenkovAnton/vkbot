@@ -2,8 +2,8 @@ package com.simarel.adapter.input.vk.processor.callback.unknown
 
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEventProcessor
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEvent
-import com.simarel.port.input.vk.callback.VkUnknownPort
-import com.simarel.port.input.vk.callback.VkUnknownRequest
+import com.simarel.port.input.vk.VkUnknownPort
+import com.simarel.port.input.vk.VkUnknownRequest
 import io.vertx.core.json.JsonObject
 import jakarta.enterprise.context.ApplicationScoped
 

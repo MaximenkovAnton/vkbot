@@ -1,8 +1,8 @@
 package com.simarel.usecase.vk.unknown
 
-import com.simarel.port.input.vk.callback.VkUnknownPort
-import com.simarel.port.input.vk.callback.VkUnknownRequest
-import com.simarel.port.input.vk.callback.VkUnknownResponse
+import com.simarel.port.input.vk.VkUnknownPort
+import com.simarel.port.input.vk.VkUnknownRequest
+import com.simarel.port.input.vk.VkUnknownResponse
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 

@@ -1,4 +1,4 @@
-package com.simarel.port.input.vk.callback
+package com.simarel.port.input.vk
 
 import  io.vertx.core.json.JsonObject
 

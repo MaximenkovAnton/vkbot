@@ -1,8 +1,9 @@
 package com.simarel.adapter.input.vk
 
 val host = "http://localhost:8080"
+val callbackUrl = "$host/vk/callback"
 
-POST("$host/vk/callback") {
+POST(callbackUrl) {
     contentType("application/json")
     body(
         """
@@ -40,7 +41,7 @@ POST("$host/vk/callback") {
                     "is_hidden": false,
                     "attachments": [],
                     "conversation_message_id": 2670,
-                    "text": "[club232142875|@simarel] жив?",
+                    "text": "[club232142875|@simarel] Ты как? Все хорошо?",
                     "is_unavailable": true,
                     "peer_id": 2000000001,
                     "random_id": 0
@@ -52,7 +53,7 @@ POST("$host/vk/callback") {
     )
 }
 
-POST("$host/vk/callback"){
+POST(callbackUrl){
     contentType("application/json")
     body(
         """
@@ -67,7 +68,7 @@ POST("$host/vk/callback"){
     )
 }
 
-POST("$host/vk/callback"){
+POST(callbackUrl){
     contentType("application/json")
     body(
         """
@@ -82,7 +83,7 @@ POST("$host/vk/callback"){
     )
 }
 
-POST("$host/vk/callback") {
+POST(callbackUrl) {
     contentType("application/json")
     body(
         """
