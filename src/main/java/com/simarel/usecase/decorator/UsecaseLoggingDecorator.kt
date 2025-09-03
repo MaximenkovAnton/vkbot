@@ -2,14 +2,14 @@ package com.simarel.usecase.decorator
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.port.Port
-import com.simarel.port.Request
-import com.simarel.port.Response
+import com.simarel.port.PortRequest
+import com.simarel.port.PortResponse
 import io.quarkus.logging.Log
 import jakarta.decorator.Decorator
 import jakarta.decorator.Delegate
 
 @Decorator
-open class UsecaseLoggingDecorator<REQ: Request, RESP: Response>(
+open class UsecaseLoggingDecorator<REQ: PortRequest, RESP: PortResponse>(
     @Delegate val delegate: Port<REQ, RESP>,
     val objectMapper: ObjectMapper
 ): Port<REQ, RESP> {

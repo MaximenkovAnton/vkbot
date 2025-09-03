@@ -1,15 +1,13 @@
 package com.simarel.port.output.ai
 
 import com.simarel.port.Port
-import com.simarel.port.Request
-import com.simarel.port.Response
-import com.simarel.port.output.OutputRequest
-import com.simarel.port.output.OutputResponse
+import com.simarel.port.output.OutputPortRequest
+import com.simarel.port.output.OutputPortResponse
 
-fun interface AiPort<REQ: AiOutputRequest, RESP: AiOutputResponse>: Port<REQ, RESP> {
+fun interface AiPort<REQ: AiOutputPortRequest, RESP: AiOutputPortResponse>: Port<REQ, RESP> {
     override fun execute(request: REQ): RESP
 }
 
-interface AiOutputRequest: OutputRequest
+interface AiOutputPortRequest: OutputPortRequest
 
-interface AiOutputResponse: OutputResponse
+interface AiOutputPortResponse: OutputPortResponse

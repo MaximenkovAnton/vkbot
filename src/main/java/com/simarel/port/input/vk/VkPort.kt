@@ -1,13 +1,13 @@
 package com.simarel.port.input.vk
 
 import com.simarel.port.input.InputPort
-import com.simarel.port.input.InputRequest
-import com.simarel.port.input.InputResponse
+import com.simarel.port.input.InputPortRequest
+import com.simarel.port.input.InputPortResponse
 
-fun interface VkPort<REQ: VkRequest, RESP: VkResponse>: InputPort<REQ, RESP> {
+fun interface VkPort<REQ: VkPortRequest, RESP: VkPortResponse>: InputPort<REQ, RESP> {
     override fun execute(request: REQ): RESP
 }
 
-interface VkRequest: InputRequest
+interface VkPortRequest: InputPortRequest
 
-interface VkResponse: InputResponse
+interface VkPortResponse: InputPortResponse

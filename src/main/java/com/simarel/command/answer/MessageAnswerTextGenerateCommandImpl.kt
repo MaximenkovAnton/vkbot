@@ -1,7 +1,7 @@
 package com.simarel.command.answer
 
 import com.simarel.port.output.ai.AiChatbotAnswerMessageOutputPort
-import com.simarel.port.output.ai.AiChatbotAnswerMessageOutputRequest
+import com.simarel.port.output.ai.AiChatbotAnswerMessageOutputPortRequest
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -11,7 +11,7 @@ class MessageAnswerTextGenerateCommandImpl(
 ): MessageAnswerTextGenerateCommand {
     override fun execute(request: MessageAnswerTextGenerateCommandRequest): MessageAnswerTextGenerateCommandResponse {
         val response = aiChatbotAnswerMessageOutputPort.execute(
-            AiChatbotAnswerMessageOutputRequest(request.message)
+            AiChatbotAnswerMessageOutputPortRequest(request.message)
         )
         Log.warn("Ai generated answer text: ${response.responseMessage}")
         return MessageAnswerTextGenerateCommandResponse(response.responseMessage)

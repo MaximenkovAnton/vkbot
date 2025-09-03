@@ -4,7 +4,7 @@ import com.simarel.adapter.input.vk.mapper.MessageMapper
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEventProcessor
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEvent
 import com.simarel.port.input.vk.VkMessageNewInputPort
-import com.simarel.port.input.vk.VkMessageNewInputRequest
+import com.simarel.port.input.vk.VkMessageNewInputPortRequest
 import io.vertx.core.json.JsonObject
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -18,7 +18,7 @@ open class VkCallbackNewMessageEventProcessor(
 
     override fun execute(body: JsonObject): String {
         val message = messageMapper.toDomain(body)
-        val response = vkMessageNewInputPort.execute(VkMessageNewInputRequest(message))
+        val response = vkMessageNewInputPort.execute(VkMessageNewInputPortRequest(message))
         return response.value
     }
 }

@@ -3,7 +3,7 @@ package com.simarel.adapter.input.vk.processor.callback.unknown
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEventProcessor
 import com.simarel.adapter.input.vk.processor.callback.VkCallbackEvent
 import com.simarel.port.input.vk.VkUnknownPort
-import com.simarel.port.input.vk.VkUnknownRequest
+import com.simarel.port.input.vk.VkUnknownPortRequest
 import io.vertx.core.json.JsonObject
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -13,6 +13,6 @@ class VkCallbackUnknownEventProcessor(val vkUnknownPort: VkUnknownPort): VkCallb
     override fun event() = VkCallbackEvent.UNKNOWN
 
     override fun execute(body: JsonObject): String {
-        return vkUnknownPort.execute(VkUnknownRequest(body)).value
+        return vkUnknownPort.execute(VkUnknownPortRequest(body)).value
     }
 }

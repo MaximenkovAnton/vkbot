@@ -2,9 +2,10 @@ package com.simarel.port.input.vk
 
 import  io.vertx.core.json.JsonObject
 
-interface VkUnknownPort: VkPort<VkUnknownRequest, VkUnknownResponse>
-
-class VkUnknownRequest(val request: JsonObject): VkRequest
+interface VkUnknownPort: VkPort<VkUnknownPortRequest, VkUnknownPortResponse>
 
 @JvmInline
-value class VkUnknownResponse(val value: String): VkResponse
+value class VkUnknownPortRequest(val request: JsonObject): VkPortRequest
+
+@JvmInline
+value class VkUnknownPortResponse(val value: String): VkPortResponse

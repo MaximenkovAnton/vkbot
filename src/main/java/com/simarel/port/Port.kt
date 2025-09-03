@@ -1,9 +1,9 @@
 package com.simarel.port
 
-fun interface Port<REQ: Request, RESP: Response> {
+fun interface Port<REQ: PortRequest, RESP: PortResponse> {
     fun execute(request: REQ): RESP
 }
 
-interface Request
+interface PortRequest
 
-interface Response
+interface PortResponse

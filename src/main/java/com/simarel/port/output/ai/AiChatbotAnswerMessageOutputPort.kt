@@ -3,10 +3,10 @@ package com.simarel.port.output.ai
 import com.simarel.domain.model.Message
 import com.simarel.domain.vo.MessageText
 
-interface AiChatbotAnswerMessageOutputPort: AiPort<AiChatbotAnswerMessageOutputRequest, AiChatbotAnswerMessageOutputResponse>
+interface AiChatbotAnswerMessageOutputPort: AiPort<AiChatbotAnswerMessageOutputPortRequest, AiChatbotAnswerMessageOutputPortResponse>
 
 @JvmInline
-value class AiChatbotAnswerMessageOutputRequest(val message: Message): AiOutputRequest
+value class AiChatbotAnswerMessageOutputPortRequest(val message: Message): AiOutputPortRequest
 
 @JvmInline
-value class AiChatbotAnswerMessageOutputResponse(val responseMessage: MessageText): AiOutputResponse
+value class AiChatbotAnswerMessageOutputPortResponse(val responseMessage: MessageText): AiOutputPortResponse

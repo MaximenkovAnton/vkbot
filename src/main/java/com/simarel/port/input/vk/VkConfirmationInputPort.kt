@@ -2,9 +2,9 @@ package com.simarel.port.input.vk
 
 import com.simarel.domain.vo.ConfirmationCode
 
-interface VkConfirmationInputPort: VkPort<VkConfirmationInputRequest, VkConfirmationInputResponse>
+interface VkConfirmationInputPort: VkPort<VkConfirmationInputPortRequest, VkConfirmationInputPortResponse>
 
-class VkConfirmationInputRequest: VkRequest
+class VkConfirmationInputPortRequest: VkPortRequest
 
 @JvmInline
-value class VkConfirmationInputResponse(val confirmationCode: ConfirmationCode): VkResponse
+value class VkConfirmationInputPortResponse(val confirmationCode: ConfirmationCode): VkPortResponse

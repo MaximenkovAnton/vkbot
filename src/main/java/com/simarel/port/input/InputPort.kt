@@ -1,13 +1,13 @@
 package com.simarel.port.input
 
 import com.simarel.port.Port
-import com.simarel.port.Request
-import com.simarel.port.Response
+import com.simarel.port.PortRequest
+import com.simarel.port.PortResponse
 
-fun interface InputPort<REQ: InputRequest, RESP: InputResponse>: Port<REQ, RESP> {
+fun interface InputPort<REQ: InputPortRequest, RESP: InputPortResponse>: Port<REQ, RESP> {
     override fun execute(request: REQ): RESP
 }
 
-interface InputRequest: Request
+interface InputPortRequest: PortRequest
 
-interface InputResponse: Response
+interface InputPortResponse: PortResponse
