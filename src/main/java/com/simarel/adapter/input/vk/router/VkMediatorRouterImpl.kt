@@ -5,7 +5,7 @@ import com.simarel.adapter.input.vk.processor.callback.VkCallbackEvent
 import io.quarkus.arc.All
 import io.quarkus.vertx.web.Route
 import io.quarkus.vertx.web.RouteBase
-import io.smallrye.common.annotation.RunOnVirtualThread
+import io.smallrye.common.annotation.Blocking
 import io.vertx.ext.web.RoutingContext
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.core.MediaType
@@ -16,7 +16,7 @@ open class VkMediatorRouterImpl(@All processors: MutableList<VkCallbackEventProc
     val processors: Map<VkCallbackEvent, VkCallbackEventProcessor> = processors.associateBy { it.event() }
 
     @Route(methods = [Route.HttpMethod.POST])
-    @RunOnVirtualThread
+    @Blocking // TODO: Перейти на RunOnVirtualThread (exception handler не отрабатывает)
     override fun callback(rc: RoutingContext) {
         val body = rc.body().asJsonObject()
         val type = VkCallbackEvent.Companion.mapOrUnknown(body.getString("type"))
