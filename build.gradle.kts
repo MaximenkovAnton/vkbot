@@ -28,6 +28,7 @@ dependencies {
     implementation("io.quarkus:quarkus-spring-data-jpa")
     implementation("io.quarkus:quarkus-reactive-routes")
     implementation("io.quarkus:quarkus-reactive-routes")
+    implementation("io.quarkus:quarkus-rest-client-jackson")
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:${quarkusLangChain4jVersion}")
     testImplementation("io.quarkus:quarkus-junit5")
     implementation(kotlin("stdlib-jdk8"))

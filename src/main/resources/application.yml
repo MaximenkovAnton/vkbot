@@ -1,9 +1,21 @@
 vk:
   secret: <secret>
   confirmation-code: 123456
+  api:
+    version: 5.131
+    token: REQUIRED_TO_BE_REPLACED
 quarkus:
   hibernate-orm:
     schema-management:
       strategy: drop-and-create
   datasource:
     db-kind: postgresql
+
+  rest-client:
+    scope: jakarta.inject.Singleton
+    logging:
+      scope: request-response
+    vk:
+      url: https://api.vk.ru/method
+      headers:
+        Authorization: Bearer ${vk.api.token}

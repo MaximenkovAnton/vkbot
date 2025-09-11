@@ -4,7 +4,7 @@ import com.simarel.port.Port
 import com.simarel.port.output.OutputPortRequest
 import com.simarel.port.output.OutputPortResponse
 
-fun interface AiPort<REQ: AiOutputPortRequest, RESP: AiOutputPortResponse>: Port<REQ, RESP> {
+fun interface AiOutputPort<REQ: AiOutputPortRequest, RESP: AiOutputPortResponse>: Port<REQ, RESP> {
     override fun execute(request: REQ): RESP
 }
 
