@@ -19,3 +19,29 @@ quarkus:
       url: https://api.vk.ru/method
       headers:
         Authorization: Bearer ${vk.api.token}
+#  smallrye-reactive-messaging:
+#    events:
+#      connector: rabbitmq
+#      exchange-name: events-exchange
+#      queue-name: events-queue
+#      routing-key: '#'
+
+
+  rabbitmq:
+    devservices:
+      image-name: rabbitmq:latest
+
+mp:
+  messaging:
+    incoming:
+      all-events-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: all-events
+        queue:
+          name: queue
+    outgoing:
+      events-exchange:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: all-events
