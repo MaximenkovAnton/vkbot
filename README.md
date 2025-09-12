@@ -1,78 +1,149 @@
-# vkbot
+# VK Bot Application
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+A Quarkus-based VK bot that processes incoming messages and provides AI-powered responses. The project follows clean architecture principles with clear separation of concerns, ensuring maintainability and scalability.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Features
 
-## Running the application in dev mode
+- ✅ Clean architecture implementation with domain-driven design
+- ✅ VK API integration
+- ✅ AI-powered responses using LangChain4j
+- ✅ Event-driven architecture with RabbitMQ
+- ✅ Docker support for multiple deployment options (JVM, native)
+- ✅ RESTful API endpoints for VK webhook integration
 
-You can run your application in dev mode that enables live coding using:
+## Technologies Used
 
-```shell script
+- **Quarkus** (Java/Kotlin) - Reactive, cloud-native framework
+- **Kotlin** - Modern, concise programming language
+- **LangChain4j** - AI integration framework for conversational AI
+- **RabbitMQ** - Event-driven message brokering
+- **Docker** - Containerization for consistent deployments
+- **RESTEasy** - JAX-RS implementation for HTTP endpoints
+- **Jackson** - JSON processing library
+- **Quarkus DevServices** - Automatic service provisioning for development
+
+## Prerequisites
+
+- Java 21 (for building and running)
+- Docker (optional, for containerized deployment)
+- VK developer account and group
+
+## Setup and Configuration
+
+### 1. Create VK Group and Configure Callback
+
+1. Create a VK group (if not already created)
+2. Go to **Community Management → API**
+3. Set up a callback server:
+   - **URL**: `https://your-domain.com/vk/callback`
+   - **Secret**: Choose a secure secret key
+   - **Confirmation code**: Choose a confirmation code (e.g., `123456`)
+4. Get the group's API token from the API section
+
+### 2. Configure Application
+
+You can configure the application using environment variables or by modifying `application.yml`:
+
+#### Using Environment Variables
+
+| Environment Variable | Description |
+|----------------------|-------------|
+| `VK_SECRET` | The secret key from VK callback setup |
+| `VK_CONFIRMATION_CODE` | The confirmation code from VK callback setup |
+| `VK_API_TOKEN` | Your VK group API token |
+
+#### Using application.yml
+
+```yaml
+vk:
+  secret: your_secret
+  confirmation-code: 123456
+  api:
+    version: 5.131
+    token: your_api_token
+```
+
+> **Note**: In production, ensure sensitive credentials are managed securely (e.g., via Kubernetes secrets, HashiCorp Vault, or environment variables)
+
+## Building and Running
+
+### Local Development (using Gradle)
+
+```bash
 ./gradlew quarkusDev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+This will start the application in development mode with hot reloading. The application will automatically start RabbitMQ using Quarkus DevServices.
 
-## Packaging and running the application
+### Docker Deployment
 
-The application can be packaged using:
+#### Build the Docker image
 
-```shell script
-./gradlew build
+```bash
+# For JVM mode (recommended for development)
+docker build -f src/main/docker/Dockerfile.jvm -t vk-bot-jvm .
+
+# For native mode (optimized for production)
+docker build -f src/main/docker/Dockerfile.native -t vk-bot-native .
 ```
 
-It produces the `quarkus-run.jar` file in the `build/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `build/quarkus-app/lib/` directory.
+#### Run the container
 
-The application is now runnable using `java -jar build/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./gradlew build -Dquarkus.package.jar.type=uber-jar
+```bash
+docker run -p 8080:8080 \
+  -e VK_SECRET=your_secret \
+  -e VK_CONFIRMATION_CODE=123456 \
+  -e VK_API_TOKEN=your_api_token \
+  vk-bot-jvm
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar build/*-runner.jar`.
+## API Endpoints
 
-## Creating a native executable
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/vk/callback` | POST | Handles incoming VK events. Requires `secret` field in request body for validation. |
 
-You can create a native executable using:
-
-```shell script
-./gradlew build -Dquarkus.native.enabled=true
+### Example Request (from VK)
+```json
+{
+  "type": "message_new",
+  "object": {
+    "message": {
+      "text": "Привет!",
+      "from_id": 123456,
+      "peer_id": 789012,
+      "conversation_message_id": 1
+    }
+  },
+  "group_id": 123456,
+  "secret": "your_secret"
+}
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
+### Example Response
+```
+ok
 ```
 
-You can then execute your native executable with: `./build/vkbot-1.0.0-SNAPSHOT-runner`
+## Security
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/gradle-tooling>.
+The application validates all incoming VK callback requests using the configured secret. Only requests with the correct secret will be processed. The confirmation code is used specifically for the initial VK group confirmation request.
 
-## Related Guides
+## Contributing
 
-- Observability ([guide](https://quarkus.io/guides/observability-devservices-lgtm)): Serve and consume Observability Dev Services
-- Flyway ([guide](https://quarkus.io/guides/flyway)): Handle your database schema migrations
-- YAML Configuration ([guide](https://quarkus.io/guides/config-yaml)): Use YAML to configure your Quarkus application
-- OpenTelemetry ([guide](https://quarkus.io/guides/opentelemetry)): Use OpenTelemetry to trace services
-- Jacoco - Code Coverage ([guide](https://quarkus.io/guides/tests-with-coverage)): Jacoco test coverage support
-- Agroal - DB connection pool ([guide](https://quarkus.io/guides/datasource)): JDBC Datasources and connection pooling
-- Logging JSON ([guide](https://quarkus.io/guides/logging#json-logging)): Add JSON formatter for console logging
-- Reactive PostgreSQL client ([guide](https://quarkus.io/guides/reactive-sql-clients)): Connect to the PostgreSQL database using the reactive pattern
-- Quarkus Extension for Spring Data JPA API ([guide](https://quarkus.io/guides/spring-data-jpa)): Use Spring Data JPA annotations to create your data access layer
-- Reactive Routes ([guide](https://quarkus.io/guides/reactive-routes)): REST framework offering the route model to define non blocking endpoints
-- Quarkus LangChain4j ([guide](https://docs.quarkiverse.io/quarkus-langchain4j/dev/index.html)): Build intelligent, AI-infused applications by integrating Large Language Models into your Quarkus services with a declarative, developer-friendly API.
+Contributions are welcome! Please follow these guidelines:
 
-## Provided Code
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a pull request
 
-### YAML Config
+## Additional Notes
 
-Configure your application with YAML
+- For development, RabbitMQ is automatically started via Quarkus DevServices. For production, configure RabbitMQ connection details in `application.yml`.
+- The application uses Dockerfiles for different build modes (JVM, legacy jar, native, micro). Choose the appropriate one based on your deployment needs.
+- Ensure that the VK group's callback URL is correctly configured to point to your application's `/vk/callback` endpoint.
+- The AI service responds in Russian by default (configured in `UserAnswerAiService` interface).
 
-[Related guide section...](https://quarkus.io/guides/config-reference#configuration-examples)
-
-The Quarkus application configuration is located in `src/main/resources/application.yml`.
+> **Note**: The project follows clean architecture principles with clear separation between domain, ports, adapters, and use cases. This ensures maintainability and makes it easy to swap out components (e.g., different AI providers or messaging systems) without affecting the core business logic.
