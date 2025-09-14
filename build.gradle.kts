@@ -30,6 +30,9 @@ dependencies {
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-client-jackson")
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:${quarkusLangChain4jVersion}")
+
+    //  Additional
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
     testImplementation("io.quarkus:quarkus-junit5")
     implementation(kotlin("stdlib-jdk8"))
 }
