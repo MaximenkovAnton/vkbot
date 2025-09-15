@@ -1,11 +1,11 @@
-package com.simarel.vkbot.processor.domain.model
+package com.simarel.vkbot.share.domain.model
 
-import com.simarel.vkbot.processor.domain.vo.ConversationMessageId
-import com.simarel.vkbot.processor.domain.vo.Date
-import com.simarel.vkbot.processor.domain.vo.FromId
-import com.simarel.vkbot.processor.domain.vo.GroupId
-import com.simarel.vkbot.processor.domain.vo.MessageText
-import com.simarel.vkbot.processor.domain.vo.PeerId
+import com.simarel.vkbot.share.domain.vo.ConversationMessageId
+import com.simarel.vkbot.share.domain.vo.Date
+import com.simarel.vkbot.share.domain.vo.FromId
+import com.simarel.vkbot.share.domain.vo.GroupId
+import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.share.domain.vo.PeerId
 import java.time.OffsetDateTime
 
 data class Message(

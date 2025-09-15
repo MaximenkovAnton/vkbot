@@ -1,4 +1,4 @@
-package com.simarel.vkbot.infrastructure.usecase.decorator
+package com.simarel.vkbot.infrastructure.decorator.logging
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.share.port.Port
@@ -14,9 +14,15 @@ open class UsecaseLoggingDecorator<REQ: PortRequest, RESP: PortResponse>(
     val objectMapper: ObjectMapper
 ): Port<REQ, RESP> {
     override fun execute(request: REQ): RESP {
-        Log.debug("Incoming request: ${objectMapper.writeValueAsString(request)}")
+        if(Log.isTraceEnabled()) {
+            Log.trace("Incoming usecase request: ${objectMapper.writeValueAsString(request)}")
+        }
+
         val response = delegate.execute(request)
-        Log.debug("Outcoming response: ${objectMapper.writeValueAsString(response)}")
+
+        if(Log.isTraceEnabled()) {
+            Log.trace("Outcoming usecase response: ${objectMapper.writeValueAsString(response)}")
+        }
         return response
     }
 }

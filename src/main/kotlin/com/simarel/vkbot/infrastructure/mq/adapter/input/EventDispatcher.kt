@@ -1,4 +1,4 @@
-package com.simarel.vkbot.infrastructure.adapter.input.mq
+package com.simarel.vkbot.infrastructure.mq.adapter.input
 
 import com.simarel.vkbot.share.adapter.input.EventProcessor
 import io.quarkus.arc.All

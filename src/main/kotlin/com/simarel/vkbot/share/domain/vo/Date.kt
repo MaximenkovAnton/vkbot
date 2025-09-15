@@ -1,4 +1,4 @@
-package com.simarel.vkbot.processor.domain.vo
+package com.simarel.vkbot.share.domain.vo
 
 import java.time.OffsetDateTime
 

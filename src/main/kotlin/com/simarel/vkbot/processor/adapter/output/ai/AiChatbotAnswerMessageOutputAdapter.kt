@@ -1,6 +1,6 @@
 package com.simarel.vkbot.processor.adapter.output.ai
 
-import com.simarel.vkbot.processor.domain.vo.MessageText
+import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPort
 import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPortRequest
 import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPortResponse

@@ -1,6 +1,6 @@
 package com.simarel.vkbot.receiver.adapter.output.mapper
 
-import com.simarel.vkbot.processor.domain.model.Message
+import com.simarel.vkbot.share.domain.model.Message
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.json.JsonObject
 import java.time.Instant

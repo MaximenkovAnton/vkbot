@@ -1,6 +1,6 @@
 package com.simarel.vkbot.processor.port.input.messageRequireAnswer
 
-import com.simarel.vkbot.processor.domain.model.Message
+import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.port.Port
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
