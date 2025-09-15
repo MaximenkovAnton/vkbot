@@ -1,5 +1,6 @@
-package com.simarel.vkbot.processor.adapter.output.vk
+package com.simarel.vkbot.vkFacade.adapter.output.vk
 
+import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
 import io.quarkus.rest.client.reactive.ClientQueryParam
 import jakarta.ws.rs.FormParam
 import jakarta.ws.rs.POST
@@ -13,5 +14,9 @@ interface VkClient {
 
     @POST
     @Path("/messages.send")
-    fun sendMessage(@FormParam("peer_id") peerId: Long, @FormParam("message") message: String, @FormParam("random_id") rand: Int)
+    fun sendMessage(
+        @FormParam("peer_id") peerId: Long,
+        @FormParam("message") message: String,
+        @FormParam("random_id") rand: Int
+    ): VkResponseDto
 }

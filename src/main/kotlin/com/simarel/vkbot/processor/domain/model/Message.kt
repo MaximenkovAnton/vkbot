@@ -33,4 +33,8 @@ data class Message(
             messageText = MessageText.of(messageText),
         )
     }
+
+    fun answer(text: MessageText): Message {
+        return this.copy(messageText = text)
+    }
 }

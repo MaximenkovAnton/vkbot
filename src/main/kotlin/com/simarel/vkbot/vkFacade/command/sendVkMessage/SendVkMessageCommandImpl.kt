@@ -1,7 +1,7 @@
-package com.simarel.vkbot.processor.command.sendVkMessage
+package com.simarel.vkbot.vkFacade.command.sendVkMessage
 
-import com.simarel.vkbot.processor.port.output.vk.VkSendMessageOutputPort
-import com.simarel.vkbot.processor.port.output.vk.VkSendMessageOutputRequest
+import com.simarel.vkbot.vkFacade.port.output.vk.VkSendMessageOutputPort
+import com.simarel.vkbot.vkFacade.port.output.vk.VkSendMessageOutputRequest
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped

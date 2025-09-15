@@ -1,4 +1,4 @@
-package com.simarel.vkbot.processor.command.sendVkMessage
+package com.simarel.vkbot.vkFacade.command.sendVkMessage
 
 import com.simarel.vkbot.share.command.Command
 import com.simarel.vkbot.share.command.CommandRequest

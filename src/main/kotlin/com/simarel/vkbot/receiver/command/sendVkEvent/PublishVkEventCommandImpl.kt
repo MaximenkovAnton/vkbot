@@ -11,11 +11,11 @@ import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-class SendVkEventCommandImpl(
+class PublishVkEventCommandImpl(
     val publishEventOutputPort: PublishEventOutputPort,
     val messageMapper: MessageMapper,
     val objectMapper: ObjectMapper,
-) : SendVkEventCommand {
+) : PublishVkEventCommand {
     val response = PublishVkEventCommandResponse()
     override fun execute(request: PublishVkEventCommandRequest): PublishVkEventCommandResponse {
         val event = mapVkEventToEvent(request.vkEvent.type())
@@ -25,7 +25,7 @@ class SendVkEventCommandImpl(
             publishEventOutputPort.execute(
                 request = PublishEventOutputPortRequest(
                     event = event,
-                    payload = Payload(objectMapper.writeValueAsString(message))
+                    payload = Payload(message)
                 )
             )
         }

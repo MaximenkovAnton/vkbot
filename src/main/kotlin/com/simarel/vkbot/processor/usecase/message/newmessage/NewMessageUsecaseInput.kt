@@ -1,15 +1,17 @@
 package com.simarel.vkbot.processor.usecase.message.newmessage
 
-import com.simarel.vkbot.processor.command.requireSendMessage.RequireSendMessageCommand
-import com.simarel.vkbot.processor.command.requireSendMessage.RequireSendMessageCommandRequest
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPort
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequest
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortResponse
+import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.vo.Payload
+import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventRequest
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class NewMessageUsecaseInput(
-    val requireSendMessageCommand: RequireSendMessageCommand
+    val publishEventCommand: PublishEventCommand
 ): MessageNewInputPort {
     val okResponse = MessageNewInputPortResponse("ok")
 
@@ -24,8 +26,11 @@ open class NewMessageUsecaseInput(
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
         if(requireAnswer(request)) {
-            requireSendMessageCommand.execute(
-                RequireSendMessageCommandRequest(request.message)
+            publishEventCommand.execute(
+                PublishEventRequest(
+                    event = Event.MESSAGE_REQUIRE_ANSWER,
+                    payload = Payload(request.message)
+                )
             )
         }
         return okResponse

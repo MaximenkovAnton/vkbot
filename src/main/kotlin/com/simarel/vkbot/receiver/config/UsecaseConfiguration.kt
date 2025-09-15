@@ -1,6 +1,6 @@
 package com.simarel.vkbot.receiver.config
 
-import com.simarel.vkbot.receiver.command.sendVkEvent.SendVkEventCommand
+import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommand
 import com.simarel.vkbot.receiver.domain.vo.ConfirmationCode
 import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
@@ -13,10 +13,10 @@ class UsecaseConfiguration {
 
     @Produces
     @Singleton
-    fun confirmationCode(confirmationCode: ConfirmationCode, sendVkEventCommand: SendVkEventCommand) = ReceiveMessageUsecase(
+    fun receiveMessageUsecase(confirmationCode: ConfirmationCode, publishVkEventCommand: PublishVkEventCommand) = ReceiveMessageUsecase(
         confirmationResponse = VkConfirmationInputPortResponse(VkResponse(confirmationCode.value)),
         okResponse = VkConfirmationInputPortResponse(VkResponse("ok")),
-        sendVkEventCommand = sendVkEventCommand,
+        publishVkEventCommand = publishVkEventCommand,
     )
 
 }

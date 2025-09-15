@@ -1,7 +1,7 @@
 package com.simarel.vkbot.receiver.usecase
 
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandRequest
-import com.simarel.vkbot.receiver.command.sendVkEvent.SendVkEventCommand
+import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommand
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
@@ -11,7 +11,7 @@ import io.quarkus.logging.Log
 class ReceiveMessageUsecase(
     val confirmationResponse: VkConfirmationInputPortResponse,
     val okResponse: VkConfirmationInputPortResponse,
-    val sendVkEventCommand: SendVkEventCommand,
+    val publishVkEventCommand: PublishVkEventCommand,
 ): ReceiveMessageInputPort {
     override fun execute(request: VkConfirmationInputPortRequest): VkConfirmationInputPortResponse {
         return when(request.vkEvent.type()) {
@@ -21,7 +21,7 @@ class ReceiveMessageUsecase(
                 okResponse
             }
             else -> {
-                sendVkEventCommand.execute(
+                publishVkEventCommand.execute(
                     PublishVkEventCommandRequest(
                         request.vkEvent
                     )

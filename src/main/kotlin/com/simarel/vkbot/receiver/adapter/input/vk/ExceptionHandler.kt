@@ -18,6 +18,7 @@ open class ExceptionHandler {
             when(exception.status()) {
                 ExceptionStatus.VALIDATION_FAILED -> Response.Status.BAD_REQUEST
                 ExceptionStatus.ACCESS_DENIED -> Response.Status.FORBIDDEN
+                ExceptionStatus.EXTERNAL_FAILURE -> Response.Status.SERVICE_UNAVAILABLE
                 ExceptionStatus.UNKNOWN -> Response.Status.SERVICE_UNAVAILABLE
             },
         "{\"error\": \"${exception.message}\"}")
