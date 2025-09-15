@@ -1,9 +1,9 @@
 vk:
-  secret: <secret>
-  confirmation-code: 123456
+  secret: ${VK_SECRET:<secret>}
+  confirmation-code: ${VK_CONFIRMATION_CODE:123456}
   api:
     version: 5.131
-    token: REQUIRED_TO_BE_REPLACED
+    token: ${VK_API_TOKEN}
 quarkus:
   hibernate-orm:
     schema-management:
