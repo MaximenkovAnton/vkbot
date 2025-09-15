@@ -35,6 +35,7 @@ dependencies {
     //  Additional
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
     testImplementation("io.quarkus:quarkus-junit5")
+    testImplementation("io.quarkus:quarkus-junit5-component")
     implementation(kotlin("stdlib-jdk8"))
 }
 
