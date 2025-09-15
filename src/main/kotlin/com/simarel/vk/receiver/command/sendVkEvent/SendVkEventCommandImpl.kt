@@ -1,5 +1,7 @@
 package com.simarel.vk.receiver.command.sendVkEvent
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.simarel.vk.receiver.adapter.output.mapper.MessageMapper
 import com.simarel.vk.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vk.share.port.output.PublishEventOutputPort
 import com.simarel.vk.share.domain.Event
@@ -10,16 +12,20 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class SendVkEventCommandImpl(
-    val publishEventOutputPort: PublishEventOutputPort
+    val publishEventOutputPort: PublishEventOutputPort,
+    val messageMapper: MessageMapper,
+    val objectMapper: ObjectMapper,
 ) : SendVkEventCommand {
     val response = PublishVkEventCommandResponse()
     override fun execute(request: PublishVkEventCommandRequest): PublishVkEventCommandResponse {
         val event = mapVkEventToEvent(request.vkEvent.type())
         if(event != null) {
+
+            val message = messageMapper.toDomain(request.vkEvent.value)
             publishEventOutputPort.execute(
                 request = PublishEventOutputPortRequest(
                     event = event,
-                    payload = Payload(request.vkEvent.value.toString())
+                    payload = Payload(objectMapper.writeValueAsString(message))
                 )
             )
         }

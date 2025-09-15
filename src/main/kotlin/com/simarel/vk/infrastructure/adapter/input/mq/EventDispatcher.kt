@@ -1,6 +1,5 @@
 package com.simarel.vk.infrastructure.adapter.input.mq
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vk.share.adapter.input.EventProcessor
 import io.quarkus.arc.All
 import io.smallrye.common.annotation.RunOnVirtualThread
@@ -15,12 +14,10 @@ import java.util.concurrent.CompletionStage
 @ApplicationScoped
 class EventDispatcher {
     val processors: Map<String, EventProcessor>
-    val objectMapper: ObjectMapper
     val response: CompletionStage<Void> = CompletableFuture.completedFuture(null)
     @Inject
-    constructor(@All processors: MutableList<EventProcessor>, objectMapper: ObjectMapper){
+    constructor(@All processors: MutableList<EventProcessor>){
         this.processors = processors.associateBy { it.event().name }
-        this.objectMapper = objectMapper
     }
 
     @Incoming("all-events-queue")
@@ -31,8 +28,7 @@ class EventDispatcher {
         if (processor == null){
             return handleUnknownType(routingKey, message)
         }
-        val request = objectMapper.readTree(message.payload)
-        processor.process(request)
+        processor.process(message.payload)
         return response
     }
 
