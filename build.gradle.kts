@@ -36,10 +36,11 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.quarkus:quarkus-junit5-component")
+    testImplementation("io.rest-assured:rest-assured")
     implementation(kotlin("stdlib-jdk8"))
 }
 
-group = "com.simarel"
+group = "com.simarel.vkbot"
 version = "1.0.0-SNAPSHOT"
 
 java {

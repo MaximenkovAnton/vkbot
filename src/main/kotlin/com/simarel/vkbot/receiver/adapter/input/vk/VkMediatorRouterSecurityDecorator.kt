@@ -18,11 +18,11 @@ class VkMediatorRouterSecurityDecorator(): VkMediatorRouter {
     lateinit var secret: String
 
     override fun callback(event: JsonObject): String {
-        val secret = event.getString("secret")
-        if(secret == this.secret) {
+        val eventSecret = event.getString("secret", null)
+        if(eventSecret == this.secret) {
             return delegate.callback(event)
         } else {
-            Log.error {"Vk Router message without secret! $event}"}
+            Log.error {"Vk Router message without secret! $event"}
             throw AccessDeniedException("Secret code not provided or incorrect")
         }
     }

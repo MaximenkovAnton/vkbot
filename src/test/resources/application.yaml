@@ -1,3 +1,5 @@
 vk:
+  confirmation-code: 123456
+  secret: test_secret
   api:
-    token: 123456
+    token: vk-token

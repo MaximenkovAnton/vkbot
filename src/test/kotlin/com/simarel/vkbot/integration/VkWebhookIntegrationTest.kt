@@ -1,0 +1,150 @@
+package com.simarel.vkbot.integration
+
+import io.quarkus.test.junit.QuarkusTest
+import io.restassured.RestAssured.given
+import io.restassured.http.ContentType
+import org.hamcrest.CoreMatchers.equalTo
+import org.junit.jupiter.api.Test
+
+@QuarkusTest
+class VkWebhookIntegrationTest {
+    val SECRET = "test_secret"
+    @Test
+    fun `POST vk callback with confirmation event returns confirmation code`() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "group_id": 232142875,
+                    "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
+                    "v": "5.199",
+                    "type": "confirmation",
+                    "secret": "$SECRET"
+                }
+            """.trimIndent())
+            .`when`()
+            .post("/vk/callback")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.TEXT)
+            .body(equalTo("123456"))
+    }
+
+    @Test
+    fun `POST vk callback with message_new event returns ok`() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "group_id": 232142875,
+                    "type": "message_new",
+                    "event_id": "fef1f1789eb2bd7c8cf147b5c7da926491320342",
+                    "v": "5.199",
+                    "object": {
+                        "client_info": {
+                            "button_actions": [
+                                "text",
+                                "vkpay",
+                                "open_app",
+                                "location",
+                                "open_link",
+                                "open_photo",
+                                "callback",
+                                "intent_subscribe",
+                                "intent_unsubscribe"
+                            ],
+                            "keyboard": true,
+                            "inline_keyboard": true,
+                            "carousel": true,
+                            "lang_id": 0
+                        },
+                        "message": {
+                            "date": 1756381457,
+                            "from_id": 173308266,
+                            "id": 0,
+                            "version": 10000390,
+                            "out": 0,
+                            "fwd_messages": [],
+                            "important": false,
+                            "is_hidden": false,
+                            "attachments": [],
+                            "conversation_message_id": 2670,
+                            "text": "[club232142875|@simarel] Ты как? Все хорошо?",
+                            "is_unavailable": true,
+                            "peer_id": 2000000001,
+                            "random_id": 0
+                        }
+                    },
+                    "secret": "$SECRET"
+                }
+            """.trimIndent())
+            .`when`()
+            .post("/vk/callback")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.TEXT)
+            .body(equalTo("ok"))
+    }
+
+    @Test
+    fun `POST vk callback with unknown event type returns ok`() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "group_id": 232142875,
+                    "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
+                    "v": "5.199",
+                    "type": "bla-bla-bla",
+                    "secret": "$SECRET"
+                }
+            """.trimIndent())
+            .`when`()
+            .post("/vk/callback")
+            .then()
+            .statusCode(200)
+            .contentType(ContentType.TEXT)
+            .body(equalTo("ok"))
+    }
+
+    @Test
+    fun `POST vk callback with incorrect secret returns 403 Forbidden`() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "group_id": 232142875,
+                    "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
+                    "v": "5.199",
+                    "type": "bla-bla-bla",
+                    "secret": "incorrect secret"
+                }
+            """.trimIndent())
+            .`when`()
+            .post("/vk/callback")
+            .then()
+            .statusCode(403)
+            .contentType(ContentType.JSON)
+            .body("error", equalTo("Secret code not provided or incorrect"))
+    }
+
+    @Test
+    fun `POST vk callback without secret returns 403 Forbidden`() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "group_id": 232142875,
+                    "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
+                    "v": "5.199",
+                    "type": "confirmation"
+                }
+            """.trimIndent())
+            .`when`()
+            .post("/vk/callback")
+            .then()
+            .statusCode(403)
+            .contentType(ContentType.JSON)
+            .body("error", equalTo("Secret code not provided or incorrect"))
+    }
+}
