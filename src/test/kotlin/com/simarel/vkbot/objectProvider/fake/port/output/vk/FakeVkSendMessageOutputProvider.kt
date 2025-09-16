@@ -1,6 +1,6 @@
-package com.simarel.vkbot.fake.port.output.vk
+package com.simarel.vkbot.objectProvider.fake.port.output.vk
 
-import com.simarel.vkbot.fake.domain.FakeVoProvider
+import com.simarel.vkbot.objectProvider.fake.domain.FakeVoProvider
 import com.simarel.vkbot.vkFacade.port.output.vk.VkSendMessageOutputRequest
 
 object FakeVkSendMessageOutputProvider {

@@ -1,7 +1,7 @@
 package com.simarel.vkbot.vkFacade.adapter.output.vk
 
-import com.simarel.vkbot.fake.adapter.output.vk.FakeVkClient
-import com.simarel.vkbot.fake.port.output.vk.FakeVkSendMessageOutputProvider
+import com.simarel.vkbot.objectProvider.fake.adapter.output.vk.FakeVkClient
+import com.simarel.vkbot.objectProvider.fake.port.output.vk.FakeVkSendMessageOutputProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkError
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
 import com.simarel.vkbot.vkFacade.adapter.output.vk.exception.VkException

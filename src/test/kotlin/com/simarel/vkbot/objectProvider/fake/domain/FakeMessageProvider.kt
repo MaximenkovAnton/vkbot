@@ -1,4 +1,4 @@
-package com.simarel.vkbot.fake.domain
+package com.simarel.vkbot.objectProvider.fake.domain
 
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId

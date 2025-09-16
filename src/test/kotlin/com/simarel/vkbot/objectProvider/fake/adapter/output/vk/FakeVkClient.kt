@@ -1,4 +1,4 @@
-package com.simarel.vkbot.fake.adapter.output.vk
+package com.simarel.vkbot.objectProvider.fake.adapter.output.vk
 
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
