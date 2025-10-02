@@ -5,5 +5,7 @@ import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequ
 import com.simarel.vkbot.share.domain.model.Message
 
 object FakeMessageNewInputPortProvider {
-    fun createRequest(message: Message? = null) = MessageNewInputPortRequest(message ?: FakeMessageProvider.createMessage())
+    fun createRequest(message: Message? = null) = MessageNewInputPortRequest(
+        message = message ?: FakeMessageProvider.createMessage(),
+    )
 }

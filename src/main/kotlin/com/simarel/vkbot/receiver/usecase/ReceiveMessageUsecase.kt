@@ -13,7 +13,9 @@ class ReceiveMessageUsecase(
     val okResponse: VkConfirmationInputPortResponse,
     val publishVkEventCommand: PublishVkEventCommand,
 ) : ReceiveMessageInputPort {
-    override fun execute(request: VkConfirmationInputPortRequest): VkConfirmationInputPortResponse = when (request.vkEvent.type()) {
+    override fun execute(
+        request: VkConfirmationInputPortRequest,
+    ): VkConfirmationInputPortResponse = when (request.vkEvent.type()) {
         VkCallbackEvent.CONFIRMATION -> confirmationResponse
         VkCallbackEvent.UNKNOWN -> {
             Log.error("Unknown event: ${request.vkEvent.value}")
