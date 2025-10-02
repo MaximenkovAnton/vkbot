@@ -1,9 +1,9 @@
 package com.simarel.vkbot.vkFacade.adapter.input.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.adapter.input.EventProcessor
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
 import jakarta.enterprise.context.ApplicationScoped

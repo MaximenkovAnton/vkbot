@@ -1,6 +1,8 @@
 pluginManagement {
     val quarkusPluginVersion: String by settings
     val quarkusPluginId: String by settings
+    val detektPluginVersion: String by settings
+    val detektPluginId: String by settings
     repositories {
         mavenCentral()
         gradlePluginPortal()
@@ -8,6 +10,7 @@ pluginManagement {
     }
     plugins {
         id(quarkusPluginId) version quarkusPluginVersion
+        id(detektPluginId) version detektPluginVersion
         kotlin("jvm") version "2.1.21"
     }
 }

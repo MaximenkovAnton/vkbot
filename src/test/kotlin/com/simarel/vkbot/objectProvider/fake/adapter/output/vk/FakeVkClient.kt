@@ -4,7 +4,7 @@ import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class FakeVkClient(val vkResponseDto: VkResponseDto? = null): VkClient {
+class FakeVkClient(val vkResponseDto: VkResponseDto? = null) : VkClient {
     val sendMessageParameterCalls = ConcurrentLinkedQueue<SendMessageParameter>()
 
     override fun sendMessage(

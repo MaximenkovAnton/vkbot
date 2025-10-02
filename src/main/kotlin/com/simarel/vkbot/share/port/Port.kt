@@ -1,6 +1,6 @@
 package com.simarel.vkbot.share.port
 
-fun interface Port<REQ: PortRequest, RESP: PortResponse> {
+fun interface Port<REQ : PortRequest, RESP : PortResponse> {
     fun execute(request: REQ): RESP
 }
 

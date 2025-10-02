@@ -12,5 +12,4 @@ class ConstantConfiguration {
     @Produces
     @Singleton
     fun confirmationCode(@ConfigProperty(name = "vk.confirmation-code") secret: String) = ConfirmationCode(secret)
-
 }

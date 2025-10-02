@@ -13,7 +13,7 @@ object FakeMessageProvider {
         date: Date = FakeVoProvider.createDate(),
         fromId: FromId = FakeVoProvider.createFromId(),
         groupId: GroupId = FakeVoProvider.createGroupId(),
-        peerId: PeerId =  FakeVoProvider.createPeerId(),
+        peerId: PeerId = FakeVoProvider.createPeerId(),
         conversationMessageId: ConversationMessageId = FakeVoProvider.createConversationMessageId(),
         messageText: MessageText = FakeVoProvider.createMessageText(),
     ): Message = Message(

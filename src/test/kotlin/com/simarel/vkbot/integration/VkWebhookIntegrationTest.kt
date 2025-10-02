@@ -8,20 +8,23 @@ import org.junit.jupiter.api.Test
 
 @QuarkusTest
 class VkWebhookIntegrationTest {
-    val SECRET = "test_secret"
+    val secret = "test_secret"
+
     @Test
     fun `POST vk callback with confirmation event returns confirmation code`() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(
+                """
                 {
                     "group_id": 232142875,
                     "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
                     "v": "5.199",
                     "type": "confirmation",
-                    "secret": "$SECRET"
+                    "secret": "$secret"
                 }
-            """.trimIndent())
+                """.trimIndent()
+            )
             .`when`()
             .post("/vk/callback")
             .then()
@@ -34,7 +37,8 @@ class VkWebhookIntegrationTest {
     fun `POST vk callback with message_new event returns ok`() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(
+                """
                 {
                     "group_id": 232142875,
                     "type": "message_new",
@@ -75,9 +79,10 @@ class VkWebhookIntegrationTest {
                             "random_id": 0
                         }
                     },
-                    "secret": "$SECRET"
+                    "secret": "$secret"
                 }
-            """.trimIndent())
+                """.trimIndent()
+            )
             .`when`()
             .post("/vk/callback")
             .then()
@@ -90,15 +95,17 @@ class VkWebhookIntegrationTest {
     fun `POST vk callback with unknown event type returns ok`() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(
+                """
                 {
                     "group_id": 232142875,
                     "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
                     "v": "5.199",
                     "type": "bla-bla-bla",
-                    "secret": "$SECRET"
+                    "secret": "$secret"
                 }
-            """.trimIndent())
+                """.trimIndent()
+            )
             .`when`()
             .post("/vk/callback")
             .then()
@@ -111,7 +118,8 @@ class VkWebhookIntegrationTest {
     fun `POST vk callback with incorrect secret returns 403 Forbidden`() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(
+                """
                 {
                     "group_id": 232142875,
                     "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
@@ -119,7 +127,8 @@ class VkWebhookIntegrationTest {
                     "type": "bla-bla-bla",
                     "secret": "incorrect secret"
                 }
-            """.trimIndent())
+                """.trimIndent()
+            )
             .`when`()
             .post("/vk/callback")
             .then()
@@ -132,14 +141,16 @@ class VkWebhookIntegrationTest {
     fun `POST vk callback without secret returns 403 Forbidden`() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(
+                """
                 {
                     "group_id": 232142875,
                     "event_id": "2abd3fd8864e70eb085026e790635ef25067b93c",
                     "v": "5.199",
                     "type": "confirmation"
                 }
-            """.trimIndent())
+                """.trimIndent()
+            )
             .`when`()
             .post("/vk/callback")
             .then()

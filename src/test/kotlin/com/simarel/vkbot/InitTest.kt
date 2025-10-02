@@ -6,5 +6,7 @@ import org.junit.jupiter.api.Test
 @QuarkusTest
 class InitTest {
     @Test
-    fun init(){}
+    fun init() {
+        // Test initialization of the app
+    }
 }

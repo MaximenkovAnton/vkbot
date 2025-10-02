@@ -6,8 +6,6 @@ import io.quarkus.logging.Log
 import jakarta.enterprise.context.Dependent
 import jakarta.json.Json
 import jakarta.json.JsonObject
-import jakarta.ws.rs.Produces
-import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
 import org.jboss.resteasy.reactive.RestResponse
 import org.jboss.resteasy.reactive.server.ServerExceptionMapper
@@ -19,7 +17,7 @@ open class ExceptionHandler {
         Log.error("Exception in route: ${exception.message}", exception)
 
         val response = RestResponse.status(
-            when(exception.status()) {
+            when (exception.status()) {
                 ExceptionStatus.VALIDATION_FAILED -> Response.Status.BAD_REQUEST
                 ExceptionStatus.ACCESS_DENIED -> Response.Status.FORBIDDEN
                 ExceptionStatus.EXTERNAL_FAILURE -> Response.Status.SERVICE_UNAVAILABLE

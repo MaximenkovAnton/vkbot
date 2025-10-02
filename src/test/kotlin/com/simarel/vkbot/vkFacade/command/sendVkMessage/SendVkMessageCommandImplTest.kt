@@ -1,8 +1,8 @@
 package com.simarel.vkbot.vkFacade.command.sendVkMessage
 
+import com.simarel.vkbot.objectProvider.fake.adapter.output.vk.FakeVkClient
 import com.simarel.vkbot.objectProvider.fake.command.vkFacade.FakeSendVkMessageCommandProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkSendMessageOutputAdapter
-import com.simarel.vkbot.objectProvider.fake.adapter.output.vk.FakeVkClient
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

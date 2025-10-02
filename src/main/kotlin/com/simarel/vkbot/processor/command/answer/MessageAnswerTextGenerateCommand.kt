@@ -6,11 +6,11 @@ import com.simarel.vkbot.share.command.CommandResponse
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.MessageText
 
-interface MessageAnswerTextGenerateCommand:
+interface MessageAnswerTextGenerateCommand :
     Command<MessageAnswerTextGenerateCommandRequest, MessageAnswerTextGenerateCommandResponse>
 
 @JvmInline
-value class MessageAnswerTextGenerateCommandRequest(val message: Message): CommandRequest
+value class MessageAnswerTextGenerateCommandRequest(val message: Message) : CommandRequest
 
 @JvmInline
-value class MessageAnswerTextGenerateCommandResponse(val messageText: MessageText): CommandResponse
+value class MessageAnswerTextGenerateCommandResponse(val messageText: MessageText) : CommandResponse

@@ -1,9 +1,9 @@
 package com.simarel.vkbot.objectProvider.fake.command.processor
 
+import com.simarel.vkbot.objectProvider.fake.domain.FakeVoProvider
 import com.simarel.vkbot.processor.command.answer.MessageAnswerTextGenerateCommand
 import com.simarel.vkbot.processor.command.answer.MessageAnswerTextGenerateCommandRequest
 import com.simarel.vkbot.processor.command.answer.MessageAnswerTextGenerateCommandResponse
-import com.simarel.vkbot.objectProvider.fake.domain.FakeVoProvider
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeMessageAnswerTextGenerateCommand : MessageAnswerTextGenerateCommand {

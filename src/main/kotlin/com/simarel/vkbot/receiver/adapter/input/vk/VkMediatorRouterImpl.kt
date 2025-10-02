@@ -12,7 +12,7 @@ import jakarta.ws.rs.core.MediaType
 
 @Path("vk")
 @ApplicationScoped
-open class VkMediatorRouterImpl(val receiveMessageInputPort: ReceiveMessageInputPort): VkMediatorRouter {
+open class VkMediatorRouterImpl(val receiveMessageInputPort: ReceiveMessageInputPort) : VkMediatorRouter {
 
     @POST()
     @Path("callback")

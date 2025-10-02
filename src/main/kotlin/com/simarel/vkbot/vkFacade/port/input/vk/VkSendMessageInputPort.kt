@@ -6,11 +6,11 @@ import com.simarel.vkbot.share.port.input.InputPort
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
 
-interface VkSendMessageInputPort: InputPort<VkSendMessageInputRequest, VkSendMessageInputResponse>
+interface VkSendMessageInputPort : InputPort<VkSendMessageInputRequest, VkSendMessageInputResponse>
 
 class VkSendMessageInputRequest(
     val peerId: PeerId,
     val messageText: MessageText
-): InputPortRequest
+) : InputPortRequest
 
-class VkSendMessageInputResponse: InputPortResponse
+class VkSendMessageInputResponse : InputPortResponse

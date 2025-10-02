@@ -2,6 +2,7 @@ plugins {
     java
     id("io.quarkus")
     kotlin("jvm")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 repositories {
@@ -13,6 +14,7 @@ val quarkusPlatformGroupId: String by project
 val quarkusPlatformArtifactId: String by project
 val quarkusPlatformVersion: String by project
 val quarkusLangChain4jVersion: String by project
+val detektPluginVersion: String by project
 
 dependencies {
     implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
@@ -33,7 +35,18 @@ dependencies {
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:${quarkusLangChain4jVersion}")
 
     //  Additional
+    // jackson kotlin module for json serialization/deserialization
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
+
+    // arrowkt for functional style programming
+    implementation("io.arrow-kt:arrow-core:2.1.0")
+    implementation("io.arrow-kt:arrow-fx-coroutines:2.1.0")
+
+    // detekt
+    detektPlugins("com.wolt.arrow.detekt:rules:0.5.0")
+    detekt("io.gitlab.arturbosch.detekt:detekt-formatting:$detektPluginVersion")
+    detekt("io.gitlab.arturbosch.detekt:detekt-cli:$detektPluginVersion")
+    // testing dependencies
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.quarkus:quarkus-junit5-component")
     testImplementation("io.rest-assured:rest-assured")
@@ -55,4 +68,16 @@ tasks.withType<JavaCompile> {
 }
 kotlin {
     jvmToolchain(21)
+}
+
+detekt {
+    config = files("detekt-config.yml")
+    buildUponDefaultConfig = true
+    parallel = true
+    autoCorrect = true
+    reports {
+        xml.enabled = false
+        html.enabled = true
+        txt.enabled = false
+    }
 }

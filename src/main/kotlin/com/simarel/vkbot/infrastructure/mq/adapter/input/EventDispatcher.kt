@@ -15,8 +15,9 @@ import java.util.concurrent.CompletionStage
 class EventDispatcher {
     val processors: Map<String, EventProcessor>
     val response: CompletionStage<Void> = CompletableFuture.completedFuture(null)
+
     @Inject
-    constructor(@All processors: MutableList<EventProcessor>){
+    constructor(@All processors: MutableList<EventProcessor>) {
         this.processors = processors.associateBy { it.event().name }
     }
 
@@ -25,7 +26,7 @@ class EventDispatcher {
     fun dispatch(message: Message<String>): CompletionStage<Void> {
         val routingKey = message.metadata?.get(IncomingRabbitMQMetadata::class.java)?.get()?.routingKey
         val processor = routingKey?.let { processors[it] }
-        if (processor == null){
+        if (processor == null) {
             return handleUnknownType(routingKey, message)
         }
         processor.process(message.payload)

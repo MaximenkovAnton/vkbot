@@ -9,7 +9,7 @@ import jakarta.json.JsonObject
 import org.eclipse.microprofile.config.inject.ConfigProperty
 
 @Decorator
-class VkMediatorRouterSecurityDecorator(): VkMediatorRouter {
+class VkMediatorRouterSecurityDecorator : VkMediatorRouter {
     @Inject
     @Delegate
     lateinit var delegate: VkMediatorRouter
@@ -19,10 +19,10 @@ class VkMediatorRouterSecurityDecorator(): VkMediatorRouter {
 
     override fun callback(event: JsonObject): String {
         val eventSecret = event.getString("secret", null)
-        if(eventSecret == this.secret) {
+        if (eventSecret == this.secret) {
             return delegate.callback(event)
         } else {
-            Log.error {"Vk Router message without secret! $event"}
+            Log.error { "Vk Router message without secret! $event" }
             throw AccessDeniedException("Secret code not provided or incorrect")
         }
     }

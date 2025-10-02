@@ -12,7 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped
 @ApplicationScoped
 open class NewMessageUsecaseInput(
     val publishEventCommand: PublishEventCommand
-): MessageNewInputPort {
+) : MessageNewInputPort {
     val okResponse = MessageNewInputPortResponse("ok")
 
     override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
@@ -25,7 +25,7 @@ open class NewMessageUsecaseInput(
         5) использовать данные как контекст для ответа на вопрос
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
-        if(requireAnswer(request)) {
+        if (requireAnswer(request)) {
             publishEventCommand.execute(
                 PublishEventRequest(
                     event = Event.MESSAGE_REQUIRE_ANSWER,
@@ -36,6 +36,7 @@ open class NewMessageUsecaseInput(
         return okResponse
     }
 
+    @Suppress("FunctionOnlyReturningConstant", "UnusedParameter")
     private fun requireAnswer(request: MessageNewInputPortRequest): Boolean {
         return true // todo: проверка на наличие прямого вызова или первый ответ принадлежит боту
     }

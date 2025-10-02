@@ -9,18 +9,18 @@ import jakarta.decorator.Decorator
 import jakarta.decorator.Delegate
 
 @Decorator
-open class UsecaseLoggingDecorator<REQ: PortRequest, RESP: PortResponse>(
+open class UsecaseLoggingDecorator<REQ : PortRequest, RESP : PortResponse>(
     @Delegate val delegate: Port<REQ, RESP>,
     val objectMapper: ObjectMapper
-): Port<REQ, RESP> {
+) : Port<REQ, RESP> {
     override fun execute(request: REQ): RESP {
-        if(Log.isTraceEnabled()) {
+        if (Log.isTraceEnabled()) {
             Log.trace("Incoming usecase request: ${objectMapper.writeValueAsString(request)}")
         }
 
         val response = delegate.execute(request)
 
-        if(Log.isTraceEnabled()) {
+        if (Log.isTraceEnabled()) {
             Log.trace("Outcoming usecase response: ${objectMapper.writeValueAsString(response)}")
         }
         return response

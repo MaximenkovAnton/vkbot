@@ -8,7 +8,7 @@ import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputResponse
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-class MessageSendUsecase(val sendVkMessageCommand: SendVkMessageCommand): VkSendMessageInputPort {
+class MessageSendUsecase(val sendVkMessageCommand: SendVkMessageCommand) : VkSendMessageInputPort {
     val response = VkSendMessageInputResponse()
     override fun execute(request: VkSendMessageInputRequest): VkSendMessageInputResponse {
         sendVkMessageCommand.execute(

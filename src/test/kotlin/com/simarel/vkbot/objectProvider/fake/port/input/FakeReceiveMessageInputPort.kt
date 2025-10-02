@@ -1,9 +1,9 @@
 package com.simarel.vkbot.objectProvider.fake.port.input
 
+import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
-import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeReceiveMessageInputPort(

@@ -6,8 +6,8 @@ import com.simarel.vkbot.share.command.CommandResponse
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 
-interface SendVkMessageCommand: Command<SendVkMessageCommandRequest, SendVkMessageCommandResponse>
+interface SendVkMessageCommand : Command<SendVkMessageCommandRequest, SendVkMessageCommandResponse>
 
-class SendVkMessageCommandRequest(val peerId: PeerId, val message: MessageText): CommandRequest
+class SendVkMessageCommandRequest(val peerId: PeerId, val message: MessageText) : CommandRequest
 
-class SendVkMessageCommandResponse: CommandResponse
+class SendVkMessageCommandResponse : CommandResponse

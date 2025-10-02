@@ -6,8 +6,8 @@ import com.simarel.vkbot.share.command.CommandResponse
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.vo.Payload
 
-interface PublishEventCommand: Command<PublishEventRequest, PublishEventResponse>
+interface PublishEventCommand : Command<PublishEventRequest, PublishEventResponse>
 
-class PublishEventRequest(val event: Event, val payload: Payload): CommandRequest
+class PublishEventRequest(val event: Event, val payload: Payload) : CommandRequest
 
-class PublishEventResponse: CommandResponse
+class PublishEventResponse : CommandResponse

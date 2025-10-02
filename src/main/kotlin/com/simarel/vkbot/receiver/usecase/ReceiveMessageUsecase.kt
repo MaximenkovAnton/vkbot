@@ -1,7 +1,7 @@
 package com.simarel.vkbot.receiver.usecase
 
-import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandRequest
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommand
+import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandRequest
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
@@ -12,9 +12,9 @@ class ReceiveMessageUsecase(
     val confirmationResponse: VkConfirmationInputPortResponse,
     val okResponse: VkConfirmationInputPortResponse,
     val publishVkEventCommand: PublishVkEventCommand,
-): ReceiveMessageInputPort {
+) : ReceiveMessageInputPort {
     override fun execute(request: VkConfirmationInputPortRequest): VkConfirmationInputPortResponse {
-        return when(request.vkEvent.type()) {
+        return when (request.vkEvent.type()) {
             VkCallbackEvent.CONFIRMATION -> confirmationResponse
             VkCallbackEvent.UNKNOWN -> {
                 Log.error("Unknown event: ${request.vkEvent.value}")

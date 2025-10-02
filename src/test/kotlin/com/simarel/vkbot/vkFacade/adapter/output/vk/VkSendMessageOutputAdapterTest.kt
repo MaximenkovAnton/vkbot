@@ -41,5 +41,4 @@ class VkSendMessageOutputAdapterTest {
         assertEquals(request.peerId.value, call.peerId)
         assertEquals(0, call.rand)
     }
-
 }

@@ -10,9 +10,9 @@ object FakeVkConfirmationInputPortProvider {
     fun createRequest(vkEvent: VkEvent? = null) =
         VkConfirmationInputPortRequest(vkEvent ?: FakeVkProvider.createVkEvent())
 
-    fun createConfirmationResponse(value: String? = null) = 
+    fun createConfirmationResponse(value: String? = null) =
         VkConfirmationInputPortResponse(VkResponse(value ?: "123456"))
 
-    fun createOkResponse(value: String? = null) = 
+    fun createOkResponse(value: String? = null) =
         VkConfirmationInputPortResponse(VkResponse(value ?: "ok"))
 }

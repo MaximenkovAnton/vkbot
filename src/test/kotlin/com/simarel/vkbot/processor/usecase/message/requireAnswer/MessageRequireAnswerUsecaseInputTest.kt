@@ -22,11 +22,11 @@ class MessageRequireAnswerUsecaseInputTest {
 
         // Then
         assertEquals("ok", result.value)
-        
+
         // Verify AI command was called
         assertEquals(1, messageAnswerCommand.executeCalls.size)
         assertEquals(request.message, messageAnswerCommand.executeCalls.first().message)
-        
+
         // Verify event was published
         assertEquals(1, publishCommand.executeCalls.size)
         val publishedEvent = publishCommand.executeCalls.first()

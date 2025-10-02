@@ -5,10 +5,10 @@ import com.simarel.vkbot.share.port.Port
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
 
-interface MessageNewInputPort: Port<MessageNewInputPortRequest, MessageNewInputPortResponse>
+interface MessageNewInputPort : Port<MessageNewInputPortRequest, MessageNewInputPortResponse>
 
 @JvmInline
-value class MessageNewInputPortRequest(val message: Message): InputPortRequest
+value class MessageNewInputPortRequest(val message: Message) : InputPortRequest
 
 @JvmInline
-value class MessageNewInputPortResponse(val value: String): InputPortResponse
+value class MessageNewInputPortResponse(val value: String) : InputPortResponse
