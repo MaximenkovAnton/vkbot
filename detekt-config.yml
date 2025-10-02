@@ -795,6 +795,3 @@ style:
     active: true
     excludeImports:
       - 'java.util.*'
-ArrowRuleSet:
-  NoEffectScopeBindableValueAsStatement:
-    active: true

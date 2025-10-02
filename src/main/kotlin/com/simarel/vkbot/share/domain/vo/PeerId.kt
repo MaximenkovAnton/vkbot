@@ -6,7 +6,5 @@ value class PeerId(val value: Long) {
         fun of(value: Long) = PeerId(value)
     }
 
-    override fun toString(): String {
-        return value.toString()
-    }
+    override fun toString(): String = value.toString()
 }

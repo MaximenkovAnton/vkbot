@@ -25,8 +25,8 @@ class PublishEventOutputAdapter(
         emitter.send(
             Message.of(
                 objectMapper.writeValueAsString(request.payload.value),
-                Metadata.of(metadata)
-            )
+                Metadata.of(metadata),
+            ),
         )
         return response
     }

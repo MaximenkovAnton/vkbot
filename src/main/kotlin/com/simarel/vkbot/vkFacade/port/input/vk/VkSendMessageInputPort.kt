@@ -10,7 +10,7 @@ interface VkSendMessageInputPort : InputPort<VkSendMessageInputRequest, VkSendMe
 
 class VkSendMessageInputRequest(
     val peerId: PeerId,
-    val messageText: MessageText
+    val messageText: MessageText,
 ) : InputPortRequest
 
 class VkSendMessageInputResponse : InputPortResponse

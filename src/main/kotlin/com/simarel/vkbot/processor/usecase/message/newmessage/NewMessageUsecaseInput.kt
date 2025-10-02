@@ -11,7 +11,7 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class NewMessageUsecaseInput(
-    val publishEventCommand: PublishEventCommand
+    val publishEventCommand: PublishEventCommand,
 ) : MessageNewInputPort {
     val okResponse = MessageNewInputPortResponse("ok")
 
@@ -29,8 +29,8 @@ open class NewMessageUsecaseInput(
             publishEventCommand.execute(
                 PublishEventRequest(
                     event = Event.MESSAGE_REQUIRE_ANSWER,
-                    payload = Payload(request.message)
-                )
+                    payload = Payload(request.message),
+                ),
             )
         }
         return okResponse

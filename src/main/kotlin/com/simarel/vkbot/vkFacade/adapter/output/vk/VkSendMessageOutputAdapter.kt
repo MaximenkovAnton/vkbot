@@ -14,7 +14,7 @@ class VkSendMessageOutputAdapter(@RestClient val vkClient: VkClient) : VkSendMes
         val vkResponse = vkClient.sendMessage(
             peerId = request.peerId.value,
             message = request.messageText.value,
-            rand = 0 // todo: implement random number generation
+            rand = 0, // todo: implement random number generation
         )
         if (vkResponse.error != null) {
             throw VkException("${vkResponse.error.error_msg}(${vkResponse.error.error_code})")

@@ -17,6 +17,6 @@ interface VkClient {
     fun sendMessage(
         @FormParam("peer_id") peerId: Long,
         @FormParam("message") message: String,
-        @FormParam("random_id") rand: Int
+        @FormParam("random_id") rand: Int,
     ): VkResponseDto
 }

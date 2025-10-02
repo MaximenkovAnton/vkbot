@@ -15,7 +15,7 @@ object FakeVoProvider {
     fun createGroupId(value: Long? = null) = GroupId.Companion.of(value ?: Random.nextLong())
     fun createPeerId(value: Long? = null) = PeerId.Companion.of(value ?: Random.nextLong())
     fun createConversationMessageId(value: Long? = null) = ConversationMessageId.Companion.of(
-        value ?: Random.nextLong()
+        value ?: Random.nextLong(),
     )
     fun createMessageText(value: String? = null) = MessageText.Companion.of(value ?: "Тестовое сообщение")
 }

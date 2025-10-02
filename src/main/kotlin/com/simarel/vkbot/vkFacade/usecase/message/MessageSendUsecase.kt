@@ -14,8 +14,8 @@ class MessageSendUsecase(val sendVkMessageCommand: SendVkMessageCommand) : VkSen
         sendVkMessageCommand.execute(
             SendVkMessageCommandRequest(
                 peerId = request.peerId,
-                message = request.messageText
-            )
+                message = request.messageText,
+            ),
         )
         return response
     }

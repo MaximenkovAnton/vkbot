@@ -1,0 +1,20 @@
+root = true
+
+[*]
+insert_final_newline = true
+
+[{*.kt,*.kts}]
+ij_kotlin_code_style_defaults = KOTLIN_OFFICIAL
+ktlint_code_style = intellij_idea
+# ktlint_standard = enabled
+ktlint_standard_multiline-expression-wrapping = disabled
+
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_allow_trailing_comma = true
+
+# Don't allow any wildcard imports
+ij_kotlin_packages_to_use_import_on_demand = unset
+
+# Prevent wildcard imports
+ij_kotlin_name_count_to_use_star_import = 99
+ij_kotlin_name_count_to_use_star_import_for_members = 99

@@ -21,8 +21,8 @@ object FakeVkProvider {
                                 .add("from_id", FakeVoProvider.createFromId().value)
                                 .add("peer_id", FakeVoProvider.createPeerId().value)
                                 .add("conversation_message_id", FakeVoProvider.createConversationMessageId().value)
-                                .add("date", FakeVoProvider.createDate().value.second)
-                        )
+                                .add("date", FakeVoProvider.createDate().value.second),
+                        ),
                 )
                 .add("secret", SECRET)
                 .build()

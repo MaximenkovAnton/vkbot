@@ -34,7 +34,5 @@ data class Message(
         )
     }
 
-    fun answer(text: MessageText): Message {
-        return this.copy(messageText = text)
-    }
+    fun answer(text: MessageText): Message = this.copy(messageText = text)
 }

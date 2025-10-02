@@ -3,7 +3,8 @@ package com.simarel.vkbot.receiver.domain.vo
 enum class VkCallbackEvent {
     MESSAGE_NEW,
     CONFIRMATION,
-    UNKNOWN;
+    UNKNOWN,
+    ;
 
     companion object {
         private val entriesMap = entries.associateBy { it.name.lowercase() }

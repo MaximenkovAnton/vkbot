@@ -10,7 +10,7 @@ interface VkSendMessageOutputPort : OutputPort<VkSendMessageOutputRequest, VkSen
 
 class VkSendMessageOutputRequest(
     val peerId: PeerId,
-    val messageText: MessageText
+    val messageText: MessageText,
 ) : OutputPortRequest
 
 class VkSendMessageOutputResponse : OutputPortResponse

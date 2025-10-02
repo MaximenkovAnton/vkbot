@@ -5,6 +5,5 @@ import com.simarel.vkbot.processor.command.answer.MessageAnswerTextGenerateComma
 import com.simarel.vkbot.share.domain.model.Message
 
 object FakeMessageAnswerTextGenerateCommandProvider {
-    fun createRequest(message: Message? = null) =
-        MessageAnswerTextGenerateCommandRequest(message ?: FakeMessageProvider.createMessage())
+    fun createRequest(message: Message? = null) = MessageAnswerTextGenerateCommandRequest(message ?: FakeMessageProvider.createMessage())
 }

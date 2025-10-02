@@ -20,8 +20,8 @@ open class VkMediatorRouterImpl(val receiveMessageInputPort: ReceiveMessageInput
     override fun callback(event: JsonObject): String {
         val responseHolder = receiveMessageInputPort.execute(
             VkConfirmationInputPortRequest(
-                VkEvent(event)
-            )
+                VkEvent(event),
+            ),
         )
         return responseHolder.response.value
     }

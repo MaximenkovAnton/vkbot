@@ -10,7 +10,7 @@ class FakeVkClient(val vkResponseDto: VkResponseDto? = null) : VkClient {
     override fun sendMessage(
         peerId: Long,
         message: String,
-        rand: Int
+        rand: Int,
     ): VkResponseDto {
         sendMessageParameterCalls.add(SendMessageParameter(peerId, message, rand))
         return vkResponseDto ?: VkResponseDto(error = null)

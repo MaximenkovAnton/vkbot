@@ -12,7 +12,7 @@ class PublishEventCommandImpl(val publishEventOutputPort: PublishEventOutputPort
             PublishEventOutputPortRequest(
                 event = request.event,
                 payload = request.payload,
-            )
+            ),
         )
         return response
     }

@@ -8,9 +8,9 @@ import com.simarel.vkbot.vkFacade.command.sendVkMessage.SendVkMessageCommandRequ
 object FakeSendVkMessageCommandProvider {
     fun createRequest(
         peerId: PeerId? = null,
-        messageText: MessageText? = null
+        messageText: MessageText? = null,
     ) = SendVkMessageCommandRequest(
         peerId ?: FakeVoProvider.createPeerId(),
-        messageText ?: FakeVoProvider.createMessageText()
+        messageText ?: FakeVoProvider.createMessageText(),
     )
 }

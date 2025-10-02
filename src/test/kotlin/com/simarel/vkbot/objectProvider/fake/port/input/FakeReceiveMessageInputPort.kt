@@ -7,7 +7,7 @@ import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeReceiveMessageInputPort(
-    val configuredResponse: VkConfirmationInputPortResponse? = null
+    val configuredResponse: VkConfirmationInputPortResponse? = null,
 ) : ReceiveMessageInputPort {
     val executeCalls = ConcurrentLinkedQueue<VkConfirmationInputPortRequest>()
     private val defaultResponse = VkConfirmationInputPortResponse(VkResponse("ok"))

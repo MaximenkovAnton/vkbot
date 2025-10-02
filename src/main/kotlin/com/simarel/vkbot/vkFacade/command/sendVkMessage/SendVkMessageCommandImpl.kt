@@ -11,8 +11,8 @@ class SendVkMessageCommandImpl(val vkSendMessageOutputPort: VkSendMessageOutputP
         vkSendMessageOutputPort.execute(
             VkSendMessageOutputRequest(
                 peerId = request.peerId,
-                messageText = request.message
-            )
+                messageText = request.message,
+            ),
         )
         return response
     }

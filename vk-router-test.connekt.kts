@@ -51,7 +51,7 @@ POST(callbackUrl) {
     )
 }
 
-POST(callbackUrl){
+POST(callbackUrl) {
     contentType("application/json")
     body(
         """
@@ -66,7 +66,7 @@ POST(callbackUrl){
     )
 }
 
-POST(callbackUrl){
+POST(callbackUrl) {
     contentType("application/json")
     body(
         """
@@ -92,6 +92,6 @@ POST(callbackUrl) {
        "type": "bla-bla-bla",
        "secret": "incorrect secret"
    }
-    """.trimIndent(),
+        """.trimIndent(),
     )
 }

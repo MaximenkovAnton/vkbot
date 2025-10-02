@@ -8,7 +8,7 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class AiChatbotAnswerMessageOutputAdapter(
-    val userAnswerAiService: UserAnswerAiService
+    val userAnswerAiService: UserAnswerAiService,
 ) : AiChatbotAnswerMessageOutputPort {
     override fun execute(request: AiChatbotAnswerMessageOutputPortRequest): AiChatbotAnswerMessageOutputPortResponse {
         val answer = userAnswerAiService.answerUser(request.message.messageText.value)

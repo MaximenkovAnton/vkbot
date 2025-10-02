@@ -23,7 +23,7 @@ class VkWebhookIntegrationTest {
                     "type": "confirmation",
                     "secret": "$secret"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -81,7 +81,7 @@ class VkWebhookIntegrationTest {
                     },
                     "secret": "$secret"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -104,7 +104,7 @@ class VkWebhookIntegrationTest {
                     "type": "bla-bla-bla",
                     "secret": "$secret"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -127,7 +127,7 @@ class VkWebhookIntegrationTest {
                     "type": "bla-bla-bla",
                     "secret": "incorrect secret"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -149,7 +149,7 @@ class VkWebhookIntegrationTest {
                     "v": "5.199",
                     "type": "confirmation"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")

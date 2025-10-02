@@ -15,7 +15,7 @@ class UsecaseConfiguration {
     @Singleton
     fun receiveMessageUsecase(
         confirmationCode: ConfirmationCode,
-        publishVkEventCommand: PublishVkEventCommand
+        publishVkEventCommand: PublishVkEventCommand,
     ) = ReceiveMessageUsecase(
         confirmationResponse = VkConfirmationInputPortResponse(VkResponse(confirmationCode.value)),
         okResponse = VkConfirmationInputPortResponse(VkResponse("ok")),

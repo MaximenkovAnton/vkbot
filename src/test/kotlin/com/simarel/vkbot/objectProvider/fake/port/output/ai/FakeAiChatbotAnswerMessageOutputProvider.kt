@@ -5,6 +5,5 @@ import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPo
 import com.simarel.vkbot.share.domain.model.Message
 
 object FakeAiChatbotAnswerMessageOutputProvider {
-    fun createRequest(message: Message? = null) =
-        AiChatbotAnswerMessageOutputPortRequest(message ?: FakeMessageProvider.createMessage())
+    fun createRequest(message: Message? = null) = AiChatbotAnswerMessageOutputPortRequest(message ?: FakeMessageProvider.createMessage())
 }

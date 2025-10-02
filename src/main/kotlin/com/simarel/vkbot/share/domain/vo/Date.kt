@@ -7,7 +7,5 @@ value class Date(val value: OffsetDateTime) {
     companion object {
         fun of(value: OffsetDateTime) = Date(value)
     }
-    override fun toString(): String {
-        return value.toString()
-    }
+    override fun toString(): String = value.toString()
 }

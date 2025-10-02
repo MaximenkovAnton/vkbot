@@ -3,6 +3,7 @@ plugins {
     id("io.quarkus")
     kotlin("jvm")
     id("io.gitlab.arturbosch.detekt")
+    id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
 }
 
 repositories {
@@ -17,7 +18,7 @@ val quarkusLangChain4jVersion: String by project
 val detektPluginVersion: String by project
 
 dependencies {
-    implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
+    implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-observability-devservices")
     implementation("io.quarkus:quarkus-agroal")
     implementation("io.quarkus:quarkus-jdbc-postgresql")
@@ -32,15 +33,11 @@ dependencies {
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-client-jackson")
     implementation("io.quarkus:quarkus-spring-data-jpa")
-    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:${quarkusLangChain4jVersion}")
+    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
 
     //  Additional
     // jackson kotlin module for json serialization/deserialization
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
-
-    // arrowkt for functional style programming
-    implementation("io.arrow-kt:arrow-core:2.1.0")
-    implementation("io.arrow-kt:arrow-fx-coroutines:2.1.0")
 
     // detekt
     detektPlugins("com.wolt.arrow.detekt:rules:0.5.0")

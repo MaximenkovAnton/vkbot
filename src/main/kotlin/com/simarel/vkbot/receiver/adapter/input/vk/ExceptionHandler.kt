@@ -23,7 +23,7 @@ open class ExceptionHandler {
                 ExceptionStatus.EXTERNAL_FAILURE -> Response.Status.SERVICE_UNAVAILABLE
                 ExceptionStatus.UNKNOWN -> Response.Status.SERVICE_UNAVAILABLE
             },
-            Json.createObjectBuilder().add("error", exception.message).build()
+            Json.createObjectBuilder().add("error", exception.message).build(),
         )
         response.metadata["content-type"] = listOf("application/json")
         return response

@@ -7,12 +7,9 @@ import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
 
 object FakeVkConfirmationInputPortProvider {
-    fun createRequest(vkEvent: VkEvent? = null) =
-        VkConfirmationInputPortRequest(vkEvent ?: FakeVkProvider.createVkEvent())
+    fun createRequest(vkEvent: VkEvent? = null) = VkConfirmationInputPortRequest(vkEvent ?: FakeVkProvider.createVkEvent())
 
-    fun createConfirmationResponse(value: String? = null) =
-        VkConfirmationInputPortResponse(VkResponse(value ?: "123456"))
+    fun createConfirmationResponse(value: String? = null) = VkConfirmationInputPortResponse(VkResponse(value ?: "123456"))
 
-    fun createOkResponse(value: String? = null) =
-        VkConfirmationInputPortResponse(VkResponse(value ?: "ok"))
+    fun createOkResponse(value: String? = null) = VkConfirmationInputPortResponse(VkResponse(value ?: "ok"))
 }

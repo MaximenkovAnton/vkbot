@@ -14,7 +14,7 @@ import jakarta.enterprise.context.ApplicationScoped
 @ApplicationScoped
 open class MessageRequireAnswerUsecaseInput(
     val messageAnswerTextGenerateCommand: MessageAnswerTextGenerateCommand,
-    val publishEventCommand: PublishEventCommand
+    val publishEventCommand: PublishEventCommand,
 ) : MessageRequireAnswerInputPort {
     val okResponse = MessageRequireAnswerInputPortResponse("ok")
 
@@ -22,15 +22,15 @@ open class MessageRequireAnswerUsecaseInput(
         val initialMessage = request.message
         val aiResponse = messageAnswerTextGenerateCommand.execute(
             MessageAnswerTextGenerateCommandRequest(
-                initialMessage
-            )
+                initialMessage,
+            ),
         )
         val answerMessage = initialMessage.answer(aiResponse.messageText)
         publishEventCommand.execute(
             PublishEventRequest(
                 event = Event.SEND_MESSAGE,
-                payload = Payload(answerMessage)
-            )
+                payload = Payload(answerMessage),
+            ),
         )
         return okResponse
     }

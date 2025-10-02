@@ -24,20 +24,18 @@ class PublishVkEventCommandImpl(
             publishEventOutputPort.execute(
                 request = PublishEventOutputPortRequest(
                     event = event,
-                    payload = Payload(message)
-                )
+                    payload = Payload(message),
+                ),
             )
         }
         return response
     }
 
-    fun mapVkEventToEvent(type: VkCallbackEvent): Event? {
-        return when (type) {
-            VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_RECEIVED
-            else -> {
-                Log.error("No event mapping for type: $type")
-                null
-            }
+    fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
+        VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_RECEIVED
+        else -> {
+            Log.error("No event mapping for type: $type")
+            null
         }
     }
 }

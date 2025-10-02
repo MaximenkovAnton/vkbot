@@ -9,10 +9,10 @@ class MessageAnswerTextGenerateCommandImpl(
     val aiChatbotAnswerMessageOutputPort: AiChatbotAnswerMessageOutputPort,
 ) : MessageAnswerTextGenerateCommand {
     override fun execute(
-        request: MessageAnswerTextGenerateCommandRequest
+        request: MessageAnswerTextGenerateCommandRequest,
     ): MessageAnswerTextGenerateCommandResponse {
         val response = aiChatbotAnswerMessageOutputPort.execute(
-            AiChatbotAnswerMessageOutputPortRequest(request.message)
+            AiChatbotAnswerMessageOutputPortRequest(request.message),
         )
         return MessageAnswerTextGenerateCommandResponse(response.responseMessage)
     }
