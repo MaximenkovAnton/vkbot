@@ -35,4 +35,21 @@ data class Message(
     }
 
     fun answer(text: MessageText): Message = this.copy(messageText = text)
+
+    fun isRequireAnswer(): Boolean {
+        if (!fromId.isGroupChat()) {
+            return true // direct message to bot
+        }
+        if (messageText.startsWith("!") || messageText.startsWith("\\")) {
+            return false // command for controlling bot
+        }
+        if (!fromId.isHuman()) {
+            return false // not a human
+        }
+        if (messageText.contains("@simarel")) { // todo: get rid of hardcoded name
+            return true // direct call to bot
+        }
+        // todo: after adding forwarded messages, check if the message is a reply to a message from the bot
+        return false
+    }
 }
