@@ -11,7 +11,7 @@ pluginManagement {
     plugins {
         id(quarkusPluginId) version quarkusPluginVersion
         id(detektPluginId) version detektPluginVersion
-        kotlin("jvm") version "2.1.21"
+        kotlin("jvm") version "2.2.20" // todo: move to 2.3.0 after release for jdk 25 support
     }
 }
 plugins {

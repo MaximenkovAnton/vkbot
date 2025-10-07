@@ -1,0 +1,3 @@
+vk:
+  secret: ${VK_SECRET:<secret>}
+  confirmation-code: ${VK_CONFIRMATION_CODE:123456}

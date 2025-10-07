@@ -38,6 +38,19 @@ open class NewMessageUsecaseInput(
 
     @Suppress("FunctionOnlyReturningConstant", "UnusedParameter")
     private fun requireAnswer(request: MessageNewInputPortRequest): Boolean {
-        return true // todo: проверка на наличие прямого вызова или первый ответ принадлежит боту
+        if (!request.message.fromId.isGroupChat()) {
+            return true // direct message to bot
+        }
+        if (request.message.messageText.startsWith("!") || request.message.messageText.startsWith("\\")) {
+            return false // command for controlling bot
+        }
+        if (!request.message.fromId.isHuman()) {
+            return false // not a human
+        }
+        if (request.message.messageText.contains("@simarel")) { // todo: get rid of hardcoded name
+            return true // direct call to bot
+        }
+        // todo: after adding forwarded messages, check if the message is a reply to a message from the bot
+        return false
     }
 }

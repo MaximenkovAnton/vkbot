@@ -19,21 +19,24 @@ val detektPluginVersion: String by project
 
 dependencies {
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
-    implementation("io.quarkus:quarkus-observability-devservices")
     implementation("io.quarkus:quarkus-agroal")
+    implementation("io.quarkus:quarkus-config-yaml")
+    implementation("io.quarkus:quarkus-flyway")
     implementation("io.quarkus:quarkus-jdbc-postgresql")
     implementation("io.quarkus:quarkus-jacoco")
-    implementation("io.quarkus:quarkus-flyway")
     implementation("io.quarkus:quarkus-info")
-    implementation("io.quarkus:quarkus-config-yaml")
-    implementation("io.quarkus:quarkus-opentelemetry")
     implementation("io.quarkus:quarkus-logging-json")
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
     implementation("io.quarkus:quarkus-micrometer-registry-prometheus")
+    implementation("io.quarkus:quarkus-observability-devservices")
+    implementation("io.quarkus:quarkus-observability-devservices-lgtm")
+    implementation("io.quarkus:quarkus-opentelemetry")
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-client-jackson")
+    implementation("io.quarkus:quarkus-smallrye-health")
     implementation("io.quarkus:quarkus-spring-data-jpa")
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
+    implementation("io.opentelemetry:opentelemetry-exporter-logging")
 
     //  Additional
     // jackson kotlin module for json serialization/deserialization
@@ -64,7 +67,9 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(22)
+    // update detekt to move from 23+
+    // update kotlin jvm plugin to move to 25+
 }
 
 detekt {

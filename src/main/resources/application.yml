@@ -1,16 +1,25 @@
 vk:
-  secret: ${VK_SECRET:<secret>}
-  confirmation-code: ${VK_CONFIRMATION_CODE:123456}
+  secret: ${VK_SECRET}
+  confirmation-code: ${VK_CONFIRMATION_CODE}
   api:
     version: 5.131
     token: ${VK_API_TOKEN}
 quarkus:
+  application:
+    name: vk-bot
   hibernate-orm:
     schema-management:
-      strategy: drop-and-create
+      strategy: validate
   datasource:
     db-kind: postgresql
-
+  otel:
+    logs:
+      enabled: true
+      level: INFO
+    metrics:
+      enabled: true
+    traces:
+      enabled: true
   rest-client:
     scope: jakarta.inject.Singleton
     logging:
@@ -22,6 +31,10 @@ quarkus:
   rabbitmq:
     devservices:
       image-name: rabbitmq:latest
+  langchain4j:
+    tracing:
+      include-prompt: true
+      include-completion: true
 
 mp:
   messaging:
@@ -37,3 +50,8 @@ mp:
         connector: smallrye-rabbitmq
         exchange:
           name: all-events
+
+smallrye:
+  messaging:
+    observation:
+      enabled: true
