@@ -8,10 +8,12 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import java.time.OffsetDateTime
 import kotlin.random.Random
+import kotlin.random.nextLong
+import kotlin.random.nextUInt
 
 object FakeVoProvider {
     fun createDate(value: OffsetDateTime? = null) = Date(value ?: OffsetDateTime.now())
-    fun createFromId(value: Long? = null) = FromId.Companion.of(value ?: Random.nextLong())
+    fun createFromId(value: Long? = null) = FromId.Companion.of(value ?: (Random.nextUInt().toLong() % 2_000_000))
     fun createGroupId(value: Long? = null) = GroupId.Companion.of(value ?: Random.nextLong())
     fun createPeerId(value: Long? = null) = PeerId.Companion.of(value ?: Random.nextLong())
     fun createConversationMessageId(value: Long? = null) = ConversationMessageId.Companion.of(
