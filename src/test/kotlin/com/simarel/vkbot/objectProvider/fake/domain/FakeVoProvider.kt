@@ -17,5 +17,5 @@ object FakeVoProvider {
     fun createConversationMessageId(value: Long? = null) = ConversationMessageId.Companion.of(
         value ?: Random.nextLong(),
     )
-    fun createMessageText(value: String? = null) = MessageText.Companion.of(value ?: "Тестовое сообщение")
+    fun createMessageText(value: String? = null) = MessageText.Companion.of(value ?: "Тестовое сообщение для @simarel")
 }
