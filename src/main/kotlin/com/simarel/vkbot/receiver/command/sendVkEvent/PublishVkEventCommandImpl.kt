@@ -1,7 +1,7 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.simarel.vkbot.receiver.adapter.output.mapper.MessageMapper
+import com.simarel.vkbot.receiver.command.sendVkEvent.mapper.MessageMapper
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.vo.Payload

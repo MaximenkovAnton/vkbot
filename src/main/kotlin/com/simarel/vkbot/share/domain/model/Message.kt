@@ -18,12 +18,12 @@ data class Message(
 ) {
     companion object {
         fun of(
-            date: OffsetDateTime,
-            fromId: Long,
-            groupId: Long,
-            peerId: Long,
-            conversationMessageId: Long,
-            messageText: String,
+            date: OffsetDateTime?,
+            fromId: Long?,
+            groupId: Long?,
+            peerId: Long?,
+            conversationMessageId: Long?,
+            messageText: String?,
         ): Message = Message(
             date = Date.of(date),
             fromId = FromId.of(fromId),
