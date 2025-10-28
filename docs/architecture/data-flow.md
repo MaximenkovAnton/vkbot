@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart TD
-    VK[VK API] -->|POST /vk/callback| Router[VkMediatorRouter]
+    VK_IN[VK API Input] -->|POST /vk/callback| Router[VkMediatorRouter]
     Router --> Security[SecurityDecorator]
     Security -->|validated| UseCase[ReceiveMessageUsecase]
     UseCase --> Mapper[MessageMapper]
@@ -17,16 +17,17 @@ flowchart TD
     Dispatcher -->|MESSAGE_RECEIVED| NewMsg[NewMessageProcessor]
     NewMsg -->|MESSAGE_REQUIRE_ANSWER| MQ
     
-    MQ -->|MESSAGE_REQUIRE_ANSWER| RequireAnswer[RequireAnswerProcessor]
+    Dispatcher -->|MESSAGE_REQUIRE_ANSWER| RequireAnswer[RequireAnswerProcessor]
     RequireAnswer --> AI[AI Service]
     AI -->|generated text| Command[MessageAnswerCommand]
     Command -->|SEND_MESSAGE| MQ
     
-    MQ -->|SEND_MESSAGE| SendProcessor[SendMessageProcessor]
+    Dispatcher -->|SEND_MESSAGE| SendProcessor[SendMessageProcessor]
     SendProcessor --> VkFacade[VkSendMessageAdapter]
-    VkFacade -->|HTTP POST| VK
+    VkFacade -->|HTTP POST| VK_OUT[VK API Output]
     
-    style VK fill:#e1f5fe
+    style VK_IN fill:#e1f5fe
+    style VK_OUT fill:#e1f5ff
     style MQ fill:#fff3e0
     style AI fill:#f3e5f5
 ```

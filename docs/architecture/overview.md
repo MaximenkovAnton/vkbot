@@ -13,20 +13,6 @@ VK Bot построен на основе **Clean Architecture** (Чистая �
 4. **Независимость от базы данных** - PostgreSQL можно заменить на MongoDB
 5. **Независимость от внешних сервисов** - AI провайдера можно поменять без изменения бизнес-логики
 
-### Слои архитектуры
-
-```
-┌─────────────────────────────────────────┐
-│           Infrastructure                │  ← Frameworks, Drivers
-├─────────────────────────────────────────┤
-│          Interface Adapters             │  ← Controllers, Gateways
-├─────────────────────────────────────────┤
-│          Application Business           │  ← Use Cases
-├─────────────────────────────────────────┤
-│         Enterprise Business             │  ← Entities
-└─────────────────────────────────────────┘
-```
-
 ### Event-Driven Architecture
 
 Система построена на событиях, что обеспечивает:
@@ -64,25 +50,31 @@ Use case является имплементацией входящего пор
 
 ```mermaid
 sequenceDiagram
-    participant VK as VK API
+    participant VK_IN as VK INPUT
     participant Receiver as Receiver Module
     participant MQ as RabbitMQ
     participant Processor as Processor Module
     participant AI as AI Service
     participant Facade as VK Facade
+    participant VK_OUT as VK OUTPUT
 
-    VK->>Receiver: POST /vk/callback
+    VK_IN->>Receiver: POST /vk/callback
     Receiver->>Receiver: Security check
-    Receiver->>Receiver: Map VK → Domain
-    Receiver->>MQ: Publish MESSAGE_RECEIVED
+    Receiver->>Receiver: Map VK_IN → Domain
+    Receiver->>MQ: Produce MESSAGE_RECEIVED
+    Receiver->>VK_IN: OK
+
     MQ->>Processor: Consume MESSAGE_RECEIVED
-    Processor->>MQ: Publish MESSAGE_REQUIRE_ANSWER
+    Processor->>MQ: Produce MESSAGE_REQUIRE_ANSWER
+
     MQ->>Processor: Consume MESSAGE_REQUIRE_ANSWER
     Processor->>AI: Generate response
     AI-->>Processor: AI response
-    Processor->>MQ: Publish SEND_MESSAGE
+    Processor->>MQ: Produce SEND_MESSAGE
     MQ->>Facade: Consume SEND_MESSAGE
-    Facade->>VK: Send message
+
+    Facade->>VK_OUT: Send message
+    Facade->>MQ: Produce SEND_MESSAGE
 ```
 
 ## 🛡️ Безопасность и валидация
