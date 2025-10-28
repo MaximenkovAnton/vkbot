@@ -74,7 +74,6 @@ sequenceDiagram
     MQ->>Facade: Consume SEND_MESSAGE
 
     Facade->>VK_OUT: Send message
-    Facade->>MQ: Produce SEND_MESSAGE
 ```
 
 ## 🛡️ Безопасность и валидация
