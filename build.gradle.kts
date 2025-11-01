@@ -57,6 +57,8 @@ group = "com.simarel.vkbot"
 version = "1.0.0-SNAPSHOT"
 
 java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 tasks.withType<Test> {
@@ -67,7 +69,7 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 kotlin {
-    jvmToolchain(22)
+    jvmToolchain(21)
     // update detekt to move from 23+
     // update kotlin jvm plugin to move to 25+
 }

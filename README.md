@@ -24,7 +24,7 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 
 ## Prerequisites
 
-- Java 22 (for building and running)
+- Java 21 (for building and running)
 - Docker (optional, for containerized deployment)
 - VK developer account and group
 
