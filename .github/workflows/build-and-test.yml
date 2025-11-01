@@ -42,5 +42,5 @@ jobs:
         file: src/main/docker/Dockerfile.jvm
         push: true
         tags: |
-          ghcr.io/${{ github.repository }}:jvm
-          ghcr.io/${{ github.repository }}:${{ github.sha }}
+          ghcr.io/maximenkovanton/vkbot:jvm
+          ghcr.io/maximenkovanton/vkbot:${{ github.sha }}
