@@ -40,10 +40,7 @@ jobs:
       with:
         context: .
         file: src/main/docker/Dockerfile.jvm
-        platforms: linux/amd64
         push: true
         tags: |
           ghcr.io/${{ github.repository }}:jvm
           ghcr.io/${{ github.repository }}:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
