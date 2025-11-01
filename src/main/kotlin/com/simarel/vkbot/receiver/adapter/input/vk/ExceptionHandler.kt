@@ -26,7 +26,11 @@ open class ExceptionHandler {
     }
 
     @ServerExceptionMapper
-    fun handleClassCastException(exception: ClassCastException): RestResponse<JsonObject> = handleInternalException(ValidationException(exception.message ?: "Unknown class cast exception", exception))
+    fun handleClassCastException(
+        exception: ClassCastException,
+    ): RestResponse<JsonObject> = handleInternalException(
+        ValidationException(exception.message ?: "Unknown class cast exception", exception),
+    )
 
     @ServerExceptionMapper
     fun handleUnknownException(exception: RuntimeException): RestResponse<JsonObject> {
