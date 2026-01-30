@@ -3,3 +3,9 @@ vk:
   secret: test_secret
   api:
     token: vk-token
+
+quarkus:
+  devservices:
+    enabled: false
+  observability:
+    enabled: false
