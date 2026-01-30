@@ -16,6 +16,7 @@ object FakeMessageProvider {
         peerId: PeerId = FakeVoProvider.createPeerId(),
         conversationMessageId: ConversationMessageId = FakeVoProvider.createConversationMessageId(),
         messageText: MessageText = FakeVoProvider.createMessageText(),
+        forwardedMessages: List<Message> = emptyList(),
     ): Message = Message(
         date = date,
         fromId = fromId,
@@ -23,5 +24,6 @@ object FakeMessageProvider {
         peerId = peerId,
         conversationMessageId = conversationMessageId,
         messageText = messageText,
+        forwardedMessages = forwardedMessages,
     )
 }
