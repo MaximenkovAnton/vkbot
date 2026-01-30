@@ -29,7 +29,7 @@ class ConversationMessageIdTest {
         val exception = assertThrows(ValidationException::class.java) {
             ConversationMessageId.of(value)
         }
-        
+
         assertEquals("Conversation Message Id can't be null", exception.message)
     }
 }

@@ -31,7 +31,7 @@ class MessageTextTest {
         val exception = assertThrows(ValidationException::class.java) {
             MessageText.of(value)
         }
-        
+
         assertEquals("Message text can't be null", exception.message)
     }
 

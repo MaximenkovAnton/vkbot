@@ -6,13 +6,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeEventProcessor(
     private val eventType: Event,
-    private val shouldProcess: Boolean = true
+    private val shouldProcess: Boolean = true,
 ) : EventProcessor {
-    
+
     val processCalls = ConcurrentLinkedQueue<String>()
-    
+
     override fun event(): Event = eventType
-    
+
     override fun process(jsonString: String) {
         if (shouldProcess) {
             processCalls.add(jsonString)

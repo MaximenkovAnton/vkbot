@@ -4,7 +4,6 @@ import com.simarel.vkbot.receiver.domain.exception.ExceptionStatus
 import com.simarel.vkbot.receiver.domain.exception.ValidationException
 import com.simarel.vkbot.share.domain.exception.VkBotAppException
 import jakarta.ws.rs.core.Response
-import org.jboss.resteasy.reactive.RestResponse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -55,7 +54,7 @@ class ExceptionHandlerTest {
     // Test implementation of VkBotAppException for testing different status codes
     class TestException(
         private val exceptionStatus: ExceptionStatus,
-        message: String
+        message: String,
     ) : VkBotAppException(message) {
         override fun status(): ExceptionStatus = exceptionStatus
     }

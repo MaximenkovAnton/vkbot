@@ -40,7 +40,7 @@ class PublishVkEventCommandImplTest {
         // Then
         assertEquals(null, result)
     }
-    
+
     // Copy of the static method for testing
     private fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
         VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_RECEIVED
