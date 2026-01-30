@@ -43,7 +43,6 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
 
     // detekt
-    detektPlugins("com.wolt.arrow.detekt:rules:0.5.0")
     detekt("io.gitlab.arturbosch.detekt:detekt-formatting:$detektPluginVersion")
     detekt("io.gitlab.arturbosch.detekt:detekt-cli:$detektPluginVersion")
     // testing dependencies
