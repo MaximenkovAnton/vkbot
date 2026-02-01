@@ -11,7 +11,7 @@ class AiChatbotAnswerMessageOutputAdapter(
     val userAnswerAiService: UserAnswerAiService,
 ) : AiChatbotAnswerMessageOutputPort {
     override fun execute(request: AiChatbotAnswerMessageOutputPortRequest): AiChatbotAnswerMessageOutputPortResponse {
-        val answer = userAnswerAiService.answerUser(request.message.messageText.value)
+        val answer = userAnswerAiService.answerUser(request.message)
         return AiChatbotAnswerMessageOutputPortResponse(MessageText.of(answer))
     }
 }

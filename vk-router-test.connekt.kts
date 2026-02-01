@@ -5,7 +5,7 @@ POST(callbackUrl) {
     contentType("application/json")
     body(
         """
-       {
+        {
             "group_id": 232142875,
             "type": "message_new",
             "event_id": "fef1f1789eb2bd7c8cf147b5c7da926491320342",
@@ -34,7 +34,33 @@ POST(callbackUrl) {
                     "id": 0,
                     "version": 10000390,
                     "out": 0,
-                    "fwd_messages": [],
+                    "fwd_messages": [
+                        {
+                            "date": 1756381400,
+                            "from_id": 123456789,
+                            "id": 1,
+                            "text": "Привет! Как дела?",
+                            "peer_id": 2000000001,
+                            "fwd_messages": [
+                                {
+                                    "date": 1756381300,
+                                    "from_id": 987654321,
+                                    "id": 2,
+                                    "text": "Приветствую!",
+                                    "peer_id": 2000000001,
+                                    "fwd_messages": []
+                                }
+                            ]
+                        },
+                        {
+                            "date": 1756381420,
+                            "from_id": 111222333,
+                            "id": 3,
+                            "text": "Что нового?",
+                            "peer_id": 2000000001,
+                            "fwd_messages": []
+                        }
+                    ],
                     "important": false,
                     "is_hidden": false,
                     "attachments": [],
