@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 class AiChatbotAnswerMessageOutputAdapterTest {
 
     @Test
-    fun `execute calls user answer AI service with message text and context`() {
+    fun `execute calls user answer AI service with message object`() {
         // Given
         val fakeAiService = FakeUserAnswerAiService()
         val adapter = AiChatbotAnswerMessageOutputAdapter(fakeAiService)
@@ -22,15 +22,15 @@ class AiChatbotAnswerMessageOutputAdapterTest {
         val result = adapter.execute(request)
 
         // Then
-        assertEquals(1, fakeAiService.answerUserCalls.size)
-        val call = fakeAiService.answerUserCalls.first()
-        assertEquals(message.messageText.value, call.first)
+        assertEquals(1, fakeAiService.answerUserMessageCalls.size)
+        val calledMessage = fakeAiService.answerUserMessageCalls.first()
+        assertEquals(message.messageText.value, calledMessage.messageText.value)
         assertNotNull(result)
         assertEquals(AiChatbotAnswerMessageOutputPortResponse::class, result::class)
     }
 
     @Test
-    fun `execute calls user answer AI service with forwarded messages context`() {
+    fun `execute calls user answer AI service with forwarded messages`() {
         // Given
         val fakeAiService = FakeUserAnswerAiService()
         val adapter = AiChatbotAnswerMessageOutputAdapter(fakeAiService)
@@ -41,12 +41,10 @@ class AiChatbotAnswerMessageOutputAdapterTest {
         val result = adapter.execute(request)
 
         // Then
-        assertEquals(1, fakeAiService.answerUserCalls.size)
-        val call = fakeAiService.answerUserCalls.first()
-        assertEquals(message.messageText.value, call.first)
-        assert(call.second.contains("[Пересланные сообщения]"))
-        assert(call.second.contains("[11111]: forwarded message 1"))
-        assert(call.second.contains("[22222]: forwarded message 2"))
+        assertEquals(1, fakeAiService.answerUserMessageCalls.size)
+        val calledMessage = fakeAiService.answerUserMessageCalls.first()
+        assertEquals(message.messageText.value, calledMessage.messageText.value)
+        assertEquals(2, calledMessage.forwardedMessages.size)
         assertNotNull(result)
         assertEquals(AiChatbotAnswerMessageOutputPortResponse::class, result::class)
     }

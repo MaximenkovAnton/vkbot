@@ -1,5 +1,6 @@
 package com.simarel.vkbot.processor.adapter.output.ai
 
+import com.simarel.vkbot.share.domain.model.Message
 import dev.langchain4j.service.SystemMessage
 import dev.langchain4j.service.UserMessage
 import dev.langchain4j.service.V
@@ -18,9 +19,42 @@ import jakarta.enterprise.context.ApplicationScoped
 interface UserAnswerAiService {
     @UserMessage(
         """
-        {context}
-        User message: {message}
+        {messageContext}
+        User message: {userMessage}
     """,
     )
-    fun answerUser(@V("message") message: String, @V("context") context: String): String
+    fun answerUser(
+        @V("userMessage") userMessage: String,
+        @V("messageContext") messageContext: String,
+    ): String
+
+    // Default implementation that extracts context from message object
+    fun answerUser(message: Message): String {
+        val context = extractMessageContext(message)
+        return answerUser(message.messageText.value, context)
+    }
+
+    private fun extractMessageContext(message: Message): String {
+        if (message.forwardedMessages.isEmpty()) {
+            return ""
+        }
+
+        val context = StringBuilder()
+        context.appendLine("[Пересланные сообщения]")
+        context.appendLine()
+
+        fun addForwarded(msg: Message, level: Int = 0) {
+            val prefix = "  ".repeat(level)
+            context.appendLine("$prefix[${msg.fromId.value}]: ${msg.messageText.value}")
+
+            msg.forwardedMessages.forEach { addForwarded(it, level + 1) }
+        }
+
+        message.forwardedMessages.forEach { addForwarded(it) }
+
+        context.appendLine()
+        context.appendLine("[Текущее сообщение]")
+
+        return context.toString()
+    }
 }
