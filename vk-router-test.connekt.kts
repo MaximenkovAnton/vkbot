@@ -40,6 +40,7 @@ POST(callbackUrl) {
                             "from_id": 123456789,
                             "id": 1,
                             "text": "Привет! Как дела?",
+                             "conversation_message_id": 1234,
                             "peer_id": 2000000001,
                             "fwd_messages": [
                                 {
@@ -48,6 +49,7 @@ POST(callbackUrl) {
                                     "id": 2,
                                     "text": "Приветствую!",
                                     "peer_id": 2000000001,
+                                    "conversation_message_id": 1357,
                                     "fwd_messages": []
                                 }
                             ]
@@ -58,6 +60,7 @@ POST(callbackUrl) {
                             "id": 3,
                             "text": "Что нового?",
                             "peer_id": 2000000001,
+                            "conversation_message_id": 1359,
                             "fwd_messages": []
                         }
                     ],

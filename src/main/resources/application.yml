@@ -32,6 +32,8 @@ quarkus:
     devservices:
       image-name: rabbitmq:latest
   langchain4j:
+    log-requests: true
+    log-responses: true
     tracing:
       include-prompt: true
       include-completion: true

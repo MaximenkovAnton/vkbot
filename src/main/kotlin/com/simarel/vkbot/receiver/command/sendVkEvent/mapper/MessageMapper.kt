@@ -12,9 +12,9 @@ class MessageMapper {
     fun toDomain(body: JsonObject): Message {
         val messageJson = body.getJsonObject("object")?.getJsonObject("message")
         val messageDto = messageJson?.let { MessageDto.fromJson(it) }
-
-        return Message.Companion.of(
-            groupId = body.getJsonNumber("group_id")?.longValue(),
+        val groupId = body.getJsonNumber("group_id")?.longValue()
+        return Message.of(
+            groupId = groupId,
             date = messageDto?.date?.let {
                 Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC)
             },
@@ -22,17 +22,17 @@ class MessageMapper {
             peerId = messageDto?.peerId,
             conversationMessageId = messageJson?.getJsonNumber("conversation_message_id")?.longValue(),
             messageText = messageDto?.text?.ifEmpty { null },
-            forwardedMessages = messageDto?.fwdMessages?.map { toDomainMessage(it) } ?: emptyList(),
+            forwardedMessages = messageDto?.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList(),
         )
     }
 
-    private fun toDomainMessage(messageDto: MessageDto): Message = Message.Companion.of(
-        groupId = null,
+    private fun toDomainMessage(messageDto: MessageDto, groupId: Long?): Message = Message.of(
+        groupId = groupId,
         date = Instant.ofEpochMilli(messageDto.date).atOffset(ZoneOffset.UTC),
         fromId = messageDto.fromId,
         peerId = messageDto.peerId,
-        conversationMessageId = null,
+        conversationMessageId = messageDto.conversationMessageId,
         messageText = messageDto.text.ifEmpty { null },
-        forwardedMessages = messageDto.fwdMessages?.map { toDomainMessage(it) } ?: emptyList(),
+        forwardedMessages = messageDto.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList(),
     )
 }
