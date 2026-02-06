@@ -9,6 +9,7 @@ data class MessageDto(
     val text: String,
     val peerId: Long,
     val fwdMessages: List<MessageDto>? = null,
+    val conversationMessageId: Long,
 ) {
     companion object {
         fun fromJson(jsonObject: JsonObject): MessageDto {
@@ -23,6 +24,7 @@ data class MessageDto(
                 id = jsonObject.getJsonNumber("id")?.longValue() ?: 0L,
                 text = jsonObject.getString("text", ""),
                 peerId = jsonObject.getJsonNumber("peer_id")?.longValue() ?: 0L,
+                conversationMessageId = jsonObject.getJsonNumber("conversation_message_id")?.longValue() ?: 0L,
                 fwdMessages = fwdMessages,
             )
         }
