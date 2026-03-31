@@ -2,6 +2,7 @@ package com.simarel.vkbot.infrastructure.mq.adapter.input
 
 import com.simarel.vkbot.share.adapter.input.EventProcessor
 import io.quarkus.arc.All
+import io.quarkus.logging.Log
 import io.smallrye.common.annotation.RunOnVirtualThread
 import io.smallrye.reactive.messaging.rabbitmq.IncomingRabbitMQMetadata
 import jakarta.enterprise.context.ApplicationScoped
@@ -34,7 +35,7 @@ class EventDispatcher {
     }
 
     private fun handleUnknownType(routingKey: String?, message: Message<String>): CompletionStage<Void> {
-        System.err.println { "Unknown message (type: ${routingKey ?: "unknown"}): ${message.getPayload()}" }
+        Log.error { "Unknown message (type: ${routingKey ?: "unknown"}): ${message.getPayload()}" }
         return response
     }
 }
