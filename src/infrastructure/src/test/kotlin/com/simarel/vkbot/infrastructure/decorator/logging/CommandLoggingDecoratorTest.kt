@@ -1,6 +1,5 @@
 package com.simarel.vkbot.infrastructure.decorator.logging
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.testfixtures.command.FakeCommand
 import com.simarel.vkbot.testfixtures.command.FakeCommandRequest
 import com.simarel.vkbot.testfixtures.command.FakeCommandResponse

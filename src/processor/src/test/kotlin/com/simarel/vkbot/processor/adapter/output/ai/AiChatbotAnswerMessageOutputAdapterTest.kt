@@ -1,9 +1,9 @@
 package com.simarel.vkbot.processor.adapter.output.ai
 
-import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
-import com.simarel.vkbot.processor.testfixtures.service.FakeUserAnswerAiService
 import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPortRequest
 import com.simarel.vkbot.processor.port.output.ai.AiChatbotAnswerMessageOutputPortResponse
+import com.simarel.vkbot.processor.testfixtures.service.FakeUserAnswerAiService
+import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test

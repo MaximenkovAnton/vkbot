@@ -1,8 +1,8 @@
 package com.simarel.vkbot.receiver.adapter.input.vk
 
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
-import com.simarel.vkbot.receiver.fixtures.FakeVkProvider
 import com.simarel.vkbot.receiver.fixtures.FakeVkConfirmationInputPortProvider
+import com.simarel.vkbot.receiver.fixtures.FakeVkProvider
 import com.simarel.vkbot.receiver.fixtures.port.FakeReceiveMessageInputPort
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
