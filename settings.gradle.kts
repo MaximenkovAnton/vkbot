@@ -19,9 +19,11 @@ plugins {
 }
 rootProject.name = "vkbot"
 
+include("app")
 include("src:modules:infrastructure")
 include("src:modules:processor")
 include("src:modules:share")
+include("src:modules:testing:test-common")
 include("src:modules:testing:test-fixtures")
 include("src:modules:vk-facade")
 include("src:modules:receiver")

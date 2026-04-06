@@ -10,7 +10,7 @@
 #
 # Then, build the image with:
 #
-# docker build -f src/main/docker/Dockerfile.native-micro -t quarkus/vkbot .
+# docker build -f src/docker/Dockerfile.native-micro -t quarkus/vkbot .
 #
 # Then run the container using:
 #

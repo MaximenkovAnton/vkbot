@@ -1,0 +1,59 @@
+vk:
+  secret: ${VK_SECRET}
+  confirmation-code: ${VK_CONFIRMATION_CODE}
+  api:
+    version: 5.131
+    token: ${VK_API_TOKEN}
+quarkus:
+  application:
+    name: vk-bot
+  hibernate-orm:
+    schema-management:
+      strategy: validate
+  datasource:
+    db-kind: postgresql
+  otel:
+    logs:
+      enabled: true
+      level: INFO
+    metrics:
+      enabled: true
+    traces:
+      enabled: true
+  rest-client:
+    scope: jakarta.inject.Singleton
+    logging:
+      scope: request-response
+    vk:
+      url: https://api.vk.ru/method
+      headers:
+        Authorization: Bearer ${vk.api.token}
+  rabbitmq:
+    devservices:
+      image-name: rabbitmq:latest
+  langchain4j:
+    log-requests: true
+    log-responses: true
+    tracing:
+      include-prompt: true
+      include-completion: true
+
+mp:
+  messaging:
+    incoming:
+      all-events-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: all-events
+        queue:
+          name: queue
+    outgoing:
+      events-exchange:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: all-events
+
+smallrye:
+  messaging:
+    observation:
+      enabled: true

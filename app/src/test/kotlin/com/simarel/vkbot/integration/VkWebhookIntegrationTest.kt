@@ -6,6 +6,9 @@ import io.restassured.http.ContentType
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.jupiter.api.Test
 
+/**
+ * Integration tests for VK Webhook callback endpoint.
+ */
 @QuarkusTest
 class VkWebhookIntegrationTest {
     val secret = "test_secret"
