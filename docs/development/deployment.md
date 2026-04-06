@@ -2,7 +2,7 @@
 
 Руководство по различным способам развертывания VK Bot приложения в production и development средах.
 
-## 🐳 Docker деплой
+## Docker деплой
 
 ### JVM режим (рекомендуется для большинства случаев)
 
@@ -35,10 +35,10 @@ docker run -d \
 **Сборка native образа**:
 ```bash
 # Сборка native executable (требует GraalVM)
-./gradlew build -Dquarkus.native.enabled=true
+./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false
 
 # Сборка Docker образа
-docker build -f src/main/docker/Dockerfile.native -t vkbot-native:latest .
+docker build -f src/docker/Dockerfile.native -t vkbot-native:latest .
 ```
 
 **Преимущества native**:
@@ -51,7 +51,7 @@ docker build -f src/main/docker/Dockerfile.native -t vkbot-native:latest .
 - Ограничения reflection
 - Сложность отладки
 
-## ⚡ Оптимизация производительности
+## Оптимизация производительности
 
 ### JVM Tuning
 

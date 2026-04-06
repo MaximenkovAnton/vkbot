@@ -83,8 +83,8 @@ FROM registry.access.redhat.com/ubi9/openjdk-21:1.23
 ENV LANGUAGE='en_US:en'
 
 
-COPY app/build/lib/* /deployments/lib/
-COPY app/build/*-runner.jar /deployments/quarkus-run.jar
+COPY build/lib/* /deployments/lib/
+COPY build/*-runner.jar /deployments/quarkus-run.jar
 
 EXPOSE 8080
 USER 185

@@ -4,12 +4,12 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 
 ## Features
 
-- ✅ Clean architecture implementation with domain-driven design
-- ✅ VK API integration
-- ✅ AI-powered responses using LangChain4j
-- ✅ Event-driven architecture with RabbitMQ
-- ✅ Docker support for multiple deployment options (JVM, native)
-- ✅ RESTful API endpoints for VK webhook integration
+- Clean architecture implementation with domain-driven design
+- VK API integration
+- AI-powered responses using LangChain4j
+- Event-driven architecture with RabbitMQ
+- Docker support for multiple deployment options (JVM, native)
+- RESTful API endpoints for VK webhook integration
 
 ## Technologies Used
 

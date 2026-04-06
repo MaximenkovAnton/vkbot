@@ -5,8 +5,8 @@ import com.simarel.vkbot.vkFacade.port.output.vk.VkSendMessageOutputRequest
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-class SendVkMessageCommandImpl(val vkSendMessageOutputPort: VkSendMessageOutputPort) : SendVkMessageCommand {
-    val response = SendVkMessageCommandResponse()
+class SendVkMessageCommandImpl(private val vkSendMessageOutputPort: VkSendMessageOutputPort) : SendVkMessageCommand {
+    private val response = SendVkMessageCommandResponse()
     override fun execute(request: SendVkMessageCommandRequest): SendVkMessageCommandResponse {
         vkSendMessageOutputPort.execute(
             VkSendMessageOutputRequest(

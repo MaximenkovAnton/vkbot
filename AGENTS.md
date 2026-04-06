@@ -129,8 +129,8 @@ Quarkus CDI is used for dependency injection:
 ./gradlew clean          # clean build artifacts
 
 # Docker builds
-docker build -f src/main/docker/Dockerfile.jvm -t vkbot .      # JVM Docker
-docker build -f src/main/docker/Dockerfile.native -t vkbot .   # Native Docker
+docker build -f src/docker/Dockerfile.jvm -t vkbot .      # JVM Docker
+docker build -f src/docker/Dockerfile.native -t vkbot .   # Native Docker
 ```
 
 ## Code Style Guidelines
@@ -165,7 +165,7 @@ value class MessageText(val value: String) {
 
 ## Testing with Fake Objects
 
-Instead of mocks, we use Fake Objects located in `src/test/.../objectProvider/fake/`:
+Instead of mocks, we use Fake Objects located in `src/testing/test-fixtures`:
 
 ```kotlin
 // Fake Object records calls and returns realistic responses

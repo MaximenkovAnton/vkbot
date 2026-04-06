@@ -5,18 +5,18 @@ import com.simarel.vkbot.processor.command.answer.MessageAnswerTextGenerateComma
 import com.simarel.vkbot.processor.port.input.messageRequireAnswer.MessageRequireAnswerInputPort
 import com.simarel.vkbot.processor.port.input.messageRequireAnswer.MessageRequireAnswerInputPortRequest
 import com.simarel.vkbot.processor.port.input.messageRequireAnswer.MessageRequireAnswerInputPortResponse
-import com.simarel.vkbot.share.domain.Event
-import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class MessageRequireAnswerUsecaseInput(
-    val messageAnswerTextGenerateCommand: MessageAnswerTextGenerateCommand,
-    val publishEventCommand: PublishEventCommand,
+    private val messageAnswerTextGenerateCommand: MessageAnswerTextGenerateCommand,
+    private val publishEventCommand: PublishEventCommand,
 ) : MessageRequireAnswerInputPort {
-    val okResponse = MessageRequireAnswerInputPortResponse("ok")
+    private val okResponse = MessageRequireAnswerInputPortResponse("ok")
 
     override fun execute(request: MessageRequireAnswerInputPortRequest): MessageRequireAnswerInputPortResponse {
         val initialMessage = request.message

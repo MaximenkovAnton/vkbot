@@ -1,6 +1,5 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.receiver.command.sendVkEvent.mapper.MessageMapper
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.share.domain.Event
@@ -12,11 +11,10 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class PublishVkEventCommandImpl(
-    val publishEventOutputPort: PublishEventOutputPort,
-    val messageMapper: MessageMapper,
-    val objectMapper: ObjectMapper,
+    private val publishEventOutputPort: PublishEventOutputPort,
+    private val messageMapper: MessageMapper,
 ) : PublishVkEventCommand {
-    val response = PublishVkEventCommandResponse()
+    private val response = PublishVkEventCommandResponse()
     override fun execute(request: PublishVkEventCommandRequest): PublishVkEventCommandResponse {
         val event = mapVkEventToEvent(request.vkEvent.type())
         if (event != null) {
@@ -31,7 +29,7 @@ class PublishVkEventCommandImpl(
         return response
     }
 
-    fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
+    private fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
         VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_RECEIVED
         else -> {
             Log.error("No event mapping for type: $type")

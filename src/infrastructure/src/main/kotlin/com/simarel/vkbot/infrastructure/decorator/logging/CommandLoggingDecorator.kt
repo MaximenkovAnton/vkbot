@@ -10,8 +10,8 @@ import jakarta.decorator.Delegate
 
 @Decorator
 open class CommandLoggingDecorator<REQ : CommandRequest, RESP : CommandResponse>(
-    @Delegate val delegate: Command<REQ, RESP>,
-    val objectMapper: ObjectMapper,
+    @Delegate private val delegate: Command<REQ, RESP>,
+    private val objectMapper: ObjectMapper,
 ) : Command<REQ, RESP> {
     override fun execute(request: REQ): RESP {
         if (Log.isTraceEnabled()) {

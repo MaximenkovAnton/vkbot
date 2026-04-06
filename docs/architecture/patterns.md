@@ -2,7 +2,7 @@
 
 Проект использует набор проверенных архитектурных паттернов, обеспечивающих гибкость, тестируемость и maintainability кода.
 
-## 🏛️ Основные паттерны
+## Основные паттерны
 
 ### Hexagonal Architecture (Ports & Adapters)
 
@@ -190,7 +190,7 @@ class EventDispatcher {
     }
 }
 ```
-## 🔧 DMZ Pattern (Demilitarized Zone)
+## DMZ Pattern (Demilitarized Zone)
 
 **Назначение**: Изоляция внешних API от внутренней доменной модели
 
@@ -211,7 +211,7 @@ Event.MESSAGE_RECEIVED
 - Централизованная валидация входящих данных
 - Security layer на границе системы
 
-## 🎯 Factory Pattern
+## Factory Pattern
 
 **Назначение**: Создание доменных объектов с валидацией
 
@@ -238,7 +238,7 @@ data class Message(/*...*/) {
 }
 ```
 
-## 📊 Observer Pattern (через Events)
+## Observer Pattern (через Events)
 
 **Назначение**: Уведомление заинтересованных компонентов о событиях
 
@@ -256,7 +256,7 @@ data class Message(/*...*/) {
 // 4. SpamDetector (антиспам)
 ```
 
-## 🚀 Преимущества паттернов
+## Преимущества паттернов
 
 ### Гибкость
 - Strategy для AI провайдеров

@@ -14,7 +14,7 @@ class GradleDependenciesTest {
         "testFixturesImplementation",
         "testRuntimeOnly",
         "testCompileOnly",
-        "testAnnotationProcessor"
+        "testAnnotationProcessor",
     )
 
     private val productionConfigurations = setOf(
@@ -23,13 +23,13 @@ class GradleDependenciesTest {
         "compileOnly",
         "runtimeOnly",
         "annotationProcessor",
-        "kapt"
+        "kapt",
     )
 
     private val testingModules = setOf(
         ":src:testing:test-common",
         ":src:testing:test-fixtures",
-        ":src:testing:arch-tests"
+        ":src:testing:arch-tests",
     )
 
     @Test

@@ -11,7 +11,7 @@ object FakeMessageRequireAnswerInputPortProvider {
     ) = MessageRequireAnswerInputPortRequest(
         message ?: FakeMessageProvider.createMessage(
             fromId = FakeVoProvider.createHumanFromId(),
-            messageText = FakeVoProvider.createMessageText("Test message for @simarel")
-        )
+            messageText = FakeVoProvider.createMessageText("Test message for @simarel"),
+        ),
     )
 }

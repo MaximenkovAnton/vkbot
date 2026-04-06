@@ -3,17 +3,17 @@ package com.simarel.vkbot.processor.usecase.message.newmessage
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPort
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequest
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortResponse
-import com.simarel.vkbot.share.domain.Event
-import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class NewMessageUsecaseInput(
-    val publishEventCommand: PublishEventCommand,
+    private val publishEventCommand: PublishEventCommand,
 ) : MessageNewInputPort {
-    val okResponse = MessageNewInputPortResponse("ok")
+    private val okResponse = MessageNewInputPortResponse("ok")
 
     override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
         /*

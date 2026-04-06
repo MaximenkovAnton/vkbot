@@ -26,7 +26,7 @@ class ModuleDependenciesTest {
             VK_FACADE_PKG,
             PROCESSOR_PKG,
             RECEIVER_PKG,
-            APP_PKG
+            APP_PKG,
         )
     }
 
@@ -45,7 +45,7 @@ class ModuleDependenciesTest {
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage(
-                *ALL_MODULES.toTypedArray()
+                *ALL_MODULES.toTypedArray(),
             )
             .check(importedClasses)
     }
@@ -61,7 +61,7 @@ class ModuleDependenciesTest {
                 VK_FACADE_PKG,
                 PROCESSOR_PKG,
                 RECEIVER_PKG,
-                APP_PKG
+                APP_PKG,
             )
             .check(importedClasses)
     }
@@ -77,7 +77,7 @@ class ModuleDependenciesTest {
                 INFRASTRUCTURE_PKG,
                 PROCESSOR_PKG,
                 RECEIVER_PKG,
-                APP_PKG
+                APP_PKG,
             )
             .check(importedClasses)
     }
@@ -93,7 +93,7 @@ class ModuleDependenciesTest {
                 INFRASTRUCTURE_PKG,
                 VK_FACADE_PKG,
                 RECEIVER_PKG,
-                APP_PKG
+                APP_PKG,
             )
             .check(importedClasses)
     }
@@ -109,7 +109,7 @@ class ModuleDependenciesTest {
                 INFRASTRUCTURE_PKG,
                 VK_FACADE_PKG,
                 PROCESSOR_PKG,
-                APP_PKG
+                APP_PKG,
             )
             .check(importedClasses)
     }

@@ -1,7 +1,7 @@
 package com.simarel.vkbot.vkFacade.command.publishEvent
 
-import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommandProvider
 import com.simarel.vkbot.testfixtures.adapter.output.mq.FakePublishEventOutputPort
+import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommandProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

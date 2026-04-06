@@ -17,12 +17,13 @@ object FakeVoProvider {
     fun createGroupFromId() = FromId.of(-Random.nextLong(1, 999_999_999))
     fun createGroupChatFromId() = FromId.of(Random.nextLong(2_000_000_001, Long.MAX_VALUE))
 
-    fun createGroupId(value: Long? = null) = GroupId.Companion.of(value ?: Random.nextLong())
-    fun createPeerId(value: Long? = null) = PeerId.Companion.of(value ?: Random.nextLong())
-    fun createConversationMessageId(value: Long? = null) = ConversationMessageId.Companion.of(
+    fun createGroupId(value: Long? = null) = GroupId.of(value ?: Random.nextLong())
+    fun createPeerId(value: Long? = null) = PeerId.of(value ?: Random.nextLong())
+    fun createConversationMessageId(value: Long? = null) = ConversationMessageId.of(
         value ?: Random.nextLong(),
     )
-    fun createMessageText(value: String? = null) = MessageText.Companion.of(value ?: "Тестовое сообщение для @simarel")
+
+    fun createMessageText(value: String? = null) = MessageText.of(value ?: "Тестовое сообщение для @simarel")
 
     fun createMessage(
         date: Date? = null,

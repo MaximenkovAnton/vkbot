@@ -8,9 +8,9 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 
 interface MessageAnswerTextGenerateCommand :
     Command<
-        MessageAnswerTextGenerateCommandRequest,
-        MessageAnswerTextGenerateCommandResponse,
-        >
+            MessageAnswerTextGenerateCommandRequest,
+            MessageAnswerTextGenerateCommandResponse,
+            >
 
 @JvmInline
 value class MessageAnswerTextGenerateCommandRequest(val message: Message) : CommandRequest

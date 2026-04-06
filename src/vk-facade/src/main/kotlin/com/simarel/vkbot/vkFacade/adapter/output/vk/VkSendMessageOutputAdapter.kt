@@ -8,8 +8,8 @@ import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
-class VkSendMessageOutputAdapter(@RestClient val vkClient: VkClient) : VkSendMessageOutputPort {
-    val response = VkSendMessageOutputResponse()
+class VkSendMessageOutputAdapter(@RestClient private val vkClient: VkClient) : VkSendMessageOutputPort {
+    private val response = VkSendMessageOutputResponse()
     override fun execute(request: VkSendMessageOutputRequest): VkSendMessageOutputResponse {
         val vkResponse = vkClient.sendMessage(
             peerId = request.peerId.value,

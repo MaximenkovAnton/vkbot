@@ -10,6 +10,7 @@ value class ConversationMessageId(val value: Long) {
             return ConversationMessageId(value)
         }
     }
+
     override fun toString(): String = value.toString()
 }
 

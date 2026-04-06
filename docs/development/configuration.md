@@ -2,7 +2,7 @@
 
 Подробное руководство по настройке и конфигурированию VK Bot приложения.
 
-## 🔧 Основные параметры
+## Основные параметры
 
 ### VK API конфигурация
 
@@ -38,11 +38,11 @@ vk:
 
 | Переменная | Обязательная | Описание | Пример |
 |------------|--------------|----------|---------|
-| `VK_SECRET` | ✅ | Секретный ключ VK callback | `my_super_secret_key` |
-| `VK_CONFIRMATION_CODE` | ✅ | Код подтверждения VK | `123456` |  
-| `VK_API_TOKEN` | ✅ | API токен VK группы | `vk1.a.abc123...` |
+| `VK_SECRET` | Да           | Секретный ключ VK callback | `my_super_secret_key` |
+| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456` |  
+| `VK_API_TOKEN` | Да            | API токен VK группы | `vk1.a.abc123...` |
 
-## 🏗️ Quarkus конфигурация
+## Quarkus конфигурация
 
 ### База данных
 ```yaml
@@ -107,7 +107,7 @@ quarkus:
       read-timeout: 30000            # Таймаут чтения (мс)
 ```
 
-## 🔍 Логирование и мониторинг
+## Логирование и мониторинг
 
 ### Structured JSON логи
 ```yaml
@@ -164,7 +164,7 @@ quarkus:
         path: /metrics                # Endpoint для Prometheus
 ```
 
-## 🚀 Профили конфигурации
+## Профили конфигурации
 
 ### Development Profile
 ```yaml
@@ -207,7 +207,7 @@ quarkus:
         strategy: validate            # Только валидация схемы
 ```
 
-## 🎯 Health Checks
+## Health Checks
 
 ```yaml
 quarkus:
@@ -226,7 +226,7 @@ quarkus:
 - `/health/ready` - готовность к трафику  
 - `/health/live` - проверка живости
 
-## 🐳 Docker конфигурация
+## Docker конфигурация
 
 ### Multi-stage Dockerfile
 ```dockerfile
@@ -244,7 +244,7 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/deployments/quarkus-run.jar"]
 ```
 
-## ⚡ Производительность
+## Производительность
 
 ### JVM оптимизация
 ```yaml
@@ -265,10 +265,10 @@ JAVA_OPTS: >
 ### Native compilation (GraalVM)
 ```bash
 # Сборка native образа
-./gradlew build -Dquarkus.native.enabled=true
+./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false
 
 # Docker native образ
-docker build -f src/main/docker/Dockerfile.native -t vkbot-native .
+docker build -f src/docker/Dockerfile.native -t vkbot-native .
 ```
 
 **Преимущества native**:
@@ -281,7 +281,7 @@ docker build -f src/main/docker/Dockerfile.native -t vkbot-native .
 - Ограничения reflection и динамического кода
 - Сложность отладки
 
-## 🔧 Настройка IDE
+## Настройка IDE
 
 ### IntelliJ IDEA
 1. Установите Quarkus плагин

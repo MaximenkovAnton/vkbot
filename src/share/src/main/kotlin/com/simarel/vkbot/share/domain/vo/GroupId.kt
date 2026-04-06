@@ -10,6 +10,7 @@ value class GroupId(val value: Long) {
             return GroupId(value)
         }
     }
+
     override fun toString(): String = value.toString()
 }
 
