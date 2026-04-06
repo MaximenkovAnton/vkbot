@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     // Depend on share module
-    implementation(project(":modules:share"))
+    implementation(project(":src:modules:share"))
     
     // Quarkus dependencies needed for infrastructure
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
@@ -28,7 +28,7 @@ dependencies {
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
-    testImplementation(testFixtures(project(":modules:test-fixtures")))
+    testImplementation(testFixtures(project(":src:modules:test-fixtures")))
     implementation(kotlin("test"))
 }
 

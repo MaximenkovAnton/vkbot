@@ -10,7 +10,7 @@ repositories {
 
 dependencies {
     // Depend on share module
-    implementation(project(":modules:share"))
+    implementation(project(":src:modules:share"))
 
     // Quarkus platform for version management
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))

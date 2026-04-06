@@ -19,6 +19,6 @@ plugins {
 }
 rootProject.name = "vkbot"
 
-include("modules:infrastructure")
-include("modules:share")
-include("modules:test-fixtures")
+include("src:modules:infrastructure")
+include("src:modules:share")
+include("src:modules:test-fixtures")

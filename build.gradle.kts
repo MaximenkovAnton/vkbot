@@ -18,8 +18,8 @@ val quarkusLangChain4jVersion: String by project
 val detektPluginVersion: String by project
 
 dependencies {
-    implementation(project(":modules:share"))
-    implementation(project(":modules:infrastructure"))
+    implementation(project(":src:modules:share"))
+    implementation(project(":src:modules:infrastructure"))
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-agroal")
     implementation("io.quarkus:quarkus-config-yaml")
