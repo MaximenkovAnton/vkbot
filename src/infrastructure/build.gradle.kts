@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    `java-test-fixtures`
 }
 
 repositories {
@@ -8,7 +9,6 @@ repositories {
 }
 
 dependencies {
-    // Depend on share module
     implementation(project(":src:share"))
     
     // Quarkus dependencies needed for infrastructure

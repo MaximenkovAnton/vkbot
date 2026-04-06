@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    `java-test-fixtures`
     id("org.kordamp.gradle.jandex") version "2.0.0"
 }
 
@@ -9,7 +10,6 @@ repositories {
 }
 
 dependencies {
-    // Depend on share module
     implementation(project(":src:share"))
 
     // Quarkus dependencies

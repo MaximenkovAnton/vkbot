@@ -9,10 +9,7 @@ repositories {
 }
 
 dependencies {
-    // Depend on share, infrastructure and vk-facade modules
     implementation(project(":src:share"))
-    implementation(project(":src:infrastructure"))
-    implementation(project(":src:vk-facade"))
 
     // Test fixtures need access to share module classes and shared test-fixtures
     testFixturesImplementation(project(":src:share"))
@@ -38,10 +35,11 @@ dependencies {
     // LangChain4j
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:0.25.0")
 
-    // Testing
+    // Testing - infrastructure needed for CDI decorators in tests
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
+    testImplementation(project(":src:infrastructure"))
 }
 
 group = "com.simarel.vkbot"

@@ -1,5 +1,8 @@
 package com.simarel.vkbot.vkFacade.command.publishEvent
 
+import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.command.publishEvent.PublishEventResponse
 import com.simarel.vkbot.share.port.output.PublishEventOutputPort
 import com.simarel.vkbot.share.port.output.PublishEventOutputPortRequest
 import jakarta.enterprise.context.ApplicationScoped

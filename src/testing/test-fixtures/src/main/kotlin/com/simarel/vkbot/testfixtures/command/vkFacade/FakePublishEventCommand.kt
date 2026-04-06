@@ -1,8 +1,8 @@
 package com.simarel.vkbot.testfixtures.command.vkFacade
 
-import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventCommand
-import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventRequest
-import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventResponse
+import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.command.publishEvent.PublishEventResponse
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakePublishEventCommand : PublishEventCommand {

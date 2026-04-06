@@ -5,8 +5,8 @@ import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequ
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortResponse
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.vo.Payload
-import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventCommand
-import com.simarel.vkbot.vkFacade.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped

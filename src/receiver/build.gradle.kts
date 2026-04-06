@@ -10,9 +10,7 @@ repositories {
 }
 
 dependencies {
-    // Depend on share and infrastructure modules
     implementation(project(":src:share"))
-    implementation(project(":src:infrastructure"))
 
     // Test fixtures need access to shared test-fixtures
     testFixturesImplementation(project(":src:share"))
@@ -45,10 +43,11 @@ dependencies {
     // Jakarta JSON API
     implementation("jakarta.json:jakarta.json-api:2.1.3")
 
-    // Testing
+    // Testing - infrastructure needed for CDI decorators in tests
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
+    testImplementation(project(":src:infrastructure"))
 }
 
 group = "com.simarel.vkbot"

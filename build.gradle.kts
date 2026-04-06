@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
+    testImplementation(project(":src:testing:arch-tests"))
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-agroal")
     implementation("io.quarkus:quarkus-config-yaml")

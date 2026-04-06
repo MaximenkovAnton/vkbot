@@ -1,4 +1,4 @@
-package com.simarel.vkbot.vkFacade.command.publishEvent
+package com.simarel.vkbot.share.command.publishEvent
 
 import com.simarel.vkbot.share.command.Command
 import com.simarel.vkbot.share.command.CommandRequest
