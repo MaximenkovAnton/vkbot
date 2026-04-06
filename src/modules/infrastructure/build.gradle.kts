@@ -28,7 +28,7 @@ dependencies {
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
-    testImplementation(testFixtures(project(":src:modules:test-fixtures")))
+    testImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))
     implementation(kotlin("test"))
 }
 
