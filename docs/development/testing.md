@@ -3,7 +3,7 @@
 Проект использует подход **Fake Objects** для тестирования, что обеспечивает высокую читаемость,
 maintainability и надежность тестов.
 
-## 🎯 Философия тестирования
+## Философия тестирования
 
 ### Fake Objects vs Mocks
 
@@ -43,11 +43,11 @@ assertEquals("expected", fakeService.processCalls[0].field1)
 assertTrue(fakeService.processCalls[0].field2.isNotEmpty())
 ```
 
-## 🏗️ Структура тестовых объектов
+## Структура тестовых объектов
 
 ### Организация fake объектов
 ```
-src/modules/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
+src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 ├── adapter/
 │   └── output/
 │       ├── ai/FakeAiChatbotAnswerMessageOutputPort.kt
@@ -66,7 +66,7 @@ src/modules/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures
     └── FakeUserAnswerAiService.kt
 ```
 
-## 🔧 Паттерны Fake Objects
+## Паттерны Fake Objects
 
 ### 1. Базовый Fake Object
 
@@ -154,7 +154,7 @@ object FakeMessageProvider {
 - **Type safety** - помогает при рефакторинге
 - **Читаемость** - `FakeMessageProvider.createMessage(messageText = "test")` понятнее чем длинный конструктор
 
-## 📝 Примеры тестов
+## Примеры тестов
 
 ### Unit Test с Fake Objects
 
@@ -202,7 +202,7 @@ class SendVkMessageCommandImplTest {
 }
 ```
 
-## 🚀 Best Practices
+## Best Practices
 
 ### Именование
 - **Fake** + оригинальное имя: `FakeVkClient`, `FakeMessageRepository`
@@ -211,34 +211,34 @@ class SendVkMessageCommandImplTest {
 
 ### Thread Safety
 ```kotlin
-// ✅ Правильно - thread-safe
+// Правильно - thread-safe
 val executeCalls = ConcurrentLinkedQueue<Request>()
 
-// ❌ Неправильно - может быть race condition в параллельных тестах
+// Неправильно - может быть race condition в параллельных тестах
 val executeCalls = mutableListOf<Request>()
 ```
 
 ### Реалистичные данные
 ```kotlin
-// ✅ Правильно - возвращаем осмысленные объекты
+// Правильно - возвращаем осмысленные объекты
 return MessageAnswerTextGenerateCommandResponse(FakeVoProvider.createMessageText())
 
-// ❌ Неправильно - возвращаем заглушки
+// Неправильно - возвращаем заглушки
 return MessageAnswerTextGenerateCommandResponse(MessageText.of(""))
 ```
 
 ### Настраиваемость
 ```kotlin
-// ✅ Правильно - можно настроить поведение
+// Правильно - можно настроить поведение
 class FakeAiService(val response: String = "default response")
 
-// ❌ Неправильно - жестко зашитое поведение
+// Неправильно - жестко зашитое поведение
 class FakeAiService {
     override fun generateResponse() = "always the same"
 }
 ```
 
-## 🔍 Отладка тестов
+## Отладка тестов
 
 ### Простая отладка Fake Objects
 1. **Breakpoint в fake object** - можно посмотреть все параметры
@@ -258,7 +258,7 @@ override fun execute(request: Request): Response {
 - Сложно отладить взаимодействие между объектами  
 - Mock framework скрывает фактическое поведение
 
-## 📊 Сравнение подходов
+## Сравнение подходов
 
 ### Время разработки
 - **Fake Objects**: Больше времени на создание, меньше на поддержку

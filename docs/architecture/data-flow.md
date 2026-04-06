@@ -2,7 +2,7 @@
 
 Документ описывает как данные проходят через систему от получения VK webhook'а до отправки ответа пользователю.
 
-## 🔄 Общая схема потока
+## Общая схема потока
 
 ```mermaid
 flowchart TD
@@ -32,9 +32,9 @@ flowchart TD
     style AI fill:#f3e5f5
 ```
 
-## 📊 Детальный анализ этапов
+## Детальный анализ этапов
 
-### 1️⃣ Входящий webhook (VK → receiver)
+### Входящий webhook (VK → receiver)
 
 **Входные данные**:
 ```json
@@ -68,7 +68,7 @@ flowchart TD
 VkCallbackEvent.MESSAGE_NEW → Event.MESSAGE_RECEIVED
 ```
 
-### 2️⃣ Event routing (RabbitMQ)
+### Event routing (RabbitMQ)
 
 **Публикация события**:
 ```kotlin
@@ -92,7 +92,7 @@ val processors: Map<String, EventProcessor> = [
 ]
 ```
 
-### 3️⃣ Обработка нового сообщения (processor)
+### Обработка нового сообщения (processor)
 
 **MessageNewEventProcessor**:
 ```kotlin
@@ -121,7 +121,7 @@ override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortRe
 - Добавление в RAG систему
 - Проверка логики `requireAnswer()`
 
-### 4️⃣ Генерация ответа (processor → ai)
+### Генерация ответа (processor → ai)
 
 **MessageRequireAnswerProcessor**:
 ```kotlin
@@ -153,7 +153,7 @@ fun Message.answer(text: MessageText): Message {
 }
 ```
 
-### 5️⃣ Отправка ответа (vkFacade → VK)
+### Отправка ответа (vkFacade → VK)
 
 **SendMessageEventProcessor**:
 ```kotlin
@@ -178,7 +178,7 @@ if(vkResponse.error != null) {
 }
 ```
 
-## ⚡ Асинхронность и производительность
+## Асинхронность и производительность
 
 ### Event-driven преимущества
 - **Неблокирующая обработка**: VK webhook возвращается мгновенно
@@ -210,7 +210,7 @@ mp:
 fun dispatch(message: Message<String>): CompletionStage<Void>
 ```
 
-## 🔍 Трассировка и observability
+## Трассировка и observability
 
 ### Логирование на каждом этапе
 ```kotlin
@@ -237,7 +237,7 @@ class CommandLoggingDecorator<REQ: CommandRequest, RESP: CommandResponse>(
 - Метрики производительности каждого этапа
 - Корреляция логов по conversation_message_id
 
-## 🚀 Планируемые улучшения потока
+## Планируемые улучшения потока
 
 ### Добавление контекста (memory модуль)
 ```mermaid
