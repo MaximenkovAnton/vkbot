@@ -1,4 +1,4 @@
-package com.simarel.vkbot.receiver.domain.exception
+package com.simarel.vkbot.share.domain.exception
 
 enum class ExceptionStatus {
     VALIDATION_FAILED,

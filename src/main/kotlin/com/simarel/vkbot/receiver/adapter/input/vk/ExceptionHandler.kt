@@ -1,7 +1,7 @@
 package com.simarel.vkbot.receiver.adapter.input.vk
 
-import com.simarel.vkbot.receiver.domain.exception.ExceptionStatus
 import com.simarel.vkbot.receiver.domain.exception.ValidationException
+import com.simarel.vkbot.share.domain.exception.ExceptionStatus
 import com.simarel.vkbot.share.domain.exception.VkBotAppException
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.Dependent

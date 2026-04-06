@@ -3,9 +3,9 @@ package com.simarel.vkbot.processor.adapter.input.event.messageNew
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPort
 import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequest
-import com.simarel.vkbot.share.adapter.input.EventProcessor
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.port.input.EventProcessor
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped

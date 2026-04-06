@@ -11,15 +11,23 @@ repositories {
 dependencies {
     // Depend on share module
     implementation(project(":modules:share"))
-    
+
+    // Quarkus platform for version management
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
+
+    // CDI
+    implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
+    implementation("io.quarkus:quarkus-arc")
+
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))
-    
+
     // Jackson for test fixtures
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
-    
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     implementation(kotlin("test"))
 }
 

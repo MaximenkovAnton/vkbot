@@ -1,6 +1,6 @@
 package com.simarel.vkbot.infrastructure.mq.adapter.input
 
-import com.simarel.vkbot.share.adapter.input.EventProcessor
+import com.simarel.vkbot.share.port.input.EventProcessor
 import io.quarkus.arc.All
 import io.quarkus.logging.Log
 import io.smallrye.common.annotation.RunOnVirtualThread

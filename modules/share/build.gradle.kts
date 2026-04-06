@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    id("org.kordamp.gradle.jandex") version "2.0.0"
 }
 
 repositories {
@@ -10,10 +11,23 @@ repositories {
 dependencies {
     // Quarkus platform
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
-    
+
+    // CDI
+    implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
+    implementation("io.quarkus:quarkus-core")
+    implementation("io.quarkus:quarkus-arc")
+
+    // RabbitMQ messaging
+    implementation("io.quarkus:quarkus-messaging-rabbitmq")
+    implementation("io.smallrye.reactive:smallrye-reactive-messaging-rabbitmq")
+
+    // JSON processing
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))
-    
+
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")

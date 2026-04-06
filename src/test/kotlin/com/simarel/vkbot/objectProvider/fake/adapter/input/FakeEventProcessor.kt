@@ -1,7 +1,7 @@
 package com.simarel.vkbot.objectProvider.fake.adapter.input
 
-import com.simarel.vkbot.share.adapter.input.EventProcessor
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.port.input.EventProcessor
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeEventProcessor(
