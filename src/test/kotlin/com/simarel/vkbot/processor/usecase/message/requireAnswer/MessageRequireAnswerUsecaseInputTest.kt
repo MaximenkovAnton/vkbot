@@ -1,9 +1,9 @@
 package com.simarel.vkbot.processor.usecase.message.requireAnswer
 
 import com.simarel.vkbot.objectProvider.fake.command.processor.FakeMessageAnswerTextGenerateCommand
-import com.simarel.vkbot.objectProvider.fake.command.vkFacade.FakePublishEventCommand
 import com.simarel.vkbot.objectProvider.fake.port.input.FakeMessageRequireAnswerInputPortProvider
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

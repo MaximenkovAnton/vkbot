@@ -1,8 +1,8 @@
 package com.simarel.vkbot.processor.usecase.message.newmessage
 
-import com.simarel.vkbot.objectProvider.fake.command.vkFacade.FakePublishEventCommand
 import com.simarel.vkbot.objectProvider.fake.port.input.FakeMessageNewInputPortProvider
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 

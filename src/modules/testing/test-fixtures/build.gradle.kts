@@ -9,8 +9,9 @@ repositories {
 }
 
 dependencies {
-    // Depend on share module
+    // Depend on share and vk-facade modules
     implementation(project(":src:modules:share"))
+    implementation(project(":src:modules:vk-facade"))
 
     // Quarkus platform for version management
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))

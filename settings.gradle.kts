@@ -22,3 +22,4 @@ rootProject.name = "vkbot"
 include("src:modules:infrastructure")
 include("src:modules:share")
 include("src:modules:testing:test-fixtures")
+include("src:modules:vk-facade")
