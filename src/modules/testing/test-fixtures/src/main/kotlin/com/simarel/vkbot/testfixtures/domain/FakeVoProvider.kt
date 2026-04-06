@@ -9,12 +9,14 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import java.time.OffsetDateTime
 import kotlin.random.Random
-import kotlin.random.nextLong
-import kotlin.random.nextUInt
 
 object FakeVoProvider {
     fun createDate(value: OffsetDateTime? = null) = Date(value ?: OffsetDateTime.now())
-    fun createFromId(value: Long? = null) = FromId.Companion.of(value ?: (Random.nextUInt().toLong() % 2_000_000))
+
+    fun createHumanFromId() = FromId.of(Random.nextLong(1, 1_999_999_999))
+    fun createGroupFromId() = FromId.of(-Random.nextLong(1, 999_999_999))
+    fun createGroupChatFromId() = FromId.of(Random.nextLong(2_000_000_001, Long.MAX_VALUE))
+
     fun createGroupId(value: Long? = null) = GroupId.Companion.of(value ?: Random.nextLong())
     fun createPeerId(value: Long? = null) = PeerId.Companion.of(value ?: Random.nextLong())
     fun createConversationMessageId(value: Long? = null) = ConversationMessageId.Companion.of(
@@ -32,7 +34,7 @@ object FakeVoProvider {
         forwardedMessages: List<Message>? = null,
     ) = Message(
         date = date ?: createDate(),
-        fromId = fromId ?: createFromId(),
+        fromId = fromId ?: createHumanFromId(),
         groupId = groupId ?: createGroupId(),
         peerId = peerId ?: createPeerId(),
         conversationMessageId = conversationMessageId ?: createConversationMessageId(),
@@ -42,18 +44,14 @@ object FakeVoProvider {
 
     fun createMessageWithForwarded(): Message {
         val forwardedMessage1 = createMessage(
-            fromId = createFromId(11111),
             messageText = createMessageText("forwarded message 1"),
         )
 
         val forwardedMessage2 = createMessage(
-            fromId = createFromId(22222),
             messageText = createMessageText("forwarded message 2"),
         )
 
         return createMessage(
-            fromId = createFromId(12345),
-            peerId = createPeerId(67890),
             messageText = createMessageText("actual message"),
             forwardedMessages = listOf(forwardedMessage1, forwardedMessage2),
         )

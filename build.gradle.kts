@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":src:modules:share"))
     implementation(project(":src:modules:infrastructure"))
     implementation(project(":src:modules:vk-facade"))
+    implementation(project(":src:modules:processor"))
     testImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-agroal")

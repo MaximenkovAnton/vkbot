@@ -1,8 +1,8 @@
 package com.simarel.vkbot.receiver.usecase
 
-import com.simarel.vkbot.objectProvider.fake.command.receiver.FakePublishVkEventCommand
-import com.simarel.vkbot.objectProvider.fake.domain.FakeVkProvider
-import com.simarel.vkbot.objectProvider.fake.port.input.FakeVkConfirmationInputPortProvider
+import com.simarel.vkbot.fake.command.receiver.FakePublishVkEventCommand
+import com.simarel.vkbot.fake.domain.FakeVkProvider
+import com.simarel.vkbot.fake.port.input.FakeVkConfirmationInputPortProvider
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

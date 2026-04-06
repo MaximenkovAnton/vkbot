@@ -11,7 +11,7 @@ import com.simarel.vkbot.share.domain.vo.PeerId
 object FakeMessageProvider {
     fun createMessage(
         date: Date = FakeVoProvider.createDate(),
-        fromId: FromId = FakeVoProvider.createFromId(),
+        fromId: FromId = FakeVoProvider.createHumanFromId(),
         groupId: GroupId = FakeVoProvider.createGroupId(),
         peerId: PeerId = FakeVoProvider.createPeerId(),
         conversationMessageId: ConversationMessageId = FakeVoProvider.createConversationMessageId(),
