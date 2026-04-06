@@ -12,7 +12,7 @@
 ./gradlew build
 
 # Сборка Docker образа
-docker build -f src/main/docker/Dockerfile.jvm -t vkbot:latest .
+docker build -f src/docker/Dockerfile.jvm -t vkbot:latest .
 ```
 
 **Запуск контейнера**:

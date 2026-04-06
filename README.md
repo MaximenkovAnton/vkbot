@@ -81,10 +81,10 @@ This will start the application in development mode with hot reloading. The appl
 
 ```bash
 # For JVM mode (recommended for development)
-docker build -f src/main/docker/Dockerfile.jvm -t vk-bot-jvm .
+docker build -f src/docker/Dockerfile.jvm -t vk-bot-jvm .
 
 # For native mode (optimized for production)
-docker build -f src/main/docker/Dockerfile.native -t vk-bot-native .
+docker build -f src/docker/Dockerfile.native -t vk-bot-native .
 ```
 
 #### Run the container

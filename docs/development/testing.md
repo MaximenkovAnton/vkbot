@@ -47,7 +47,7 @@ assertTrue(fakeService.processCalls[0].field2.isNotEmpty())
 
 ### Организация fake объектов
 ```
-src/test/kotlin/com/simarel/vkbot/objectProvider/fake/
+src/modules/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 ├── adapter/
 │   └── output/
 │       ├── ai/FakeAiChatbotAnswerMessageOutputPort.kt
@@ -58,7 +58,7 @@ src/test/kotlin/com/simarel/vkbot/objectProvider/fake/
 │   └── vkFacade/FakePublishEventCommand.kt
 ├── domain/
 │   ├── FakeMessageProvider.kt        # Фабрики доменных объектов
-│   └── FakeVoProvider.kt            # Фабрики Value Objects  
+│   └── FakeVoProvider.kt            # Фабрики Value Objects
 ├── port/
 │   ├── input/FakeMessageNewInputPort.kt
 │   └── output/FakeVkSendMessageOutputProvider.kt

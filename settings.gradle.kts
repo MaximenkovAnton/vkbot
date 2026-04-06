@@ -18,3 +18,13 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 rootProject.name = "vkbot"
+
+include("app")
+include("src:infrastructure")
+include("src:processor")
+include("src:share")
+include("src:testing:test-common")
+include("src:testing:test-fixtures")
+include("src:testing:arch-tests")
+include("src:vk-facade")
+include("src:receiver")
