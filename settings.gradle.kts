@@ -18,3 +18,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 rootProject.name = "vkbot"
+
+include("modules:infrastructure")
+include("modules:share")
+include("modules:test-fixtures")
