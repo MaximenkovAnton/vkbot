@@ -8,8 +8,8 @@ import com.simarel.vkbot.share.port.output.PublishEventOutputPortRequest
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-class PublishEventCommandImpl(val publishEventOutputPort: PublishEventOutputPort) : PublishEventCommand {
-    val response = PublishEventResponse()
+class PublishEventCommandImpl(private val publishEventOutputPort: PublishEventOutputPort) : PublishEventCommand {
+    private val response = PublishEventResponse()
     override fun execute(request: PublishEventRequest): PublishEventResponse {
         publishEventOutputPort.execute(
             PublishEventOutputPortRequest(

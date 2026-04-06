@@ -13,10 +13,10 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class MessageRequireAnswerUsecaseInput(
-    val messageAnswerTextGenerateCommand: MessageAnswerTextGenerateCommand,
-    val publishEventCommand: PublishEventCommand,
+    private val messageAnswerTextGenerateCommand: MessageAnswerTextGenerateCommand,
+    private val publishEventCommand: PublishEventCommand,
 ) : MessageRequireAnswerInputPort {
-    val okResponse = MessageRequireAnswerInputPortResponse("ok")
+    private val okResponse = MessageRequireAnswerInputPortResponse("ok")
 
     override fun execute(request: MessageRequireAnswerInputPortRequest): MessageRequireAnswerInputPortResponse {
         val initialMessage = request.message

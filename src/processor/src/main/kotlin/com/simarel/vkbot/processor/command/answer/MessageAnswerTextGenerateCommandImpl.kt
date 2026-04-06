@@ -6,7 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class MessageAnswerTextGenerateCommandImpl(
-    val aiChatbotAnswerMessageOutputPort: AiChatbotAnswerMessageOutputPort,
+    private val aiChatbotAnswerMessageOutputPort: AiChatbotAnswerMessageOutputPort,
 ) : MessageAnswerTextGenerateCommand {
     override fun execute(
         request: MessageAnswerTextGenerateCommandRequest,

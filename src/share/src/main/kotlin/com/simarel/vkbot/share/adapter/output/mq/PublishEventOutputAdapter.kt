@@ -13,10 +13,10 @@ import org.eclipse.microprofile.reactive.messaging.Metadata
 
 @ApplicationScoped
 class PublishEventOutputAdapter(
-    @Channel("events-exchange") val emitter: Emitter<String>,
-    val objectMapper: ObjectMapper,
+    @Channel("events-exchange") private val emitter: Emitter<String>,
+    private val objectMapper: ObjectMapper,
 ) : PublishEventOutputPort {
-    val response = PublishEventOutputPortResponse()
+    private val response = PublishEventOutputPortResponse()
     override fun execute(request: PublishEventOutputPortRequest): PublishEventOutputPortResponse {
         val metadata = OutgoingRabbitMQMetadata.Builder()
             .withRoutingKey(request.event.name)

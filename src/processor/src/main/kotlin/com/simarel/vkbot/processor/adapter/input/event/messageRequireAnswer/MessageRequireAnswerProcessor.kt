@@ -10,8 +10,8 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class MessageRequireAnswerProcessor(
-    val objectMapper: ObjectMapper,
-    val messageRequireAnswerInputPort: MessageRequireAnswerInputPort,
+    private val objectMapper: ObjectMapper,
+    private val messageRequireAnswerInputPort: MessageRequireAnswerInputPort,
 ) : EventProcessor {
 
     override fun process(jsonString: String) {

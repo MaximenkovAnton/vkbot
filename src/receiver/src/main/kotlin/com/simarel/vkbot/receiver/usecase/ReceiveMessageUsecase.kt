@@ -9,9 +9,9 @@ import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
 import io.quarkus.logging.Log
 
 class ReceiveMessageUsecase(
-    val confirmationResponse: VkConfirmationInputPortResponse,
-    val okResponse: VkConfirmationInputPortResponse,
-    val publishVkEventCommand: PublishVkEventCommand,
+    private val confirmationResponse: VkConfirmationInputPortResponse,
+    private val okResponse: VkConfirmationInputPortResponse,
+    private val publishVkEventCommand: PublishVkEventCommand,
 ) : ReceiveMessageInputPort {
     override fun execute(
         request: VkConfirmationInputPortRequest,

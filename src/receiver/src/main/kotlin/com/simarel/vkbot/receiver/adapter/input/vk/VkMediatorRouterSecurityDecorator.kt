@@ -12,10 +12,10 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
 class VkMediatorRouterSecurityDecorator : VkMediatorRouter {
     @Inject
     @Delegate
-    lateinit var delegate: VkMediatorRouter
+    private lateinit var delegate: VkMediatorRouter
 
     @ConfigProperty(name = "vk.secret")
-    lateinit var secret: String
+    private lateinit var secret: String
 
     override fun callback(event: JsonObject): String {
         val eventSecret = event.getString("secret", null)

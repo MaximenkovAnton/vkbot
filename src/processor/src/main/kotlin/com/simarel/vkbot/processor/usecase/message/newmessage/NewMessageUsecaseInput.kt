@@ -11,9 +11,9 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 open class NewMessageUsecaseInput(
-    val publishEventCommand: PublishEventCommand,
+    private val publishEventCommand: PublishEventCommand,
 ) : MessageNewInputPort {
-    val okResponse = MessageNewInputPortResponse("ok")
+    private val okResponse = MessageNewInputPortResponse("ok")
 
     override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
         /*
