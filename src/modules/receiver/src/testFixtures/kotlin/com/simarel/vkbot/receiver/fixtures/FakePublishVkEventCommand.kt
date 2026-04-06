@@ -1,4 +1,4 @@
-package com.simarel.vkbot.fake.command.receiver
+package com.simarel.vkbot.receiver.fixtures
 
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommand
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandRequest

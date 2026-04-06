@@ -1,4 +1,4 @@
-package com.simarel.vkbot.fake.domain
+package com.simarel.vkbot.receiver.fixtures
 
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.domain.vo.VkEvent

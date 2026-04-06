@@ -1,6 +1,8 @@
 package com.simarel.vkbot.receiver.adapter.input.vk
 
 import com.simarel.vkbot.receiver.domain.exception.ValidationException
+import com.simarel.vkbot.share.domain.exception.ExceptionStatus
+import com.simarel.vkbot.share.domain.exception.VkBotAppException
 import jakarta.ws.rs.core.Response
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -47,5 +49,13 @@ class ExceptionHandlerTest {
         // Then
         assertEquals(Response.Status.SERVICE_UNAVAILABLE.statusCode, result.status)
         assertEquals("application/json", result.metadata["content-type"]?.firstOrNull())
+    }
+
+    // Test implementation of VkBotAppException for testing different status codes
+    class TestException(
+        private val exceptionStatus: ExceptionStatus,
+        message: String,
+    ) : VkBotAppException(message) {
+        override fun status(): ExceptionStatus = exceptionStatus
     }
 }

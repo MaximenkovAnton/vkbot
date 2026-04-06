@@ -1,6 +1,5 @@
-package com.simarel.vkbot.fake.port.input
+package com.simarel.vkbot.receiver.fixtures
 
-import com.simarel.vkbot.fake.domain.FakeVkProvider
 import com.simarel.vkbot.receiver.domain.vo.VkEvent
 import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest

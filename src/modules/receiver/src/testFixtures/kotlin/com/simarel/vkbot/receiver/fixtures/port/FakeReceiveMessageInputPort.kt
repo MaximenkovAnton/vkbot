@@ -1,4 +1,4 @@
-package com.simarel.vkbot.fake.port.input
+package com.simarel.vkbot.receiver.fixtures.port
 
 import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort

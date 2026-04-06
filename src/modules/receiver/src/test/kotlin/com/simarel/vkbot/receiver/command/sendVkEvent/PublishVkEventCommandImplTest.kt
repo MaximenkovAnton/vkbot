@@ -3,12 +3,10 @@ package com.simarel.vkbot.receiver.command.sendVkEvent
 import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.domain.vo.VkEvent
 import com.simarel.vkbot.share.domain.Event
-import io.quarkus.test.junit.QuarkusTest
 import jakarta.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-@QuarkusTest
 class PublishVkEventCommandImplTest {
 
     @Test
