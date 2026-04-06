@@ -10,7 +10,7 @@ repositories {
 
 dependencies {
     implementation(project(":src:share"))
-    
+
     // Quarkus dependencies needed for infrastructure
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
     implementation("io.quarkus:quarkus-arc")
@@ -18,13 +18,13 @@ dependencies {
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
     implementation("io.quarkus:quarkus-logging-json")
     implementation("io.smallrye.reactive:smallrye-reactive-messaging-rabbitmq")
-    
+
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))
-    
+
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
-    
+
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")

@@ -5,9 +5,9 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 
 interface AiChatbotAnswerMessageOutputPort :
     AiOutputPort<
-        AiChatbotAnswerMessageOutputPortRequest,
-        AiChatbotAnswerMessageOutputPortResponse,
-        >
+            AiChatbotAnswerMessageOutputPortRequest,
+            AiChatbotAnswerMessageOutputPortResponse,
+            >
 
 @JvmInline
 value class AiChatbotAnswerMessageOutputPortRequest(val message: Message) : AiOutputPortRequest

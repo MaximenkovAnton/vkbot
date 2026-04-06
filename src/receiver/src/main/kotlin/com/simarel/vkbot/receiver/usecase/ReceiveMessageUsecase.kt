@@ -21,6 +21,7 @@ class ReceiveMessageUsecase(
             Log.error("Unknown event: ${request.vkEvent.value}")
             okResponse
         }
+
         else -> {
             publishVkEventCommand.execute(
                 PublishVkEventCommandRequest(

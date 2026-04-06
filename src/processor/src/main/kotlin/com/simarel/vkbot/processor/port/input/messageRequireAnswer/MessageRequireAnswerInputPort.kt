@@ -7,9 +7,9 @@ import com.simarel.vkbot.share.port.input.InputPortResponse
 
 interface MessageRequireAnswerInputPort :
     Port<
-        MessageRequireAnswerInputPortRequest,
-        MessageRequireAnswerInputPortResponse,
-        >
+            MessageRequireAnswerInputPortRequest,
+            MessageRequireAnswerInputPortResponse,
+            >
 
 @JvmInline
 value class MessageRequireAnswerInputPortRequest(val message: Message) : InputPortRequest

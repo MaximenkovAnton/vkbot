@@ -10,9 +10,11 @@ value class MessageText(val value: String) {
             return MessageText(value)
         }
     }
+
     fun startsWith(prefix: String): Boolean = value.startsWith(prefix)
     fun contains(text: String): Boolean = value.contains(text, ignoreCase = true)
     override fun toString(): String = value
 }
 
-class ValidationMessageTextNotNullException(message: String = "Message text can't be null") : ValidationException(message)
+class ValidationMessageTextNotNullException(message: String = "Message text can't be null") :
+    ValidationException(message)

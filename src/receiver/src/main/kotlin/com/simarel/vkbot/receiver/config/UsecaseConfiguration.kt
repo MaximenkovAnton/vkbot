@@ -8,6 +8,7 @@ import com.simarel.vkbot.receiver.usecase.ReceiveMessageUsecase
 import jakarta.enterprise.context.Dependent
 import jakarta.enterprise.inject.Produces
 import jakarta.inject.Singleton
+
 @Dependent
 class UsecaseConfiguration {
 
