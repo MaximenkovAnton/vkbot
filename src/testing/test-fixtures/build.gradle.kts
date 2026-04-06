@@ -10,11 +10,11 @@ repositories {
 
 dependencies {
     // Depend on share and vk-facade modules
-    implementation(project(":src:modules:share"))
-    implementation(project(":src:modules:vk-facade"))
+    implementation(project(":src:share"))
+    implementation(project(":src:vk-facade"))
 
     // Common test resources
-    implementation(project(":src:modules:testing:test-common"))
+    implementation(project(":src:testing:test-common"))
 
     // Quarkus platform for version management
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))

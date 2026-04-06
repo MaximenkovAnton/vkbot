@@ -10,17 +10,17 @@ repositories {
 
 dependencies {
     // Depend on share, infrastructure and vk-facade modules
-    implementation(project(":src:modules:share"))
-    implementation(project(":src:modules:infrastructure"))
-    implementation(project(":src:modules:vk-facade"))
+    implementation(project(":src:share"))
+    implementation(project(":src:infrastructure"))
+    implementation(project(":src:vk-facade"))
 
     // Test fixtures need access to share module classes and shared test-fixtures
-    testFixturesImplementation(project(":src:modules:share"))
-    testFixturesImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))
+    testFixturesImplementation(project(":src:share"))
+    testFixturesImplementation(testFixtures(project(":src:testing:test-fixtures")))
 
     // Test fixtures (own testFixtures + shared test-fixtures for FakePublishEventCommand, FakeVoProvider)
     testImplementation(testFixtures(project))  // Own testFixtures
-    testImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))  // Shared test-fixtures
+    testImplementation(testFixtures(project(":src:testing:test-fixtures")))  // Shared test-fixtures
 
     // Quarkus platform for version management
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))

@@ -13,11 +13,11 @@ val quarkusLangChain4jVersion: String by project
 
 dependencies {
     // Depend on all application modules
-    implementation(project(":src:modules:share"))
-    implementation(project(":src:modules:infrastructure"))
-    implementation(project(":src:modules:vk-facade"))
-    implementation(project(":src:modules:processor"))
-    implementation(project(":src:modules:receiver"))
+    implementation(project(":src:share"))
+    implementation(project(":src:infrastructure"))
+    implementation(project(":src:vk-facade"))
+    implementation(project(":src:processor"))
+    implementation(project(":src:receiver"))
 
     // Quarkus platform
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
@@ -39,8 +39,8 @@ dependencies {
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
-    testImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))
-    testImplementation(project(":src:modules:testing:test-common"))
+    testImplementation(testFixtures(project(":src:testing:test-fixtures")))
+    testImplementation(project(":src:testing:test-common"))
 }
 
 group = "com.simarel.vkbot"

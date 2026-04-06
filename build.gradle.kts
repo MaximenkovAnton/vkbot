@@ -18,12 +18,12 @@ val quarkusLangChain4jVersion: String by project
 val detektPluginVersion: String by project
 
 dependencies {
-    implementation(project(":src:modules:share"))
-    implementation(project(":src:modules:infrastructure"))
-    implementation(project(":src:modules:vk-facade"))
-    implementation(project(":src:modules:processor"))
-    implementation(project(":src:modules:receiver"))
-    testImplementation(testFixtures(project(":src:modules:testing:test-fixtures")))
+    implementation(project(":src:share"))
+    implementation(project(":src:infrastructure"))
+    implementation(project(":src:vk-facade"))
+    implementation(project(":src:processor"))
+    implementation(project(":src:receiver"))
+    testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))
     implementation("io.quarkus:quarkus-agroal")
     implementation("io.quarkus:quarkus-config-yaml")
