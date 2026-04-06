@@ -1,4 +1,4 @@
-package com.simarel.vkbot.objectProvider.fake.adapter.output.mq
+package com.simarel.vkbot.testfixtures.adapter.output.mq
 
 import com.simarel.vkbot.share.port.output.PublishEventOutputPort
 import com.simarel.vkbot.share.port.output.PublishEventOutputPortRequest

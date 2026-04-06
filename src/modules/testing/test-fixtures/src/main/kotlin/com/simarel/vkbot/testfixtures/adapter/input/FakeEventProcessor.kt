@@ -1,4 +1,4 @@
-package com.simarel.vkbot.objectProvider.fake.adapter.input
+package com.simarel.vkbot.testfixtures.adapter.input
 
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.port.input.EventProcessor
