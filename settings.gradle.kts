@@ -19,7 +19,7 @@ plugins {
 }
 rootProject.name = "vkbot"
 
-include("app")
+include("src:app")
 include("src:infrastructure")
 include("src:processor")
 include("src:share")
