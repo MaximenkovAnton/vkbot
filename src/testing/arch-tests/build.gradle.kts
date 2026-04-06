@@ -10,7 +10,7 @@ repositories {
 dependencies {
     implementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))

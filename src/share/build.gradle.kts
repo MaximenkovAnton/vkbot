@@ -11,7 +11,7 @@ repositories {
 
 dependencies {
     // Quarkus platform
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     // CDI
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")

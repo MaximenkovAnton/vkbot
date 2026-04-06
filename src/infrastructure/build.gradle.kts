@@ -12,7 +12,7 @@ dependencies {
     implementation(project(":src:share"))
 
     // Quarkus dependencies needed for infrastructure
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.15.1"))
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-jackson")
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
