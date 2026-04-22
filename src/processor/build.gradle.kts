@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm")
     `java-test-fixtures`
+    id("org.kordamp.gradle.jandex") version "2.0.0"
 }
 
 repositories {
