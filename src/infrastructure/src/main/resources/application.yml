@@ -4,6 +4,7 @@ vk:
   api:
     version: 5.131
     token: ${VK_API_TOKEN}
+aiUseranswerSystemprompt: ${MY_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}
 quarkus:
   application:
     name: vk-bot

@@ -39,6 +39,39 @@ data class Message(
 
     fun answer(text: MessageText): Message = this.copy(messageText = text)
 
+
+    fun forwardedContextString(): String {
+        if (forwardedMessages.isEmpty()) {
+            return ""
+        }
+
+        val context = StringBuilder()
+        context.appendLine("{{пересланные_сообщения}}")
+
+        fun addForwarded(msg: Message, level: Int = 0) {
+            val indent = "|".repeat(level)
+            val lvl = "L$level"
+
+            if (level > 0) {
+                context.appendLine("$indent|--")
+            }
+            context.appendLine("$indent{$lvl|author:${msg.fromId.value}}")
+            context.appendLine("$indent{$lvl|text:${msg.messageText.value}}")
+
+            msg.forwardedMessages.forEach { addForwarded(it, level + 1) }
+
+            if (msg.forwardedMessages.isNotEmpty()) {
+                context.appendLine("$indent`--")
+            }
+        }
+
+        forwardedMessages.forEach { addForwarded(it) }
+
+        context.appendLine("{{/пересланные_сообщения}}")
+
+        return context.toString()
+    }
+
     fun isRequireAnswer(): Boolean {
         if (!fromId.isGroupChat()) {
             return true // direct message to bot
