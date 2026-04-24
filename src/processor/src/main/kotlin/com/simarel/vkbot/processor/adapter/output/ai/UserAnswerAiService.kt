@@ -26,7 +26,7 @@ interface UserAnswerAiService {
 
     fun answerUser(message: Message): String {
         return answerUser(
-            memoryId = message.conversationMessageId.value.toString(),
+            memoryId = message.peerId.value.toString(),
             userMessage = message.messageText.value,
             messageContext = message.forwardedContextString()
         )

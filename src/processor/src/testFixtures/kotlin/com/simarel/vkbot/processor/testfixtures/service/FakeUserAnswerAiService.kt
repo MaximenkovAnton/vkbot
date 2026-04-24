@@ -6,11 +6,11 @@ import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeUserAnswerAiService : UserAnswerAiService {
-    val answerUserCalls = ConcurrentLinkedQueue<Pair<String, String>>()
+    val answerUserCalls = ConcurrentLinkedQueue<Triple<String, String, String>>()
     val answerUserMessageCalls = ConcurrentLinkedQueue<Message>()
 
-    override fun answerUser(message: String, context: String): String {
-        answerUserCalls.add(Pair(message, context))
+    override fun answerUser(memoryId: String, message: String, context: String): String {
+        answerUserCalls.add(Triple(memoryId, message, context))
         return FakeVoProvider.createMessageText().value
     }
 
