@@ -1,4 +1,4 @@
-package com.simarel.vkbot.persistence.domain.converter
+package com.simarel.vkbot.persistence.adapter.output.persistence.converter
 
 import jakarta.persistence.AttributeConverter
 import jakarta.persistence.Converter
