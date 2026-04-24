@@ -1,0 +1,32 @@
+dlq:
+  levels:
+    # Level 0: Initial retry - 5 seconds
+    - retry-count: 0
+      queue-name: retry-5s
+      ttl-ms: 5000
+      exchange-name: retry-5s-exchange
+    # Level 1: Second retry - 30 seconds
+    - retry-count: 1
+      queue-name: retry-30s
+      ttl-ms: 30000
+      exchange-name: retry-30s-exchange
+    # Level 2: Third retry - 1 minute
+    - retry-count: 2
+      queue-name: retry-1m
+      ttl-ms: 60000
+      exchange-name: retry-1m-exchange
+    # Level 3: Fourth retry - 15 minutes
+    - retry-count: 3
+      queue-name: retry-15m
+      ttl-ms: 900000
+      exchange-name: retry-15m-exchange
+    # Level 4: Fifth retry - 1 hour
+    - retry-count: 4
+      queue-name: retry-1h
+      ttl-ms: 3600000
+      exchange-name: retry-1h-exchange
+    # Level 5+: Final DLQ - no TTL, manual intervention required
+    - retry-count: 5
+      queue-name: dlq-final
+      ttl-ms: 0
+      exchange-name: dlq-final-exchange

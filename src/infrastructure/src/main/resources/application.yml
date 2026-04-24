@@ -6,6 +6,8 @@ vk:
     token: ${VK_API_TOKEN}
 aiUseranswerSystemprompt: ${MY_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}
 quarkus:
+  config:
+    locations: application-queues.yml
   application:
     name: vk-bot
   hibernate-orm:
@@ -48,11 +50,92 @@ mp:
           name: all-events
         queue:
           name: queue
+        dead-letter-exchange: retry-5s-exchange
+      retry-5s-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-5s-exchange
+        queue:
+          name: retry-5s
+          arguments:
+            x-message-ttl: 5000
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      retry-30s-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-30s-exchange
+        queue:
+          name: retry-30s
+          arguments:
+            x-message-ttl: 30000
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      retry-1m-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-1m-exchange
+        queue:
+          name: retry-1m
+          arguments:
+            x-message-ttl: 60000
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      retry-15m-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-15m-exchange
+        queue:
+          name: retry-15m
+          arguments:
+            x-message-ttl: 900000
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      retry-1h-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-1h-exchange
+        queue:
+          name: retry-1h
+          arguments:
+            x-message-ttl: 3600000
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      dlq-final-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: dlq-final-exchange
+        queue:
+          name: dlq-final
     outgoing:
       events-exchange:
         connector: smallrye-rabbitmq
         exchange:
           name: all-events
+      retry-5s-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-5s-exchange
+      retry-30s-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-30s-exchange
+      retry-1m-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-1m-exchange
+      retry-15m-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-15m-exchange
+      retry-1h-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-1h-exchange
+      dlq-final-out:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: dlq-final-exchange
 
 smallrye:
   messaging:
