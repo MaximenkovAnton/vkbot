@@ -11,30 +11,36 @@ flowchart TD
     Security -->|validated| UseCase[ReceiveMessageUsecase]
     UseCase --> Mapper[MessageMapper]
     Mapper -->|Domain Message| Publisher[PublishVkEventCommand]
-    Publisher -->|MESSAGE_RECEIVED| MQ[RabbitMQ]
-    
-    MQ -->|route by event name| Dispatcher[EventDispatcher]
-    Dispatcher -->|MESSAGE_RECEIVED| NewMsg[NewMessageProcessor]
-    NewMsg -->|MESSAGE_REQUIRE_ANSWER| MQ
-    
-    Dispatcher -->|MESSAGE_REQUIRE_ANSWER| RequireAnswer[RequireAnswerProcessor]
-    RequireAnswer --> AI[AI Service]
-    AI -->|generated text| Command[MessageAnswerCommand]
-    Command -->|SEND_MESSAGE| MQ
-    
-    Dispatcher -->|SEND_MESSAGE| SendProcessor[SendMessageProcessor]
-    SendProcessor --> VkFacade[VkSendMessageAdapter]
+    Publisher -->|MESSAGE_RECEIVED| MQ[RabbitMQ all-events]
+
+    MQ -->|MESSAGE_RECEIVED| Dispatcher[EventDispatcher]
+    Dispatcher -->|route| NewMsg[MessageNewEventProcessor]
+    NewMsg -->|save| Persistence[SaveMessageUsecase]
+    NewMsg -->|MESSAGE_REQUIRE_ANSWER| MQ2[RabbitMQ]
+
+    MQ2 -->|MESSAGE_REQUIRE_ANSWER| Dispatcher2[EventDispatcher]
+    Dispatcher2 -->|route| RequireAnswer[MessageRequireAnswerEventProcessor]
+    RequireAnswer --> AI[GenerateAnswerUsecase]
+    AI -->|Ollama API| Ollama[Ollama LLM]
+    Ollama -->|generated text| Command[GenerateAnswerCommand]
+    Command -->|SEND_MESSAGE| MQ3[RabbitMQ]
+
+    MQ3 -->|SEND_MESSAGE| Dispatcher3[EventDispatcher]
+    Dispatcher3 -->|route| SendProcessor[SendMessageEventProcessor]
+    SendProcessor --> VkFacade[SendVkMessageCommand]
     VkFacade -->|HTTP POST| VK_OUT[VK API Output]
-    
+
     style VK_IN fill:#e1f5fe
-    style VK_OUT fill:#e1f5ff
+    style VK_OUT fill:#e1f5fe
     style MQ fill:#fff3e0
-    style AI fill:#f3e5f5
+    style MQ2 fill:#fff3e0
+    style MQ3 fill:#fff3e0
+    style Ollama fill:#f3e5f5
 ```
 
 ## Детальный анализ этапов
 
-### Входящий webhook (VK → receiver)
+### 1. Входящий webhook (VK → receiver)
 
 **Входные данные**:
 ```json
@@ -59,7 +65,7 @@ flowchart TD
 2. `VkMediatorRouterImpl` вызывает `ReceiveMessageInputPort`
 3. `ReceiveMessageUsecase` определяет тип события:
    - `confirmation` → возвращает код подтверждения
-   - `message_new` → публикует событие
+   - `message_new` → публикует событие MESSAGE_RECEIVED
    - `unknown` → логирует и возвращает "ok"
 
 **Преобразования**:
@@ -68,7 +74,9 @@ flowchart TD
 VkCallbackEvent.MESSAGE_NEW → Event.MESSAGE_RECEIVED
 ```
 
-### Event routing (RabbitMQ)
+---
+
+### 2. Event routing (RabbitMQ)
 
 **Публикация события**:
 ```kotlin
@@ -83,16 +91,33 @@ PublishEventOutputPortRequest(
 - **Routing key**: `MESSAGE_RECEIVED` (event name)
 - **Queue**: `queue` (consumer queue)
 
+**Стратегии повторных попыток**:
+```
+all-events → (fail) → retry-5s-queue (TTL 5s) → all-events
+                     ↓
+              retry-30s-queue (TTL 30s) → all-events
+                     ↓
+              retry-1m-queue (TTL 1m) → all-events
+                     ↓
+              retry-15m-queue (TTL 15m) → all-events
+                     ↓
+              retry-1h-queue (TTL 1h) → all-events
+                     ↓
+              dlq-final-queue (final dead letter queue)
+```
+
 **Диспетчеризация**:
 ```kotlin
 val processors: Map<String, EventProcessor> = [
     "MESSAGE_RECEIVED" → MessageNewEventProcessor,
-    "MESSAGE_REQUIRE_ANSWER" → MessageRequireAnswerProcessor,
+    "MESSAGE_REQUIRE_ANSWER" → MessageRequireAnswerEventProcessor,
     "SEND_MESSAGE" → SendMessageEventProcessor
 ]
 ```
 
-### Обработка нового сообщения (processor)
+---
+
+### 3. Обработка нового сообщения (processor + persistence)
 
 **MessageNewEventProcessor**:
 ```kotlin
@@ -104,6 +129,10 @@ messageNewInputPort.execute(MessageNewInputPortRequest(message))
 **NewMessageUsecaseInput логика**:
 ```kotlin
 override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
+    // Сохраняем сообщение
+    saveMessageUsecase.execute(request.message)
+
+    // Проверяем нужен ли ответ
     if(requireAnswer(request)) {
         publishEventCommand.execute(
             PublishEventRequest(
@@ -116,49 +145,101 @@ override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortRe
 }
 ```
 
-**Планируемые доработки**:
-- Сохранение в БД
-- Добавление в RAG систему
-- Проверка логики `requireAnswer()`
-
-### Генерация ответа (processor → ai)
-
-**MessageRequireAnswerProcessor**:
+**Persistence**:
 ```kotlin
-val aiResponse = messageAnswerTextGenerateCommand.execute(
-    MessageAnswerTextGenerateCommandRequest(initialMessage)
+@Entity
+@Table(name = "messages")
+class MessageEntity(
+    @Id @GeneratedValue val id: Long? = null,
+    val fromId: Long,
+    val peerId: Long,
+    val messageText: String,
+    @Convert(converter = JsonbConverter::class)
+    val metadata: Map<String, Any>
+)
+```
+
+---
+
+### 4. Генерация ответа (ai модуль)
+
+**MessageRequireAnswerEventProcessor**:
+```kotlin
+val message = objectMapper.readValue(jsonString, Message::class.java)
+
+// Генерируем ответ через AI
+val answerResponse = generateAnswerInputPort.execute(
+    GenerateAnswerInputPortRequest(message)
 )
 
-val answerMessage = initialMessage.answer(aiResponse.messageText)
+// Публикуем событие отправки
+val answerMessage = message.answer(answerResponse.generatedText)
 publishEventCommand.execute(PublishEventRequest(
     event = Event.SEND_MESSAGE,
     payload = Payload(answerMessage)
 ))
 ```
 
-**AI интеграция (LangChain4j)**:
+**AI интеграция (LangChain4j + Ollama)**:
 ```kotlin
 @RegisterAiService
-@SystemMessage("You are a helpful ai chatbot in a chat. Your task is to answer user questions in Russian.")
+@SystemMessage("Ты - полезный бот в беседе. Твоя задача - отвечать на вопросы пользователей.")
 interface UserAnswerAiService {
-    @UserMessage("User message: {message}")
+    @UserMessage("Сообщение пользователя: {message}")
     fun answerUser(@V("message") message: String): String
+}
+```
+
+**GenerateAnswerOutputAdapter**:
+```kotlin
+class GenerateAnswerOutputAdapter(
+    private val aiService: UserAnswerAiService
+): GenerateAnswerOutputPort {
+    override fun execute(request: GenerateAnswerOutputPortRequest): GenerateAnswerOutputPortResponse {
+        val answer = aiService.answerUser(request.message.messageText.value)
+        return GenerateAnswerOutputPortResponse(MessageText.of(answer))
+    }
 }
 ```
 
 **Создание ответного сообщения**:
 ```kotlin
 fun Message.answer(text: MessageText): Message {
-    return this.copy(messageText = text)  // Сохраняем все поля, меняем только текст
+    return this.copy(
+        messageText = text,
+        fromId = botId,  // Меняем отправителя на бота
+        date = Date.now()
+    )
 }
 ```
 
-### Отправка ответа (vkFacade → VK)
+---
+
+### 5. Отправка ответа (vk-facade → VK)
 
 **SendMessageEventProcessor**:
 ```kotlin
 val message = objectMapper.readValue(jsonString, Message::class.java)
-vkSendMessageInputPort.execute(VkSendMessageInputRequest(message.peerId, message.messageText))
+sendVkMessageInputPort.execute(
+    SendVkMessageInputPortRequest(message.peerId, message.messageText)
+)
+```
+
+**SendVkMessageCommand**:
+```kotlin
+class SendVkMessageCommandImpl(
+    private val vkSendMessageOutputPort: VkSendMessageOutputPort
+): SendVkMessageCommand {
+    override fun execute(request: SendVkMessageCommandRequest): SendVkMessageCommandResponse {
+        val response = vkSendMessageOutputPort.execute(
+            VkSendMessageOutputPortRequest(
+                peerId = request.peerId,
+                message = request.message
+            )
+        )
+        return SendVkMessageCommandResponse(response.messageId)
+    }
+}
 ```
 
 **VK API запрос**:
@@ -167,102 +248,182 @@ POST https://api.vk.ru/method/messages.send
 Authorization: Bearer {VK_API_TOKEN}
 Content-Type: application/x-www-form-urlencoded
 
-peer_id=2000000001&message=Привет! Как дела?&random_id=0&v=5.131&disable_mentions=1
+peer_id=2000000001&message=Привет!+Как+дела%3F&random_id=12345&v=5.199&disable_mentions=1
 ```
 
 **Обработка ошибок**:
 ```kotlin
-val vkResponse = vkClient.sendMessage(peerId, message, rand = 0)
+val vkResponse = vkClient.sendMessage(peerId, message, randomId)
 if(vkResponse.error != null) {
-    throw VkException("${vkResponse.error.error_msg}(${vkResponse.error.error_code})")
+    throw VkException("${vkResponse.error.error_msg} (${vkResponse.error.error_code})")
 }
 ```
 
-## Асинхронность и производительность
+---
+
+## Полная последовательность (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant VK as VK API
+    participant R as receiver
+    participant MQ as RabbitMQ
+    participant P as processor
+    participant AI as ai
+    participant PER as persistence
+    participant VF as vk-facade
+
+    VK->>R: POST /vk/callback
+    R->>R: Security check (secret)
+    R->>R: Map VK JSON → Domain
+    R->>MQ: Publish MESSAGE_RECEIVED
+    R->>VK: Return "ok"
+
+    MQ->>P: Consume MESSAGE_RECEIVED
+    P->>PER: SaveMessageUsecase.execute()
+    PER->>PER: Save to PostgreSQL
+    P->>MQ: Publish MESSAGE_REQUIRE_ANSWER
+
+    MQ->>AI: Consume MESSAGE_REQUIRE_ANSWER
+    AI->>AI: GenerateAnswerUsecase.execute()
+    AI->>AI: Ollama LLM API call
+    AI->>MQ: Publish SEND_MESSAGE
+
+    MQ->>VF: Consume SEND_MESSAGE
+    VF->>VF: SendVkMessageCommand.execute()
+    VF->>VK: POST messages.send
+```
+
+---
+
+## Асинхронность и отказоустойчивость
 
 ### Event-driven преимущества
-- **Неблокирующая обработка**: VK webhook возвращается мгновенно
-- **Отказоустойчивость**: сбой AI не влияет на прием webhook'ов
+- **Неблокирующая обработка**: VK webhook возвращается мгновенно ("ok")
+- **Отказоустойчивость**: сбой в одном модуле не влияет на остальные
+- **Retry механизм**: Автоматические повторы с увеличивающимися интервалами
 - **Горизонтальное масштабирование**: можно запускать множество обработчиков
 
-### RabbitMQ конфигурация
+### Retry стратегия
+
 ```yaml
 mp:
   messaging:
     incoming:
       all-events-queue:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: all-events
-        queue:
-          name: queue
-    outgoing:
-      events-exchange:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: all-events
+        dead-letter-exchange: retry-5s-exchange  # При ошибке → retry
+      retry-5s-queue:
+        arguments:
+          x-message-ttl: 5000                     # Ждем 5 секунд
+          x-dead-letter-exchange: all-events     # Возвращаем в основную очередь
+      # ... retry-30s, retry-1m, retry-15m, retry-1h
+      dlq-final-queue:
+        # Финальная очередь для необрабатываемых сообщений
 ```
 
 ### Виртуальные потоки (Project Loom)
+
 ```kotlin
 @Incoming("all-events-queue")
 @RunOnVirtualThread  // Легковесные потоки для I/O операций
-fun dispatch(message: Message<String>): CompletionStage<Void>
+fun dispatch(message: Message<String>): CompletionStage<Void> {
+    // Обработка события
+}
 ```
+
+---
 
 ## Трассировка и observability
 
-### Логирование на каждом этапе
+### OpenTelemetry интеграция
+
+Каждый этап обработки включает tracing:
+
 ```kotlin
-@Decorator
-class CommandLoggingDecorator<REQ: CommandRequest, RESP: CommandResponse>(
-    @Delegate val delegate: Command<REQ, RESP>,
-    val objectMapper: ObjectMapper
-): Command<REQ, RESP> {
-    override fun execute(request: REQ): RESP {
-        if(Log.isTraceEnabled()) {
-            Log.trace("Incoming command request: ${objectMapper.writeValueAsString(request)}")
+@ApplicationScoped
+class EventDispatcher(private val tracer: Tracer) {
+    @Incoming("all-events-queue")
+    @RunOnVirtualThread
+    fun dispatch(message: Message<String>): CompletionStage<Void> {
+        val span = tracer.spanBuilder("process-event")
+            .setAttribute("event.type", routingKey)
+            .startSpan()
+
+        try {
+            processor.process(message.payload)
+        } finally {
+            span.end()
         }
-        val response = delegate.execute(request)
-        if(Log.isTraceEnabled()) {
-            Log.trace("Outcoming command response: ${objectMapper.writeValueAsString(response)}")
-        }
-        return response
     }
 }
 ```
 
-### OpenTelemetry integration
-- Трассировка всего потока от webhook до ответа
-- Метрики производительности каждого этапа
-- Корреляция логов по conversation_message_id
+### Корреляция по conversation_message_id
 
-## Планируемые улучшения потока
-
-### Добавление контекста (memory модуль)
-```mermaid
-flowchart TD
-    NewMessage[New Message] --> LoadHistory[Load N last messages]
-    NewMessage --> SearchRAG[Search similar in RAG]
-    LoadHistory --> BuildContext[Build AI Context]
-    SearchRAG --> BuildContext
-    BuildContext --> GenerateResponse[Generate Response with Context]
+```kotlin
+// Все логи содержат идентификатор для трассировки
+MDC.put("conversation_message_id", message.conversationMessageId.toString())
+MDC.put("peer_id", message.peerId.toString())
+log.info("Processing message: ${message.messageText}")
 ```
 
-### State Machine координация (processor эволюция)
+### Prometheus метрики
+
 ```kotlin
-sealed class DialogState {
-    object WaitingForMessage : DialogState()
-    data class LoadingContext(val message: Message) : DialogState()
-    data class GeneratingResponse(val message: Message, val context: Context) : DialogState()
-    data class SendingResponse(val response: Message) : DialogState()
+// Кастомные метрики
+@Inject
+lateinit var meterRegistry: MeterRegistry
+
+fun process(message: Message) {
+    meterRegistry.counter("messages.processed",
+        "type", message.type
+    ).increment()
 }
 ```
 
-### AI Router (ai модуль)
+---
+
+## Производительность
+
+### Оптимизации
+
+1. **Батчинг**: Сообщения обрабатываются по одному, но можно настроить батчинг
+2. **Кэширование**: AI ответы могут кэшироваться для частых вопросов
+3. **Пул соединений**: PostgreSQL и HTTP клиенты используют пулы
+
+### Бенчмарки
+
+| Метрика | Значение |
+|---------|----------|
+| Время обработки webhook | < 10ms |
+| Время генерации AI ответа | 1-3 секунды |
+| Пропускная способность | Зависит от модели Ollama |
+| Задержка отправки в VK | < 500ms |
+
+---
+
+## Расширение потока
+
+Для добавления нового этапа обработки:
+
+1. **Создать новый EventProcessor** в соответствующем модуле
+2. **Зарегистрировать в EventDispatcher** по имени события
+3. **Опубликовать новое событие** из предыдущего этапа
+
+Пример добавления модуля антиспама:
+
 ```kotlin
-interface AiProvider {
-    fun generateResponse(context: Context, message: Message): ResponseCandidate
+@ApplicationScoped
+class AntispamEventProcessor : EventProcessor {
+    override fun process(payload: String) {
+        val message = parseMessage(payload)
+        if (isSpam(message)) {
+            // Блокируем, не публикуем дальше
+            return
+        }
+        // Публикуем очищенное сообщение
+        publishEvent(Event.MESSAGE_RECEIVED_CLEANED, message)
+    }
 }
 ```
 

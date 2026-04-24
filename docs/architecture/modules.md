@@ -3,9 +3,23 @@
 Проект организован по модульному принципу с четким разделением ответственности.
 Каждый модуль выполняет свою специфическую роль в общей архитектуре системы.
 
-## Текущие модули
+## Модули приложения
+
+### `app` - Точка входа
+
+**Назначение**: Главный модуль запуска приложения
+
+**Компоненты**:
+- `Application.kt` - точка входа Quarkus приложения
+- `application.yml` - основная конфигурация приложения
+- Интеграционные тесты
+
+**Зависимости**: Все остальные модули
+
+---
 
 ### `receiver` - Точка входа системы
+
 **Назначение**: Получение и первичная обработка webhook'ов от VK API
 
 **Ключевые компоненты**:
@@ -13,51 +27,121 @@
 - `VkMediatorRouterSecurityDecorator` - проверка секретного ключа
 - `ReceiveMessageUsecase` - маршрутизация входящих событий
 - `MessageMapper` - преобразование VK JSON в доменные объекты
+- `PublishVkEventCommand` - публикация событий в очередь
 
 **Паттерн DMZ (Demilitarized Zone)**:
 ```
-VK API → Security Check → VK Event Mapping → Domain Events
+VK API → Security Check → VK Event Mapping → Domain Events → RabbitMQ
 ```
 
 Модуль работает как буферная зона между внешним VK API и внутренней доменной моделью, обеспечивая:
-- Валидацию и безопасность входящих запросов  
+- Валидацию и безопасность входящих запросов
 - Преобразование внешних форматов во внутренние
 - Изоляцию изменений в VK API от остальной системы
 
+---
+
 ### `processor` - Бизнес-логика системы
+
 **Назначение**: Обработка сообщений и координация бизнес-процессов
 
 **Ключевые компоненты**:
-- `NewMessageUsecaseInput` - обработка новых сообщений
-- `MessageRequireAnswerUsecaseInput` - генерация ответов
-- `MessageAnswerTextGenerateCommand` - команда генерации текста
-- `AiChatbotAnswerMessageOutputAdapter` - интеграция с AI
+- `NewMessageEventProcessor` - обработка события MESSAGE_RECEIVED
+- `NewMessageUsecaseInput` - принятие решения о необходимости ответа
+- `MessageRequireAnswerEventProcessor` - обработка запроса на ответ
+- `GenerateAnswerCommand` - команда генерации ответа
 
-**Текущая архитектура**:
+**Архитектура**:
 ```
-Message → Decision Logic → AI Integration → Response Generation
+RabbitMQ Event → Event Processor → Use Case → Command → Publish Next Event
 ```
 
-**Планируемая эволюция** → State Machine:
-- Координация между модулями `memory` и `ai`
-- Управление состояниями диалога
-- Оркестрация сложных бизнес-сценариев
+Координирует работу модулей `ai` и `persistence`, управляя потоком обработки сообщений.
 
-### `vkFacade` - Интеграция с VK API
-**Назначение**: Взаимодействие с VK API
+---
+
+### `ai` - AI интеграция
+
+**Назначение**: Генерация ответов с использованием LLM через LangChain4j
 
 **Ключевые компоненты**:
+- `MessageRequireAnswerEventProcessor` - обработка запросов на генерацию ответа
+- `GenerateAnswerUsecase` - use case генерации ответа
+- `GenerateAnswerOutputAdapter` - адаптер для AI сервиса
+- `UserAnswerAiService` - интерфейс LangChain4j AI сервиса
+
+**Технология**: Ollama локальная модель через LangChain4j
+
+**Конфигурация Ollama**:
+```yaml
+quarkus:
+  langchain4j:
+    ollama:
+      base-url: http://localhost:11434
+      model-id: llama3.2
+```
+
+---
+
+### `persistence` - Сохранение данных
+
+**Назначение**: Хранение истории сообщений в PostgreSQL
+
+**Ключевые компоненты**:
+- `MessageReceivedEventProcessor` - обработка событий для сохранения
+- `MessageRepositoryAdapter` - реализация репозитория
+- `MessageEntity` - JPA сущность
+- `JsonbConverter` - конвертер для JSONB полей
+
+**Технологии**:
+- PostgreSQL (основная БД)
+- Liquibase (миграции схемы)
+- Quarkus Spring Data JPA
+
+---
+
+### `vk-facade` - Интеграция с VK API
+
+**Назначение**: Отправка сообщений в VK API
+
+**Ключевые компоненты**:
+- `SendMessageEventProcessor` - обработка события SEND_MESSAGE
 - `VkClient` - REST клиент для VK API
-- `VkSendMessageOutputAdapter` - адаптер для отправки сообщений
-- `SendVkMessageCommand` - команда отправки сообщения
+- `VkSendMessageOutputAdapter` - адаптер отправки сообщений
+- `SendVkMessageCommand` - команда отправки
 - `MessageSendUsecase` - use case отправки
 
 **Архитектура**:
 ```
-Domain Events → VK API Mapping → HTTP Request → VK API
+RabbitMQ Event → SendMessageProcessor → VK Client → HTTP POST → VK API
 ```
 
+**VK API endpoints**:
+- `messages.send` - отправка сообщений
+
+---
+
+### `infrastructure` - Инфраструктурные компоненты
+
+**Назначение**: Кросс-модульная инфраструктура
+
+**Компоненты**:
+- `EventDispatcher` - маршрутизация событий RabbitMQ
+- `CommandLoggingDecorator` - логирование команд
+- `UsecaseLoggingDecorator` - логирование use case'ов
+- `MapperConfig` - конфигурация Jackson для Kotlin
+- `RetryStrategies` - стратегии повторных попыток (5s, 30s, 1m, 15m, 1h)
+- `DlqFinalHandler` - обработка "мертвых" сообщений
+
+**RabbitMQ конфигурация**:
+- Exchange: `all-events` (основной)
+- Retry exchange'ы: `retry-5s-exchange`, `retry-30s-exchange`, `retry-1m-exchange`, `retry-15m-exchange`, `retry-1h-exchange`
+- DLQ: `dlq-final-exchange`
+
+---
+
 ### `share` - Общие компоненты
+
 **Назначение**: Переиспользуемые компоненты всех модулей
 
 **Структура**:
@@ -66,8 +150,12 @@ share/
 ├── domain/
 │   ├── model/Message.kt          # Основная бизнес-сущность
 │   ├── vo/                       # Value Objects
+│   │   ├── MessageText.kt
+│   │   ├── PeerId.kt
+│   │   ├── FromId.kt
+│   │   └── ...
 │   └── Event.kt                  # Доменные события
-├── port/                         # Интерфейсы портов
+├── port/                         # Базовые интерфейсы портов
 ├── command/Command.kt            # Command pattern базовые интерфейсы
 └── adapter/                      # Базовые интерфейсы адаптеров
 ```
@@ -77,84 +165,110 @@ share/
 - `PeerId` - идентификатор диалога
 - `FromId` - идентификатор отправителя
 - `ConversationMessageId` - идентификатор сообщения в диалоге
+- `GroupId` - идентификатор группы VK
+- `Date` - дата сообщения
 
-### `infrastructure` - Инфраструктурные компоненты
-**Назначение**: Кросс-модульная инфраструктура
+---
 
-**Компоненты**:
-- `EventDispatcher` - маршрутизация событий RabbitMQ
-- `CommandLoggingDecorator` - логирование команд
-- `UsecaseLoggingDecorator` - логирование use case'ов
-- `MapperConfig` - конфигурация Jackson для Kotlin
+### `testing` - Тестовая инфраструктура
 
-## Планируемые модули
+**Структура**:
 
-### `memory` - Управление памятью системы
-**Назначение**: Хранение и поиск контекста диалогов
+#### `arch-tests` - Архитектурные тесты
+- `ModuleDependenciesTest` - проверка зависимостей между модулями
+- `GradleDependenciesTest` - проверка Gradle зависимостей
 
-**Планируемые компоненты**:
-- **RAG система** - vector search по истории сообщений
-- **History Service** - последние N сообщений диалога  
-- **Context Builder** - формирование контекста для AI
-- **User Profile** - профили пользователей на основе сообщений
+#### `test-common` - Общие тестовые утилиты
+- Общие extensions и helpers
 
-**Архитектура**:
-```
-Message → Vector Store + Database → Context Retrieval → AI Context
-```
+#### `test-fixtures` - Fake Objects
+- `FakeVkClient` - фейк VK API клиента
+- `FakePublishEventOutputPort` - фейк публикации событий
+- `FakeMessageProvider` - фабрика сообщений
+- `FakeVoProvider` - фабрика Value Objects
 
-### `ai` - AI интеграция
-**Назначение**: Генерация ответов и AI-логика
-
-**Планируемые компоненты**:
-- **Multiple AI Providers** - поддержка разных AI сервисов
-- **Prompt Engineering** - управление промптами
-- **Response Processing** - постобработка ответов AI
-- **AI Router** - выбор подходящего AI провайдера
-
-**Архитектура**:
-```
-Context + Message → Prompt Building → AI Provider → Response Processing
-```
-
-### Новая роль `processor` как State Machine
-После появления модулей `memory` и `ai`, процессор станет координатором:
-
-```mermaid
-stateDiagram-v2
-    [*] --> ReceiveMessage
-    ReceiveMessage --> LoadContext: требует ответа
-    LoadContext --> GenerateResponse: контекст загружен
-    GenerateResponse --> SendResponse: ответ сгенерирован
-    SendResponse --> SaveToMemory: сообщение отправлено
-    SaveToMemory --> [*]: контекст сохранен
-    
-    ReceiveMessage --> [*]: ответ не требуется
-```
+---
 
 ## Межмодульное взаимодействие
 
-### Текущее взаимодействие
+### Поток событий
 ```
-receiver → (events) → processor → (events) → vkFacade
-    ↓
-infrastructure (EventDispatcher, Logging)
+receiver → (MESSAGE_RECEIVED) → processor → (MESSAGE_REQUIRE_ANSWER) → ai
+                                         ↓
+                                    persistence
+                                         ↓
+ai → (SEND_MESSAGE) → vk-facade → VK API
 ```
 
-### Планируемое взаимодействие  
+### Диаграмма взаимодействия
+
+```mermaid
+flowchart LR
+    subgraph "External"
+        VK[VK API]
+    end
+
+    subgraph "Application Modules"
+        R[receiver]
+        P[processor]
+        A[ai]
+        PER[persistence]
+        VF[vk-facade]
+        INF[infrastructure]
+        S[share]
+    end
+
+    VK -->|webhook| R
+    R -->|MESSAGE_RECEIVED| INF
+    INF -->|route| P
+    P -->|save| PER
+    P -->|MESSAGE_REQUIRE_ANSWER| INF
+    INF -->|route| A
+    A -->|SEND_MESSAGE| INF
+    INF -->|route| VF
+    VF -->|HTTP| VK
+
+    S -.->|shared types| R
+    S -.->|shared types| P
+    S -.->|shared types| A
+    S -.->|shared types| PER
+    S -.->|shared types| VF
 ```
-receiver → (events) → processor (state machine)
-                       ↓
-                ┌──────┴──────┐
-                ↓             ↓
-            memory            ai
-               ↓              ↓
-             (events) → processor → (events) → vkFacade
+
+### Зависимости модулей
+
 ```
+app:
+  - ai, infrastructure, vk-facade, processor, receiver, persistence, share
+
+receiver:
+  - share, infrastructure
+
+processor:
+  - share, infrastructure
+
+ai:
+  - share, infrastructure
+
+persistence:
+  - share, infrastructure
+
+vk-facade:
+  - share
+
+infrastructure:
+  - share
+
+share:
+  - (no internal dependencies)
+```
+
+---
 
 ## Принципы модульной организации
 
 ### Разделение UseCase и Command
+
 В архитектуре системы применяется разделение стандартных use case'ов из гексагональной архитектуры на два компонента:
 
 **UseCase** - имплементация входящего порта:
@@ -171,27 +285,29 @@ receiver → (events) → processor (state machine)
 
 ```kotlin
 // UseCase координирует процесс на высоком уровне
-class MessageRequireAnswerUsecaseInput {
+class NewMessageUsecaseInput {
     fun execute(message: Message) {
         // Что нужно сделать
-        val response = generateAnswerCommand.execute(message)  // Делегация команде
-        sendMessageCommand.execute(response)                  // Делегация команде
+        if (requiresAnswer(message)) {
+            publishEventCommand.execute(Event.MESSAGE_REQUIRE_ANSWER, message)
+        }
+        saveMessageCommand.execute(message)  // Делегация команде
     }
 }
 
 // Command выполняет конкретное атомарное действие
-class MessageAnswerTextGenerateCommandImpl {
-    fun execute(message: Message): Response {
-        // Как именно генерировать ответ
-        val context = contextBuilder.build(message)
-        return aiOutputPort.generateResponse(context)
+class PublishVkEventCommandImpl {
+    fun execute(event: Event, payload: Payload) {
+        // Как именно публиковать событие
+        val metadata = buildMetadata(event)
+        emitter.send(Message.of(payload, metadata))
     }
 }
 ```
 
 ### Слабая связанность
 - Модули взаимодействуют только через события
-- Нет прямых зависимостей между модулями
+- Нет прямых зависимостей между бизнес-модулями
 - Каждый модуль имеет свой контекст и ports/adapters
 
 ### Высокая связность
@@ -199,26 +315,22 @@ class MessageAnswerTextGenerateCommandImpl {
 - Четкое разделение на слои внутри каждого модуля
 - Явные интерфейсы (ports) для внешних взаимодействий
 
-### Независимость развертывания
-- Каждый модуль может развиваться независимо
-- Версионирование API между модулями через события
-- Возможность горизонтального масштабирования отдельных модулей
+### Типовая структура модуля
 
-## Структура модуля (типовая)
 ```
 module_name/
 ├── adapter/
 │   ├── input/          # Входящие адаптеры (web, events)
 │   └── output/         # Исходящие адаптеры (db, api)
 ├── command/            # Commands - атомарные переиспользуемые действия
-├── domain/             # Доменная логика модуля
+├── config/             # Конфигурация модуля
+├── domain/             # Доменная логика модуля (если есть)
 │   ├── exception/      # Доменные исключения
 │   └── vo/            # Value Objects модуля
 ├── port/
 │   ├── input/         # Интерфейсы для входящих операций
 │   └── output/        # Интерфейсы для исходящих операций
-├── usecase/           # Use cases (бизнес-логика)
-└── config/            # Конфигурация модуля
+└── usecase/           # Use cases (бизнес-логика)
 ```
 
 Эта структура обеспечивает единообразие и понятность архитектуры на всех уровнях системы.

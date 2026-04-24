@@ -39,8 +39,12 @@ vk:
 | Переменная | Обязательная | Описание | Пример |
 |------------|--------------|----------|---------|
 | `VK_SECRET` | Да           | Секретный ключ VK callback | `my_super_secret_key` |
-| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456` |  
+| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456` |
 | `VK_API_TOKEN` | Да            | API токен VK группы | `vk1.a.abc123...` |
+| `DATABASE_URL` | Нет            | JDBC URL PostgreSQL | `jdbc:postgresql://localhost:5432/vkbot` |
+| `DB_USERNAME` | Нет            | Имя пользователя БД | `postgres` |
+| `DB_PASSWORD` | Нет            | Пароль БД | `password` |
+| `RABBITMQ_HOST` | Нет            | Хост RabbitMQ | `localhost` |
 
 ## Quarkus конфигурация
 
@@ -53,10 +57,14 @@ quarkus:
     password: ${DB_PASSWORD:password}
     jdbc:
       url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vkbot}
-  
+
+  liquibase:
+    migrate-at-start: true
+    change-log: db/changelog/db.changelog-master.yaml
+
   hibernate-orm:
     schema-management:
-      strategy: ${DB_SCHEMA_STRATEGY:update}  # drop-and-create для dev
+      strategy: validate  # Liquibase управляет схемой
 ```
 
 ### RabbitMQ конфигурация
@@ -79,17 +87,31 @@ mp:
         exchange:
           name: all-events
           type: topic                  # Поддержка routing по event name
-          durable: true               # Сохранение обмена при перезапуске
         queue:
           name: queue
-          durable: true               # Сохранение очереди при перезапуске
-          auto-delete: false          # Не удалять при отключении consumer'а
+        dead-letter-exchange: retry-5s-exchange  # DLX для ошибок
+      retry-5s-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: retry-5s-exchange
+        queue:
+          name: retry-5s
+          arguments:
+            x-message-ttl: 5000                     # 5 секунд
+            x-dead-letter-exchange: all-events
+            x-dead-letter-routing-key: queue
+      # ... retry-30s-queue, retry-1m-queue, retry-15m-queue, retry-1h-queue
+      dlq-final-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: dlq-final-exchange
+        queue:
+          name: dlq-final
     outgoing:
       events-exchange:
         connector: smallrye-rabbitmq
         exchange:
           name: all-events
-          type: topic
 ```
 
 ### REST Client (VK API)
@@ -202,9 +224,11 @@ quarkus:
       jdbc:
         max-size: 20                  # Pool размер для production
         min-size: 5
+    liquibase:
+      migrate-at-start: true
     hibernate-orm:
       schema-management:
-        strategy: validate            # Только валидация схемы
+        strategy: validate            # Только валидация, миграции через Liquibase
 ```
 
 ## Health Checks

@@ -1,32 +1,63 @@
 # VK Bot Application
 
-A Quarkus-based VK bot that processes incoming messages and provides AI-powered responses. The project follows clean architecture principles with clear separation of concerns, ensuring maintainability and scalability.
+A Quarkus-based VK bot that processes incoming messages and provides AI-powered responses. The project follows Clean Architecture principles with clear separation of concerns, ensuring maintainability and scalability.
 
 ## Features
 
-- Clean architecture implementation with domain-driven design
-- VK API integration
-- AI-powered responses using LangChain4j
+- Clean Architecture with domain-driven design and Ports & Adapters pattern
+- VK API integration with webhook callbacks
+- AI-powered responses using LangChain4j and Ollama
 - Event-driven architecture with RabbitMQ
+- PostgreSQL persistence with Liquibase migrations
+- OpenTelemetry observability (traces, metrics, logs)
+- Retry strategies with dead letter queues (DLQ)
 - Docker support for multiple deployment options (JVM, native)
 - RESTful API endpoints for VK webhook integration
+- Comprehensive testing with Fake Objects pattern
+- ArchUnit architecture tests
 
-## Technologies Used
+## Technology Stack
 
-- **Quarkus** (Java/Kotlin) - Reactive, cloud-native framework
-- **Kotlin** - Modern, concise programming language
-- **LangChain4j** - AI integration framework for conversational AI
-- **RabbitMQ** - Event-driven message brokering
-- **Docker** - Containerization for consistent deployments
-- **RESTEasy** - JAX-RS implementation for HTTP endpoints
-- **Jackson** - JSON processing library
-- **Quarkus DevServices** - Automatic service provisioning for development
+| Component | Technology |
+|-----------|------------|
+| Framework | Quarkus 3.34.2 (JDK 21) |
+| Language | Kotlin 2.3.0 |
+| Database | PostgreSQL + Liquibase |
+| Message Broker | RabbitMQ |
+| AI Integration | LangChain4j + Ollama |
+| Observability | OpenTelemetry, Prometheus, Micrometer |
+| Testing | JUnit 5, RestAssured, ArchUnit |
+| Build Tool | Gradle with Kotlin DSL |
+
+## Module Structure
+
+The project follows a multi-module Gradle structure:
+
+```
+src/
+├── ai/                    # AI integration with LangChain4j
+├── app/                   # Main application entry point
+├── infrastructure/        # Cross-cutting infrastructure (logging, events, config)
+├── persistence/           # Database persistence layer
+├── processor/             # Business logic and message processing
+├── receiver/              # VK webhook receiver (DMZ pattern)
+├── share/                 # Shared domain models and value objects
+├── vk-facade/             # VK API client and outgoing messages
+├── docker/                # Docker configurations
+└── testing/               # Testing modules
+    ├── arch-tests/        # Architecture tests (ArchUnit)
+    ├── test-common/       # Common test utilities
+    └── test-fixtures/     # Fake Objects for testing
+```
 
 ## Prerequisites
 
-- Java 21 (for building and running)
-- Docker (optional, for containerized deployment)
+- Java 21 (OpenJDK or GraalVM for native builds)
+- Docker (for containerized deployment)
 - VK developer account and group
+- PostgreSQL (or use DevServices for development)
+- RabbitMQ (or use DevServices for development)
+- Ollama (for AI responses, or use DevServices)
 
 ## Setup and Configuration
 
@@ -37,73 +68,95 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 3. Set up a callback server:
    - **URL**: `https://your-domain.com/vk/callback`
    - **Secret**: Choose a secure secret key
-   - **Confirmation code**: Choose a confirmation code (e.g., `123456`)
+   - **Confirmation code**: VK generates this automatically
 4. Get the group's API token from the API section
 
 ### 2. Configure Application
 
-You can configure the application using environment variables or by modifying `application.yml`:
+The application uses **environment variables** for configuration:
 
-#### Using Environment Variables
+| Environment Variable | Required | Description |
+|----------------------|----------|-------------|
+| `VK_SECRET` | Yes | Secret key from VK callback setup |
+| `VK_CONFIRMATION_CODE` | Yes | Confirmation code from VK (auto-generated) |
+| `VK_API_TOKEN` | Yes | VK group API token |
+| `DATABASE_URL` | No | JDBC URL (default: DevServices) |
+| `DB_USERNAME` | No | Database username (default: postgres) |
+| `DB_PASSWORD` | No | Database password (default: password) |
 
-| Environment Variable | Description |
-|----------------------|-------------|
-| `VK_SECRET` | The secret key from VK callback setup |
-| `VK_CONFIRMATION_CODE` | The confirmation code from VK callback setup |
-| `VK_API_TOKEN` | Your VK group API token |
+Alternatively, you can configure via `application.yml` in the `app` module.
 
-#### Using application.yml
-
-```yaml
-vk:
-  secret: your_secret
-  confirmation-code: 123456
-  api:
-    version: 5.131
-    token: your_api_token
-```
-
-> **Note**: In production, ensure sensitive credentials are managed securely (e.g., via Kubernetes secrets, HashiCorp Vault, or environment variables)
+> **Security Note**: Never commit credentials to version control. Use environment variables or secret management solutions.
 
 ## Building and Running
 
-### Local Development (using Gradle)
+### Local Development
 
 ```bash
-./gradlew quarkusDev
+# Run with hot reloading (uses DevServices for PostgreSQL, RabbitMQ)
+./gradlew :src:app:quarkusDev
 ```
 
-This will start the application in development mode with hot reloading. The application will automatically start RabbitMQ using Quarkus DevServices.
+DevServices automatically starts required services in Docker containers during development.
+
+### Build for Production
+
+```bash
+# Build JVM application
+./gradlew build
+
+# Build native executable (requires GraalVM)
+./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false
+```
 
 ### Docker Deployment
 
-#### Build the Docker image
+#### JVM Mode (recommended for most deployments)
 
 ```bash
-# For JVM mode (recommended for development)
-docker build -f src/docker/Dockerfile.jvm -t vk-bot-jvm .
+# Build Docker image
+docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 
-# For native mode (optimized for production)
-docker build -f src/docker/Dockerfile.native -t vk-bot-native .
-```
-
-#### Run the container
-
-```bash
+# Run container
 docker run -p 8080:8080 \
   -e VK_SECRET=your_secret \
-  -e VK_CONFIRMATION_CODE=123456 \
-  -e VK_API_TOKEN=your_api_token \
-  vk-bot-jvm
+  -e VK_CONFIRMATION_CODE=your_code \
+  -e VK_API_TOKEN=your_token \
+  -e DATABASE_URL=jdbc:postgresql://host:5432/vkbot \
+  vkbot:jvm
 ```
+
+#### Native Mode (optimized for minimal resource usage)
+
+```bash
+# Build native image
+docker build -f src/docker/Dockerfile.native -t vkbot:native .
+
+# Run container
+docker run -p 8080:8080 \
+  -e VK_SECRET=your_secret \
+  -e VK_CONFIRMATION_CODE=your_code \
+  -e VK_API_TOKEN=your_token \
+  vkbot:native
+```
+
+**Native mode advantages**:
+- Startup time: ~0.1s (vs ~2s JVM)
+- Memory usage: ~50MB (vs ~200MB JVM)
+- Image size: ~100MB (vs ~300MB JVM)
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/vk/callback` | POST | Handles incoming VK events. Requires `secret` field in request body for validation. |
+| `/vk/callback` | POST | Handles incoming VK events |
+| `/health` | GET | Health check endpoint |
+| `/health/ready` | GET | Readiness probe |
+| `/health/live` | GET | Liveness probe |
+| `/metrics` | GET | Prometheus metrics |
 
-### Example Request (from VK)
+### Example VK Callback Request
+
 ```json
 {
   "type": "message_new",
@@ -112,7 +165,8 @@ docker run -p 8080:8080 \
       "text": "Привет!",
       "from_id": 123456,
       "peer_id": 789012,
-      "conversation_message_id": 1
+      "conversation_message_id": 1,
+      "date": 1756381457
     }
   },
   "group_id": 123456,
@@ -120,30 +174,82 @@ docker run -p 8080:8080 \
 }
 ```
 
-### Example Response
+## Message Flow
+
 ```
-ok
+VK Webhook → receiver → RabbitMQ → processor → RabbitMQ → ai
+                                                            ↓
+VK API ← vk-facade ← RabbitMQ ← processor ← persistence ←─┘
 ```
 
-## Security
+1. **receiver**: Validates and receives VK webhooks
+2. **processor**: Routes messages and coordinates processing
+3. **ai**: Generates AI responses using Ollama
+4. **persistence**: Stores message history
+5. **vk-facade**: Sends responses back to VK
 
-The application validates all incoming VK callback requests using the configured secret. Only requests with the correct secret will be processed. The confirmation code is used specifically for the initial VK group confirmation request.
+## Testing
+
+The project uses **Fake Objects** pattern for testing instead of mocks:
+
+```bash
+# Run all tests
+./gradlew test
+
+# Run architecture tests
+./gradlew :src:testing:arch-tests:test
+
+# Run with coverage
+./gradlew jacocoTestReport
+```
+
+See [docs/development/testing.md](docs/development/testing.md) for detailed testing philosophy.
+
+## Observability
+
+### OpenTelemetry Traces
+
+Distributed tracing is enabled across all message flows. Traces include:
+- VK webhook reception
+- Message processing steps
+- AI generation
+- Database operations
+- VK API calls
+
+### Metrics (Prometheus)
+
+Available at `/metrics`:
+- JVM metrics (memory, GC, threads)
+- HTTP request metrics
+- RabbitMQ message rates
+- Custom business metrics
+
+### Logging
+
+Structured JSON logging in production, readable format in development.
+
+## Documentation
+
+Detailed documentation is available in the `docs/` directory:
+
+- [Architecture Overview](docs/architecture/overview.md)
+- [Module Structure](docs/architecture/modules.md)
+- [Data Flow](docs/architecture/data-flow.md)
+- [Architecture Patterns](docs/architecture/patterns.md)
+- [Testing Guide](docs/development/testing.md)
+- [Configuration](docs/development/configuration.md)
+- [Deployment](docs/development/deployment.md)
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines:
-
 1. Fork the repository
-2. Create a new branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Additional Notes
+Follow conventional commits format and ensure all tests pass.
 
-- For development, RabbitMQ is automatically started via Quarkus DevServices. For production, configure RabbitMQ connection details in `application.yml`.
-- The application uses Dockerfiles for different build modes (JVM, legacy jar, native, micro). Choose the appropriate one based on your deployment needs.
-- Ensure that the VK group's callback URL is correctly configured to point to your application's `/vk/callback` endpoint.
-- The AI service responds in Russian by default (configured in `UserAnswerAiService` interface).
+## License
 
-> **Note**: The project follows clean architecture principles with clear separation between domain, ports, adapters, and use cases. This ensures maintainability and makes it easy to swap out components (e.g., different AI providers or messaging systems) without affecting the core business logic.
+[Specify your license here]

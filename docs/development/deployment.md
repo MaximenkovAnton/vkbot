@@ -12,7 +12,7 @@
 ./gradlew build
 
 # Сборка Docker образа
-docker build -f src/docker/Dockerfile.jvm -t vkbot:latest .
+docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 ```
 
 **Запуск контейнера**:
@@ -21,13 +21,13 @@ docker run -d \
   --name vkbot \
   -p 8080:8080 \
   -e VK_SECRET=your_secret_key \
-  -e VK_CONFIRMATION_CODE=123456 \
+  -e VK_CONFIRMATION_CODE=your_code \
   -e VK_API_TOKEN=your_vk_token \
   -e DATABASE_URL=jdbc:postgresql://postgres:5432/vkbot \
   -e DB_USERNAME=postgres \
   -e DB_PASSWORD=password \
   -e RABBITMQ_HOST=rabbitmq \
-  vkbot:latest
+  vkbot:jvm
 ```
 
 ### Native режим (для минимального потребления ресурсов)
