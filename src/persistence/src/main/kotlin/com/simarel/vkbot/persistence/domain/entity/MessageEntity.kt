@@ -30,7 +30,7 @@ open class MessageEntity {
     @Column(name = "conversation_message_id", nullable = false)
     open var conversationMessageId: Long? = null
 
-    @Column(name = "message_text", nullable = false)
+    @Column(name = "message_text", nullable = false, columnDefinition = "TEXT")
     open var messageText: String? = null
 
     @Column(name = "forwarded_messages", columnDefinition = "JSONB")
