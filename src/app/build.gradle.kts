@@ -15,6 +15,7 @@ dependencies {
     // Depend on all application modules
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))
+    implementation(project(":src:persistence"))
     implementation(project(":src:vk-facade"))
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))

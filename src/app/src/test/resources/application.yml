@@ -1,0 +1,6 @@
+"%test":
+  quarkus:
+    hibernate-orm:
+      enabled: false
+    liquibase:
+      enabled: false

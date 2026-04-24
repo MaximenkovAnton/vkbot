@@ -14,6 +14,11 @@ quarkus:
       strategy: validate
   datasource:
     db-kind: postgresql
+    devservices:
+      enabled: true
+  liquibase:
+    migrate-at-start: true
+    change-log: db/changelog/db.changelog-master.yaml
   otel:
     logs:
       enabled: true
