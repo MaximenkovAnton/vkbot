@@ -12,6 +12,7 @@ dependencies {
 
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
+    implementation(project(":src:ai"))
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))
     implementation(project(":src:vk-facade"))

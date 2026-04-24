@@ -13,6 +13,7 @@ val quarkusLangChain4jVersion: String by project
 
 dependencies {
     // Depend on all application modules
+    implementation(project(":src:ai"))
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))
     implementation(project(":src:persistence"))
@@ -29,7 +30,7 @@ dependencies {
     implementation("io.quarkus:quarkus-config-yaml")
     implementation("io.quarkus:quarkus-rest")
 
-    // LangChain4j
+    // LangChain4j (via ai module)
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
 
     // Kotlin

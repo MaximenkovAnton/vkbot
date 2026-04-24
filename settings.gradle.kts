@@ -19,6 +19,7 @@ plugins {
 }
 rootProject.name = "vkbot"
 
+include("src:ai")
 include("src:app")
 include("src:infrastructure")
 include("src:persistence")
