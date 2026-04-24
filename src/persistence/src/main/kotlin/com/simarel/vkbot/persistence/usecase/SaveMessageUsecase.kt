@@ -3,15 +3,19 @@ package com.simarel.vkbot.persistence.usecase
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.persistence.port.output.persistence.MessageRepositoryPort
+import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
-import java.time.OffsetDateTime
 import java.util.UUID
 
 @ApplicationScoped
 open class SaveMessageUsecase(
     private val messageRepositoryPort: MessageRepositoryPort,
     private val objectMapper: ObjectMapper,
+    private val publishEventCommand: PublishEventCommand,
 ) {
     open fun execute(message: Message) {
         val entity = MessageEntity().apply {
@@ -29,5 +33,11 @@ open class SaveMessageUsecase(
             }
         }
         messageRepositoryPort.save(entity)
+        publishEventCommand.execute(
+            PublishEventRequest(
+                event = Event.MESSAGE_RECEIVED,
+                payload = Payload(message),
+            ),
+        )
     }
 }

@@ -34,7 +34,7 @@ dependencies {
     implementation("io.quarkus:quarkus-info")
     implementation("io.quarkus:quarkus-logging-json")
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
-    implementation("io.quarkus:quarkus-micrometer-registry-prometheus")
+    implementation("io.quarkus:quarkus-micrometer-opentelemetry")
     implementation("io.quarkus:quarkus-observability-devservices")
     implementation("io.quarkus:quarkus-observability-devservices-lgtm")
     implementation("io.quarkus:quarkus-opentelemetry")

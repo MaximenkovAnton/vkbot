@@ -18,5 +18,5 @@ open class MessageReceivedEventProcessor(
         saveMessageUsecase.execute(message)
     }
 
-    override fun event() = Event.MESSAGE_RECEIVED
+    override fun event() = Event.MESSAGE_NEW
 }

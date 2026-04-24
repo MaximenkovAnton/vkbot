@@ -1,11 +1,11 @@
 package com.simarel.vkbot.persistence.domain.entity
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.converter.JsonbConverter
 import jakarta.persistence.Column
-import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -33,7 +33,7 @@ open class MessageEntity {
     @Column(name = "message_text", nullable = false, columnDefinition = "TEXT")
     open var messageText: String? = null
 
-    @Column(name = "forwarded_messages", columnDefinition = "JSONB")
-    @Convert(converter = JsonbConverter::class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "forwarded_messages")
     open var forwardedMessages: String? = null
 }

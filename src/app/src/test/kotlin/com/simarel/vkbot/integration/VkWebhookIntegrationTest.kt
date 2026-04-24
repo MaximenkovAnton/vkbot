@@ -107,7 +107,7 @@ class VkWebhookIntegrationTest {
                             "id": 0,
                             "version": 10000390,
                             "out": 0,
-                            "text": "Привет, бот! Как дела?",
+                            "text": "@simarel Привет, бот! Как дела?",
                             "peer_id": 2000000001,
                             "random_id": 0,
                             "conversation_message_id": 2670

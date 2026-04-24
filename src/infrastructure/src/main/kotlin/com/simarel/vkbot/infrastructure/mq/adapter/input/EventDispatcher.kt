@@ -75,10 +75,10 @@ class EventDispatcher(
         } else {
             try {
                 processor.process(message.payload)
-                message.ack()
+                return message.ack()
             } catch (e: Exception) {
                 Log.error("Processing failed", e)
-                handleRetry(message, routingKey)
+                return handleRetry(message, routingKey)
             }
         }
     }
@@ -90,7 +90,7 @@ class EventDispatcher(
     private fun handleRetry(message: Message<String>, routingKey: String?): CompletionStage<Void> {
         val metadata = message.getMetadata(IncomingRabbitMQMetadata::class.java).orElse(null)
         val headerValue = metadata?.getHeader("x-retry-count", Integer::class.javaObjectType)
-        val currentRetryCount: Int = if (headerValue != null) headerValue as Int else 0
+        val currentRetryCount: Int = headerValue?.orElse(null)?.toInt() ?: 0
         val nextRetryCount = currentRetryCount + 1
 
         val levelConfig = levelConfigByRetryCount[currentRetryCount]
