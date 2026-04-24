@@ -1,6 +1,8 @@
 package com.simarel.vkbot.persistence.domain.entity
 
+import com.simarel.vkbot.persistence.domain.converter.JsonbConverter
 import jakarta.persistence.Column
+import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
@@ -32,5 +34,6 @@ open class MessageEntity {
     open var messageText: String? = null
 
     @Column(name = "forwarded_messages", columnDefinition = "JSONB")
+    @Convert(converter = JsonbConverter::class)
     open var forwardedMessages: String? = null
 }
