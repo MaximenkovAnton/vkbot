@@ -20,7 +20,7 @@ class VkSendMessageOutputAdapter(
             peerId = request.peerId.value,
             message = request.messageText.value,
             rand = request.rand,
-            forwardMessages = objectMapper.writeValueAsString(request.forwardedMessage),
+            forwardMessages = request.forwardedMessage?.let { objectMapper.writeValueAsString(it) },
         )
         if (vkResponse.error != null) {
             throw VkException("${vkResponse.error.error_msg}(${vkResponse.error.error_code})")
