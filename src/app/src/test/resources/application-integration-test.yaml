@@ -1,0 +1,25 @@
+vk:
+  confirmation-code: 123456
+  secret: test_secret
+  api:
+    token: vk-token
+
+quarkus:
+  # Enable devservices only for RabbitMQ in integration tests
+  devservices:
+    enabled: true
+  rabbitmq:
+    devservices:
+      enabled: true
+      image-name: rabbitmq:3.12-management
+      # Shared=true allows multiple channels to use the same broker
+      shared: true
+  # Disable Ollama devservices - we mock it via WireMock
+  langchain4j:
+    devservices:
+      enabled: false
+    ollama:
+      timeout: 30s
+      chat-model:
+        model-id: llama3.2
+        temperature: 0.0

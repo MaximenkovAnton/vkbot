@@ -43,6 +43,13 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:test-common"))
+
+    // WireMock for HTTP mocking
+    testImplementation("org.wiremock:wiremock-standalone:3.9.1")
+
+    // Awaitility for async test assertions
+    testImplementation("org.awaitility:awaitility:4.2.0")
+    testImplementation("org.awaitility:awaitility-kotlin:4.2.0")
 }
 
 group = "com.simarel.vkbot"
