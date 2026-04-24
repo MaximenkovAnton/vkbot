@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.domain.entity
 
-import com.simarel.vkbot.persistence.domain.converter.JsonbConverter
+import com.simarel.vkbot.persistence.adapter.output.persistence.converter.JsonbConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
