@@ -2,7 +2,7 @@ package com.simarel.vkbot.vkFacade.adapter.input.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.share.domain.Event
-import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.port.input.EventProcessor
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
@@ -15,9 +15,9 @@ open class SendMessageEventProcessor(
 ) : EventProcessor {
 
     override fun process(jsonString: String) {
-        val message = objectMapper.readValue(jsonString, Message::class.java)
-        vkSendMessageInputPort.execute(VkSendMessageInputRequest(message.peerId, message.messageText))
+        val response = objectMapper.readValue(jsonString, ResponseMessage::class.java)
+        vkSendMessageInputPort.execute(VkSendMessageInputRequest(response))
     }
 
-    override fun event() = Event.SEND_MESSAGE
+    override fun event() = Event.ANSWER_MESSAGE
 }

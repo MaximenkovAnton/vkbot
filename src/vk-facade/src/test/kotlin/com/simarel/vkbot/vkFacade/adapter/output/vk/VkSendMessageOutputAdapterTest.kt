@@ -1,6 +1,7 @@
 package com.simarel.vkbot.vkFacade.adapter.output.vk
 
 import com.simarel.vkbot.testfixtures.adapter.output.vk.FakeVkClient
+import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
 import com.simarel.vkbot.testfixtures.port.output.vk.FakeVkSendMessageOutputProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkError
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
@@ -14,7 +15,7 @@ class VkSendMessageOutputAdapterTest {
     @Test
     fun `send vk message happy path`() {
         val vkClient = FakeVkClient()
-        val vkSendMessageOutputAdapter = VkSendMessageOutputAdapter(vkClient)
+        val vkSendMessageOutputAdapter = VkSendMessageOutputAdapter(vkClient, ObjectMapperProvider.create())
         val request = FakeVkSendMessageOutputProvider.createRequest()
 
         vkSendMessageOutputAdapter.execute(request)
@@ -29,7 +30,7 @@ class VkSendMessageOutputAdapterTest {
     @Test
     fun `send vk message error handling`() {
         val vkClient = FakeVkClient(VkResponseDto(VkError(error_code = 1, "error happened")))
-        val vkSendMessageOutputAdapter = VkSendMessageOutputAdapter(vkClient)
+        val vkSendMessageOutputAdapter = VkSendMessageOutputAdapter(vkClient, ObjectMapperProvider.create())
         val request = FakeVkSendMessageOutputProvider.createRequest()
 
         assertThrows<VkException> {

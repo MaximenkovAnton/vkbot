@@ -8,6 +8,7 @@ import com.simarel.vkbot.processor.port.input.messageRequireAnswer.MessageRequir
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -20,16 +21,20 @@ open class MessageRequireAnswerUsecaseInput(
 
     override fun execute(request: MessageRequireAnswerInputPortRequest): MessageRequireAnswerInputPortResponse {
         val initialMessage = request.message
-        val aiResponse = messageAnswerTextGenerateCommand.execute(
+        val answer = messageAnswerTextGenerateCommand.execute(
             MessageAnswerTextGenerateCommandRequest(
                 initialMessage,
             ),
-        )
-        val answerMessage = initialMessage.answer(aiResponse.messageText)
+        ).messageText
         publishEventCommand.execute(
             PublishEventRequest(
-                event = Event.SEND_MESSAGE,
-                payload = Payload(answerMessage),
+                event = Event.ANSWER_MESSAGE,
+                payload = Payload(
+                    ResponseMessage(
+                        messageText = answer,
+                        responseTo = initialMessage
+                    ),
+                ),
             ),
         )
         return okResponse

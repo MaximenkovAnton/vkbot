@@ -30,13 +30,13 @@ class MessageRequireAnswerUsecaseInputTest {
         // Verify event was published
         assertEquals(1, publishCommand.executeCalls.size)
         val publishedEvent = publishCommand.executeCalls.first()
-        assertEquals(Event.SEND_MESSAGE, publishedEvent.event)
+        assertEquals(Event.ANSWER_MESSAGE, publishedEvent.event)
         // Answer message should have the same properties as original, but with AI-generated text
-        val answerMessage = publishedEvent.payload.value as com.simarel.vkbot.share.domain.model.Message
-        assertEquals(request.message.peerId, answerMessage.peerId)
-        assertEquals(request.message.fromId, answerMessage.fromId)
-        assertEquals(request.message.groupId, answerMessage.groupId)
-        assertEquals(request.message.conversationMessageId, answerMessage.conversationMessageId)
+        val answerMessage = publishedEvent.payload.value as com.simarel.vkbot.share.domain.model.ResponseMessage
+        assertEquals(request.message.peerId, answerMessage.responseTo.peerId)
+        assertEquals(request.message.fromId, answerMessage.responseTo.fromId)
+        assertEquals(request.message.groupId, answerMessage.responseTo.groupId)
+        assertEquals(request.message.conversationMessageId, answerMessage.responseTo.conversationMessageId)
         assertEquals(messageAnswerCommand.executeCalls.first().message, request.message)
     }
 }

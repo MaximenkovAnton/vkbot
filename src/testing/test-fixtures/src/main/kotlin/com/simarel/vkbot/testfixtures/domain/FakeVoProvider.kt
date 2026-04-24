@@ -7,6 +7,7 @@ import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.GroupId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
+import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
 import java.time.OffsetDateTime
 import kotlin.random.Random
 
@@ -42,6 +43,8 @@ object FakeVoProvider {
         messageText = messageText ?: createMessageText(),
         forwardedMessages = forwardedMessages ?: emptyList(),
     )
+
+    fun createForwardedMessage(message: Message? = null) = ForwardedMessages(message ?: createMessage())
 
     fun createMessageWithForwarded(): Message {
         val forwardedMessage1 = createMessage(

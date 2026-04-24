@@ -2,7 +2,7 @@ vk:
   secret: ${VK_SECRET}
   confirmation-code: ${VK_CONFIRMATION_CODE}
   api:
-    version: 5.131
+    version: 5.199
     token: ${VK_API_TOKEN}
 quarkus:
   application:

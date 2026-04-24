@@ -1,5 +1,6 @@
 package com.simarel.vkbot.vkFacade.usecase.message
 
+import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.testfixtures.command.vkFacade.FakeSendVkMessageCommand
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
@@ -15,7 +16,7 @@ class MessageSendUsecaseTest {
         val usecase = MessageSendUsecase(sendCommand)
         val peerId = FakeVoProvider.createPeerId()
         val messageText = FakeVoProvider.createMessageText()
-        val request = VkSendMessageInputRequest(peerId, messageText)
+        val request = VkSendMessageInputRequest(ResponseMessage(messageText, FakeVoProvider.createMessage(peerId = peerId)))
 
         // When
         usecase.execute(request)

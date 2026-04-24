@@ -37,9 +37,6 @@ data class Message(
         )
     }
 
-    fun answer(text: MessageText): Message = this.copy(messageText = text)
-
-
     fun forwardedContextString(): String {
         if (forwardedMessages.isEmpty()) {
             return ""

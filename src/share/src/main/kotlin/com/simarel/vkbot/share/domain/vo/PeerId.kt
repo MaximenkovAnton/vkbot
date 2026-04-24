@@ -9,7 +9,12 @@ value class PeerId(val value: Long) {
             if (value == null) throw ValidationPeerIdNotNullException()
             return PeerId(value)
         }
+        private const val GROUP_STARTING_ID = 2_000_000_000L
     }
+
+    fun isHuman(): Boolean = value in 1..GROUP_STARTING_ID
+    fun isGroup(): Boolean = value < 0
+    fun isGroupChat(): Boolean = value > GROUP_STARTING_ID
 
     override fun toString(): String = value.toString()
 }

@@ -2,6 +2,7 @@ package com.simarel.vkbot.vkFacade.command.sendVkMessage
 
 import com.simarel.vkbot.testfixtures.adapter.output.vk.FakeVkClient
 import com.simarel.vkbot.testfixtures.command.vkFacade.FakeSendVkMessageCommandProvider
+import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkSendMessageOutputAdapter
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -11,7 +12,7 @@ class SendVkMessageCommandImplTest {
     @Test
     fun `execute command successfully`() {
         val vkClient = FakeVkClient()
-        val vkOutputAdapter = VkSendMessageOutputAdapter(vkClient)
+        val vkOutputAdapter = VkSendMessageOutputAdapter(vkClient, ObjectMapperProvider.create())
         val command = SendVkMessageCommandImpl(vkOutputAdapter)
         val request = FakeSendVkMessageCommandProvider.createRequest()
 

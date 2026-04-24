@@ -10,6 +10,7 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient
 @RegisterRestClient(configKey = "vk")
 @ClientQueryParam(name = "v", value = ["\${vk.api.version}"])
 @ClientQueryParam(name = "disable_mentions", value = ["1"])
+@ClientQueryParam(name = "dont_parse_links", value = ["1"])
 interface VkClient {
 
     @POST
@@ -18,5 +19,6 @@ interface VkClient {
         @FormParam("peer_id") peerId: Long,
         @FormParam("message") message: String,
         @FormParam("random_id") rand: Int,
+        @FormParam("forward") forwardMessages: String?,
     ): VkResponseDto
 }

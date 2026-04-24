@@ -12,6 +12,8 @@ class SendVkMessageCommandImpl(private val vkSendMessageOutputPort: VkSendMessag
             VkSendMessageOutputRequest(
                 peerId = request.peerId,
                 messageText = request.message,
+                forwardedMessage = request.forwardedMessages,
+                rand = request.rand,
             ),
         )
         return response
