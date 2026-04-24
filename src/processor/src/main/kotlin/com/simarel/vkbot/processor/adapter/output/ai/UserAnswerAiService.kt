@@ -1,6 +1,7 @@
 package com.simarel.vkbot.processor.adapter.output.ai
 
 import com.simarel.vkbot.share.domain.model.Message
+import dev.langchain4j.service.MemoryId
 import dev.langchain4j.service.SystemMessage
 import dev.langchain4j.service.UserMessage
 import dev.langchain4j.service.V
@@ -18,12 +19,17 @@ interface UserAnswerAiService {
     """,
     )
     fun answerUser(
+        @MemoryId memoryId: String,
         @V("userMessage") userMessage: String,
         @V("messageContext") messageContext: String,
     ): String
 
     fun answerUser(message: Message): String {
-        return answerUser(message.messageText.value, message.forwardedContextString())
+        return answerUser(
+            memoryId = message.conversationMessageId.value.toString(),
+            userMessage = message.messageText.value,
+            messageContext = message.forwardedContextString()
+        )
     }
 
 }
