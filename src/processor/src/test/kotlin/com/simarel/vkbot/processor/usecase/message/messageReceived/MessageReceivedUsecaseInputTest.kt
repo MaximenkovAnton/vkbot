@@ -1,4 +1,4 @@
-package com.simarel.vkbot.processor.usecase.message.newmessage
+package com.simarel.vkbot.processor.usecase.message.messageReceived
 
 import com.simarel.vkbot.processor.testfixtures.port.input.FakeMessageNewInputPortProvider
 import com.simarel.vkbot.share.domain.Event
@@ -6,13 +6,13 @@ import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class NewMessageUsecaseInputTest {
+class MessageReceivedUsecaseInputTest {
 
     @Test
     fun `execute publishes MESSAGE_REQUIRE_ANSWER event when requireAnswer is true`() {
         // Given
         val publishCommand = FakePublishEventCommand()
-        val usecase = NewMessageUsecaseInput(publishCommand)
+        val usecase = MessageReceivedUsecaseInput(publishCommand)
         val request = FakeMessageNewInputPortProvider.createRequest()
 
         // When

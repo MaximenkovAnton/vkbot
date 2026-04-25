@@ -8,7 +8,7 @@ import com.simarel.vkbot.share.port.input.EventProcessor
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-open class MessageReceivedEventProcessor(
+open class MessageNewEventProcessor(
     private val objectMapper: ObjectMapper,
     private val saveMessageUsecase: SaveMessageUsecase,
 ) : EventProcessor {

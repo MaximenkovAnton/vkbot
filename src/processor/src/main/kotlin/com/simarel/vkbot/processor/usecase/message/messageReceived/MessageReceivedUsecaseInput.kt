@@ -1,8 +1,8 @@
-package com.simarel.vkbot.processor.usecase.message.newmessage
+package com.simarel.vkbot.processor.usecase.message.messageReceived
 
-import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPort
-import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortRequest
-import com.simarel.vkbot.processor.port.input.messageNew.MessageNewInputPortResponse
+import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPort
+import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortRequest
+import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortResponse
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
@@ -10,12 +10,12 @@ import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
-open class NewMessageUsecaseInput(
+open class MessageReceivedUsecaseInput(
     private val publishEventCommand: PublishEventCommand,
-) : MessageNewInputPort {
-    private val okResponse = MessageNewInputPortResponse("ok")
+) : MessageReceivedInputPort {
+    private val okResponse = MessageReceivedInputPortResponse("ok")
 
-    override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
+    override fun execute(request: MessageReceivedInputPortRequest): MessageReceivedInputPortResponse {
         /*
         TODO: Добавить контекст
         1) сохранить сообщение в бд
