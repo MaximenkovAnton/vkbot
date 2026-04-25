@@ -43,7 +43,6 @@ dependencies {
     implementation("io.quarkus:quarkus-smallrye-health")
     implementation("io.quarkus:quarkus-spring-data-jpa")
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
-    implementation("io.opentelemetry:opentelemetry-exporter-logging")
 
     //  Additional
     // jackson kotlin module for json serialization/deserialization
