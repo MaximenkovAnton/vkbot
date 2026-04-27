@@ -145,3 +145,10 @@ smallrye:
   messaging:
     observation:
       enabled: true
+
+# Circuit Breaker configuration for VK API
+circuit-breaker:
+  vk-profile:
+    failure-rate-threshold: 50
+    delay: 30s
+    request-volume-threshold: 10

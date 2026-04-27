@@ -2,3 +2,9 @@ databaseChangeLog:
   - include:
       file: changes/001-create-messages-table.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/002-create-user-profiles-table.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/003-create-group-profiles-table.yaml
+      relativeToChangelogFile: true

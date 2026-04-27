@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation(project(":src:share"))
+    implementation(project(":src:vk-facade"))
 
     // Test fixtures need access to share module classes
     testFixturesImplementation(project(":src:share"))

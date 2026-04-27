@@ -1,6 +1,8 @@
 package com.simarel.vkbot.vkFacade.adapter.output.vk
 
+import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkGroupsResponseDto
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
+import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkUsersResponseDto
 import io.quarkus.rest.client.reactive.ClientQueryParam
 import jakarta.ws.rs.FormParam
 import jakarta.ws.rs.POST
@@ -21,4 +23,17 @@ interface VkClient {
         @FormParam("random_id") rand: Int,
         @FormParam("forward") forwardMessages: String?,
     ): VkResponseDto
+
+    @POST
+    @Path("/users.get")
+    fun getUsers(
+        @FormParam("user_ids") userIds: String,
+        @FormParam("fields") fields: String,
+    ): VkUsersResponseDto
+
+    @POST
+    @Path("/groups.getById")
+    fun getGroups(
+        @FormParam("group_ids") groupIds: String,
+    ): VkGroupsResponseDto
 }

@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-group-profiles-table
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: vk_group_profiles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: screen_name
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_updated
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: vk_group_profiles
+            indexName: idx_group_profiles_last_updated
+            columns:
+              - column:
+                  name: last_updated

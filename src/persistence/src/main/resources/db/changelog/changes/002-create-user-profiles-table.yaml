@@ -1,0 +1,57 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-user-profiles-table
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: vk_user_profiles
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_name
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: screen_name
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: birth_date
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: city
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_updated
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: vk_user_profiles
+            indexName: idx_user_profiles_last_updated
+            columns:
+              - column:
+                  name: last_updated

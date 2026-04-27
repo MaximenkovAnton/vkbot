@@ -17,6 +17,7 @@ dependencies {
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-jackson")
     implementation("io.quarkus:quarkus-rest-client-jackson")
+    implementation("io.quarkus:quarkus-smallrye-fault-tolerance")
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
     implementation("io.quarkus:quarkus-logging-json")
     implementation("io.smallrye.reactive:smallrye-reactive-messaging-rabbitmq")

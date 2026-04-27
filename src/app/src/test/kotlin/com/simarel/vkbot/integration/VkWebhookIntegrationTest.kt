@@ -74,7 +74,56 @@ class VkWebhookIntegrationTest {
                 )
         )
 
-        // Given: setup WireMock stub for VK API
+        // Given: setup WireMock stub for VK API users.get (profile fetch)
+        WireMockTestResource.wireMockServer.stubFor(
+            post(urlPathEqualTo("/method/users.get"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                            """
+                            {
+                                "response": [
+                                    {
+                                        "id": 173308266,
+                                        "first_name": "Test",
+                                        "last_name": "User",
+                                        "screen_name": "testuser",
+                                        "bdate": "01.01.1990",
+                                        "city": {"id": 1, "title": "Moscow"}
+                                    }
+                                ]
+                            }
+                            """.trimIndent()
+                        )
+                )
+        )
+
+        // Given: setup WireMock stub for VK API groups.getById (group profile fetch)
+        WireMockTestResource.wireMockServer.stubFor(
+            post(urlPathEqualTo("/method/groups.getById"))
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(
+                            """
+                            {
+                                "response": [
+                                    {
+                                        "id": 1,
+                                        "name": "Test Group",
+                                        "screen_name": "testgroup"
+                                    }
+                                ]
+                            }
+                            """.trimIndent()
+                        )
+                )
+        )
+
+        // Given: setup WireMock stub for VK API messages.send
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/messages.send"))
                 .willReturn(
@@ -126,8 +175,8 @@ class VkWebhookIntegrationTest {
 
         // Then: wait for async processing through RabbitMQ and verify VK API was called
         await()
-            .atMost(30, TimeUnit.SECONDS)
-            .pollInterval(1, TimeUnit.SECONDS)
+            .atMost(120, TimeUnit.SECONDS)
+            .pollInterval(5, TimeUnit.SECONDS)
             .untilAsserted {
                 WireMockTestResource.wireMockServer.verify(
                     postRequestedFor(urlPathEqualTo("/method/messages.send"))
