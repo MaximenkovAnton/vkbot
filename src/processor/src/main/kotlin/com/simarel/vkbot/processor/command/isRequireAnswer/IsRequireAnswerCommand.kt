@@ -13,20 +13,19 @@ open class IsRequireAnswerCommand(
 ) {
     open fun execute(message: Message): Boolean {
         if (!message.fromId.isGroupChat()) {
-            return true // direct message to bot
+            return true
         }
         if (message.messageText.startsWith("!") || message.messageText.startsWith("\\")) {
-            return false // command for controlling bot
+            return false
         }
         if (!message.fromId.isHuman()) {
-            return false // not a human
+            return false
         }
         if (message.messageText.contains(botMention)) {
-            return true // direct call to bot
+            return true
         }
-        // Check the last forwarded message (reply_to if present, otherwise last fwd_message)
-        if (message.forwardedMessages.lastOrNull()?.fromId?.value == -botId) {
-            return true // reply to bot's message or forwarded bot's message with comment
+        if (message.forwardedMessages.lastOrNull()?.fromId?.value == botId) {
+            return true
         }
         return false
     }
