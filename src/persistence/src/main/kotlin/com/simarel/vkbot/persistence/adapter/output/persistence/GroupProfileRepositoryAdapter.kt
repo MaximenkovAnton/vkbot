@@ -1,36 +1,27 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
-import com.simarel.vkbot.persistence.domain.entity.VkGroupProfileEntity
+import com.simarel.vkbot.persistence.port.output.persistence.FilterExistingGroupIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.GroupProfileRepositoryPort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePort
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.vo.FromId
-import io.quarkus.hibernate.orm.panache.PanacheRepository
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
-import java.time.OffsetDateTime
 
 @ApplicationScoped
-open class GroupProfileRepositoryAdapter : PanacheRepository<VkGroupProfileEntity>, GroupProfileRepositoryPort {
+open class GroupProfileRepositoryAdapter(
+    private val savePort: SaveGroupProfilePort,
+    private val findByIdsPort: FindGroupProfilesByIdsPort,
+    private val filterExistingPort: FilterExistingGroupIdsPort,
+) : GroupProfileRepositoryPort {
 
     @Transactional
-    override fun filterExistingIds(fromIds: Collection<FromId>): Set<FromId> {
-        if (fromIds.isEmpty()) {
-            return emptySet()
-        }
-        val idValues = fromIds.map { it.value }
-        val existingEntities = find("id in (?1)", idValues).list<VkGroupProfileEntity>()
-        return existingEntities.map { FromId.of(it.id!!) }.toSet()
-    }
+    override fun save(profile: VkGroupProfile) = savePort.save(profile)
 
-    @Transactional
-    override fun save(profile: VkGroupProfile) {
-        val entity = VkGroupProfileEntity().apply {
-            id = profile.id.value
-            name = profile.name
-            screenName = profile.screenName
-            lastUpdated = profile.lastUpdated
-            createdAt = OffsetDateTime.now()
-        }
-        persist(entity)
-    }
+    override fun findByIds(fromIds: Collection<FromId>): List<VkGroupProfile> =
+        findByIdsPort.findByIds(fromIds)
+
+    override fun filterExistingIds(fromIds: Collection<FromId>): Set<FromId> =
+        filterExistingPort.filterExistingIds(fromIds)
 }

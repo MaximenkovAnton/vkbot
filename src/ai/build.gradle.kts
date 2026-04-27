@@ -12,6 +12,7 @@ val quarkusLangChain4jVersion: String by project
 
 dependencies {
     implementation(project(":src:share"))
+    implementation(project(":src:persistence"))
 
     // Quarkus platform for version management
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
