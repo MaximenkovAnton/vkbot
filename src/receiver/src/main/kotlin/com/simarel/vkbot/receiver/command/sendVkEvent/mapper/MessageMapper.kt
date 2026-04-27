@@ -13,6 +13,11 @@ class MessageMapper {
         val messageJson = body.getJsonObject("object")?.getJsonObject("message")
         val messageDto = messageJson?.let { MessageDto.fromJson(it) }
         val groupId = body.getJsonNumber("group_id")?.longValue()
+
+        val fwdMessages = messageDto?.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList()
+        val replyToAsForwarded = messageDto?.replyTo?.let { toDomainMessage(it, groupId) }
+        val forwardedMessages = if (replyToAsForwarded != null) fwdMessages + replyToAsForwarded else fwdMessages
+
         return Message.of(
             groupId = groupId,
             date = messageDto?.date?.let {
@@ -22,7 +27,7 @@ class MessageMapper {
             peerId = messageDto?.peerId,
             conversationMessageId = messageJson?.getJsonNumber("conversation_message_id")?.longValue(),
             messageText = messageDto?.text?.ifEmpty { null },
-            forwardedMessages = messageDto?.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList(),
+            forwardedMessages = forwardedMessages,
         )
     }
 

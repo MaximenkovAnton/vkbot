@@ -10,6 +10,7 @@ data class MessageDto(
     val peerId: Long,
     val fwdMessages: List<MessageDto>? = null,
     val conversationMessageId: Long,
+    val replyTo: MessageDto? = null,
 ) {
     companion object {
         fun fromJson(jsonObject: JsonObject): MessageDto {
@@ -17,6 +18,9 @@ data class MessageDto(
             val fwdMessages = fwdMessagesArray?.map { messageJson ->
                 fromJson(messageJson as JsonObject)
             }
+
+            val replyToJson = jsonObject.getJsonObject("reply_to")
+            val replyTo = replyToJson?.let { fromJson(it) }
 
             return MessageDto(
                 date = jsonObject.getJsonNumber("date")?.longValue() ?: 0L,
@@ -26,6 +30,7 @@ data class MessageDto(
                 peerId = jsonObject.getJsonNumber("peer_id")?.longValue() ?: 0L,
                 conversationMessageId = jsonObject.getJsonNumber("conversation_message_id")?.longValue() ?: 0L,
                 fwdMessages = fwdMessages,
+                replyTo = replyTo,
             )
         }
     }

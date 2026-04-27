@@ -3,6 +3,9 @@ vk:
   secret: test_secret
   api:
     token: vk-token
+  bot:
+    id: ${VK_BOT_ID:123456789}
+    mention: ${VK_BOT_MENTION:@simarel}
 
 quarkus:
   # Enable devservices only for RabbitMQ in integration tests
