@@ -5,6 +5,7 @@ import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesBy
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 import java.time.OffsetDateTime
 
 @ApplicationScoped
@@ -12,6 +13,7 @@ open class FindGroupProfilesByIdsAdapter(
     private val repository: VkGroupProfilePanacheRepository,
 ) : FindGroupProfilesByIdsPort {
 
+    @Transactional
     override fun findByIds(fromIds: Collection<FromId>): List<VkGroupProfile> {
         if (fromIds.isEmpty()) {
             return emptyList()

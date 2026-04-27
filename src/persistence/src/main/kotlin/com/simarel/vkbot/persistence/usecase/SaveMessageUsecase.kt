@@ -11,6 +11,7 @@ import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.Payload
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 import java.util.UUID
 
 @ApplicationScoped
@@ -20,6 +21,7 @@ open class SaveMessageUsecase(
     private val publishEventCommand: PublishEventCommand,
     private val fetchUserProfileCommand: FetchUserProfileCommand,
 ) {
+    @Transactional
     open fun execute(message: Message) {
         fetchUserProfileCommand.execute(FetchUserProfileRequest(message))
         saveMessage(message)

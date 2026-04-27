@@ -15,6 +15,7 @@ import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 import java.time.OffsetDateTime
 
 data class ConversationContext(
@@ -31,6 +32,7 @@ class GetConversationContextUsecase(
     private val findGroupProfilesPort: FindGroupProfilesByIdsPort,
     private val objectMapper: ObjectMapper,
 ) {
+    @Transactional
     fun execute(currentMessage: Message): ConversationContext {
         val peerId = currentMessage.peerId
         val currentMessageId = currentMessage.conversationMessageId

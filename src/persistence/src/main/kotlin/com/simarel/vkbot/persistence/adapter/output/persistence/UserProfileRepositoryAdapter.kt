@@ -7,8 +7,10 @@ import com.simarel.vkbot.persistence.port.output.persistence.UserProfileReposito
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.enterprise.inject.Typed
 import jakarta.transaction.Transactional
 
+@Typed(UserProfileRepositoryPort::class)
 @ApplicationScoped
 open class UserProfileRepositoryAdapter(
     private val savePort: SaveUserProfilePort,

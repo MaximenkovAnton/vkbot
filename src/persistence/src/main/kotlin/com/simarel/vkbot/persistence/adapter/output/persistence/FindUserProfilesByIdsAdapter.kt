@@ -5,6 +5,7 @@ import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByI
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 import java.time.OffsetDateTime
 
 @ApplicationScoped
@@ -12,11 +13,12 @@ open class FindUserProfilesByIdsAdapter(
     private val repository: VkUserProfilePanacheRepository,
 ) : FindUserProfilesByIdsPort {
 
+    @Transactional
     override fun findByIds(fromIds: Collection<FromId>): List<VkUserProfile> {
         if (fromIds.isEmpty()) {
             return emptyList()
         }
-        val idValues = fromIds.map { it.value }
+        val idValues: List<Long> = fromIds.map { it.value }
         return repository.find("id in (?1)", idValues)
             .list<VkUserProfileEntity>()
             .map { it.toDomain() }

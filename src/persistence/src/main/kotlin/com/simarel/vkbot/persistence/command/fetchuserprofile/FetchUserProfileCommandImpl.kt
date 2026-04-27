@@ -7,6 +7,7 @@ import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.port.output.vk.GetProfileOutputPort
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 
 @ApplicationScoped
 open class FetchUserProfileCommandImpl(
@@ -15,6 +16,7 @@ open class FetchUserProfileCommandImpl(
     private val getProfileOutputPort: GetProfileOutputPort,
 ) : FetchUserProfileCommand {
 
+    @Transactional
     override fun execute(request: FetchUserProfileRequest): FetchUserProfileResponse {
         val allFromIds = collectAllFromIds(request.message)
 

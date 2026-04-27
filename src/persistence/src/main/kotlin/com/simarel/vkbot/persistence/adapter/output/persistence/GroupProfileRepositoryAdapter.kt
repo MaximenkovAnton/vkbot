@@ -7,8 +7,10 @@ import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePor
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.enterprise.inject.Typed
 import jakarta.transaction.Transactional
 
+@Typed(GroupProfileRepositoryPort::class)
 @ApplicationScoped
 open class GroupProfileRepositoryAdapter(
     private val savePort: SaveGroupProfilePort,

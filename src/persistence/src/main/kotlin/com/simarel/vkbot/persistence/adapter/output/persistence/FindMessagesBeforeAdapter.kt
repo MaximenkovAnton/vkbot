@@ -6,12 +6,14 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.PeerId
 import io.quarkus.hibernate.orm.panache.PanacheQuery
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.transaction.Transactional
 
 @ApplicationScoped
 open class FindMessagesBeforeAdapter(
     private val repository: MessagePanacheRepository,
 ) : FindMessagesBeforePort {
 
+    @Transactional
     override fun findMessagesBefore(
         peerId: PeerId,
         beforeConversationMessageId: ConversationMessageId,
