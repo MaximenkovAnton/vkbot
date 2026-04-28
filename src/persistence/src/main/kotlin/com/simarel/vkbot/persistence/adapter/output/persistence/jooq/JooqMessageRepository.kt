@@ -7,7 +7,7 @@ import jakarta.inject.Inject
 import org.jooq.DSLContext
 import org.jooq.JSONB
 import java.sql.Timestamp
-import java.time.ZoneOffset
+import java.time.OffsetDateTime
 import java.util.UUID
 
 @ApplicationScoped
@@ -53,9 +53,7 @@ open class JooqMessageRepository {
         return records.map { record ->
             MessageEntity().apply {
                 id = record.get(Messages.ID, UUID::class.java)
-                date = record.get(Messages.DATE)?.let {
-                    (it as Timestamp).toInstant().atOffset(ZoneOffset.UTC)
-                }
+                date = record.get(Messages.DATE, OffsetDateTime::class.java)
                 fromId = record.get(Messages.FROM_ID, Long::class.java)
                 groupId = record.get(Messages.GROUP_ID, Long::class.java)
                 peerId = record.get(Messages.PEER_ID, Long::class.java)

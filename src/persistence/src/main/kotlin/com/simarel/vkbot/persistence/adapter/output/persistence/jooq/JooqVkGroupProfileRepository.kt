@@ -8,7 +8,6 @@ import jakarta.inject.Inject
 import org.jooq.DSLContext
 import java.sql.Timestamp
 import java.time.OffsetDateTime
-import java.time.ZoneOffset
 
 @ApplicationScoped
 open class JooqVkGroupProfileRepository {
@@ -56,9 +55,8 @@ open class JooqVkGroupProfileRepository {
             .where(VkGroupProfiles.ID.`in`(positiveIds))
             .fetch()
             .map { record ->
-                val lastUpdated = record.get(VkGroupProfiles.LAST_UPDATED)?.let {
-                    (it as Timestamp).toInstant().atOffset(ZoneOffset.UTC)
-                } ?: OffsetDateTime.now()
+                val lastUpdated = record.get(VkGroupProfiles.LAST_UPDATED, OffsetDateTime::class.java)
+                    ?: OffsetDateTime.now()
 
                 VkGroupProfile(
                     // Конвертируем положительный ID в отрицательный
