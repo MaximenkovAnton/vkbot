@@ -19,7 +19,7 @@ data class MessageDto(
                 fromJson(messageJson as JsonObject)
             }
 
-            val replyToJson = jsonObject.getJsonObject("reply_to")
+            val replyToJson = jsonObject.getJsonObject("reply_message")
             val replyTo = replyToJson?.let { fromJson(it) }
 
             return MessageDto(

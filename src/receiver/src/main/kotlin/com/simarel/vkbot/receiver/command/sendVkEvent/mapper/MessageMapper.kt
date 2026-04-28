@@ -21,7 +21,7 @@ class MessageMapper {
         return Message.of(
             groupId = groupId,
             date = messageDto?.date?.let {
-                Instant.ofEpochMilli(it).atOffset(ZoneOffset.UTC)
+                Instant.ofEpochMilli(it * 1000).atOffset(ZoneOffset.UTC)
             },
             fromId = messageDto?.fromId,
             peerId = messageDto?.peerId,
