@@ -12,7 +12,7 @@ open class IsRequireAnswerCommand(
     private val botMention: String,
 ) {
     open fun execute(message: Message): Boolean {
-        if (!message.fromId.isGroupChat()) {
+        if (!message.peerId.isGroupChat()) {
             return true
         }
         if (message.messageText.startsWith("!") || message.messageText.startsWith("\\")) {
