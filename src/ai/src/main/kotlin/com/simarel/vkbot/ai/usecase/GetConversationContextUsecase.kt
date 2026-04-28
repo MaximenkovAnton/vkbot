@@ -91,7 +91,12 @@ class GetConversationContextUsecase(
     }
 
     private fun parseForwardedMessages(json: String): List<Message> {
-        return objectMapper.readValue(json, object : TypeReference<List<Message>>() {})
+        val node = objectMapper.readTree(json)
+        return if (node.isArray) {
+            objectMapper.convertValue(node, object : TypeReference<List<Message>>() {})
+        } else {
+            listOf(objectMapper.convertValue(node, Message::class.java))
+        }
     }
 
     private fun MessageEntity.toChatMessage(): ChatMessage {
