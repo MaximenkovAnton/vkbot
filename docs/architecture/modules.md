@@ -96,7 +96,6 @@ quarkus:
 **Технологии**:
 - PostgreSQL (основная БД)
 - Liquibase (миграции схемы)
-- Quarkus Spring Data JPA
 
 ---
 

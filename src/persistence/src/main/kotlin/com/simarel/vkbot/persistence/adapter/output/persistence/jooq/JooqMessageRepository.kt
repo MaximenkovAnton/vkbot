@@ -6,8 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
 import org.jooq.JSONB
-import org.jooq.impl.DSL
-import org.jooq.impl.SQLDataType
 import java.sql.Timestamp
 import java.time.ZoneOffset
 import java.util.UUID

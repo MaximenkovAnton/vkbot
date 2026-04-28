@@ -41,7 +41,6 @@ dependencies {
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-client-jackson")
     implementation("io.quarkus:quarkus-smallrye-health")
-    implementation("io.quarkus:quarkus-spring-data-jpa")
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
 
     //  Additional
