@@ -9,13 +9,12 @@ quarkus:
     locations: application-queues.yml
   application:
     name: vk-bot
-  hibernate-orm:
-    schema-management:
-      strategy: validate
   datasource:
     db-kind: postgresql
     devservices:
       enabled: true
+  jooq:
+    dialect: POSTGRES
   liquibase:
     migrate-at-start: true
     change-log: db/changelog/db.changelog-master.yaml

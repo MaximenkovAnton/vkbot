@@ -1,18 +1,18 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.persistence.port.output.persistence.MessageRepositoryPort
-import com.simarel.vkbot.persistence.port.output.persistence.SaveMessagePort
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 
 @ApplicationScoped
 open class MessageRepositoryAdapter(
-    private val saveMessagePort: SaveMessagePort,
+    private val repository: JooqMessageRepository,
 ) : MessageRepositoryPort {
 
     @Transactional
     override fun save(message: MessageEntity) {
-        saveMessagePort.save(message)
+        repository.persist(message)
     }
 }

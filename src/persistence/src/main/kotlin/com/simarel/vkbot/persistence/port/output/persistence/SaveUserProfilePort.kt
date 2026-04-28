@@ -5,3 +5,4 @@ import com.simarel.vkbot.share.domain.model.VkUserProfile
 interface SaveUserProfilePort {
     fun save(profile: VkUserProfile)
 }
+

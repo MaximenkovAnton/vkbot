@@ -1,7 +1,9 @@
 package com.simarel.vkbot.persistence.command.fetchuserprofile
 
-import com.simarel.vkbot.persistence.port.output.persistence.GroupProfileRepositoryPort
-import com.simarel.vkbot.persistence.port.output.persistence.UserProfileRepositoryPort
+import com.simarel.vkbot.persistence.port.output.persistence.FilterExistingGroupIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FilterExistingUserIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveUserProfilePort
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.port.output.vk.GetProfileOutputPort
@@ -11,8 +13,10 @@ import jakarta.transaction.Transactional
 
 @ApplicationScoped
 open class FetchUserProfileCommandImpl(
-    private val userProfileRepositoryPort: UserProfileRepositoryPort,
-    private val groupProfileRepositoryPort: GroupProfileRepositoryPort,
+    private val userProfileRepositoryPort: FilterExistingUserIdsPort,
+    private val groupProfileRepositoryPort: FilterExistingGroupIdsPort,
+    private val saveGroupProfilePort: SaveGroupProfilePort,
+    private val saveUserProfilePort: SaveUserProfilePort,
     private val getProfileOutputPort: GetProfileOutputPort,
 ) : FetchUserProfileCommand {
 
@@ -55,7 +59,7 @@ open class FetchUserProfileCommandImpl(
         try {
             val profiles = getProfileOutputPort.getUserProfilesBatch(userIds)
             profiles.forEach { profile ->
-                userProfileRepositoryPort.save(profile)
+                saveUserProfilePort.save(profile)
                 Log.debug("Saved user profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {
@@ -67,7 +71,7 @@ open class FetchUserProfileCommandImpl(
         try {
             val profiles = getProfileOutputPort.getGroupProfilesBatch(groupIds)
             profiles.forEach { profile ->
-                groupProfileRepositoryPort.save(profile)
+                saveGroupProfilePort.save(profile)
                 Log.debug("Saved group profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {
