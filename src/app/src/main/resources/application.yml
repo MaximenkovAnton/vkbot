@@ -13,6 +13,11 @@ quarkus:
     db-kind: postgresql
     devservices:
       enabled: true
+    jdbc:
+      initial-size: 2
+      min-size: 2
+      max-size: 20
+      acquisition-timeout: 30s
   jooq:
     dialect: POSTGRES
   liquibase:

@@ -7,16 +7,77 @@ vk:
     id: ${VK_BOT_ID:123456789}
     mention: ${VK_BOT_MENTION:@simarel}
 
+mp:
+  messaging:
+    incoming:
+      all-events-queue:
+        auto-bind-exchange: false
+      retry-5s-queue:
+        auto-bind-exchange: false
+      retry-30s-queue:
+        auto-bind-exchange: false
+      retry-1m-queue:
+        auto-bind-exchange: false
+      retry-15m-queue:
+        auto-bind-exchange: false
+      retry-1h-queue:
+        auto-bind-exchange: false
+      dlq-final-queue:
+        auto-bind-exchange: false
+    outgoing:
+      events-exchange:
+        auto-bind-exchange: false
+      retry-5s-out:
+        auto-bind-exchange: false
+      retry-30s-out:
+        auto-bind-exchange: false
+      retry-1m-out:
+        auto-bind-exchange: false
+      retry-15m-out:
+        auto-bind-exchange: false
+      retry-1h-out:
+        auto-bind-exchange: false
+      dlq-final-out:
+        auto-bind-exchange: false
+
 quarkus:
   # Enable devservices only for RabbitMQ in integration tests
   devservices:
     enabled: true
+  datasource:
+    devservices:
+      enabled: true
+      # Increase timeout for database container startup
+      timeout: 120s
+      properties:
+        # Add startup check for PostgreSQL container
+        test-query: SELECT 1
+    jdbc:
+      # Increase connection timeout for integration tests
+      initial-size: 1
+      min-size: 1
+      max-size: 5
+      acquisition-timeout: 60s
+      # Enable background validation to catch connection issues early
+      background-validation-interval: 30s
   rabbitmq:
     devservices:
       enabled: true
       image-name: rabbitmq:3.12-management
       # Shared=true allows multiple channels to use the same broker
       shared: true
+      timeout: 120s
+  # Graceful shutdown configuration to prevent race conditions
+  shutdown:
+    timeout: 30s
+    # Suppress interrupts during shutdown
+    interrupt-threads: false
+  # Suppress errors during shutdown
+  arc:
+    dev-mode:
+      test-port: 0
+  liquibase:
+    migrate-at-start: true
   # Disable Ollama devservices - we mock it via WireMock
   langchain4j:
     devservices:
