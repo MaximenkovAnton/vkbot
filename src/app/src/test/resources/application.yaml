@@ -9,6 +9,10 @@ vk:
 
 quarkus:
   devservices:
-    enabled: false
+    enabled: true
+  datasource:
+    db-kind: postgresql
+    devservices:
+      enabled: true
   observability:
     enabled: false
