@@ -28,7 +28,7 @@ class MessageMapper {
             fromId = messageDto?.fromId,
             peerId = messageDto?.peerId,
             conversationMessageId = messageJson?.getJsonNumber("conversation_message_id")?.longValue(),
-            messageText = messageDto?.text?.ifEmpty { null },
+            messageText = messageDto?.text,
             forwardedMessages = forwardedMessages,
         )
     }
