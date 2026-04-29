@@ -11,6 +11,7 @@ data class MessageDto(
     val fwdMessages: List<MessageDto>? = null,
     val conversationMessageId: Long,
     val replyTo: MessageDto? = null,
+    val wallAttachments: List<WallAttachmentDto> = emptyList(),
 ) {
     companion object {
         fun fromJson(jsonObject: JsonObject): MessageDto {
@@ -22,6 +23,10 @@ data class MessageDto(
             val replyToJson = jsonObject.getJsonObject("reply_message")
             val replyTo = replyToJson?.let { fromJson(it) }
 
+            val wallAttachments = jsonObject.getJsonArray("attachments")
+                ?.mapNotNull { WallAttachmentDto.fromJson(it as JsonObject) }
+                ?: emptyList()
+
             return MessageDto(
                 date = jsonObject.getJsonNumber("date")?.longValue() ?: 0L,
                 fromId = jsonObject.getJsonNumber("from_id")?.longValue() ?: 0L,
@@ -31,6 +36,7 @@ data class MessageDto(
                 conversationMessageId = jsonObject.getJsonNumber("conversation_message_id")?.longValue() ?: 0L,
                 fwdMessages = fwdMessages,
                 replyTo = replyTo,
+                wallAttachments = wallAttachments,
             )
         }
     }

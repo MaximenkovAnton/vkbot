@@ -1,6 +1,7 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent.mapper
 
 import com.simarel.vkbot.receiver.adapter.input.dto.MessageDto
+import com.simarel.vkbot.receiver.adapter.input.dto.WallAttachmentDto
 import com.simarel.vkbot.share.domain.model.Message
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.json.JsonObject
@@ -15,8 +16,9 @@ class MessageMapper {
         val groupId = body.getJsonNumber("group_id")?.longValue()
 
         val fwdMessages = messageDto?.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList()
-        val replyToAsForwarded = messageDto?.replyTo?.let { toDomainMessage(it, groupId) }
-        val forwardedMessages = if (replyToAsForwarded != null) fwdMessages + replyToAsForwarded else fwdMessages
+        val replyToAsForwarded = listOfNotNull(messageDto?.replyTo?.let { toDomainMessage(it, groupId) })
+        val wallMessages = messageDto?.wallAttachments?.map { toDomainMessage(it, groupId) } ?: emptyList()
+        val forwardedMessages = fwdMessages + replyToAsForwarded + wallMessages
 
         return Message.of(
             groupId = groupId,
@@ -39,5 +41,15 @@ class MessageMapper {
         conversationMessageId = messageDto.conversationMessageId,
         messageText = messageDto.text.ifEmpty { null },
         forwardedMessages = messageDto.fwdMessages?.map { toDomainMessage(it, groupId) } ?: emptyList(),
+    )
+
+    private fun toDomainMessage(wall: WallAttachmentDto, groupId: Long?): Message = Message.of(
+        groupId = groupId,
+        date = Instant.now().atOffset(ZoneOffset.UTC),
+        fromId = wall.fromId,
+        peerId = null,
+        conversationMessageId = null,
+        messageText = wall.text.ifEmpty { "[пост недоступен]" },
+        forwardedMessages = emptyList(),
     )
 }
