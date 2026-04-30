@@ -7,6 +7,9 @@ vk:
     id: ${VK_BOT_ID:123456789}
     mention: ${VK_BOT_MENTION:@simarel}
 
+summary:
+  enabled-chats: 1,2,3
+
 quarkus:
   devservices:
     enabled: true

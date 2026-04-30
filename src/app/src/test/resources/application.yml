@@ -4,3 +4,5 @@
       enabled: false
     liquibase:
       enabled: false
+summary:
+  enabled-chats: 1,2,3
