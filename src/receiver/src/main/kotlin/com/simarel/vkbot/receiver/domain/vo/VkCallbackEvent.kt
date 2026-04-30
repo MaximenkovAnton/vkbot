@@ -2,6 +2,7 @@ package com.simarel.vkbot.receiver.domain.vo
 
 enum class VkCallbackEvent {
     MESSAGE_NEW,
+    MESSAGE_REPLY,
     CONFIRMATION,
     UNKNOWN,
     ;

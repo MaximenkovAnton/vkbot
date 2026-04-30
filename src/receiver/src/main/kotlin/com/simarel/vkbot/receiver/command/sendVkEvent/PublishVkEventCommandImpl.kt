@@ -30,7 +30,7 @@ class PublishVkEventCommandImpl(
     }
 
     private fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
-        VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_NEW
+        VkCallbackEvent.MESSAGE_NEW, VkCallbackEvent.MESSAGE_REPLY -> Event.MESSAGE_NEW
         else -> {
             Log.error("No event mapping for type: $type")
             null
