@@ -42,6 +42,12 @@ open class JooqSummaryRepository {
                 entity.createdAt?.let { Timestamp.from(it.toInstant()) },
                 entity.updatedAt?.let { Timestamp.from(it.toInstant()) }
             )
+            .onConflict(Summaries.ID)
+            .doUpdate()
+            .set(Summaries.STATUS, entity.status?.name)
+            .set(Summaries.FULL_SUMMARY, entity.fullSummary)
+            .set(Summaries.SHORT_SUMMARY, entity.shortSummary)
+            .set(Summaries.UPDATED_AT, entity.updatedAt?.let { Timestamp.from(it.toInstant()) })
             .execute()
     }
 

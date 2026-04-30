@@ -9,7 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped
 @RegisterAiService(
     chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier::class
 )
-@SystemMessage("{config:summary.system-prompt}")
+@SystemMessage("{config:aiSumarizationSystemprompt}")
 @ApplicationScoped
 interface SummarizationAiService {
 

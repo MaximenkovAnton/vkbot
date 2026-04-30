@@ -4,12 +4,13 @@ vk:
   api:
     version: 5.131
     token: ${VK_API_TOKEN}
-aiUseranswerSystemprompt: ${MY_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}
+aiUseranswerSystemprompt: ${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}
+aiSumarizationSystemprompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. Create a concise summary of the conversation. Provide both a detailed summary (full_summary) and a brief summary (short_summary) highlighting key topics and decisions.}
 summary:
   enabled-chats: ${SUMMARY_ENABLED_CHATS:}
   threshold: ${SUMMARY_THRESHOLD:100}
   batch-size: ${SUMMARY_BATCH_SIZE:100}
-  system-prompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. Create a concise summary of the conversation. Provide both a detailed summary (full_summary) and a brief summary (short_summary) highlighting key topics and decisions.}
+  system-prompt: ${aiSumarizationSystemprompt}
 quarkus:
   config:
     locations: application-queues.yml
