@@ -11,7 +11,10 @@ import java.time.ZoneOffset
 @ApplicationScoped
 class MessageMapper {
     fun toDomain(body: JsonObject): Message {
-        val messageJson = body.getJsonObject("object")?.getJsonObject("message")
+        var messageJson = body.getJsonObject("object")
+        if (messageJson.contains("message")) {
+            messageJson = messageJson?.getJsonObject("message")
+        }
         val messageDto = messageJson?.let { MessageDto.fromJson(it) }
         val groupId = body.getJsonNumber("group_id")?.longValue()
 
