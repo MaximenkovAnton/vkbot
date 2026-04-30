@@ -6,8 +6,7 @@ import com.simarel.vkbot.share.domain.exception.ValidationException
 value class MessageText(val value: String) {
     companion object {
         fun of(value: String?): MessageText {
-            if (value == null) throw ValidationMessageTextNotNullException()
-            return MessageText(value)
+            return MessageText(value ?: "")
         }
     }
 
@@ -15,6 +14,3 @@ value class MessageText(val value: String) {
     fun contains(text: String): Boolean = value.contains(text, ignoreCase = true)
     override fun toString(): String = value
 }
-
-class ValidationMessageTextNotNullException(message: String = "Message text can't be null") :
-    ValidationException(message)
