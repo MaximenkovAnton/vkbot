@@ -12,13 +12,13 @@ open class IsRequireAnswerCommand(
     private val botMention: String,
 ) {
     open fun execute(message: Message): Boolean {
+        if (!message.fromId.isHuman()) {
+            return false
+        }
         if (!message.peerId.isGroupChat()) {
             return true
         }
         if (message.messageText.startsWith("!") || message.messageText.startsWith("\\")) {
-            return false
-        }
-        if (!message.fromId.isHuman()) {
             return false
         }
         if (message.messageText.contains(botMention)) {
