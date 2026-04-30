@@ -23,7 +23,7 @@ class MessageMapper {
         return Message.of(
             groupId = groupId,
             date = messageDto?.date?.let {
-                Instant.ofEpochMilli(it * 1000).atOffset(ZoneOffset.UTC)
+                Instant.ofEpochSecond(it).atOffset(ZoneOffset.UTC)
             },
             fromId = messageDto?.fromId,
             peerId = messageDto?.peerId,
@@ -35,7 +35,7 @@ class MessageMapper {
 
     private fun toDomainMessage(messageDto: MessageDto, groupId: Long?): Message = Message.of(
         groupId = groupId,
-        date = Instant.ofEpochMilli(messageDto.date).atOffset(ZoneOffset.UTC),
+        date = Instant.ofEpochSecond(messageDto.date).atOffset(ZoneOffset.UTC),
         fromId = messageDto.fromId,
         peerId = messageDto.peerId,
         conversationMessageId = messageDto.conversationMessageId,
