@@ -9,7 +9,7 @@ object FakeVkProvider {
     const val SECRET = "test_secret"
     fun createVkEvent(type: VkCallbackEvent = VkCallbackEvent.MESSAGE_NEW): VkEvent {
         val jsonObject = when (type) {
-            VkCallbackEvent.MESSAGE_NEW -> Json.createObjectBuilder()
+            VkCallbackEvent.MESSAGE_NEW, VkCallbackEvent.MESSAGE_REPLY -> Json.createObjectBuilder()
                 .add("type", VkCallbackEvent.MESSAGE_NEW.name.lowercase())
                 .add("group_id", FakeVoProvider.createGroupId().value)
                 .add(
