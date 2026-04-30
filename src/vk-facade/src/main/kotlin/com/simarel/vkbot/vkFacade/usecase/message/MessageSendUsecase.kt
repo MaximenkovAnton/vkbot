@@ -37,6 +37,7 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
     private fun countRand(responseTo: Message): Int {
         val uniqueString = responseTo.messageText.value + responseTo.peerId.value + responseTo.date.value.toEpochSecond()
         val hashBytes = digest.digest(uniqueString.toByteArray(Charsets.UTF_8))
-        return ByteBuffer.wrap(hashBytes).getInt()
+        val res = ByteBuffer.wrap(hashBytes).getInt()
+        return if (res == 0) 1 else res
     }
 }

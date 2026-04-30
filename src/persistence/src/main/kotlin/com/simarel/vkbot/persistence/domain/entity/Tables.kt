@@ -40,4 +40,18 @@ object Tables {
         val LAST_UPDATED = DSL.field("last_updated")
         val CREATED_AT = DSL.field("created_at")
     }
+
+    object Summaries {
+        val TABLE = DSL.table("summaries")
+
+        val ID = DSL.field("id")
+        val PEER_ID = DSL.field("peer_id")
+        val FIRST_MESSAGE_ID = DSL.field("first_message_id")
+        val LAST_MESSAGE_ID = DSL.field("last_message_id")
+        val FULL_SUMMARY = DSL.field("full_summary")
+        val SHORT_SUMMARY = DSL.field("short_summary")
+        val STATUS = DSL.field("status")
+        val CREATED_AT = DSL.field("created_at")
+        val UPDATED_AT = DSL.field("updated_at")
+    }
 }

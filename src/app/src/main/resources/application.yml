@@ -4,6 +4,11 @@ vk:
   api:
     version: 5.199
     token: ${VK_API_TOKEN}
+summary:
+  enabled-chats: ${SUMMARY_ENABLED_CHATS:}
+  threshold: ${SUMMARY_THRESHOLD:100}
+  batch-size: ${SUMMARY_BATCH_SIZE:100}
+  system-prompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. Create a concise summary of the conversation. Provide both a detailed summary (full_summary) and a brief summary (short_summary) highlighting key topics and decisions.}
 quarkus:
   config:
     locations: application-queues.yml
@@ -115,6 +120,13 @@ mp:
           name: dlq-final-exchange
         queue:
           name: dlq-final
+      summary-ready-queue:
+        connector: smallrye-rabbitmq
+        exchange:
+          name: all-events
+        queue:
+          name: summary-ready
+        dead-letter-exchange: retry-5s-exchange
     outgoing:
       events-exchange:
         connector: smallrye-rabbitmq

@@ -10,6 +10,8 @@ import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.Payload
+import com.simarel.vkbot.share.domain.vo.PeerId
+import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 import java.util.UUID
@@ -31,7 +33,23 @@ open class SaveMessageUsecase(
                 payload = Payload(message),
             ),
         )
+        publishEventCommand.execute(
+            PublishEventRequest(
+                event = Event.SUMMARY_REQUESTED,
+                payload = Payload(
+                    SummaryRequestedPayload(
+                        peerId = message.peerId,
+                        conversationMessageId = message.conversationMessageId
+                    )
+                ),
+            ),
+        )
     }
+
+    data class SummaryRequestedPayload(
+        val peerId: PeerId,
+        val conversationMessageId: ConversationMessageId
+    )
 
     private fun saveMessage(message: Message) {
         val entity = MessageEntity().apply {

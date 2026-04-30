@@ -8,3 +8,6 @@ databaseChangeLog:
   - include:
       file: changes/003-create-group-profiles-table.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/004-create-summaries-table.yaml
+      relativeToChangelogFile: true

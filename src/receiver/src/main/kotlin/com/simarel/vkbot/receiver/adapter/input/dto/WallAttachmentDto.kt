@@ -8,14 +8,12 @@ data class WallAttachmentDto(
     val text: String,
     val fromId: Long,
     val fromName: String?,
-    val isUnavailable: Boolean,
 ) {
     companion object {
         fun fromJson(jsonObject: JsonObject): WallAttachmentDto? {
             val wall = jsonObject.getJsonObject("wall") ?: return null
 
-            val isUnavailable = wall.getBoolean("is_unavailable", false)
-            val text = if (isUnavailable) "" else wall.getString("text", "")
+            val text = wall.getString("text", "")
 
             val from = wall.getJsonObject("from")
             val fromId = from?.getJsonNumber("id")?.longValue()
@@ -28,7 +26,6 @@ data class WallAttachmentDto(
                 text = text,
                 fromId = fromId,
                 fromName = from?.getString("name"),
-                isUnavailable = isUnavailable,
             )
         }
     }
