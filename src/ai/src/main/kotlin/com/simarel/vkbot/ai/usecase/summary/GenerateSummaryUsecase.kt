@@ -40,7 +40,7 @@ class GenerateSummaryUsecase(
             this.createdAt = OffsetDateTime.now()
             this.updatedAt = OffsetDateTime.now()
         }
-        summaryRepository.save(pendingSummary)
+        summaryRepository.insert(pendingSummary)
         return summaryId
     }
 
@@ -67,7 +67,7 @@ class GenerateSummaryUsecase(
             this.status = SummaryStatus.COMPLETED
             this.updatedAt = OffsetDateTime.now()
         }
-        summaryRepository.save(completedSummary)
+        summaryRepository.updateStatusAndSummaries(completedSummary)
     }
 
     @Transactional
@@ -77,7 +77,7 @@ class GenerateSummaryUsecase(
             this.status = SummaryStatus.FAILED
             this.updatedAt = OffsetDateTime.now()
         }
-        summaryRepository.save(failedSummary)
+        summaryRepository.updateStatusAndSummaries(failedSummary)
     }
 
     private fun formatMessagesForSummary(messages: List<MessageEntity>): String {

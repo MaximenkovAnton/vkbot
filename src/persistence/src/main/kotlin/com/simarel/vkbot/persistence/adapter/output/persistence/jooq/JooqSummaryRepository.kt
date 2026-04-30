@@ -18,7 +18,7 @@ open class JooqSummaryRepository {
     @Inject
     lateinit var dsl: DSLContext
 
-    open fun save(entity: SummaryEntity) {
+    open fun insert(entity: SummaryEntity) {
         dsl.insertInto(Summaries.TABLE)
             .columns(
                 Summaries.ID,
@@ -42,12 +42,16 @@ open class JooqSummaryRepository {
                 entity.createdAt?.let { Timestamp.from(it.toInstant()) },
                 entity.updatedAt?.let { Timestamp.from(it.toInstant()) }
             )
-            .onConflict(Summaries.ID)
-            .doUpdate()
+            .execute()
+    }
+
+    open fun updateStatusAndSummaries(entity: SummaryEntity) {
+        dsl.update(Summaries.TABLE)
             .set(Summaries.STATUS, entity.status?.name)
             .set(Summaries.FULL_SUMMARY, entity.fullSummary)
             .set(Summaries.SHORT_SUMMARY, entity.shortSummary)
             .set(Summaries.UPDATED_AT, entity.updatedAt?.let { Timestamp.from(it.toInstant()) })
+            .where(Summaries.ID.eq(entity.id))
             .execute()
     }
 

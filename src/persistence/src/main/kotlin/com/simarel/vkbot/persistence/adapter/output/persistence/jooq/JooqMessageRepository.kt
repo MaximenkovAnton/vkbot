@@ -49,6 +49,7 @@ open class JooqMessageRepository {
             .orderBy(Messages.CONVERSATION_MESSAGE_ID.desc())
             .limit(limit)
             .fetch()
+            .reversed()
 
         return records.map { record ->
             MessageEntity().apply {
