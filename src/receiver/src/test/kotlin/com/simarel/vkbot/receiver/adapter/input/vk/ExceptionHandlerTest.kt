@@ -10,11 +10,10 @@ class ExceptionHandlerTest {
     @Test
     fun `handleInternalException returns BAD_REQUEST for validation exceptions`() {
         // Given
-        val handler = ExceptionHandler()
         val exception = ValidationException("Validation failed")
 
         // When
-        val result = handler.handleInternalException(exception)
+        val result = ExceptionHandler.handleInternalException(exception)
 
         // Then
         assertEquals(Response.Status.BAD_REQUEST.statusCode, result.status)
@@ -24,11 +23,10 @@ class ExceptionHandlerTest {
     @Test
     fun `handleClassCastException delegates to handleInternalException`() {
         // Given
-        val handler = ExceptionHandler()
         val exception = ClassCastException("Invalid cast")
 
         // When
-        val result = handler.handleClassCastException(exception)
+        val result = ExceptionHandler.handleClassCastException(exception)
 
         // Then
         assertEquals(Response.Status.BAD_REQUEST.statusCode, result.status)
@@ -38,11 +36,10 @@ class ExceptionHandlerTest {
     @Test
     fun `handleUnknownException returns SERVICE_UNAVAILABLE`() {
         // Given
-        val handler = ExceptionHandler()
         val exception = RuntimeException("Unexpected error")
 
         // When
-        val result = handler.handleUnknownException(exception)
+        val result = ExceptionHandler.handleUnknownException(exception)
 
         // Then
         assertEquals(Response.Status.SERVICE_UNAVAILABLE.statusCode, result.status)
