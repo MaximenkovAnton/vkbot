@@ -62,15 +62,27 @@ RabbitMQ Event → Event Processor → Use Case → Command → Publish Next Eve
 
 ### `ai` - AI интеграция
 
-**Назначение**: Генерация ответов с использованием LLM через LangChain4j
+**Назначение**: Генерация ответов и саммаризаций чатов с использованием LLM через LangChain4j
 
 **Ключевые компоненты**:
 - `MessageRequireAnswerEventProcessor` - обработка запросов на генерацию ответа
 - `GenerateAnswerUsecase` - use case генерации ответа
 - `GenerateAnswerOutputAdapter` - адаптер для AI сервиса
-- `UserAnswerAiService` - интерфейс LangChain4j AI сервиса
+- `UserAnswerAiService` - интерфейс LangChain4j AI сервиса для ответов
+- `ChatSummarizationService` - сервис саммаризации чатов
+- `GenerateSummaryUsecase` - use case генерации саммаризаций
+- `SummaryRequestedEventProcessor` - обработка запросов на саммаризацию
 
 **Технология**: Ollama локальная модель через LangChain4j
+
+**Конфигурация саммаризации**:
+```yaml
+summary:
+  enabled-chats: "2000000001,2000000002"  # ID чатов для саммаризации
+  threshold: 100                           # Минимум сообщений
+  batch-size: 100                          # Максимум сообщений в саммаризации
+  system-prompt: "You are a chat summarizer..."
+```
 
 **Конфигурация Ollama**:
 ```yaml
@@ -85,17 +97,19 @@ quarkus:
 
 ### `persistence` - Сохранение данных
 
-**Назначение**: Хранение истории сообщений в PostgreSQL
+**Назначение**: Хранение истории сообщений и саммаризаций в PostgreSQL
 
 **Ключевые компоненты**:
-- `MessageReceivedEventProcessor` - обработка событий для сохранения
-- `MessageRepositoryAdapter` - реализация репозитория
-- `MessageEntity` - JPA сущность
+- `PersistenceService` (REST API) - предоставляет доступ к данным другим модулям
+- `JooqMessageRepository` - репозиторий сообщений на jOOQ
+- `JooqSummaryRepository` - репозиторий саммаризаций на jOOQ
+- `MessageEntity` / `SummaryEntity` - записи БД
 - `JsonbConverter` - конвертер для JSONB полей
 
 **Технологии**:
 - PostgreSQL (основная БД)
 - Liquibase (миграции схемы)
+- jOOQ (типобезопасный SQL сгенерированный из схемы)
 
 ---
 
@@ -197,6 +211,8 @@ receiver → (MESSAGE_RECEIVED) → processor → (MESSAGE_REQUIRE_ANSWER) → a
                                     persistence
                                          ↓
 ai → (SEND_MESSAGE) → vk-facade → VK API
+
+processor → (SUMMARY_REQUESTED) → ai → (SUMMARY_READY) → vk-facade → VK API
 ```
 
 ### Диаграмма взаимодействия
@@ -226,6 +242,8 @@ flowchart LR
     A -->|SEND_MESSAGE| INF
     INF -->|route| VF
     VF -->|HTTP| VK
+    A -->|SUMMARY_READY| INF
+    INF -->|route summary| VF
 
     S -.->|shared types| R
     S -.->|shared types| P

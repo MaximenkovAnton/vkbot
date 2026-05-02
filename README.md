@@ -8,7 +8,8 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 - VK API integration with webhook callbacks
 - AI-powered responses using LangChain4j and Ollama
 - Event-driven architecture with RabbitMQ
-- PostgreSQL persistence with Liquibase migrations
+- PostgreSQL persistence with Liquibase migrations and jOOQ type-safe queries
+- Chat summarization feature with configurable thresholds
 - OpenTelemetry observability (traces, metrics, logs)
 - Retry strategies with dead letter queues (DLQ)
 - Docker support for multiple deployment options (JVM, native)
@@ -22,11 +23,11 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 |-----------|------------|
 | Framework | Quarkus 3.34.2 (JDK 21) |
 | Language | Kotlin 2.3.0 |
-| Database | PostgreSQL + Liquibase |
+| Database | PostgreSQL + Liquibase + jOOQ |
 | Message Broker | RabbitMQ |
 | AI Integration | LangChain4j + Ollama |
 | Observability | OpenTelemetry, Prometheus, Micrometer |
-| Testing | JUnit 5, RestAssured, ArchUnit |
+| Testing | JUnit 5, RestAssured, WireMock, ArchUnit |
 | Build Tool | Gradle with Kotlin DSL |
 
 ## Module Structure
@@ -83,6 +84,10 @@ The application uses **environment variables** for configuration:
 | `DATABASE_URL` | No | JDBC URL (default: DevServices) |
 | `DB_USERNAME` | No | Database username (default: postgres) |
 | `DB_PASSWORD` | No | Database password (default: password) |
+| `SUMMARY_ENABLED_CHATS` | No | Comma-separated list of chat IDs for summary feature |
+| `SUMMARY_THRESHOLD` | No | Minimum messages before generating summary (default: 100) |
+| `SUMMARY_BATCH_SIZE` | No | Max messages to include in summary (default: 100) |
+| `SUMMARY_SYSTEM_PROMPT` | No | Custom prompt for summary generation |
 
 Alternatively, you can configure via `application.yml` in the `app` module.
 
@@ -184,9 +189,9 @@ VK API ← vk-facade ← RabbitMQ ← processor ← persistence ←─┘
 
 1. **receiver**: Validates and receives VK webhooks
 2. **processor**: Routes messages and coordinates processing
-3. **ai**: Generates AI responses using Ollama
-4. **persistence**: Stores message history
-5. **vk-facade**: Sends responses back to VK
+3. **ai**: Generates AI responses using Ollama and chat summaries
+4. **persistence**: Stores message history with jOOQ type-safe queries
+5. **vk-facade**: Sends responses and summaries back to VK
 
 ## Testing
 

@@ -45,27 +45,41 @@ vk:
 | `DB_USERNAME` | Нет            | Имя пользователя БД | `postgres` |
 | `DB_PASSWORD` | Нет            | Пароль БД | `password` |
 | `RABBITMQ_HOST` | Нет            | Хост RabbitMQ | `localhost` |
+| `SUMMARY_ENABLED_CHATS` | Нет            | ID чатов для саммаризации (через запятую) | `2000000001,2000000002` |
+| `SUMMARY_THRESHOLD` | Нет            | Минимум сообщений для саммаризации | `100` |
+| `SUMMARY_BATCH_SIZE` | Нет            | Максимум сообщений в саммаризации | `100` |
+| `SUMMARY_SYSTEM_PROMPT` | Нет            | Промпт для генерации саммаризации | `You are a chat summarizer...` |
 
 ## Quarkus конфигурация
 
-### База данных
+### База данных (PostgreSQL + Liquibase + jOOQ)
 ```yaml
 quarkus:
   datasource:
     db-kind: postgresql
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:password}
+    # DevServices автоматически стартует PostgreSQL в Docker для разработки
+    devservices:
+      enabled: true
     jdbc:
-      url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vkbot}
+      initial-size: 2
+      min-size: 2
+      max-size: 20
+      acquisition-timeout: 30s
 
+  # Liquibase управляет миграциями схемы
   liquibase:
     migrate-at-start: true
     change-log: db/changelog/db.changelog-master.yaml
 
-  hibernate-orm:
-    schema-management:
-      strategy: validate  # Liquibase управляет схемой
+  # jOOQ для типобезопасного SQL
+  jooq:
+    dialect: POSTGRES
 ```
+
+**Примечание**: Проект использует гибридный подход:
+- **Liquibase** — миграции схемы базы данных
+- **jOOQ** — типобезопасный доступ к данным (вместо JPA/Hibernate)
+- **Record-классы** — представление сущностей БД
 
 ### RabbitMQ конфигурация
 ```yaml
@@ -204,12 +218,15 @@ quarkus:
         enabled: true                 # Автозапуск RabbitMQ
 ```
 
-### Test Profile  
+### Test Profile
 ```yaml
 "%test":
   vk:
     api:
       token: test_token              # Заглушка для тестов
+  quarkus:
+    liquibase:
+      migrate-at-start: true         # Автомиграции для тестов
 ```
 
 ### Production Profile
@@ -225,10 +242,8 @@ quarkus:
         max-size: 20                  # Pool размер для production
         min-size: 5
     liquibase:
-      migrate-at-start: true
-    hibernate-orm:
-      schema-management:
-        strategy: validate            # Только валидация, миграции через Liquibase
+      migrate-at-start: true          # Миграции при старте
+    # jOOQ не требует schema-management (использует существующие таблицы)
 ```
 
 ## Health Checks
@@ -311,9 +326,23 @@ docker build -f src/docker/Dockerfile.native -t vkbot-native .
 1. Установите Quarkus плагин
 2. Настройте Environment Variables для запуска:
    ```
-   VK_SECRET=dev_secret;VK_CONFIRMATION_CODE=123456;VK_API_TOKEN=your_token
+   VK_SECRET=dev_secret;VK_CONFIRMATION_CODE=123456;VK_API_TOKEN=your_token;SUMMARY_ENABLED_CHATS=2000000001
    ```
 3. Включите Gradle auto-import
+
+### jOOQ Code Generation
+Для генерации jOOQ классов из схемы БД:
+```bash
+# Сначала запустите БД (DevServices или локально)
+export JOOQ_JDBC_URL=jdbc:postgresql://localhost:5432/vkbot
+export JOOQ_JDBC_USER=vkbot
+export JOOQ_JDBC_PASSWORD=vkbot
+
+./gradlew :src:persistence:generateJooq
+```
+
+Генерация отключена по умолчанию (требует запущенной БД). Проект использует
+ручные table constants и record классы.
 
 ### VS Code
 ```json

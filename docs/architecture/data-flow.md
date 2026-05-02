@@ -69,9 +69,12 @@ flowchart TD
    - `unknown` → логирует и возвращает "ok"
 
 **Преобразования**:
-```kotlin
+```markdown
 // VK JSON → VkEvent → Domain Event
 VkCallbackEvent.MESSAGE_NEW → Event.MESSAGE_RECEIVED
+
+// Для саммаризации
+Event.SUMMARY_REQUESTED → AI generation → Event.SUMMARY_READY
 ```
 
 ---
@@ -107,11 +110,13 @@ all-events → (fail) → retry-5s-queue (TTL 5s) → all-events
 ```
 
 **Диспетчеризация**:
-```kotlin
+```markdown
 val processors: Map<String, EventProcessor> = [
     "MESSAGE_RECEIVED" → MessageNewEventProcessor,
     "MESSAGE_REQUIRE_ANSWER" → MessageRequireAnswerEventProcessor,
-    "SEND_MESSAGE" → SendMessageEventProcessor
+    "SEND_MESSAGE" → SendMessageEventProcessor,
+    "SUMMARY_REQUESTED" → SummaryRequestedEventProcessor,
+    "SUMMARY_READY" → SummaryReadyEventProcessor
 ]
 ```
 
@@ -145,18 +150,18 @@ override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortRe
 }
 ```
 
-**Persistence**:
+**Persistence (jOOQ + PostgreSQL)**:
 ```kotlin
-@Entity
-@Table(name = "messages")
-class MessageEntity(
-    @Id @GeneratedValue val id: Long? = null,
-    val fromId: Long,
-    val peerId: Long,
-    val messageText: String,
-    @Convert(converter = JsonbConverter::class)
-    val metadata: Map<String, Any>
-)
+// Запись сообщения через jOOQ DSL
+jooq.insertInto(MESSAGES)
+    .set(MESSAGES.FROM_ID, message.fromId.value)
+    .set(MESSAGES.PEER_ID, message.peerId.value)
+    .set(MESSAGES.MESSAGE_TEXT, message.messageText.value)
+    .set(MESSAGES.METADATA, jsonbConverter.to(message.metadata))
+    .execute()
+
+// Получение сообщений для саммаризации
+persistenceClient.findMessagesBetween(peerId, lastMessageId, currentMessageId, batchSize)
 ```
 
 ---
@@ -406,9 +411,41 @@ fun process(message: Message) {
 
 Для добавления нового этапа обработки:
 
-1. **Создать новый EventProcessor** в соответствующем модуле
-2. **Зарегистрировать в EventDispatcher** по имени события
-3. **Опубликовать новое событие** из предыдущего этапа
+1. **Создать новое значение в `Event` enum** в share модуле
+2. **Создать новый EventProcessor** в соответствующем модуле
+3. **Зарегистрировать в EventDispatcher** по имени события
+4. **Опубликовать новое событие** из предыдущего этапа
+
+### Пример добавления саммаризации (уже реализовано):
+
+```kotlin
+// 1. Добавляем события в enum
+enum class Event {
+    // ... существующие события
+    SUMMARY_REQUESTED,  // Запрос на саммаризацию
+    SUMMARY_READY       // Саммаризация готова
+}
+
+// 2. EventProcessor для генерации саммаризации
+@ApplicationScoped
+class SummaryRequestedEventProcessor : EventProcessor {
+    override fun process(payload: String) {
+        val request = parseSummaryRequest(payload)
+        val messages = persistenceClient.getMessages(request.peerId, request.range)
+        val summary = aiService.generateSummary(messages)
+        publishEvent(Event.SUMMARY_READY, summary)
+    }
+}
+
+// 3. EventProcessor для отправки саммаризации
+@ApplicationScoped
+class SummaryReadyEventProcessor : EventProcessor {
+    override fun process(payload: String) {
+        val summary = parseSummary(payload)
+        vkClient.sendMessage(summary.peerId, summary.text)
+    }
+}
+```
 
 Пример добавления модуля антиспама:
 
