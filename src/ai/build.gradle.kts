@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    id("org.kordamp.gradle.jandex") version "2.0.0"
+    id("org.kordamp.gradle.jandex") version "2.3.0"
 }
 
 repositories {
@@ -23,6 +23,9 @@ dependencies {
 
     // Jackson
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+
+    // REST Client
+    implementation("io.quarkus:quarkus-rest-client-jackson")
 
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))

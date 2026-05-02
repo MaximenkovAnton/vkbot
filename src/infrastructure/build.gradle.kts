@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
     `java-test-fixtures`
-    id("org.kordamp.gradle.jandex") version "2.0.0"
+    id("org.kordamp.gradle.jandex") version "2.3.0"
 }
 
 repositories {
@@ -25,6 +25,7 @@ dependencies {
 
     // Jackson for JSON serialization
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
+
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")

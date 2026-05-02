@@ -33,6 +33,12 @@ quarkus:
     scope: jakarta.inject.Singleton
     logging:
       scope: request-response
+    persistence:
+      url: http://localhost:8080
+      scope: jakarta.inject.Singleton
+    vk-facade:
+      url: http://localhost:8080
+      scope: jakarta.inject.Singleton
     vk:
       url: https://api.vk.ru/method
       headers:

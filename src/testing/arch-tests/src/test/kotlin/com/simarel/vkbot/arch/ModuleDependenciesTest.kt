@@ -19,6 +19,8 @@ class ModuleDependenciesTest {
         private const val VK_FACADE_PKG = "com.simarel.vkbot.vkFacade.."
         private const val PROCESSOR_PKG = "com.simarel.vkbot.processor.."
         private const val RECEIVER_PKG = "com.simarel.vkbot.receiver.."
+        private const val PERSISTENCE_PKG = "com.simarel.vkbot.persistence.."
+        private const val AI_PKG = "com.simarel.vkbot.ai.."
         private const val APP_PKG = "com.simarel.vkbot.app.."
 
         private val ALL_MODULES = listOf(
@@ -26,8 +28,13 @@ class ModuleDependenciesTest {
             VK_FACADE_PKG,
             PROCESSOR_PKG,
             RECEIVER_PKG,
+            PERSISTENCE_PKG,
+            AI_PKG,
             APP_PKG,
         )
+
+        fun modulesWithoutShare() = ALL_MODULES - SHARE_PKG
+        fun modulesWithoutShareAnd(module: String) = modulesWithoutShare() - module
     }
 
     @BeforeAll
@@ -45,7 +52,7 @@ class ModuleDependenciesTest {
             .should()
             .dependOnClassesThat()
             .resideInAnyPackage(
-                *ALL_MODULES.toTypedArray(),
+                *modulesWithoutShare().toTypedArray(),
             )
             .check(importedClasses)
     }
@@ -57,12 +64,7 @@ class ModuleDependenciesTest {
             .resideInAPackage(INFRASTRUCTURE_PKG)
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage(
-                VK_FACADE_PKG,
-                PROCESSOR_PKG,
-                RECEIVER_PKG,
-                APP_PKG,
-            )
+            .resideInAnyPackage(*modulesWithoutShareAnd(INFRASTRUCTURE_PKG).toTypedArray())
             .check(importedClasses)
     }
 
@@ -73,12 +75,7 @@ class ModuleDependenciesTest {
             .resideInAPackage(VK_FACADE_PKG)
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage(
-                INFRASTRUCTURE_PKG,
-                PROCESSOR_PKG,
-                RECEIVER_PKG,
-                APP_PKG,
-            )
+            .resideInAnyPackage(*modulesWithoutShareAnd(VK_FACADE_PKG).toTypedArray())
             .check(importedClasses)
     }
 
@@ -89,12 +86,7 @@ class ModuleDependenciesTest {
             .resideInAPackage(PROCESSOR_PKG)
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage(
-                INFRASTRUCTURE_PKG,
-                VK_FACADE_PKG,
-                RECEIVER_PKG,
-                APP_PKG,
-            )
+            .resideInAnyPackage(*modulesWithoutShareAnd(PROCESSOR_PKG).toTypedArray())
             .check(importedClasses)
     }
 
@@ -105,12 +97,29 @@ class ModuleDependenciesTest {
             .resideInAPackage(RECEIVER_PKG)
             .should()
             .dependOnClassesThat()
-            .resideInAnyPackage(
-                INFRASTRUCTURE_PKG,
-                VK_FACADE_PKG,
-                PROCESSOR_PKG,
-                APP_PKG,
-            )
+            .resideInAnyPackage(*modulesWithoutShareAnd(RECEIVER_PKG).toTypedArray())
+            .check(importedClasses)
+    }
+
+    @Test
+    fun `ai module should only depend on share`() {
+        noClasses()
+            .that()
+            .resideInAPackage(AI_PKG)
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(*modulesWithoutShareAnd(AI_PKG).toTypedArray())
+            .check(importedClasses)
+    }
+
+    @Test
+    fun `persistence module should only depend on share`() {
+        noClasses()
+            .that()
+            .resideInAPackage(PERSISTENCE_PKG)
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(*modulesWithoutShareAnd(PERSISTENCE_PKG).toTypedArray())
             .check(importedClasses)
     }
 }

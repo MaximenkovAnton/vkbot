@@ -5,8 +5,6 @@ import com.github.tomakehurst.wiremock.client.WireMock.containing
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
-import com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching
-import com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath
 import io.quarkus.test.common.QuarkusTestResource
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.junit.TestProfile
@@ -38,14 +36,11 @@ class VkWebhookIntegrationTest {
 
     @BeforeEach
     fun setup() {
-        // Reset WireMock before each test
-        WireMockTestResource.wireMockServer.resetAll()
+        WireMockTestResource.resetToDefaultStubs()
     }
 
     @Test
     fun `full flow - message_new event is processed end to end with VK API call`() {
-        // Given: setup WireMock stubs for Ollama API (LangChain4j uses /api/chat endpoint)
-        // For non-streaming requests (stream: false), Ollama returns a single JSON response
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/api/chat"))
                 .willReturn(
@@ -74,7 +69,6 @@ class VkWebhookIntegrationTest {
                 )
         )
 
-        // Given: setup WireMock stub for VK API users.get (profile fetch)
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/users.get"))
                 .willReturn(
@@ -100,7 +94,6 @@ class VkWebhookIntegrationTest {
                 )
         )
 
-        // Given: setup WireMock stub for VK API groups.getById (group profile fetch)
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/groups.getById"))
                 .willReturn(
@@ -123,7 +116,6 @@ class VkWebhookIntegrationTest {
                 )
         )
 
-        // Given: setup WireMock stub for VK API messages.send
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/messages.send"))
                 .willReturn(
@@ -134,7 +126,6 @@ class VkWebhookIntegrationTest {
                 )
         )
 
-        // When: send webhook with message_new event
         given()
             .contentType(ContentType.JSON)
             .body(
@@ -173,7 +164,6 @@ class VkWebhookIntegrationTest {
             .contentType(ContentType.TEXT)
             .body(equalTo("ok"))
 
-        // Then: wait for async processing through RabbitMQ and verify VK API was called
         await()
             .atMost(120, TimeUnit.SECONDS)
             .pollInterval(5, TimeUnit.SECONDS)
@@ -279,13 +269,11 @@ class VkWebhookIntegrationTest {
 
     @Test
     fun `VK API failure should handle error gracefully`() {
-        // Given: VK API returns error 500
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/messages.send"))
                 .willReturn(aResponse().withStatus(500).withBody("Internal Server Error"))
         )
 
-        // When: send webhook with message_new
         given()
             .contentType(ContentType.JSON)
             .body(

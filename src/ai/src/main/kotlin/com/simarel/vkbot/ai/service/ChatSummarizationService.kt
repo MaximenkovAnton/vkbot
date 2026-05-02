@@ -1,25 +1,25 @@
 package com.simarel.vkbot.ai.service
 
 import com.simarel.vkbot.ai.usecase.summary.GenerateSummaryUsecase
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqSummaryRepository
-import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
-import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.model.SummaryStatus
 import com.simarel.vkbot.share.domain.vo.Payload
+import com.simarel.vkbot.share.adapter.output.client.persistence.PersistenceService
+import com.simarel.vkbot.share.domain.model.StoredMessage
+import com.simarel.vkbot.share.domain.model.Summary
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.eclipse.microprofile.config.inject.ConfigProperty
+import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
 class ChatSummarizationService(
     private val generateSummaryUsecase: GenerateSummaryUsecase,
-    private val summaryRepository: JooqSummaryRepository,
-    private val messageRepository: JooqMessageRepository,
     private val publishEventCommand: PublishEventCommand,
+    @RestClient private val persistenceClient: PersistenceService,
 ) {
 
     @Inject
@@ -47,12 +47,12 @@ class ChatSummarizationService(
             return
         }
 
-        if (summaryRepository.hasPendingSummary(peerId)) {
+        if (persistenceClient.hasPendingSummary(peerId)) {
             Log.debugf("Skipping summarization for peerId=%d - already have pending summary", peerId)
             return
         }
 
-        val lastSummary = summaryRepository.findLastByPeerId(peerId)
+        val lastSummary = persistenceClient.findLastSummary(peerId)
 
         if (lastSummary?.status == SummaryStatus.PENDING) {
             return
@@ -71,8 +71,8 @@ class ChatSummarizationService(
 
         Log.infof("Creating summary for peerId=%d, messages=%d", peerId, messages.size)
 
-        val firstMessageId = messages.first().conversationMessageId!!
-        val lastMessageId = messages.last().conversationMessageId!!
+        val firstMessageId = messages.first().conversationMessageId
+        val lastMessageId = messages.last().conversationMessageId
 
         val summaryId = generateSummaryUsecase.createPendingSummary(peerId, firstMessageId, lastMessageId)
 
@@ -90,13 +90,18 @@ class ChatSummarizationService(
 
     private fun fetchMessagesForSummary(
         peerId: Long,
-        lastSummary: SummaryEntity?,
+        lastSummary: Summary?,
         currentMessageId: Long
-    ): List<com.simarel.vkbot.persistence.domain.entity.MessageEntity> {
+    ): List<StoredMessage> {
         return if (lastSummary == null) {
-            messageRepository.findMessagesBefore(peerId, currentMessageId + 1, summaryBatchSize)
+            persistenceClient.findMessagesBefore(peerId, currentMessageId + 1, summaryBatchSize)
         } else {
-            summaryRepository.findMessagesBetween(peerId, lastSummary.lastMessageId!!, currentMessageId, summaryBatchSize)
+            persistenceClient.findMessagesBetween(
+                peerId,
+                lastSummary.lastMessageId ?: 0,
+                currentMessageId,
+                summaryBatchSize
+            )
         }
     }
 

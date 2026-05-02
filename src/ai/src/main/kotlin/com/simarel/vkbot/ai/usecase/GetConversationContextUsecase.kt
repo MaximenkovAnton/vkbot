@@ -3,20 +3,16 @@ package com.simarel.vkbot.ai.usecase
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.ai.port.output.ai.ChatMessage
-import com.simarel.vkbot.persistence.domain.entity.MessageEntity
-import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
-import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
-import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.share.port.output.persistence.PersistenceDataOutputPort
 import jakarta.enterprise.context.ApplicationScoped
-import jakarta.transaction.Transactional
-import java.time.OffsetDateTime
 
 data class ConversationContext(
     val currentMessage: Message,
@@ -27,20 +23,18 @@ data class ConversationContext(
 
 @ApplicationScoped
 class GetConversationContextUsecase(
-    private val findMessagesPort: FindMessagesBeforePort,
-    private val findUserProfilesPort: FindUserProfilesByIdsPort,
-    private val findGroupProfilesPort: FindGroupProfilesByIdsPort,
+    private val persistencePort: PersistenceDataOutputPort,
     private val objectMapper: ObjectMapper,
 ) {
-    @Transactional
+
     fun execute(currentMessage: Message): ConversationContext {
         val peerId = currentMessage.peerId
         val currentMessageId = currentMessage.conversationMessageId
 
-        // 1. Получить предыдущие 20 сообщений (до текущего)
-        val previousMessages = findMessagesPort.findMessagesBefore(
-            peerId = peerId,
-            beforeConversationMessageId = currentMessageId,
+        // 1. Получить предыдущие 20 сообщений (до текущего) через REST API
+        val previousMessages = persistencePort.findMessagesBefore(
+            peerId = peerId.value,
+            beforeConversationMessageId = currentMessageId.value,
             limit = 20
         )
 
@@ -56,12 +50,11 @@ class GetConversationContextUsecase(
         val allFromIds = (historyFromIds + currentMessageFromIds).distinct()
 
         // 5. Разделить на группы (ID < 0) и пользователей (ID > 0)
-        // FromId для групп < 0, но GroupId в БД хранятся > 0
         val (groupFromIds, userIds) = allFromIds.partition { it.value < 0 }
 
-        // 6. Получить профили
-        val userProfiles = findUserProfilesPort.findByIds(userIds)
-        val groupProfiles = findGroupProfilesPort.findByIds(groupFromIds)
+        // 6. Получить профили через REST API
+        val userProfiles = persistencePort.findUserProfilesByIds(userIds)
+        val groupProfiles = persistencePort.findGroupProfilesByIds(groupFromIds)
 
         return ConversationContext(
             currentMessage = currentMessage,
@@ -79,8 +72,8 @@ class GetConversationContextUsecase(
         return result
     }
 
-    private fun extractAllFromIds(entity: MessageEntity): List<FromId> {
-        val result = mutableListOf(FromId.of(entity.fromId!!))
+    private fun extractAllFromIds(entity: StoredMessage): List<FromId> {
+        val result = mutableListOf(FromId.of(entity.fromId))
         entity.forwardedMessages?.let { json ->
             val forwarded = parseForwardedMessages(json)
             forwarded.forEach { msg ->
@@ -99,11 +92,11 @@ class GetConversationContextUsecase(
         }
     }
 
-    private fun MessageEntity.toChatMessage(): ChatMessage {
+    private fun StoredMessage.toChatMessage(): ChatMessage {
         return ChatMessage(
-            id = ConversationMessageId.of(this.conversationMessageId!!),
-            fromId = FromId.of(this.fromId!!),
-            text = MessageText.of(this.messageText!!),
+            id = ConversationMessageId.of(this.conversationMessageId),
+            fromId = FromId.of(this.fromId),
+            text = MessageText.of(this.messageText ?: ""),
             date = Date.of(this.date),
             forwardedMessages = this.forwardedMessages?.let { parseForwardedMessages(it) } ?: emptyList()
         )

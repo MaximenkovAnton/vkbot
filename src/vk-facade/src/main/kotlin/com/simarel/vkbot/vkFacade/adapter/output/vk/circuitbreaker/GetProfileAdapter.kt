@@ -4,14 +4,14 @@ import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
-import com.simarel.vkbot.vkFacade.port.output.vk.GetProfileOutputPort
+import com.simarel.vkbot.vkFacade.port.output.vk.VkProfileOutputPort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
 class GetProfileAdapter(
     @RestClient private val vkClient: VkClient,
-) : GetProfileOutputPort {
+) : VkProfileOutputPort {
 
     override fun getUserProfilesBatch(fromIds: List<FromId>): List<VkUserProfile> {
         if (fromIds.isEmpty()) {

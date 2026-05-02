@@ -44,7 +44,7 @@ mp:
         auto-bind-exchange: false
 
 quarkus:
-  # Enable devservices only for RabbitMQ in integration tests
+  # Enable devservices only for RabbitMQ and PostgreSQL in integration tests
   devservices:
     enabled: true
   datasource:

@@ -23,6 +23,8 @@ dependencies {
     implementation(project(":src:vk-facade"))
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))
+    implementation(project(":src:ai"))
+    implementation(project(":src:persistence"))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:arch-tests"))
     implementation(enforcedPlatform("$quarkusPlatformGroupId:$quarkusPlatformArtifactId:$quarkusPlatformVersion"))

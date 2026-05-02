@@ -6,7 +6,7 @@ import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePor
 import com.simarel.vkbot.persistence.port.output.persistence.SaveUserProfilePort
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.vkFacade.port.output.vk.GetProfileOutputPort
+import com.simarel.vkbot.share.port.output.vk.GetProfileOutputPort
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional

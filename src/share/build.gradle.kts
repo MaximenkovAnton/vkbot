@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
     `java-test-fixtures`
-    id("org.kordamp.gradle.jandex") version "2.0.0"
+    id("org.kordamp.gradle.jandex") version "2.3.0"
 }
 
 repositories {
@@ -28,6 +28,10 @@ dependencies {
 
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+    // REST Client
+    implementation("io.quarkus:quarkus-rest-client-jackson")
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")

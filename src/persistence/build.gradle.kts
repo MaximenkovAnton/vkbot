@@ -11,7 +11,6 @@ repositories {
 
 dependencies {
     implementation(project(":src:share"))
-    implementation(project(":src:vk-facade"))
 
     // Test fixtures need access to share module classes
     testFixturesImplementation(project(":src:share"))
@@ -34,6 +33,13 @@ dependencies {
 
     // Agroal connection pool
     implementation("io.quarkus:quarkus-agroal")
+
+    // Quarkus REST (JAX-RS)
+    implementation("io.quarkus:quarkus-rest")
+    implementation("io.quarkus:quarkus-rest-jackson")
+
+    // REST Client
+    implementation("io.quarkus:quarkus-rest-client-jackson")
 
     // jOOQ for type-safe SQL
     implementation("org.jooq:jooq:3.19.10")

@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
     `java-test-fixtures`
-    id("org.kordamp.gradle.jandex") version "2.0.0"
+    id("org.kordamp.gradle.jandex") version "2.3.0"
 }
 
 repositories {
@@ -16,6 +16,8 @@ dependencies {
     implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-jackson")
+    implementation("io.quarkus:quarkus-rest")
+    implementation("io.quarkus:quarkus-rest-jackson")
     implementation("io.quarkus:quarkus-rest-client-jackson")
     implementation("io.quarkus:quarkus-smallrye-fault-tolerance")
     implementation("io.quarkus:quarkus-messaging-rabbitmq")
