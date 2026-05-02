@@ -28,11 +28,9 @@ class MessageTextTest {
         val value: String? = null
 
         // When & Then
-        val exception = assertThrows(ValidationException::class.java) {
-            MessageText.of(value)
-        }
+        val result = MessageText.of(value)
 
-        assertEquals("Message text can't be null", exception.message)
+        assertEquals("", result.value)
     }
 
     @Test
