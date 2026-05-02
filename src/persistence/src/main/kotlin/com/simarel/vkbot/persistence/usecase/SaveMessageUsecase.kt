@@ -12,6 +12,9 @@ import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPort
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortRequest
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortResponse
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 import java.util.UUID
@@ -22,9 +25,10 @@ open class SaveMessageUsecase(
     private val objectMapper: ObjectMapper,
     private val publishEventCommand: PublishEventCommand,
     private val fetchUserProfileCommand: FetchUserProfileCommand,
-) {
+) : SaveMessageInputPort {
     @Transactional
-    open fun execute(message: Message) {
+    override fun execute(request: SaveMessageInputPortRequest): SaveMessageInputPortResponse {
+        val message = request.message
         fetchUserProfileCommand.execute(FetchUserProfileRequest(message))
         saveMessage(message)
         publishEventCommand.execute(
@@ -44,6 +48,7 @@ open class SaveMessageUsecase(
                 ),
             ),
         )
+        return SaveMessageInputPortResponse
     }
 
     data class SummaryRequestedPayload(

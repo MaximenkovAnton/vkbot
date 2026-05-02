@@ -1,8 +1,11 @@
-package com.simarel.vkbot.ai.service
+package com.simarel.vkbot.ai.adapter.output.context
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.ai.port.output.ai.ChatMessage
+import com.simarel.vkbot.ai.port.output.context.ConversationContextOutputPort
+import com.simarel.vkbot.ai.port.output.context.ConversationContextRequest
+import com.simarel.vkbot.ai.port.output.context.ConversationContextResponse
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
@@ -14,20 +17,14 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.port.output.persistence.PersistenceDataOutputPort
 import jakarta.enterprise.context.ApplicationScoped
 
-data class ConversationContext(
-    val currentMessage: Message,
-    val chatHistory: List<ChatMessage>,
-    val userProfiles: Map<FromId, VkUserProfile>,
-    val groupProfiles: Map<FromId, VkGroupProfile>,
-)
-
 @ApplicationScoped
-class ConversationContextService(
+class ConversationContextRestAdapter(
     private val persistencePort: PersistenceDataOutputPort,
     private val objectMapper: ObjectMapper,
-) {
+) : ConversationContextOutputPort {
 
-    fun getContext(currentMessage: Message): ConversationContext {
+    override fun execute(request: ConversationContextRequest): ConversationContextResponse {
+        val currentMessage = request.message
         val peerId = currentMessage.peerId
         val currentMessageId = currentMessage.conversationMessageId
 
@@ -50,7 +47,7 @@ class ConversationContextService(
         val userProfiles = persistencePort.findUserProfilesByIds(userIds)
         val groupProfiles = persistencePort.findGroupProfilesByIds(groupFromIds)
 
-        return ConversationContext(
+        return ConversationContextResponse(
             currentMessage = currentMessage,
             chatHistory = previousMessages.map { it.toChatMessage() },
             userProfiles = userProfiles.associateBy { it.id },
@@ -77,9 +74,6 @@ class ConversationContextService(
         return result
     }
 
-    // FIXME: Using ObjectMapper directly is infrastructure leak
-    // Ideally forwardedMessages should be parsed at adapter layer (PersistenceDataRestAdapter)
-    // and PersistenceDataOutputPort should return List<Message> instead of StoredMessage
     private fun parseForwardedMessages(json: String): List<Message> {
         val node = objectMapper.readTree(json)
         return if (node.isArray) {

@@ -2,7 +2,8 @@ package com.simarel.vkbot.ai.command.answer
 
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPort
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPortRequest
-import com.simarel.vkbot.ai.service.ConversationContextService
+import com.simarel.vkbot.ai.port.output.context.ConversationContextOutputPort
+import com.simarel.vkbot.ai.port.output.context.ConversationContextRequest
 import com.simarel.vkbot.share.command.Command
 import com.simarel.vkbot.share.command.CommandRequest
 import com.simarel.vkbot.share.command.CommandResponse
@@ -25,7 +26,7 @@ value class GenerateAnswerCommandResponse(val responseText: MessageText) : Comma
 @ApplicationScoped
 class GenerateAnswerCommandImpl(
     private val aiPort: GenerateAnswerOutputPort,
-    private val conversationContextService: ConversationContextService,
+    private val conversationContextPort: ConversationContextOutputPort,
 ) : GenerateAnswerCommand {
 
     override fun execute(
@@ -33,7 +34,7 @@ class GenerateAnswerCommandImpl(
     ): GenerateAnswerCommandResponse {
         val message = request.message
 
-        val context = conversationContextService.getContext(message)
+        val context = conversationContextPort.execute(ConversationContextRequest(message))
 
         val aiRequest = GenerateAnswerOutputPortRequest(
             currentMessage = context.currentMessage,

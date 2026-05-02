@@ -1,47 +1,59 @@
 package com.simarel.vkbot.ai.usecase.summary
 
-import com.simarel.vkbot.ai.adapter.output.ai.SummarizationAiService
+import com.simarel.vkbot.ai.port.input.summary.GenerateSummaryInputPort
+import com.simarel.vkbot.ai.port.input.summary.GenerateSummaryInputPortRequest
+import com.simarel.vkbot.ai.port.input.summary.GenerateSummaryInputPortResponse
+import com.simarel.vkbot.ai.port.output.persistence.SummaryPersistenceOutputPort
+import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
+import com.simarel.vkbot.ai.port.output.summary.SummarizationRequest
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.share.port.output.persistence.PersistenceDataOutputPort
 import jakarta.enterprise.context.ApplicationScoped
-import java.util.UUID
 
 @ApplicationScoped
 class GenerateSummaryUsecase(
-    private val summarizationAiService: SummarizationAiService,
-    private val persistencePort: PersistenceDataOutputPort,
-) {
+    private val summarizationPort: SummarizationOutputPort,
+    private val persistencePort: SummaryPersistenceOutputPort,
+) : GenerateSummaryInputPort {
 
-    data class SummaryResult(
-        val fullSummary: String,
-        val shortSummary: String,
-    )
-
-    fun createPendingSummary(peerId: Long, firstMessageId: Long, lastMessageId: Long): UUID {
-        return persistencePort.createPendingSummary(peerId, firstMessageId, lastMessageId)
-    }
-
-    fun generateSummary(messages: List<StoredMessage>): SummaryResult {
-        if (messages.isEmpty()) {
-            return SummaryResult("Нет сообщений для суммаризации", "Нет сообщений")
-        }
-
-        val formattedMessages = formatMessagesForSummary(messages)
-        val response = summarizationAiService.generateSummary(formattedMessages)
-
-        return SummaryResult(
-            fullSummary = response.fullSummary,
-            shortSummary = response.shortSummary
+    override fun execute(request: GenerateSummaryInputPortRequest): GenerateSummaryInputPortResponse {
+        val summaryId = persistencePort.createPendingSummary(
+            request.peerId,
+            request.firstMessageId,
+            request.lastMessageId
         )
-    }
 
-    fun saveCompletedSummary(summaryId: UUID, result: SummaryResult) {
-        persistencePort.saveCompletedSummary(summaryId, result.shortSummary, result.fullSummary)
-    }
+        try {
+            val messages = persistencePort.findMessagesBetween(
+                peerId = request.peerId,
+                firstMessageId = request.firstMessageId,
+                lastMessageId = request.lastMessageId,
+                limit = 1000,
+            )
 
-    fun markAsFailed(summaryId: UUID) {
-        persistencePort.markSummaryAsFailed(summaryId)
+            if (messages.isEmpty()) {
+                persistencePort.saveCompletedSummary(
+                    summaryId,
+                    "Нет сообщений",
+                    "Нет сообщений для суммаризации"
+                )
+                return GenerateSummaryInputPortResponse(summaryId)
+            }
+
+            val formattedMessages = formatMessagesForSummary(messages)
+            val summaryResult = summarizationPort.execute(SummarizationRequest(formattedMessages))
+
+            persistencePort.saveCompletedSummary(
+                summaryId,
+                summaryResult.shortSummary,
+                summaryResult.fullSummary
+            )
+
+            return GenerateSummaryInputPortResponse(summaryId)
+        } catch (e: Exception) {
+            persistencePort.markSummaryAsFailed(summaryId)
+            throw e
+        }
     }
 
     private fun formatMessagesForSummary(messages: List<StoredMessage>): String {
@@ -59,8 +71,10 @@ class GenerateSummaryUsecase(
                     val groupId = -msg.fromId
                     groupProfiles[groupId]?.name ?: "Группа ${msg.fromId}"
                 }
+
                 else -> {
-                    userProfiles[msg.fromId]?.let { "${it.firstName} ${it.lastName}" } ?: "Пользователь ${msg.fromId}"
+                    userProfiles[msg.fromId]?.let { "${it.firstName} ${it.lastName}" }
+                        ?: "Пользователь ${msg.fromId}"
                 }
             }
             "[$authorName]: ${msg.messageText}"
