@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.vkfacade
 
-import com.simarel.vkbot.share.adapter.output.client.vkfacade.VkFacadeService
+import com.simarel.vkbot.persistence.adapter.output.client.vkfacade.VkFacadeService
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId

@@ -7,9 +7,6 @@ import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
-import com.simarel.vkbot.share.adapter.output.client.persistence.CompleteSummaryRequest
-import com.simarel.vkbot.share.adapter.output.client.persistence.CreatePendingSummaryRequest
-import com.simarel.vkbot.share.adapter.output.client.persistence.PersistenceService
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus

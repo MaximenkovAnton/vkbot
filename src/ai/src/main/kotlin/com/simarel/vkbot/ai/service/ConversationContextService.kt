@@ -1,4 +1,4 @@
-package com.simarel.vkbot.ai.usecase
+package com.simarel.vkbot.ai.service
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -22,37 +22,31 @@ data class ConversationContext(
 )
 
 @ApplicationScoped
-class GetConversationContextUsecase(
+class ConversationContextService(
     private val persistencePort: PersistenceDataOutputPort,
     private val objectMapper: ObjectMapper,
 ) {
 
-    fun execute(currentMessage: Message): ConversationContext {
+    fun getContext(currentMessage: Message): ConversationContext {
         val peerId = currentMessage.peerId
         val currentMessageId = currentMessage.conversationMessageId
 
-        // 1. Получить предыдущие 20 сообщений (до текущего) через REST API
         val previousMessages = persistencePort.findMessagesBefore(
             peerId = peerId.value,
             beforeConversationMessageId = currentMessageId.value,
             limit = 20
         )
 
-        // 2. Собрать все fromId из истории (с включением forwarded)
         val historyFromIds = previousMessages.flatMap { msg ->
             extractAllFromIds(msg)
         }
 
-        // 3. Собрать все fromId из текущего сообщения (включая все forwarded)
         val currentMessageFromIds = extractAllFromIds(currentMessage)
 
-        // 4. Объединить все ID
         val allFromIds = (historyFromIds + currentMessageFromIds).distinct()
 
-        // 5. Разделить на группы (ID < 0) и пользователей (ID > 0)
         val (groupFromIds, userIds) = allFromIds.partition { it.value < 0 }
 
-        // 6. Получить профили через REST API
         val userProfiles = persistencePort.findUserProfilesByIds(userIds)
         val groupProfiles = persistencePort.findGroupProfilesByIds(groupFromIds)
 
@@ -83,6 +77,9 @@ class GetConversationContextUsecase(
         return result
     }
 
+    // FIXME: Using ObjectMapper directly is infrastructure leak
+    // Ideally forwardedMessages should be parsed at adapter layer (PersistenceDataRestAdapter)
+    // and PersistenceDataOutputPort should return List<Message> instead of StoredMessage
     private fun parseForwardedMessages(json: String): List<Message> {
         val node = objectMapper.readTree(json)
         return if (node.isArray) {

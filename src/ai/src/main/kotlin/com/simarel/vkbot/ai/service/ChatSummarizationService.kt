@@ -6,7 +6,7 @@ import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.SummaryStatus
 import com.simarel.vkbot.share.domain.vo.Payload
-import com.simarel.vkbot.share.adapter.output.client.persistence.PersistenceService
+import com.simarel.vkbot.ai.adapter.output.client.persistence.PersistenceService
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import io.quarkus.logging.Log

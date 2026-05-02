@@ -1,8 +1,8 @@
 package com.simarel.vkbot.ai.adapter.output.persistence
 
-import com.simarel.vkbot.share.adapter.output.client.persistence.CompleteSummaryRequest
-import com.simarel.vkbot.share.adapter.output.client.persistence.CreatePendingSummaryRequest
-import com.simarel.vkbot.share.adapter.output.client.persistence.PersistenceService
+import com.simarel.vkbot.ai.adapter.output.client.persistence.CompleteSummaryRequest
+import com.simarel.vkbot.ai.adapter.output.client.persistence.CreatePendingSummaryRequest
+import com.simarel.vkbot.ai.adapter.output.client.persistence.PersistenceService
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile

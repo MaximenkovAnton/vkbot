@@ -1,4 +1,4 @@
-package com.simarel.vkbot.share.adapter.output.mq
+package com.simarel.vkbot.infrastructure.adapter.output.mq
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.share.port.output.PublishEventOutputPort

@@ -1,4 +1,4 @@
-package com.simarel.vkbot.share.adapter.output.client.vkfacade
+package com.simarel.vkbot.persistence.adapter.output.client.vkfacade
 
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile

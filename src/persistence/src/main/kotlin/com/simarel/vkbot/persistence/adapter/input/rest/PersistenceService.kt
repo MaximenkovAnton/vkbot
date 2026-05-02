@@ -1,22 +1,19 @@
-package com.simarel.vkbot.share.adapter.output.client.persistence
+package com.simarel.vkbot.persistence.adapter.input.rest
 
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
-import com.simarel.vkbot.share.domain.model.SummaryStatus
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.Path
-import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
+import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.core.MediaType
-import org.eclipse.microprofile.rest.client.inject.RegisterRestClient
 import java.util.UUID
 
-@RegisterRestClient(configKey = "persistence")
 @Path("/persistence")
 interface PersistenceService {
 
@@ -88,5 +85,4 @@ data class CreatePendingSummaryRequest(
 data class CompleteSummaryRequest(
     val shortSummary: String,
     val fullSummary: String,
-    val status: SummaryStatus = SummaryStatus.COMPLETED,
 )
