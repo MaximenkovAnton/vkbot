@@ -55,6 +55,14 @@ open class JooqSummaryRepository {
             .execute()
     }
 
+    open fun updateStatus(entity: SummaryEntity) {
+        dsl.update(Summaries.TABLE)
+            .set(Summaries.STATUS, entity.status?.name)
+            .set(Summaries.UPDATED_AT, entity.updatedAt?.let { Timestamp.from(it.toInstant()) })
+            .where(Summaries.ID.eq(entity.id))
+            .execute()
+    }
+
     open fun findLastByPeerId(peerIdValue: Long): SummaryEntity? {
         val record = dsl.select()
             .from(Summaries.TABLE)

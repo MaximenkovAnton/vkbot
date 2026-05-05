@@ -118,7 +118,7 @@ class PersistenceDataController(
             this.status = SummaryStatus.FAILED
             this.updatedAt = OffsetDateTime.now()
         }
-        summaryRepository.updateStatusAndSummaries(failedSummary)
+        summaryRepository.updateStatus(failedSummary)
     }
 
     @GET
