@@ -4,6 +4,7 @@ import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.POST
@@ -15,6 +16,7 @@ import jakarta.ws.rs.core.MediaType
 import java.util.UUID
 
 @Path("/persistence")
+@ApplicationScoped
 interface PersistenceService {
 
     @GET

@@ -20,10 +20,12 @@ import jakarta.ws.rs.Path
 import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
+import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.core.MediaType
 import java.time.OffsetDateTime
 import java.util.UUID
 
+@ApplicationScoped
 @Path("/persistence")
 class PersistenceDataController(
     private val messageRepository: JooqMessageRepository,

@@ -4,12 +4,14 @@ import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.port.output.vk.VkProfileOutputPort
+import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
 import jakarta.ws.rs.core.MediaType
 
+@ApplicationScoped
 class VkFacadeController(
     private val getProfilePort: VkProfileOutputPort,
 ) {
