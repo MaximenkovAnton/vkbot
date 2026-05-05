@@ -33,8 +33,8 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
         return ForwardedMessages(responseTo)
     }
 
-    val digest = MessageDigest.getInstance("SHA-256")
     private fun countRand(responseTo: Message): Int {
+        val digest = MessageDigest.getInstance("SHA-256")
         val uniqueString = responseTo.messageText.value + responseTo.peerId.value + responseTo.date.value.toEpochSecond()
         val hashBytes = digest.digest(uniqueString.toByteArray(Charsets.UTF_8))
         val res = ByteBuffer.wrap(hashBytes).getInt()
