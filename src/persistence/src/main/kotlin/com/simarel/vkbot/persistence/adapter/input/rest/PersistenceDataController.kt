@@ -126,7 +126,7 @@ class PersistenceDataController(
                 payload = Payload(
                     SummaryReadyPayload(
                         peerId = existingSummary.peerId!!,
-                        messageText = "📋 Суммаризация обсуждения:\n\n${request.fullSummary}\n\n",
+                        messageText = "📋 Суммаризация обсуждения:\n\n${request.fullSummary}\n\n#суммаризация",
                         firstConversationMessageId = existingSummary.firstMessageId!!,
                         lastConversationMessageId = existingSummary.lastMessageId!!
                     )
