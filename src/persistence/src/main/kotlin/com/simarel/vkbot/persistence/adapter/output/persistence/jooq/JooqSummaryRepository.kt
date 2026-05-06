@@ -63,6 +63,26 @@ open class JooqSummaryRepository {
             .execute()
     }
 
+    open fun findById(id: UUID): SummaryEntity? {
+        val record = dsl.select()
+            .from(Summaries.TABLE)
+            .where(Summaries.ID.eq(id))
+            .fetchOne()
+            ?: return null
+
+        return SummaryEntity().apply {
+            this.id = record.get(Summaries.ID, UUID::class.java)
+            peerId = record.get(Summaries.PEER_ID, Long::class.java)
+            firstMessageId = record.get(Summaries.FIRST_MESSAGE_ID, Long::class.java)
+            lastMessageId = record.get(Summaries.LAST_MESSAGE_ID, Long::class.java)
+            fullSummary = record.get(Summaries.FULL_SUMMARY, String::class.java)
+            shortSummary = record.get(Summaries.SHORT_SUMMARY, String::class.java)
+            status = record.get(Summaries.STATUS, String::class.java)?.let { SummaryStatus.valueOf(it) }
+            createdAt = record.get(Summaries.CREATED_AT, OffsetDateTime::class.java)
+            updatedAt = record.get(Summaries.UPDATED_AT, OffsetDateTime::class.java)
+        }
+    }
+
     open fun findLastByPeerId(peerIdValue: Long): SummaryEntity? {
         val record = dsl.select()
             .from(Summaries.TABLE)

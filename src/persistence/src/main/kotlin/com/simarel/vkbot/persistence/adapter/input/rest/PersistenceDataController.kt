@@ -1,5 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.input.rest
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqSummaryRepository
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
@@ -7,10 +8,14 @@ import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
+import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
+import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
+import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
+import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.ws.rs.Consumes
@@ -32,6 +37,8 @@ class PersistenceDataController(
     private val summaryRepository: JooqSummaryRepository,
     private val findUserProfilesPort: FindUserProfilesByIdsPort,
     private val findGroupProfilesPort: FindGroupProfilesByIdsPort,
+    private val publishEventCommand: PublishEventCommand,
+    private val objectMapper: ObjectMapper,
 ) : PersistenceService {
 
     @GET
@@ -101,6 +108,9 @@ class PersistenceDataController(
         @PathParam("id") id: UUID,
         request: CompleteSummaryRequest
     ) {
+        val existingSummary = summaryRepository.findById(id)
+            ?: throw IllegalArgumentException("Summary not found: $id")
+
         val completedSummary = SummaryEntity().apply {
             this.id = id
             this.fullSummary = request.fullSummary
@@ -109,7 +119,28 @@ class PersistenceDataController(
             this.updatedAt = OffsetDateTime.now()
         }
         summaryRepository.updateStatusAndSummaries(completedSummary)
+
+        publishEventCommand.execute(
+            PublishEventRequest(
+                event = Event.SUMMARY_READY,
+                payload = Payload(
+                    SummaryReadyPayload(
+                        peerId = existingSummary.peerId!!,
+                        messageText = request.shortSummary,
+                        firstConversationMessageId = existingSummary.firstMessageId!!,
+                        lastConversationMessageId = existingSummary.lastMessageId!!
+                    )
+                )
+            )
+        )
     }
+
+    data class SummaryReadyPayload(
+        val peerId: Long,
+        val messageText: String,
+        val firstConversationMessageId: Long,
+        val lastConversationMessageId: Long
+    )
 
     @POST
     @Path("/summaries/{id}/fail")
