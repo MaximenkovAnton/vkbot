@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.MediaType
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient
 
 @RegisterRestClient(configKey = "vk-facade")
+@Path("/api")
 interface VkFacadeService {
 
     @GET
