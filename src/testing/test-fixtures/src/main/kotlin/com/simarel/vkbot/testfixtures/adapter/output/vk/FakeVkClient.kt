@@ -32,7 +32,7 @@ class FakeVkClient(
 
     override fun getGroups(groupIds: String): VkGroupsResponseDto {
         getGroupsParameterCalls.add(GetGroupsParameter(groupIds))
-        return vkGroupsResponseDto ?: VkGroupsResponseDto(response = emptyList(), error = null)
+        return vkGroupsResponseDto ?: VkGroupsResponseDto(response = null, error = null)
     }
 
     data class SendMessageParameter(val peerId: Long, val message: String, val rand: Int)

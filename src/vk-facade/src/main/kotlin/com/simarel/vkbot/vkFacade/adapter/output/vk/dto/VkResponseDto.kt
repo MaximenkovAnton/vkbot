@@ -37,8 +37,14 @@ data class VkCityDto(
 
 @Suppress("ConstructorParameterNaming")
 data class VkGroupsResponseDto(
-    val response: List<VkGroupDto>?,
+    val response: VkGroupsResponseData?,
     val error: VkError?,
+)
+
+@Suppress("ConstructorParameterNaming")
+data class VkGroupsResponseData(
+    val groups: List<VkGroupDto>?,
+    val profiles: List<VkUserDto>?,
 )
 
 @Suppress("ConstructorParameterNaming")

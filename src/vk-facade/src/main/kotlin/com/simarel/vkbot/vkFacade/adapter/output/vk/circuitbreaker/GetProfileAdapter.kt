@@ -52,7 +52,7 @@ class GetProfileAdapter(
             throw VkApiException("VK API error: ${response.error.error_msg}")
         }
 
-        return response.response?.map { groupDto ->
+        return response.response?.groups?.map { groupDto ->
             VkGroupProfile.of(
                 id = -groupDto.id,
                 name = groupDto.name,
