@@ -8,12 +8,14 @@ import dev.langchain4j.service.UserMessage
 import dev.langchain4j.service.V
 import io.quarkiverse.langchain4j.RegisterAiService
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.enterprise.context.control.ActivateRequestContext
 
 @ApplicationScoped
 class SummarizationAiAdapter(
     private val summarizationAiService: SummarizationAiService,
 ) : SummarizationOutputPort {
 
+    @ActivateRequestContext
     override fun execute(request: SummarizationRequest): SummarizationResponse {
         val response = summarizationAiService.generateSummary(request.messages)
         return SummarizationResponse(

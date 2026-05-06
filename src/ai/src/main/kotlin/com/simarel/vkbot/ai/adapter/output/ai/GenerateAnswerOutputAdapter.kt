@@ -9,12 +9,14 @@ import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.enterprise.context.control.ActivateRequestContext
 
 @ApplicationScoped
 class GenerateAnswerOutputAdapter(
     private val userAnswerAiService: UserAnswerAiService,
 ) : GenerateAnswerOutputPort {
 
+    @ActivateRequestContext
     override fun execute(request: GenerateAnswerOutputPortRequest): GenerateAnswerOutputPortResponse {
         val answer = userAnswerAiService.generateAnswer(
             userProfiles = formatUserProfiles(request.userProfiles),

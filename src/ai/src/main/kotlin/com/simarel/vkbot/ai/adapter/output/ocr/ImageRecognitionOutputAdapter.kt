@@ -6,12 +6,14 @@ import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionResponse
 import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionResult
 import dev.langchain4j.data.image.Image
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.enterprise.context.control.ActivateRequestContext
 
 @ApplicationScoped
 class ImageRecognitionOutputAdapter(
     private val ocrAiService: OcrAiService,
 ) : ImageRecognitionOutputPort {
 
+    @ActivateRequestContext
     override fun execute(request: ImageRecognitionRequest): ImageRecognitionResponse {
         if (request.imageUrls.isEmpty()) {
             return ImageRecognitionResponse(emptyList())
