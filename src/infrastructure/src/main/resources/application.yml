@@ -46,6 +46,8 @@ quarkus:
     vane:
       url: ${VANE_URL}
       scope: jakarta.inject.Singleton
+      connect-timeout: 30000
+      read-timeout: 120000
   rabbitmq:
     devservices:
       image-name: rabbitmq:latest
