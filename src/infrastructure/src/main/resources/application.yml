@@ -43,6 +43,9 @@ quarkus:
       url: https://api.vk.ru/method
       headers:
         Authorization: Bearer ${vk.api.token}
+    vane:
+      url: ${VANE_URL}
+      scope: jakarta.inject.Singleton
   rabbitmq:
     devservices:
       image-name: rabbitmq:latest

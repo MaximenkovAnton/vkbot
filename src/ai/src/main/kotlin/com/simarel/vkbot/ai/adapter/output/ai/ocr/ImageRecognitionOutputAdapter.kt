@@ -1,4 +1,4 @@
-package com.simarel.vkbot.ai.adapter.output.ocr
+package com.simarel.vkbot.ai.adapter.output.ai.ocr
 
 import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionOutputPort
 import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionRequest

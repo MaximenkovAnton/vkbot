@@ -90,3 +90,8 @@ quarkus:
       chat-model:
         model-id: llama3.2
         temperature: 0.0
+  rest-client:
+    vane:
+      url: http://localhost:8075
+      scope: jakarta.inject.Singleton
+

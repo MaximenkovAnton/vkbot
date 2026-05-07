@@ -1,6 +1,8 @@
-package com.simarel.vkbot.ai.adapter.output.ocr
+package com.simarel.vkbot.ai.adapter.output.ai.ocr
 
 import dev.langchain4j.data.image.Image
+import dev.langchain4j.service.SystemMessage
+import dev.langchain4j.service.UserMessage
 import io.quarkiverse.langchain4j.RegisterAiService
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -8,8 +10,8 @@ import jakarta.enterprise.context.ApplicationScoped
 @ApplicationScoped
 interface OcrAiService {
 
-    @dev.langchain4j.service.SystemMessage("{config:aiOcrSystemPrompt}")
-    @dev.langchain4j.service.UserMessage(
+    @SystemMessage("{config:aiOcrSystemPrompt}")
+    @UserMessage(
         """
         Проанализируй все изображения и для каждого верни результат в следующем формате JSON:
         {

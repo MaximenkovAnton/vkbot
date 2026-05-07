@@ -1,4 +1,4 @@
-package com.simarel.vkbot.ai.adapter.output.client.persistence
+package com.simarel.vkbot.ai.adapter.output.persistence
 
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary

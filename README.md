@@ -10,6 +10,7 @@ A Quarkus-based VK bot that processes incoming messages and provides AI-powered 
 - Event-driven architecture with RabbitMQ
 - PostgreSQL persistence with Liquibase migrations and jOOQ type-safe queries
 - Chat summarization feature with configurable thresholds
+- AI-powered web search via Vane (Perplexica) integration
 - OpenTelemetry observability (traces, metrics, logs)
 - Retry strategies with dead letter queues (DLQ)
 - Docker support for multiple deployment options (JVM, native)
@@ -81,6 +82,7 @@ The application uses **environment variables** for configuration:
 | `VK_SECRET` | Yes | Secret key from VK callback setup |
 | `VK_CONFIRMATION_CODE` | Yes | Confirmation code from VK (auto-generated) |
 | `VK_API_TOKEN` | Yes | VK group API token |
+| `VANE_URL` | Yes | Vane (Perplexica) search API URL |
 | `DATABASE_URL` | No | JDBC URL (default: DevServices) |
 | `DB_USERNAME` | No | Database username (default: postgres) |
 | `DB_PASSWORD` | No | Database password (default: password) |
@@ -241,6 +243,7 @@ Detailed documentation is available in the `docs/` directory:
 - [Module Structure](docs/architecture/modules.md)
 - [Data Flow](docs/architecture/data-flow.md)
 - [Architecture Patterns](docs/architecture/patterns.md)
+- [AI Tools](docs/architecture/ai-tools.md)
 - [Testing Guide](docs/development/testing.md)
 - [Configuration](docs/development/configuration.md)
 - [Deployment](docs/development/deployment.md)

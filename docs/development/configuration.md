@@ -36,20 +36,20 @@ vk:
 
 ### Environment Variables
 
-| Переменная | Обязательная | Описание | Пример |
-|------------|--------------|----------|---------|
-| `VK_SECRET` | Да           | Секретный ключ VK callback | `my_super_secret_key` |
-| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456` |
-| `VK_API_TOKEN` | Да            | API токен VK группы | `vk1.a.abc123...` |
+| Переменная | Обязательная | Описание | Пример                                   |
+|------------|--------------|----------|------------------------------------------|
+| `VK_SECRET` | Да           | Секретный ключ VK callback | `my_super_secret_key`                    |
+| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456`                                 |
+| `VK_API_TOKEN` | Да            | API токен VK группы | `vk1.a.abc123...`                        |
+| `VANE_URL` | Да            | URL Vane (Perplexica) search API | `https://vane-service.com`               |
 | `DATABASE_URL` | Нет            | JDBC URL PostgreSQL | `jdbc:postgresql://localhost:5432/vkbot` |
-| `DB_USERNAME` | Нет            | Имя пользователя БД | `postgres` |
-| `DB_PASSWORD` | Нет            | Пароль БД | `password` |
-| `RABBITMQ_HOST` | Нет            | Хост RabbitMQ | `localhost` |
-| `SUMMARY_ENABLED_CHATS` | Нет            | ID чатов для саммаризации (через запятую) | `2000000001,2000000002` |
-| `SUMMARY_THRESHOLD` | Нет            | Минимум сообщений для саммаризации | `100` |
-| `SUMMARY_BATCH_SIZE` | Нет            | Максимум сообщений в саммаризации | `100` |
-| `SUMMARY_SYSTEM_PROMPT` | Нет            | Промпт для генерации саммаризации | `You are a chat summarizer...` |
-
+| `DB_USERNAME` | Нет            | Имя пользователя БД | `postgres`                               |
+| `DB_PASSWORD` | Нет            | Пароль БД | `password`                               |
+| `RABBITMQ_HOST` | Нет            | Хост RabbitMQ | `localhost`                              |
+| `SUMMARY_ENABLED_CHATS` | Нет            | ID чатов для саммаризации (через запятую) | `2000000001,2000000002`                  |
+| `SUMMARY_THRESHOLD` | Нет            | Минимум сообщений для саммаризации | `100`                                    |
+| `SUMMARY_BATCH_SIZE` | Нет            | Максимум сообщений в саммаризации | `100`                                    |
+| `SUMMARY_SYSTEM_PROMPT` | Нет            | Промпт для генерации саммаризации | `You are a chat summarizer...`           |
 ## Quarkus конфигурация
 
 ### База данных (PostgreSQL + Liquibase + jOOQ)
@@ -141,6 +141,9 @@ quarkus:
         Authorization: Bearer ${vk.api.token}
       connect-timeout: 5000           # Таймаут подключения (мс)
       read-timeout: 30000            # Таймаут чтения (мс)
+    vane:
+      url: ${VANE_URL}                 # URL Vane search API
+      scope: jakarta.inject.Singleton
 ```
 
 ## Логирование и мониторинг

@@ -1,4 +1,4 @@
-package com.simarel.vkbot.ai.adapter.output.summary
+package com.simarel.vkbot.ai.adapter.output.ai
 
 import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
 import com.simarel.vkbot.ai.port.output.summary.SummarizationRequest
