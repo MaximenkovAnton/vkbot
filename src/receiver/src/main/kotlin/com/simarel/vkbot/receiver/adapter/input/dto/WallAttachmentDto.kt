@@ -25,7 +25,7 @@ data class WallAttachmentDto(
                 ownerId = wall.getJsonNumber("owner_id")?.longValue() ?: 0L,
                 text = text,
                 fromId = fromId,
-                fromName = from?.getString("name"),
+                fromName = from?.getString("name", null),
             )
         }
     }

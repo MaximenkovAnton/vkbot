@@ -28,8 +28,8 @@ class VaneSearchCommandImpl(
     private val vaneSearchPort: VaneSearchOutputPort,
 ) : VaneSearchCommand {
 
-    @Tool("Searches the web using Vane (Perplexica) AI search engine. Returns a comprehensive answer with sources.")
-    fun searchWeb(query: String): String {
+    @Tool("Use the tool for generic web search. Returns a comprehensive answer with sources.")
+    fun search_web(query: String): String {
         return try {
             val response = vaneSearchPort.execute(
                 VaneSearchRequest(
@@ -44,8 +44,8 @@ class VaneSearchCommandImpl(
         }
     }
 
-    @Tool("Searches academic sources using Vane (Perplexica) AI search engine. Best for research and scientific queries.")
-    fun searchAcademic(query: String): String {
+    @Tool("Use the tool for academic web search. Best for research and scientific queries.")
+    fun search_academic(query: String): String {
         return try {
             val response = vaneSearchPort.execute(
                 VaneSearchRequest(
@@ -60,8 +60,8 @@ class VaneSearchCommandImpl(
         }
     }
 
-    @Tool("Searches discussions and forums using Vane (Perplexica) AI search engine. Best for opinions and community insights.")
-    fun searchDiscussions(query: String): String {
+    @Tool("Use the tool for discussions web search. Best for opinions and community insights.")
+    fun search_discussions(query: String): String {
         return try {
             val response = vaneSearchPort.execute(
                 VaneSearchRequest(
@@ -78,9 +78,9 @@ class VaneSearchCommandImpl(
 
     override fun execute(request: VaneSearchCommandRequest): VaneSearchCommandResponse {
         val result = when (request) {
-            is VaneSearchCommandRequest.WebSearch -> searchWeb(request.query)
-            is VaneSearchCommandRequest.AcademicSearch -> searchAcademic(request.query)
-            is VaneSearchCommandRequest.DiscussionSearch -> searchDiscussions(request.query)
+            is VaneSearchCommandRequest.WebSearch -> search_web(request.query)
+            is VaneSearchCommandRequest.AcademicSearch -> search_academic(request.query)
+            is VaneSearchCommandRequest.DiscussionSearch -> search_discussions(request.query)
         }
         return VaneSearchCommandResponse(result)
     }
