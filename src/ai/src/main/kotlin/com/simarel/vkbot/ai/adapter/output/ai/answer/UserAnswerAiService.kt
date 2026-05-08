@@ -1,5 +1,7 @@
-package com.simarel.vkbot.ai.adapter.output.ai
+package com.simarel.vkbot.ai.adapter.output.ai.answer
 
+import com.simarel.vkbot.ai.adapter.output.ai.TransientChatMemoryProvider
+import com.simarel.vkbot.ai.command.vane.VaneSearchCommandImpl
 import dev.langchain4j.service.SystemMessage
 import dev.langchain4j.service.UserMessage
 import dev.langchain4j.service.V
@@ -10,7 +12,7 @@ import java.time.format.DateTimeFormatter
 
 @RegisterAiService(
     chatMemoryProviderSupplier = TransientChatMemoryProvider::class,
-    tools = [com.simarel.vkbot.ai.command.vane.VaneSearchCommandImpl::class]
+    tools = [VaneSearchCommandImpl::class]
 )
 @SystemMessage("{config:aiUseranswerSystemprompt}")
 @ApplicationScoped

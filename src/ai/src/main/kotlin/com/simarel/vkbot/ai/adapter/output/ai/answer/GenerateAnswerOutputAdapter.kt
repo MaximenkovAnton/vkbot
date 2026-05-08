@@ -1,4 +1,4 @@
-package com.simarel.vkbot.ai.adapter.output.ai
+package com.simarel.vkbot.ai.adapter.output.ai.answer
 
 import com.simarel.vkbot.ai.port.output.ai.ChatMessage
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPort
