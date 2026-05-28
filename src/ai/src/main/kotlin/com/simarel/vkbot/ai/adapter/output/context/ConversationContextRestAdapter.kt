@@ -14,12 +14,16 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
-import com.simarel.vkbot.share.port.output.persistence.PersistenceDataOutputPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class ConversationContextRestAdapter(
-    private val persistencePort: PersistenceDataOutputPort,
+    private val findMessagesBeforePort: FindStoredMessagesBeforePort,
+    private val findUserProfilesByIdsPort: FindStoredUserProfilesByIdsPort,
+    private val findGroupProfilesByIdsPort: FindStoredGroupProfilesByIdsPort,
     private val objectMapper: ObjectMapper,
 ) : ConversationContextOutputPort {
 
@@ -28,11 +32,14 @@ class ConversationContextRestAdapter(
         val peerId = currentMessage.peerId
         val currentMessageId = currentMessage.conversationMessageId
 
-        val previousMessages = persistencePort.findMessagesBefore(
-            peerId = peerId.value,
-            beforeConversationMessageId = currentMessageId.value,
-            limit = 20
+        val previousMessagesResponse = findMessagesBeforePort.execute(
+            FindStoredMessagesBeforePort.Request(
+                peerId = peerId.value,
+                beforeConversationMessageId = currentMessageId.value,
+                limit = 20
+            )
         )
+        val previousMessages = previousMessagesResponse.messages
 
         val historyFromIds = previousMessages.flatMap { msg ->
             extractAllFromIds(msg)
@@ -44,8 +51,14 @@ class ConversationContextRestAdapter(
 
         val (groupFromIds, userIds) = allFromIds.partition { it.value < 0 }
 
-        val userProfiles = persistencePort.findUserProfilesByIds(userIds)
-        val groupProfiles = persistencePort.findGroupProfilesByIds(groupFromIds)
+        val userProfilesResponse = findUserProfilesByIdsPort.execute(
+            FindStoredUserProfilesByIdsPort.Request(userIds)
+        )
+        val groupProfilesResponse = findGroupProfilesByIdsPort.execute(
+            FindStoredGroupProfilesByIdsPort.Request(groupFromIds)
+        )
+        val userProfiles = userProfilesResponse.profiles
+        val groupProfiles = groupProfilesResponse.profiles
 
         return ConversationContextResponse(
             currentMessage = currentMessage,

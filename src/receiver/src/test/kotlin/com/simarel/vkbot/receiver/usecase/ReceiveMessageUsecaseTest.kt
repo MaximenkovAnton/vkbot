@@ -4,6 +4,7 @@ import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.fixtures.FakePublishVkEventCommand
 import com.simarel.vkbot.receiver.fixtures.FakeVkConfirmationInputPortProvider
 import com.simarel.vkbot.receiver.fixtures.FakeVkProvider
+import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -53,7 +54,8 @@ class ReceiveMessageUsecaseTest {
         val publishCommand = FakePublishVkEventCommand()
         val usecase = ReceiveMessageUsecase(confirmationResponse, okResponse, publishCommand)
         val vkEvent = FakeVkProvider.createVkEvent(VkCallbackEvent.MESSAGE_NEW)
-        val request = FakeVkConfirmationInputPortProvider.createRequest(vkEvent)
+        val message = FakeVoProvider.createMessage()
+        val request = FakeVkConfirmationInputPortProvider.createRequest(vkEvent, message)
 
         // When
         val result = usecase.execute(request)
@@ -61,6 +63,6 @@ class ReceiveMessageUsecaseTest {
         // Then
         assertEquals(okResponse.response.value, result.response.value)
         assertEquals(1, publishCommand.executeCalls.size)
-        assertEquals(vkEvent, publishCommand.executeCalls.first().vkEvent)
+        assertEquals(message, publishCommand.executeCalls.first().message)
     }
 }

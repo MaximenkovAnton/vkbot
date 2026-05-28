@@ -19,14 +19,15 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
             SendVkMessageCommandRequest(
                 peerId = request.responseMessage.responseTo.peerId,
                 message = request.responseMessage.messageText,
-                forwardedMessages = forwardMessagesIfNeeded(request.responseMessage.responseTo),
+                forwardedMessages = forwardMessagesIfNeeded(request.responseMessage.responseTo, request.forwardedMessages),
                 rand = countRand(request.responseMessage.responseTo)
             ),
         )
         return response
     }
 
-    private fun forwardMessagesIfNeeded(responseTo: Message): ForwardedMessages? {
+    private fun forwardMessagesIfNeeded(responseTo: Message, explicitForwarded: ForwardedMessages?): ForwardedMessages? {
+        if (explicitForwarded != null) return explicitForwarded
         if(responseTo.peerId.isHuman()) {
             return null
         }

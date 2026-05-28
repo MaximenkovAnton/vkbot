@@ -1,47 +1,41 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent
 
-import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
-import com.simarel.vkbot.receiver.domain.vo.VkEvent
 import com.simarel.vkbot.share.domain.Event
-import jakarta.json.Json
+import com.simarel.vkbot.share.domain.vo.Payload
+import com.simarel.vkbot.share.port.output.PublishEventOutputPort
+import com.simarel.vkbot.share.port.output.PublishEventOutputPortRequest
+import com.simarel.vkbot.share.port.output.PublishEventOutputPortResponse
+import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class PublishVkEventCommandImplTest {
 
-    @Test
-    fun `mapVkEventToEvent returns MESSAGE_RECEIVED for MESSAGE_NEW`() {
-        // Given
-        val jsonObject = Json.createObjectBuilder()
-            .add("type", "message_new")
-            .build()
-        val vkEvent = VkEvent(jsonObject)
+    class FakePublishEventOutputPort : PublishEventOutputPort {
+        val executeCalls = ConcurrentLinkedQueue<PublishEventOutputPortRequest>()
+        private val response = PublishEventOutputPortResponse()
 
-        // When
-        val result = mapVkEventToEvent(vkEvent.type())
-
-        // Then
-        assertEquals(Event.MESSAGE_RECEIVED, result)
+        override fun execute(request: PublishEventOutputPortRequest): PublishEventOutputPortResponse {
+            executeCalls.add(request)
+            return response
+        }
     }
 
     @Test
-    fun `mapVkEventToEvent returns null for unknown event`() {
+    fun `execute publishes MESSAGE_NEW event with message payload`() {
         // Given
-        val jsonObject = Json.createObjectBuilder()
-            .add("type", "unknown_event")
-            .build()
-        val vkEvent = VkEvent(jsonObject)
+        val outputPort = FakePublishEventOutputPort()
+        val command = PublishVkEventCommandImpl(outputPort)
+        val message = FakeVoProvider.createMessage()
 
         // When
-        val result = mapVkEventToEvent(vkEvent.type())
+        command.execute(PublishVkEventCommandRequest(message))
 
         // Then
-        assertEquals(null, result)
-    }
-
-    // Copy of the static method for testing
-    private fun mapVkEventToEvent(type: VkCallbackEvent): Event? = when (type) {
-        VkCallbackEvent.MESSAGE_NEW -> Event.MESSAGE_RECEIVED
-        else -> null
+        assertEquals(1, outputPort.executeCalls.size)
+        val publishedRequest = outputPort.executeCalls.first()
+        assertEquals(Event.MESSAGE_NEW, publishedRequest.event)
+        assertEquals(message, (publishedRequest.payload.value as? Any))
     }
 }

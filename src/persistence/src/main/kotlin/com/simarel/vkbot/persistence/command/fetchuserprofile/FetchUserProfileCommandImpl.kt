@@ -6,7 +6,8 @@ import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePor
 import com.simarel.vkbot.persistence.port.output.persistence.SaveUserProfilePort
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.share.port.output.vk.GetProfileOutputPort
+import com.simarel.vkbot.share.port.output.vk.GetGroupProfilesBatchPort
+import com.simarel.vkbot.share.port.output.vk.GetUserProfilesBatchPort
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
@@ -17,7 +18,8 @@ open class FetchUserProfileCommandImpl(
     private val groupProfileRepositoryPort: FilterExistingGroupIdsPort,
     private val saveGroupProfilePort: SaveGroupProfilePort,
     private val saveUserProfilePort: SaveUserProfilePort,
-    private val getProfileOutputPort: GetProfileOutputPort,
+    private val getUserProfilesBatchPort: GetUserProfilesBatchPort,
+    private val getGroupProfilesBatchPort: GetGroupProfilesBatchPort,
 ) : FetchUserProfileCommand {
 
     @Transactional
@@ -29,10 +31,14 @@ open class FetchUserProfileCommandImpl(
                 users.filter { it.isHuman() } to groups.filter { it.isGroup() }
             }
 
-        val existingUserIds = userProfileRepositoryPort.filterExistingIds(potentialUserIds)
+        val existingUserIds = userProfileRepositoryPort.execute(
+            FilterExistingUserIdsPort.FilterExistingUserIdsRequest(potentialUserIds)
+        ).existingIds
         val missingUserIds = potentialUserIds - existingUserIds
 
-        val existingGroupIds = groupProfileRepositoryPort.filterExistingIds(potentialGroupIds)
+        val existingGroupIds = groupProfileRepositoryPort.execute(
+            FilterExistingGroupIdsPort.FilterExistingGroupIdsRequest(potentialGroupIds)
+        ).existingIds
         val missingGroupIds = potentialGroupIds - existingGroupIds
 
         if (missingUserIds.isEmpty() && missingGroupIds.isEmpty()) {
@@ -57,9 +63,11 @@ open class FetchUserProfileCommandImpl(
 
     private fun fetchAndSaveUserProfiles(userIds: List<FromId>) {
         try {
-            val profiles = getProfileOutputPort.getUserProfilesBatch(userIds)
-            profiles.forEach { profile ->
-                saveUserProfilePort.save(profile)
+            val response = getUserProfilesBatchPort.execute(
+                GetUserProfilesBatchPort.Request(userIds)
+            )
+            response.profiles.forEach { profile ->
+                saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(profile))
                 Log.debug("Saved user profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {
@@ -69,9 +77,11 @@ open class FetchUserProfileCommandImpl(
 
     private fun fetchAndSaveGroupProfiles(groupIds: List<FromId>) {
         try {
-            val profiles = getProfileOutputPort.getGroupProfilesBatch(groupIds)
-            profiles.forEach { profile ->
-                saveGroupProfilePort.save(profile)
+            val response = getGroupProfilesBatchPort.execute(
+                GetGroupProfilesBatchPort.Request(groupIds)
+            )
+            response.profiles.forEach { profile ->
+                saveGroupProfilePort.execute(SaveGroupProfilePort.SaveGroupProfileRequest(profile))
                 Log.debug("Saved group profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {

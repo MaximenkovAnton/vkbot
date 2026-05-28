@@ -12,7 +12,8 @@ open class SaveUserProfileAdapter(
 ) : SaveUserProfilePort {
 
     @Transactional
-    override fun save(profile: VkUserProfile) {
-        repository.persist(profile)
+    override fun execute(request: SaveUserProfilePort.SaveUserProfileRequest): SaveUserProfilePort.SaveUserProfileResponse {
+        repository.persist(request.profile)
+        return SaveUserProfilePort.SaveUserProfileResponse()
     }
 }

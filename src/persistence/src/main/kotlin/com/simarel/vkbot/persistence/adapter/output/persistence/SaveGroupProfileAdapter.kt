@@ -12,7 +12,8 @@ open class SaveGroupProfileAdapter(
 ) : SaveGroupProfilePort {
 
     @Transactional
-    override fun save(profile: VkGroupProfile) {
-        repository.persist(profile)
+    override fun execute(request: SaveGroupProfilePort.SaveGroupProfileRequest): SaveGroupProfilePort.SaveGroupProfileResponse {
+        repository.persist(request.profile)
+        return SaveGroupProfilePort.SaveGroupProfileResponse()
     }
 }

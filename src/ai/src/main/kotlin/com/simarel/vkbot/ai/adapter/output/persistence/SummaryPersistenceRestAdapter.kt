@@ -1,75 +1,115 @@
 package com.simarel.vkbot.ai.adapter.output.persistence
 
-import com.simarel.vkbot.ai.port.output.persistence.SummaryPersistenceOutputPort
-import com.simarel.vkbot.share.domain.model.StoredMessage
-import com.simarel.vkbot.share.domain.model.Summary
-import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.domain.vo.FromId
+import com.simarel.vkbot.ai.port.output.persistence.CreateAiStoredPendingSummaryPort
+import com.simarel.vkbot.ai.port.output.persistence.FindAiStoredGroupProfilesByIdsPort
+import com.simarel.vkbot.ai.port.output.persistence.FindAiStoredMessagesBeforePort
+import com.simarel.vkbot.ai.port.output.persistence.FindAiStoredMessagesBetweenPort
+import com.simarel.vkbot.ai.port.output.persistence.FindAiStoredUserProfilesByIdsPort
+import com.simarel.vkbot.ai.port.output.persistence.FindAiLastStoredSummaryPort
+import com.simarel.vkbot.ai.port.output.persistence.HasAiStoredPendingSummaryPort
+import com.simarel.vkbot.ai.port.output.persistence.MarkAiStoredSummaryFailedPort
+import com.simarel.vkbot.ai.port.output.persistence.SaveAiStoredCompletedSummaryPort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
-import java.util.UUID
 
 @ApplicationScoped
-class SummaryPersistenceRestAdapter(
+class CreateAiStoredPendingSummaryAdapter(
     @RestClient private val persistenceClient: PersistenceService,
-) : SummaryPersistenceOutputPort {
-
-    override fun createPendingSummary(
-        peerId: Long,
-        firstMessageId: Long,
-        lastMessageId: Long,
-    ): UUID {
-        return persistenceClient.createPendingSummary(
-            CreatePendingSummaryRequest(peerId, firstMessageId, lastMessageId)
+) : CreateAiStoredPendingSummaryPort {
+    override fun execute(request: CreateAiStoredPendingSummaryPort.Request): CreateAiStoredPendingSummaryPort.Response {
+        return CreateAiStoredPendingSummaryPort.Response(
+            persistenceClient.createPendingSummary(
+                CreatePendingSummaryRequest(request.peerId, request.firstMessageId, request.lastMessageId)
+            )
         )
     }
+}
 
-    override fun saveCompletedSummary(
-        summaryId: UUID,
-        shortSummary: String,
-        fullSummary: String,
-    ) {
+@ApplicationScoped
+class SaveAiStoredCompletedSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : SaveAiStoredCompletedSummaryPort {
+    override fun execute(request: SaveAiStoredCompletedSummaryPort.Request): SaveAiStoredCompletedSummaryPort.Response {
         persistenceClient.saveCompletedSummary(
-            summaryId,
-            CompleteSummaryRequest(shortSummary, fullSummary)
+            request.summaryId,
+            CompleteSummaryRequest(request.shortSummary, request.fullSummary)
+        )
+        return SaveAiStoredCompletedSummaryPort.Response()
+    }
+}
+
+@ApplicationScoped
+class MarkAiStoredSummaryFailedAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : MarkAiStoredSummaryFailedPort {
+    override fun execute(request: MarkAiStoredSummaryFailedPort.Request): MarkAiStoredSummaryFailedPort.Response {
+        persistenceClient.markSummaryAsFailed(request.summaryId)
+        return MarkAiStoredSummaryFailedPort.Response()
+    }
+}
+
+@ApplicationScoped
+class FindAiStoredMessagesBetweenAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindAiStoredMessagesBetweenPort {
+    override fun execute(request: FindAiStoredMessagesBetweenPort.Request): FindAiStoredMessagesBetweenPort.Response {
+        return FindAiStoredMessagesBetweenPort.Response(
+            persistenceClient.findMessagesBetween(request.peerId, request.firstMessageId, request.lastMessageId, request.limit)
         )
     }
+}
 
-    override fun markSummaryAsFailed(summaryId: UUID) {
-        persistenceClient.markSummaryAsFailed(summaryId)
+@ApplicationScoped
+class FindAiStoredMessagesBeforeAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindAiStoredMessagesBeforePort {
+    override fun execute(request: FindAiStoredMessagesBeforePort.Request): FindAiStoredMessagesBeforePort.Response {
+        return FindAiStoredMessagesBeforePort.Response(
+            persistenceClient.findMessagesBefore(request.peerId, request.beforeConversationMessageId, request.limit)
+        )
     }
+}
 
-    override fun findMessagesBetween(
-        peerId: Long,
-        firstMessageId: Long,
-        lastMessageId: Long,
-        limit: Int,
-    ): List<StoredMessage> {
-        return persistenceClient.findMessagesBetween(peerId, firstMessageId, lastMessageId, limit)
+@ApplicationScoped
+class FindAiStoredUserProfilesByIdsAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindAiStoredUserProfilesByIdsPort {
+    override fun execute(request: FindAiStoredUserProfilesByIdsPort.Request): FindAiStoredUserProfilesByIdsPort.Response {
+        return FindAiStoredUserProfilesByIdsPort.Response(
+            persistenceClient.findUserProfilesByIds(request.ids.map { it.value })
+        )
     }
+}
 
-    override fun findMessagesBefore(
-        peerId: Long,
-        beforeConversationMessageId: Long,
-        limit: Int,
-    ): List<StoredMessage> {
-        return persistenceClient.findMessagesBefore(peerId, beforeConversationMessageId, limit)
+@ApplicationScoped
+class FindAiStoredGroupProfilesByIdsAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindAiStoredGroupProfilesByIdsPort {
+    override fun execute(request: FindAiStoredGroupProfilesByIdsPort.Request): FindAiStoredGroupProfilesByIdsPort.Response {
+        return FindAiStoredGroupProfilesByIdsPort.Response(
+            persistenceClient.findGroupProfilesByIds(request.ids.map { it.value })
+        )
     }
+}
 
-    override fun findUserProfilesByIds(ids: List<FromId>): List<VkUserProfile> {
-        return persistenceClient.findUserProfilesByIds(ids.map { it.value })
+@ApplicationScoped
+class FindAiLastStoredSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindAiLastStoredSummaryPort {
+    override fun execute(request: FindAiLastStoredSummaryPort.Request): FindAiLastStoredSummaryPort.Response {
+        return FindAiLastStoredSummaryPort.Response(
+            persistenceClient.findLastSummary(request.peerId)
+        )
     }
+}
 
-    override fun findGroupProfilesByIds(ids: List<FromId>): List<VkGroupProfile> {
-        return persistenceClient.findGroupProfilesByIds(ids.map { it.value })
-    }
-
-    override fun findLastSummary(peerId: Long): Summary? {
-        return persistenceClient.findLastSummary(peerId)
-    }
-
-    override fun hasPendingSummary(peerId: Long): Boolean {
-        return persistenceClient.hasPendingSummary(peerId)
+@ApplicationScoped
+class HasAiStoredPendingSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : HasAiStoredPendingSummaryPort {
+    override fun execute(request: HasAiStoredPendingSummaryPort.Request): HasAiStoredPendingSummaryPort.Response {
+        return HasAiStoredPendingSummaryPort.Response(
+            persistenceClient.hasPendingSummary(request.peerId)
+        )
     }
 }

@@ -1,13 +1,12 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent
 
-import com.simarel.vkbot.receiver.domain.vo.VkEvent
 import com.simarel.vkbot.share.command.Command
 import com.simarel.vkbot.share.command.CommandRequest
 import com.simarel.vkbot.share.command.CommandResponse
+import com.simarel.vkbot.share.domain.model.Message
 
 interface PublishVkEventCommand : Command<PublishVkEventCommandRequest, PublishVkEventCommandResponse>
 
-@JvmInline
-value class PublishVkEventCommandRequest(val vkEvent: VkEvent) : CommandRequest
+data class PublishVkEventCommandRequest(val message: Message) : CommandRequest
 
 class PublishVkEventCommandResponse : CommandResponse

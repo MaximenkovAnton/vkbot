@@ -12,13 +12,13 @@ open class FilterExistingGroupIdsAdapter(
 ) : FilterExistingGroupIdsPort {
 
     @Transactional
-    override fun filterExistingIds(fromIds: Collection<FromId>): Set<FromId> {
-        if (fromIds.isEmpty()) {
-            return emptySet()
+    override fun execute(request: FilterExistingGroupIdsPort.FilterExistingGroupIdsRequest): FilterExistingGroupIdsPort.FilterExistingGroupIdsResponse {
+        if (request.fromIds.isEmpty()) {
+            return FilterExistingGroupIdsPort.FilterExistingGroupIdsResponse(emptySet())
         }
         // FromId для групп < 0, но в БД хранятся > 0
-        val idValues = fromIds.map { it.value }
+        val idValues = request.fromIds.map { it.value }
         val existingIds = repository.filterExistingIds(idValues)
-        return existingIds.map { FromId.of(it) }.toSet()
+        return FilterExistingGroupIdsPort.FilterExistingGroupIdsResponse(existingIds.map { FromId.of(it) }.toSet())
     }
 }

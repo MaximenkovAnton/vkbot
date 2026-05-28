@@ -13,12 +13,12 @@ open class FindGroupProfilesByIdsAdapter(
 ) : FindGroupProfilesByIdsPort {
 
     @Transactional
-    override fun findByIds(fromIds: Collection<FromId>): List<VkGroupProfile> {
-        if (fromIds.isEmpty()) {
-            return emptyList()
+    override fun execute(request: FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest): FindGroupProfilesByIdsPort.FindGroupProfilesByIdsResponse {
+        if (request.fromIds.isEmpty()) {
+            return FindGroupProfilesByIdsPort.FindGroupProfilesByIdsResponse(emptyList())
         }
         // FromId для групп < 0, но в БД хранятся > 0
-        val idValues = fromIds.map { it.value }
-        return repository.findByIds(idValues)
+        val idValues = request.fromIds.map { it.value }
+        return FindGroupProfilesByIdsPort.FindGroupProfilesByIdsResponse(repository.findByIds(idValues))
     }
 }

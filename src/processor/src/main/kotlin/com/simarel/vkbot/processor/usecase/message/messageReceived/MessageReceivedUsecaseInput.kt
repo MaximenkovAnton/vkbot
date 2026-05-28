@@ -1,6 +1,7 @@
 package com.simarel.vkbot.processor.usecase.message.messageReceived
 
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand
+import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand.IsRequireAnswerRequest
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPort
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortRequest
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortResponse
@@ -28,7 +29,10 @@ open class MessageReceivedUsecaseInput(
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
         val message = request.message
-        if (isRequireAnswerCommand.execute(message)) {
+        val requireAnswerResult = isRequireAnswerCommand.execute(
+            IsRequireAnswerRequest(message),
+        )
+        if (requireAnswerResult.requiresAnswer) {
             publishEventCommand.execute(
                 PublishEventRequest(
                     event = Event.MESSAGE_REQUIRE_ANSWER,

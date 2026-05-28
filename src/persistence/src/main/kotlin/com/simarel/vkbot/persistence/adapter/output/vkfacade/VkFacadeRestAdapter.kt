@@ -1,23 +1,29 @@
 package com.simarel.vkbot.persistence.adapter.output.vkfacade
 
 import com.simarel.vkbot.persistence.adapter.output.client.vkfacade.VkFacadeService
-import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.share.port.output.vk.GetProfileOutputPort
+import com.simarel.vkbot.share.port.output.vk.GetGroupProfilesBatchPort
+import com.simarel.vkbot.share.port.output.vk.GetUserProfilesBatchPort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
-class VkFacadeRestAdapter(
+class GetUserProfilesBatchAdapter(
     @RestClient private val vkFacadeClient: VkFacadeService,
-) : GetProfileOutputPort {
-
-    override fun getUserProfilesBatch(fromIds: List<FromId>): List<VkUserProfile> {
-        return vkFacadeClient.getUserProfilesBatch(fromIds.map { it.value })
+) : GetUserProfilesBatchPort {
+    override fun execute(request: GetUserProfilesBatchPort.Request): GetUserProfilesBatchPort.Response {
+        return GetUserProfilesBatchPort.Response(
+            vkFacadeClient.getUserProfilesBatch(request.fromIds.map { it.value })
+        )
     }
+}
 
-    override fun getGroupProfilesBatch(fromIds: List<FromId>): List<VkGroupProfile> {
-        return vkFacadeClient.getGroupProfilesBatch(fromIds.map { it.value })
+@ApplicationScoped
+class GetGroupProfilesBatchAdapter(
+    @RestClient private val vkFacadeClient: VkFacadeService,
+) : GetGroupProfilesBatchPort {
+    override fun execute(request: GetGroupProfilesBatchPort.Request): GetGroupProfilesBatchPort.Response {
+        return GetGroupProfilesBatchPort.Response(
+            vkFacadeClient.getGroupProfilesBatch(request.fromIds.map { it.value })
+        )
     }
 }

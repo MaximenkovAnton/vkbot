@@ -12,12 +12,12 @@ open class FilterExistingUserIdsAdapter(
 ) : FilterExistingUserIdsPort {
 
     @Transactional
-    override fun filterExistingIds(fromIds: Collection<FromId>): Set<FromId> {
-        if (fromIds.isEmpty()) {
-            return emptySet()
+    override fun execute(request: FilterExistingUserIdsPort.FilterExistingUserIdsRequest): FilterExistingUserIdsPort.FilterExistingUserIdsResponse {
+        if (request.fromIds.isEmpty()) {
+            return FilterExistingUserIdsPort.FilterExistingUserIdsResponse(emptySet())
         }
-        val idValues = fromIds.map { it.value }
+        val idValues = request.fromIds.map { it.value }
         val existingIds = repository.filterExistingIds(idValues)
-        return existingIds.map { FromId.of(it) }.toSet()
+        return FilterExistingUserIdsPort.FilterExistingUserIdsResponse(existingIds.map { FromId.of(it) }.toSet())
     }
 }

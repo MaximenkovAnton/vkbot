@@ -1,75 +1,115 @@
 package com.simarel.vkbot.ai.adapter.output.persistence
 
-import com.simarel.vkbot.share.domain.model.StoredMessage
-import com.simarel.vkbot.share.domain.model.Summary
-import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.share.port.output.persistence.PersistenceDataOutputPort
+import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
+import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
-import java.util.UUID
 
 @ApplicationScoped
-class PersistenceDataRestAdapter(
+class FindStoredMessagesBeforeAdapter(
     @RestClient private val persistenceClient: PersistenceService,
-) : PersistenceDataOutputPort {
-
-    override fun findMessagesBefore(
-        peerId: Long,
-        beforeConversationMessageId: Long,
-        limit: Int,
-    ): List<StoredMessage> {
-        return persistenceClient.findMessagesBefore(peerId, beforeConversationMessageId, limit)
-    }
-
-    override fun findMessagesBetween(
-        peerId: Long,
-        firstMessageId: Long,
-        lastMessageId: Long,
-        limit: Int,
-    ): List<StoredMessage> {
-        return persistenceClient.findMessagesBetween(peerId, firstMessageId, lastMessageId, limit)
-    }
-
-    override fun findLastSummary(peerId: Long): Summary? {
-        return persistenceClient.findLastSummary(peerId)
-    }
-
-    override fun hasPendingSummary(peerId: Long): Boolean {
-        return persistenceClient.hasPendingSummary(peerId)
-    }
-
-    override fun createPendingSummary(
-        peerId: Long,
-        firstMessageId: Long,
-        lastMessageId: Long,
-    ): UUID {
-        return persistenceClient.createPendingSummary(
-            CreatePendingSummaryRequest(peerId, firstMessageId, lastMessageId)
+) : FindStoredMessagesBeforePort {
+    override fun execute(request: FindStoredMessagesBeforePort.Request): FindStoredMessagesBeforePort.Response {
+        return FindStoredMessagesBeforePort.Response(
+            persistenceClient.findMessagesBefore(request.peerId, request.beforeConversationMessageId, request.limit)
         )
     }
+}
 
-    override fun saveCompletedSummary(
-        summaryId: UUID,
-        shortSummary: String,
-        fullSummary: String,
-    ) {
+@ApplicationScoped
+class FindStoredMessagesBetweenAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindStoredMessagesBetweenPort {
+    override fun execute(request: FindStoredMessagesBetweenPort.Request): FindStoredMessagesBetweenPort.Response {
+        return FindStoredMessagesBetweenPort.Response(
+            persistenceClient.findMessagesBetween(request.peerId, request.firstMessageId, request.lastMessageId, request.limit)
+        )
+    }
+}
+
+@ApplicationScoped
+class FindLastStoredSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindLastStoredSummaryPort {
+    override fun execute(request: FindLastStoredSummaryPort.Request): FindLastStoredSummaryPort.Response {
+        return FindLastStoredSummaryPort.Response(
+            persistenceClient.findLastSummary(request.peerId)
+        )
+    }
+}
+
+@ApplicationScoped
+class HasStoredPendingSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : HasStoredPendingSummaryPort {
+    override fun execute(request: HasStoredPendingSummaryPort.Request): HasStoredPendingSummaryPort.Response {
+        return HasStoredPendingSummaryPort.Response(
+            persistenceClient.hasPendingSummary(request.peerId)
+        )
+    }
+}
+
+@ApplicationScoped
+class CreateStoredPendingSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : CreateStoredPendingSummaryPort {
+    override fun execute(request: CreateStoredPendingSummaryPort.Request): CreateStoredPendingSummaryPort.Response {
+        return CreateStoredPendingSummaryPort.Response(
+            persistenceClient.createPendingSummary(
+                CreatePendingSummaryRequest(request.peerId, request.firstMessageId, request.lastMessageId)
+            )
+        )
+    }
+}
+
+@ApplicationScoped
+class SaveStoredCompletedSummaryAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : SaveStoredCompletedSummaryPort {
+    override fun execute(request: SaveStoredCompletedSummaryPort.Request): SaveStoredCompletedSummaryPort.Response {
         persistenceClient.saveCompletedSummary(
-            summaryId,
-            CompleteSummaryRequest(shortSummary, fullSummary)
+            request.summaryId,
+            CompleteSummaryRequest(request.shortSummary, request.fullSummary)
+        )
+        return SaveStoredCompletedSummaryPort.Response()
+    }
+}
+
+@ApplicationScoped
+class MarkStoredSummaryFailedAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : MarkStoredSummaryFailedPort {
+    override fun execute(request: MarkStoredSummaryFailedPort.Request): MarkStoredSummaryFailedPort.Response {
+        persistenceClient.markSummaryAsFailed(request.summaryId)
+        return MarkStoredSummaryFailedPort.Response()
+    }
+}
+
+@ApplicationScoped
+class FindStoredUserProfilesByIdsAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindStoredUserProfilesByIdsPort {
+    override fun execute(request: FindStoredUserProfilesByIdsPort.Request): FindStoredUserProfilesByIdsPort.Response {
+        return FindStoredUserProfilesByIdsPort.Response(
+            persistenceClient.findUserProfilesByIds(request.ids.map { it.value })
         )
     }
+}
 
-    override fun markSummaryAsFailed(summaryId: UUID) {
-        persistenceClient.markSummaryAsFailed(summaryId)
-    }
-
-    override fun findUserProfilesByIds(ids: List<FromId>): List<VkUserProfile> {
-        return persistenceClient.findUserProfilesByIds(ids.map { it.value })
-    }
-
-    override fun findGroupProfilesByIds(ids: List<FromId>): List<VkGroupProfile> {
-        return persistenceClient.findGroupProfilesByIds(ids.map { it.value })
+@ApplicationScoped
+class FindStoredGroupProfilesByIdsAdapter(
+    @RestClient private val persistenceClient: PersistenceService,
+) : FindStoredGroupProfilesByIdsPort {
+    override fun execute(request: FindStoredGroupProfilesByIdsPort.Request): FindStoredGroupProfilesByIdsPort.Response {
+        return FindStoredGroupProfilesByIdsPort.Response(
+            persistenceClient.findGroupProfilesByIds(request.ids.map { it.value })
+        )
     }
 }

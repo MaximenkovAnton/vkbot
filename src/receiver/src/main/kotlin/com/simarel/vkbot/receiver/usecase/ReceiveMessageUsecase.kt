@@ -15,19 +15,17 @@ class ReceiveMessageUsecase(
 ) : ReceiveMessageInputPort {
     override fun execute(
         request: VkConfirmationInputPortRequest,
-    ): VkConfirmationInputPortResponse = when (request.vkEvent.type()) {
+    ): VkConfirmationInputPortResponse = when (request.vkEvent.type) {
         VkCallbackEvent.CONFIRMATION -> confirmationResponse
         VkCallbackEvent.UNKNOWN -> {
-            Log.error("Unknown event: ${request.vkEvent.value}")
+            Log.error("Unknown event: ${request.vkEvent.type}")
             okResponse
         }
 
         else -> {
-            publishVkEventCommand.execute(
-                PublishVkEventCommandRequest(
-                    request.vkEvent,
-                ),
-            )
+            request.message?.let { message ->
+                publishVkEventCommand.execute(PublishVkEventCommandRequest(message))
+            }
             okResponse
         }
     }

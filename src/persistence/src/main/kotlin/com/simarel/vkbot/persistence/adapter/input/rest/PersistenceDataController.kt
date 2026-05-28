@@ -1,23 +1,13 @@
 package com.simarel.vkbot.persistence.adapter.input.rest
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqSummaryRepository
-import com.simarel.vkbot.persistence.domain.entity.MessageEntity
-import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
-import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
-import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
-import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
-import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
-import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
-import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
+import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
+import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
-import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.domain.vo.FromId
+import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.Consumes
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.POST
@@ -25,20 +15,13 @@ import jakarta.ws.rs.Path
 import jakarta.ws.rs.PathParam
 import jakarta.ws.rs.Produces
 import jakarta.ws.rs.QueryParam
-import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.core.MediaType
-import java.time.OffsetDateTime
 import java.util.UUID
 
 @ApplicationScoped
 @Path("/persistence")
 class PersistenceDataController(
-    private val messageRepository: JooqMessageRepository,
-    private val summaryRepository: JooqSummaryRepository,
-    private val findUserProfilesPort: FindUserProfilesByIdsPort,
-    private val findGroupProfilesPort: FindGroupProfilesByIdsPort,
-    private val publishEventCommand: PublishEventCommand,
-    private val objectMapper: ObjectMapper,
+    private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : PersistenceService {
 
     @GET
@@ -49,8 +32,10 @@ class PersistenceDataController(
         @QueryParam("beforeConversationMessageId") beforeConversationMessageId: Long,
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
-        return messageRepository.findMessagesBefore(peerId, beforeConversationMessageId, limit)
-            .map { it.toStoredMessage() }
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindMessagesBefore(peerId, beforeConversationMessageId, limit)
+        )
+        return (response as PersistenceDataResponse.Messages).messages
     }
 
     @GET
@@ -62,22 +47,30 @@ class PersistenceDataController(
         @QueryParam("lastMessageId") lastMessageId: Long,
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
-        return summaryRepository.findMessagesBetween(peerId, firstMessageId, lastMessageId, limit)
-            .map { it.toStoredMessage() }
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindMessagesBetween(peerId, firstMessageId, lastMessageId, limit)
+        )
+        return (response as PersistenceDataResponse.Messages).messages
     }
 
     @GET
     @Path("/summaries/last")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findLastSummary(@QueryParam("peerId") peerId: Long): Summary? {
-        return summaryRepository.findLastByPeerId(peerId)?.toSummary()
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindLastSummary(peerId)
+        )
+        return (response as PersistenceDataResponse.OptionalSummary).summary
     }
 
     @GET
     @Path("/summaries/has-pending")
     @Produces(MediaType.APPLICATION_JSON)
     override fun hasPendingSummary(@QueryParam("peerId") peerId: Long): Boolean {
-        return summaryRepository.hasPendingSummary(peerId)
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.HasPendingSummary(peerId)
+        )
+        return (response as PersistenceDataResponse.PendingStatus).hasPending
     }
 
     @POST
@@ -85,20 +78,10 @@ class PersistenceDataController(
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     override fun createPendingSummary(request: CreatePendingSummaryRequest): UUID {
-        val summaryId = UUID.randomUUID()
-        val pendingSummary = SummaryEntity().apply {
-            id = summaryId
-            this.peerId = request.peerId
-            this.firstMessageId = request.firstMessageId
-            this.lastMessageId = request.lastMessageId
-            this.fullSummary = ""
-            this.shortSummary = ""
-            this.status = SummaryStatus.PENDING
-            this.createdAt = OffsetDateTime.now()
-            this.updatedAt = OffsetDateTime.now()
-        }
-        summaryRepository.insert(pendingSummary)
-        return summaryId
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.CreatePendingSummary(request.peerId, request.firstMessageId, request.lastMessageId)
+        )
+        return (response as PersistenceDataResponse.CreatedSummaryId).id
     }
 
     @POST
@@ -106,99 +89,39 @@ class PersistenceDataController(
     @Consumes(MediaType.APPLICATION_JSON)
     override fun saveCompletedSummary(
         @PathParam("id") id: UUID,
-        request: CompleteSummaryRequest
+        request: CompleteSummaryRequest,
     ) {
-        val existingSummary = summaryRepository.findById(id)
-            ?: throw IllegalArgumentException("Summary not found: $id")
-
-        val completedSummary = SummaryEntity().apply {
-            this.id = id
-            this.fullSummary = request.fullSummary
-            this.shortSummary = request.shortSummary
-            this.status = SummaryStatus.COMPLETED
-            this.updatedAt = OffsetDateTime.now()
-        }
-        summaryRepository.updateStatusAndSummaries(completedSummary)
-
-        publishEventCommand.execute(
-            PublishEventRequest(
-                event = Event.SUMMARY_READY,
-                payload = Payload(
-                    SummaryReadyPayload(
-                        peerId = existingSummary.peerId!!,
-                        messageText = "📋 Суммаризация обсуждения:\n\n${request.fullSummary}\n\n#суммаризация",
-                        firstConversationMessageId = existingSummary.firstMessageId!!,
-                        lastConversationMessageId = existingSummary.lastMessageId!!
-                    )
-                )
-            )
+        persistenceDataInputPort.execute(
+            PersistenceDataRequest.SaveCompletedSummary(id, request.shortSummary, request.fullSummary)
         )
     }
-
-    data class SummaryReadyPayload(
-        val peerId: Long,
-        val messageText: String,
-        val firstConversationMessageId: Long,
-        val lastConversationMessageId: Long
-    )
 
     @POST
     @Path("/summaries/{id}/fail")
     @Consumes(MediaType.APPLICATION_JSON)
     override fun markSummaryAsFailed(@PathParam("id") id: UUID) {
-        val failedSummary = SummaryEntity().apply {
-            this.id = id
-            this.status = SummaryStatus.FAILED
-            this.updatedAt = OffsetDateTime.now()
-        }
-        summaryRepository.updateStatus(failedSummary)
+        persistenceDataInputPort.execute(
+            PersistenceDataRequest.MarkSummaryAsFailed(id)
+        )
     }
 
     @GET
     @Path("/profiles/users")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findUserProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkUserProfile> {
-        return findUserProfilesPort.findByIds(ids.map { FromId.of(it) })
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindUserProfilesByIds(ids)
+        )
+        return (response as PersistenceDataResponse.UserProfiles).profiles
     }
 
     @GET
     @Path("/profiles/groups")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findGroupProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkGroupProfile> {
-        return findGroupProfilesPort.findByIds(ids.map { FromId.of(it) })
-    }
-}
-
-private fun MessageEntity.toStoredMessage(): StoredMessage {
-    return StoredMessage(
-        id = this.id,
-        peerId = this.peerId!!,
-        conversationMessageId = this.conversationMessageId!!,
-        fromId = this.fromId!!,
-        messageText = this.messageText,
-        date = this.date!!,
-        forwardedMessages = this.forwardedMessages,
-    )
-}
-
-private fun SummaryEntity.toSummary(): Summary {
-    return Summary(
-        id = this.id!!,
-        peerId = this.peerId!!,
-        firstMessageId = this.firstMessageId,
-        lastMessageId = this.lastMessageId,
-        shortSummary = this.shortSummary,
-        fullSummary = this.fullSummary,
-        status = this.status!!.toSharedStatus(),
-        createdAt = this.createdAt!!,
-        updatedAt = this.updatedAt!!,
-    )
-}
-
-private fun SummaryStatus.toSharedStatus(): SharedSummaryStatus {
-    return when (this) {
-        SummaryStatus.PENDING -> SharedSummaryStatus.PENDING
-        SummaryStatus.COMPLETED -> SharedSummaryStatus.COMPLETED
-        SummaryStatus.FAILED -> SharedSummaryStatus.FAILED
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindGroupProfilesByIds(ids)
+        )
+        return (response as PersistenceDataResponse.GroupProfiles).profiles
     }
 }

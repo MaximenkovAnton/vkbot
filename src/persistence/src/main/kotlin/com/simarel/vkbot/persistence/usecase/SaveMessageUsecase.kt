@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileCommand
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileRequest
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
-import com.simarel.vkbot.persistence.port.output.persistence.MessageRepositoryPort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveMessagePort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
@@ -21,7 +21,7 @@ import java.util.UUID
 
 @ApplicationScoped
 open class SaveMessageUsecase(
-    private val messageRepositoryPort: MessageRepositoryPort,
+    private val saveMessagePort: SaveMessagePort,
     private val objectMapper: ObjectMapper,
     private val publishEventCommand: PublishEventCommand,
     private val fetchUserProfileCommand: FetchUserProfileCommand,
@@ -71,6 +71,6 @@ open class SaveMessageUsecase(
                 objectMapper.writeValueAsString(message.forwardedMessages)
             }
         }
-        messageRepositoryPort.save(entity)
+        saveMessagePort.execute(SaveMessagePort.SaveMessageRequest(entity))
     }
 }

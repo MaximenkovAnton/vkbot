@@ -4,18 +4,19 @@ import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
-import com.simarel.vkbot.vkFacade.port.output.vk.VkProfileOutputPort
+import com.simarel.vkbot.vkFacade.port.output.vk.VkGetGroupProfilesBatchPort
+import com.simarel.vkbot.vkFacade.port.output.vk.VkGetUserProfilesBatchPort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
-class GetProfileAdapter(
+class VkGetUserProfilesBatchAdapter(
     @RestClient private val vkClient: VkClient,
-) : VkProfileOutputPort {
-
-    override fun getUserProfilesBatch(fromIds: List<FromId>): List<VkUserProfile> {
+) : VkGetUserProfilesBatchPort {
+    override fun execute(request: VkGetUserProfilesBatchPort.Request): VkGetUserProfilesBatchPort.Response {
+        val fromIds = request.fromIds
         if (fromIds.isEmpty()) {
-            return emptyList()
+            return VkGetUserProfilesBatchPort.Response(emptyList())
         }
 
         val userIdsString = fromIds.joinToString(",") { it.value.toString() }
@@ -28,7 +29,7 @@ class GetProfileAdapter(
             throw VkApiException("VK API error: ${response.error.error_msg}")
         }
 
-        return response.response?.map { userDto ->
+        val profiles = response.response?.map { userDto ->
             VkUserProfile.of(
                 id = userDto.id,
                 firstName = userDto.firstName,
@@ -38,11 +39,18 @@ class GetProfileAdapter(
                 city = userDto.city?.title,
             )
         } ?: emptyList()
+        return VkGetUserProfilesBatchPort.Response(profiles)
     }
+}
 
-    override fun getGroupProfilesBatch(fromIds: List<FromId>): List<VkGroupProfile> {
+@ApplicationScoped
+class VkGetGroupProfilesBatchAdapter(
+    @RestClient private val vkClient: VkClient,
+) : VkGetGroupProfilesBatchPort {
+    override fun execute(request: VkGetGroupProfilesBatchPort.Request): VkGetGroupProfilesBatchPort.Response {
+        val fromIds = request.fromIds
         if (fromIds.isEmpty()) {
-            return emptyList()
+            return VkGetGroupProfilesBatchPort.Response(emptyList())
         }
 
         val groupIdsString = fromIds.joinToString(",") { (-it.value).toString() }
@@ -52,13 +60,14 @@ class GetProfileAdapter(
             throw VkApiException("VK API error: ${response.error.error_msg}")
         }
 
-        return response.response?.groups?.map { groupDto ->
+        val profiles = response.response?.groups?.map { groupDto ->
             VkGroupProfile.of(
                 id = -groupDto.id,
                 name = groupDto.name,
                 screenName = groupDto.screenName,
             )
         } ?: emptyList()
+        return VkGetGroupProfilesBatchPort.Response(profiles)
     }
 }
 

@@ -6,23 +6,32 @@ Essential information for AI coding agents working with this Kotlin/Quarkus code
 
 - **Stack**: Quarkus, Kotlin, RabbitMQ, LangChain4j, Java 21
 - **Testing**: Fake Objects (not mocks/Mockito), located in `objectProvider/fake/`
-- **Main modules**: receiver → processor → vkFacade
+- **Main modules**: receiver, persistence, processor, ai, vkFacade, infrastructure, share
 
 ## Architecture
 
 ### Modules
-- **receiver** — entry point: VK webhook → `/vk/callback`, DMZ layer for VK API isolation
-- **processor** — business logic: message processing, answer generation
-- **vkFacade** — exit point: sending messages to VK API
-- **share** — shared components: `Message`, `Event`, Value Objects
-- **infrastructure** — RabbitMQ, logging
+- **receiver** — VK webhook entry point (`POST /vk/callback`), DMZ layer for VK API JSON parsing
+- **persistence** — message/profile/summary storage, REST API for data queries
+- **processor** — message filtering: determines if message requires AI answer
+- **ai** — AI answer generation + conversation summarization (LangChain4j)
+- **vkFacade** — VK API exit point: send messages, fetch profiles
+- **share** — shared domain: `Message`, `Event`, `Port`, `Command`, Value Objects, output port interfaces
+- **infrastructure** — RabbitMQ, logging decorators
 
 ### Data Flow
 ```
-VK webhook → receiver → MESSAGE_RECEIVED (RabbitMQ)
-           → processor → MESSAGE_REQUIRE_ANSWER (AI)
-           → processor → SEND_MESSAGE
-           → vkFacade → VK API
+VK webhook → receiver → MESSAGE_NEW (RabbitMQ)
+           → persistence → MESSAGE_RECEIVED (save + fetch profiles)
+           → persistence → SUMMARY_REQUESTED (RabbitMQ)
+           → processor → MESSAGE_REQUIRE_ANSWER (RabbitMQ)
+           → ai → ANSWER_MESSAGE (RabbitMQ)
+           → vkFacade → VK API (sendMessage)
+
+Summary flow:
+  MESSAGE_RECEIVED → persistence → SUMMARY_REQUESTED (RabbitMQ)
+  → ai → SUMMARY_READY (RabbitMQ)
+  → vkFacade → VK API
 ```
 
 ### Key Patterns
@@ -42,6 +51,67 @@ VK webhook → receiver → MESSAGE_RECEIVED (RabbitMQ)
 - Strict separation between domain logic and external integrations
 - Domain models and interfaces in `share` module
 - Implementation in adapter modules (`receiver`, `vkFacade`, etc.)
+
+#### Mandatory Flow (NON-NEGOTIABLE)
+Every request must follow this exact path. No shortcuts, no bypasses:
+
+```
+adapter input → port input → usecase → command → command impl → port output → adapter output
+```
+
+**EXPLICITLY FORBIDDEN:**
+
+| Violation | Example | Why |
+|---|---|---|
+| EventProcessor → Command directly | `SummaryReadyEventProcessor` injecting `SendVkMessageCommand` | Bypasses usecase business logic |
+| Input adapter → OutputPort | `VkFacadeController` injecting `VkProfileOutputPort` | Reverses dependency direction |
+| Adapter → jOOQ/concrete repo directly | `PersistenceDataController` injecting `JooqMessageRepository` | No abstraction layer |
+| Usecase → Usecase via InputPort | `ProcessSummaryUsecase` calling `GenerateSummaryInputPort` | Usecase should call Command, not another InputPort |
+| Usecase → OutputPort directly | Usecase calling persistence port without Command layer | Missing command abstraction |
+| Domain VO wrapping infra type | `VkEvent` wrapping `jakarta.json.JsonObject` | Infrastructure leaks into domain |
+| Command layer importing adapter DTO | `MessageMapper` in `command/` importing `adapter.input.dto.*` | Violates Dependency Inversion |
+| `@Tool` on Command class | `VaneSearchCommandImpl` with `@Tool` methods | Adapter→Command reverse dependency |
+
+#### OutputPort Contract (NON-NEGOTIABLE)
+Every output port MUST extend `OutputPort<REQ, RESP>` with a single `execute(request: REQ): RESP` method. Raw multi-method interfaces are forbidden — split each method into its own port:
+
+```kotlin
+// WRONG — raw interface, multiple methods
+interface PersistenceDataOutputPort {
+    fun findMessagesBefore(peerId: Long, ...): List<StoredMessage>
+    fun findLastSummary(peerId: Long): Summary?
+}
+
+// CORRECT — one port per operation
+interface FindStoredMessagesBeforePort : OutputPort<FindStoredMessagesBeforePort.Request, FindStoredMessagesBeforePort.Response> {
+    data class Request(val peerId: Long, val beforeConversationMessageId: Long, val limit: Int) : OutputPortRequest
+    data class Response(val messages: List<StoredMessage>) : OutputPortResponse
+}
+```
+
+#### Command Contract (NON-NEGOTIABLE)
+Every command MUST implement `Command<REQ, RESP>`. Loose classes with arbitrary `execute()` signatures are forbidden:
+
+```kotlin
+// WRONG
+class IsRequireAnswerCommand(...) {
+    fun execute(message: Message): Boolean  // no Command<REQ,RESP>
+}
+
+// CORRECT
+interface IsRequireAnswerCommand : Command<IsRequireAnswerRequest, IsRequireAnswerResponse> {
+    data class IsRequireAnswerRequest(val message: Message) : CommandRequest
+    data class IsRequireAnswerResponse(val requiresAnswer: Boolean) : CommandResponse
+}
+```
+
+#### @Tool Annotations on Adapters, Not Commands
+LangChain4j `@Tool` methods must live in adapter-layer classes (e.g., `VaneSearchToolAdapter`), not in command implementations. The adapter delegates to `Command.execute()`. This keeps the single entry point into the command and avoids reverse dependencies from output adapters into the command layer.
+
+#### Port Granularity
+- **Single-method ports**: Every output port exposes exactly one operation via `execute(Request): Response`
+- Multi-method repository-style interfaces are split into individual ports
+- Naming: `{Verb}{Noun}Port` — e.g., `FindStoredMessagesBeforePort`, `SaveMessagePort`
 
 #### Command Pattern
 ```kotlin

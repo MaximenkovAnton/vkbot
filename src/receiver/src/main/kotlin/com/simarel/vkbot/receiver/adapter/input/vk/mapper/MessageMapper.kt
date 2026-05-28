@@ -1,4 +1,4 @@
-package com.simarel.vkbot.receiver.command.sendVkEvent.mapper
+package com.simarel.vkbot.receiver.adapter.input.vk.mapper
 
 import com.simarel.vkbot.receiver.adapter.input.dto.MessageDto
 import com.simarel.vkbot.receiver.adapter.input.dto.WallAttachmentDto
@@ -9,8 +9,8 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 @ApplicationScoped
-class MessageMapper {
-    fun toDomain(body: JsonObject): Message {
+open class MessageMapper {
+    open fun toDomain(body: JsonObject): Message {
         var messageJson = body.getJsonObject("object")
         if (messageJson.contains("message")) {
             messageJson = messageJson?.getJsonObject("message")

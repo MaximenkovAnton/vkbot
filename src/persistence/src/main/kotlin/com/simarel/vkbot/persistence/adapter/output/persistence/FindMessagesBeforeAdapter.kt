@@ -14,16 +14,12 @@ open class FindMessagesBeforeAdapter(
 ) : FindMessagesBeforePort {
 
     @Transactional
-    override fun findMessagesBefore(
-        peerId: PeerId,
-        beforeConversationMessageId: ConversationMessageId,
-        limit: Int
-    ): List<MessageEntity> {
+    override fun execute(request: FindMessagesBeforePort.FindMessagesBeforeRequest): FindMessagesBeforePort.FindMessagesBeforeResponse {
         val results = repository.findMessagesBefore(
-            peerId.value,
-            beforeConversationMessageId.value,
-            limit
+            request.peerId.value,
+            request.beforeConversationMessageId.value,
+            request.limit
         )
-        return results.sortedBy { it.conversationMessageId!! }
+        return FindMessagesBeforePort.FindMessagesBeforeResponse(results.sortedBy { it.conversationMessageId!! })
     }
 }

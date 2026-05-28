@@ -13,11 +13,11 @@ open class FindUserProfilesByIdsAdapter(
 ) : FindUserProfilesByIdsPort {
 
     @Transactional
-    override fun findByIds(fromIds: Collection<FromId>): List<VkUserProfile> {
-        if (fromIds.isEmpty()) {
-            return emptyList()
+    override fun execute(request: FindUserProfilesByIdsPort.FindUserProfilesByIdsRequest): FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse {
+        if (request.fromIds.isEmpty()) {
+            return FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse(emptyList())
         }
-        val idValues = fromIds.map { it.value }
-        return repository.findByIds(idValues)
+        val idValues = request.fromIds.map { it.value }
+        return FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse(repository.findByIds(idValues))
     }
 }
