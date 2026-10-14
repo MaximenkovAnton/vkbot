@@ -53,7 +53,7 @@ dependencies {
     // jOOQ code generation
     jooqGenerator("org.jooq:jooq-meta:3.19.10")
     jooqGenerator("org.jooq:jooq-codegen:3.19.10")
-    jooqGenerator("org.postgresql:postgresql:42.7.3")
+    jooqGenerator("org.postgresql:postgresql:42.7.11")
 
     // PostgreSQL driver
     implementation("io.quarkus:quarkus-jdbc-postgresql")
