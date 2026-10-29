@@ -1,0 +1,86 @@
+[
+  {
+    "id": "66547935-1441-4728-9b5b-58107a3b97e5",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew :src:ai:cleanTest :src:ai:test",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 7s\n19 actionable tasks: 2 executed, 17 up-to-date\nJUnit XML src/ai/build/test-results/test: TOTAL 62 tests, 0 failures, 0 errors\nVaneSearchCommandImplTest 8/0, VaneSearchOutputAdapterTest 8/0, VaneSearchToolAdapterTest 3/0",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292178529
+  },
+  {
+    "id": "2ae418e5-a96d-483a-8a7f-3ffc8581b79d",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew :src:ai:test --tests \"*VaneSearchCommandImplTest*\"",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 6s\nJUnit XML TEST-com.simarel.vkbot.ai.command.vane.VaneSearchCommandImplTest.xml: tests=8 failures=0 errors=0",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292181084
+  },
+  {
+    "id": "b5ae35c9-b489-4384-adc1-7427124551c3",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew :src:ai:test --tests \"*VaneSearchOutputAdapterTest*\"",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 6s\nJUnit XML TEST-com.simarel.vkbot.ai.adapter.output.ai.tool.vane.VaneSearchOutputAdapterTest.xml: tests=8 failures=0 errors=0",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292182837
+  },
+  {
+    "id": "aab3b5b8-90c6-4b9e-a7db-75a82f0c8a2d",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew :src:ai:test --tests \"*VaneSearchToolAdapterTest*\"",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 6s\nJUnit XML TEST-com.simarel.vkbot.ai.adapter.output.ai.tool.VaneSearchToolAdapterTest.xml: tests=3 failures=0 errors=0",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292184495
+  },
+  {
+    "id": "ee653a67-04d7-4112-abea-33e94983ec41",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "architecture",
+    "command": "./gradlew :src:testing:arch-tests:cleanTest :src:testing:arch-tests:test",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 9s\nDetektExcludesPathTest 1/0, GradleDependenciesTest 3/0, LayerDependenciesTest 5/0, ModuleDependenciesTest 7/0, TestDataFactoriesTest 2/0 (18/18, forced rerun so the create* factory scan re-reads src/ai/src/testFixtures)",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292186279
+  },
+  {
+    "id": "a5f7d32b-86a6-4282-adfb-9b61f7923199",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "lint",
+    "command": "./gradlew detekt ktlintCheck",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 688ms\n89 actionable tasks: 89 up-to-date (repo-wide detekt + ktlint; no finding in src/ai test or testFixtures sources)",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292189006
+  },
+  {
+    "id": "e394bb49-1795-4926-beda-0e4fa39957c5",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "vane-unit-tests",
+    "stage": "write",
+    "criterion": "build",
+    "command": "./gradlew :src:ai:build --rerun-tasks",
+    "exitCode": 0,
+    "output": "BUILD SUCCESSFUL in 10s\n28 actionable tasks: 28 executed",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292190614
+  }
+]

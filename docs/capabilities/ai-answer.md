@@ -68,12 +68,34 @@ LLM может вызвать веб-поиск — это возможност�
 - **AC-ai-answer-1** — КОГДА `MESSAGE_REQUIRE_ANSWER` обработан, СИСТЕМА ДОЛЖНА опубликовать
   `ANSWER_MESSAGE` и довести ответ до `messages.send` с `peer_id` исходного сообщения. Test:
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:42-177`.
+- **AC-ai-answer-2** — КОГДА `MESSAGE_REQUIRE_ANSWER` обработан, СИСТЕМА ДОЛЖНА опубликовать
+  `ANSWER_MESSAGE` с payload `ResponseMessage(messageText = сгенерированный ответ, responseTo = исходное
+  сообщение)` и вернуть `ok`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/usecase/message/requireAnswer/GenerateAnswerUsecaseTest.kt`.
+- **AC-ai-answer-3** — КОГДА `GenerateAnswerCommandImpl` выполняется, СИСТЕМА ДОЛЖНА запросить контекст
+  разговора для входного `Message`, собрать `GenerateAnswerOutputPortRequest` из полученного контекста и
+  вернуть ответ AI-порта как `MessageText`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/answer/GenerateAnswerCommandImplTest.kt`.
+- **AC-ai-answer-4** — КОГДА собирается контекст разговора, СИСТЕМА ДОЛЖНА запросить не более 20 сообщений до
+  текущего `conversationMessageId`, отобразить их в `ChatMessage` (null-текст → пустая строка), разделить
+  авторов по знаку `fromId` (неотрицательные — пользователи, отрицательные — группы) и собрать авторов
+  пересланных сообщений (JSONB-массив или одиночный объект, рекурсивно) в те же выборки профилей. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapterTest.kt`.
+- **AC-ai-answer-5** — КОГДА адаптер ответа формирует промпт, СИСТЕМА ДОЛЖНА отформатировать профили
+  пользователей и групп, историю чата блоками `[MESSAGE_START]…[MESSAGE_END]`, текущее сообщение и вложенные
+  пересланные блоки с уровнями и отступами, а автора — как «Имя Фамилия (idN)» / «Название (idN)» либо `idN`
+  при отсутствии профиля; пустые профили дают пустую строку. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/GenerateAnswerOutputAdapterTest.kt`.
+- **AC-ai-answer-6** — КОГДА приходит JSON-payload `MESSAGE_REQUIRE_ANSWER`, СИСТЕМА ДОЛЖНА разобрать его в
+  `Message`, передать в `MessageRequireAnswerInputPort` и назвать событие `MESSAGE_REQUIRE_ANSWER`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt`.
 
 ## Пробелы приёмки
 
-- В модуле `ai` нет ни одного теста: сборка контекста (20 сообщений, профили, JSONB), форматирование
-  промпта, публикация `ANSWER_MESSAGE` и текст отправленного ответа проверяются только сквозным
-  интеграционным тестом с подменённой LLM.
-- `Message.forwardedContextString()` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/Message.kt:40`)
+- Сборка контекста, форматирование промпта, публикация `ANSWER_MESSAGE` и разбор входящего события покрыты
+  юнит-тестами `src/ai/src/test`; сквозной путь — `VkWebhookIntegrationTest`, реальная проводка
+  LangChain4j/Quarkus REST — `AiIntegrationTest`.
+- `Message.forwardedContextString()`
+  (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/Message.kt:40`)
   не вызывается ни из одного места дерева — второй форматтер пересланных сообщений, промпт ответа строит
-  `GenerateAnswerOutputAdapter`.
+  `GenerateAnswerOutputAdapter`. Удаление или использование метода — отдельная кодовая задача.

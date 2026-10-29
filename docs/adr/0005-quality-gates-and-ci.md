@@ -53,10 +53,13 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 ### Покрытие
 
 Агрегат собирается из `src/*/build/jacoco/test.exec` восьми модулей (`build.gradle.kts:22-31`), `src/testing/*`
-исключены. Измерено в этом проходе: **`coverageMin = 0.25`, `measuredLineCoverage = 0.2796`**
-(586 покрытых строк из 2096; `build.gradle.kts:19-20`). Формула — `max(0.10, floor(L * 20) / 20)`, то есть
-порог ниже измеренного на ≤ 5 п.п.; значение записано константой, а не выведено в рантайме.
+исключены. Измерено: **`coverageMin = 0.40`, `measuredLineCoverage = 0.5043`**
+(1057 покрытых строк из 2096; `build.gradle.kts:19-20`). Формула первого порога —
+`max(0.10, floor(L * 20) / 20)`; при L = 0.5043 она дала бы 0.50, а 0.40 — цель ратчета (см. «Ратчет»).
+Значение записано константой, а не выведено в рантайме.
 `check` зависит от `coverageVerification` (`build.gradle.kts:130-133`), поэтому `./gradlew build` включает порог.
+
+Ратчет 0.40 выполнен в задаче `tests: ai module`: измерено `L = 0.5043`, порог поднят с 0.25 до 0.40.
 
 ### Негативные прогоны (каждый гейт падает)
 
@@ -66,7 +69,7 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 | ktlintCheck | `val value=1` в `:src:processor` | `> Task :src:processor:ktlintMainSourceSetCheck FAILED` … `Missing spacing around "="`, `BUILD FAILED`, exit 1 |
 | ArchUnit L3 | use case `ai` ссылается на адаптер `UserAnswerAiService` | `LayerDependenciesTest > L3 … FAILED`, `BUILD FAILED`, exit 1 |
 | ArchUnit модули | класс пакета `receiver` в модуле `persistence` зависит от `persistence` | `ModuleDependenciesTest > receiver module should only depend on share() FAILED`, exit 1 |
-| Покрытие | `coverageMin = 0.99` | `Rule violated for bundle vkbot: lines covered ratio is 0.27, but expected minimum is 0.99`, exit 1 |
+| Покрытие | `coverageMin = 0.99` | `Rule violated for bundle vkbot: lines covered ratio is 0.50, but expected minimum is 0.99`, exit 1 |
 | Граф сборки | вернуть `implementation(project(":src:persistence"))` в `:src:ai` | `GradleDependenciesTest > production project dependencies follow the allowlist() FAILED` (проверено стадией implement) |
 | Карта возможностей | путь кода или `ADR NNNN`, которого нет | `FAIL: … which does not exist`, exit 1 |
 
@@ -81,7 +84,8 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 
 ### Ратчет
 
-Целевые пороги 0.40 и 0.60 — отдельные задачи с новыми тестами, не порог этого прохода.
+Порог 0.40 — цель ратчета, выполненная в задаче `tests: ai module` (измерено `L = 0.5043`). Следующий
+целевой порог 0.60 — отдельная задача с новыми тестами, не порог этого прохода.
 `coverageMin` поднимается только вместе с измеренным `L`.
 
 ## Последствия

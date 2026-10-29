@@ -54,14 +54,25 @@
 
 ## Acceptance criteria
 
-Нет AC с тестом: инструменты не вызываются ни в одном тесте (в интеграционном тесте LLM подменена
-WireMock-заглушкой, которая инструменты не зовёт), в модуле `ai` тестов нет. Пробел зафиксирован в
-`capabilities.md`.
+- **AC-ai-tools-vane-1** — КОГДА выполняется поиск Vane, СИСТЕМА ДОЛЖНА отобразить инструмент в
+  источники/режим/подпись: Web → `["web"]`/`balanced`/`Sources`, Academic → `["academic"]`/`quality`/
+  `Academic Sources`, Discussion → `["discussions"]`/`balanced`/`Discussion Sources`; отформатировать
+  нумерованные источники; при ошибке порта вернуть строку `Search failed: <message>`, не пробрасывая
+  исключение. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommandImplTest.kt`.
+- **AC-ai-tools-vane-2** — КОГДА выполняется `VaneSearchOutputAdapter`, СИСТЕМА ДОЛЖНА выбрать первый
+  провайдер, у которого есть и chat-, и embedding-модель, отправить поиск с его ключами, смапить `message` и
+  `sources` (content/title/url); при отсутствии подходящего провайдера — бросить `IllegalStateException`.
+  Test: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest.kt`.
+- **AC-ai-tools-vane-3** — КОГДА вызывается любой `@Tool`-метод, СИСТЕМА ДОЛЖНА делегировать в
+  `VaneSearchCommand` с соответствующим типом запроса и вернуть его `result`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapterTest.kt`.
 
 ## Пробелы приёмки
 
-- `VaneSearchCommand` (выбор источника и режима, формат ответа, обработка ошибки) не покрыт тестом.
-- `VaneSearchOutputAdapter` (выбор первого провайдера с chat- и embedding-моделью, маппинг источников)
-  не покрыт тестом.
-- Интеграция `@Tool` → LLM не проверена: единственная проверка — регистрация класса в
-  `UserAnswerAiService.tools`.
+- Выбор инструментов самой моделью не проверен: в `AiIntegrationTest` модель подменена WireMock-заглушкой,
+  которая `@Tool`-методы не вызывает. Делегирование каждого `@Tool`-метода в команду проверено
+  `VaneSearchToolAdapterTest`; регистрация класса в `UserAnswerAiService.tools` тестом не покрыта — её
+  проверяет только сборка/старт приложения.
+- Поведение, которого нет в AC, не тестировалось: форматирование пустого `message`, поля `history`/`stream`
+  запроса клиента (адаптер их не заполняет) — названы пробелами, а не pass.
