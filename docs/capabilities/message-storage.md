@@ -81,10 +81,10 @@
 - **AC-message-storage-1** — КОГДА in-process порт `FindStoredMessagesBefore`/`FindStoredMessagesBetween`
   получает запрос, СИСТЕМА ДОЛЖНА без искажений передать его в `PersistenceDataInputPort` и вернуть
   полученные сообщения. Test:
-  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt:38-62`.
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt:24-64`.
 - **AC-message-storage-2** — КОГДА in-process порт сохранения завершённого саммари получает id, short и full,
   СИСТЕМА ДОЛЖНА передать их в `PersistenceDataInputPort` как `SaveCompletedSummary`. Test:
-  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt:111-123`.
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt:119-133`.
 
 ## Пробелы приёмки
 

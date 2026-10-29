@@ -64,14 +64,14 @@
 
 - **AC-vk-message-send-1** — КОГДА use case получает `ResponseMessage`, СИСТЕМА ДОЛЖНА вызвать
   `SendVkMessageCommand` с `peer_id` и текстом ответа. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt:12-29`.
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt:12-34`.
 - **AC-vk-message-send-2** — КОГДА отправка успешна, СИСТЕМА ДОЛЖНА передать в `VkClient.sendMessage`
   peer_id, текст и `rand`. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapterTest.kt:15-28`,
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapterTest.kt:14-27`,
   `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/command/sendVkMessage/SendVkMessageCommandImplTest.kt:12-25`.
 - **AC-vk-message-send-3** — КОГДА VK API вернул ошибку, СИСТЕМА ДОЛЖНА бросить `VkException`, чтобы
   событие ушло в retry. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapterTest.kt:30-44`.
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapterTest.kt:29-45`.
 
 ## Пробелы приёмки
 

@@ -9,7 +9,7 @@
 ```bash
 ./gradlew test                                  # все тесты (нужен Docker для app-тестов)
 ./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"  # один класс (в своём модуле)
-./gradlew :src:testing:arch-tests:test          # архитектурные правила (15 тестов)
+./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (18 тестов)
 ./gradlew coverageReport                        # агрегированный HTML+XML отчёт
 ./gradlew coverageVerification                  # порог покрытия (входит в ./gradlew build)
 ```
@@ -18,9 +18,9 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в этом проходе: `./gradlew test` → `BUILD SUCCESSFUL`, **59 тестов, 0 падений, 0 ошибок,
+Проверено в этом проходе: `./gradlew test` → `BUILD SUCCESSFUL`, **62 теста, 0 падений, 0 ошибок,
 0 пропущенных**. Распределение по модулям: app — 7, receiver — 9, share — 8, vk-facade — 7, persistence — 9,
-processor — 2, infrastructure — 2, arch-tests — 15; **в `ai` собственных тестов нет**.
+processor — 2, infrastructure — 2, arch-tests — 18; **в `ai` собственных тестов нет**.
 
 ## Где лежат тесты
 
@@ -33,7 +33,7 @@ processor — 2, infrastructure — 2, arch-tests — 15; **в `ai` собств
 | `vk-facade` | `VkProfileInProcessAdapterTest`, `VkSendMessageOutputAdapterTest`, `PublishEventCommandImplTest`, `SendVkMessageCommandImplTest`, `MessageSendUsecaseTest` |
 | `share` | `MessageTextTest`, `ConversationMessageIdTest` |
 | `infrastructure` | `CommandLoggingDecoratorTest` |
-| `testing/arch-tests` | `ModuleDependenciesTest` (7), `LayerDependenciesTest` (5), `GradleDependenciesTest` (3) |
+| `testing/arch-tests` | `ModuleDependenciesTest` (7), `LayerDependenciesTest` (5), `GradleDependenciesTest` (3), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1) |
 
 Тестовые ресурсы: `src/app/src/test/resources/application.yaml` (базовый профиль `@QuarkusTest`),
 `application-integration-test.yaml` (профиль `integration-test`), `application.yml` (`%test`-настройки),
@@ -62,7 +62,7 @@ class FakeVkClient(
 `.../command/vkFacade/FakePublishEventCommand.kt:8-16`,
 `.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`.
 
-### Раскладка fake-объектов
+### Раскладка fake-объектов и фабрик
 
 ```
 src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
@@ -72,18 +72,26 @@ src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 │       ├── mq/FakePublishEventOutputPort.kt
 │       └── vk/FakeVkClient.kt
 ├── command/
-│   ├── FakeCommand.kt, FakeCommandRequest.kt, FakeCommandResponse.kt
+│   ├── FakeCommand.kt, FakeCommandRequest.kt, FakeCommandResponse.kt, FakeCommandProvider.kt
 │   └── vkFacade/
 │       ├── FakePublishEventCommand.kt, FakePublishEventCommandProvider.kt
 │       └── FakeSendVkMessageCommand.kt, FakeSendVkMessageCommandProvider.kt
 ├── domain/
 │   ├── FakeMessageProvider.kt
+│   ├── FakeModelProvider.kt
 │   └── FakeVoProvider.kt
 ├── objectProvider/ObjectMapperProvider.kt
-└── port/output/vk/FakeVkSendMessageOutputProvider.kt
+├── port/
+│   ├── FakePersistencePortProvider.kt
+│   ├── FakeProfilePortProvider.kt
+│   └── output/vk/FakeVkSendMessageOutputProvider.kt
+└── vkFacade/FakeVkFacadeProvider.kt
 
+src/persistence/src/testFixtures/kotlin/com/simarel/vkbot/persistence/testfixtures/  # PersistenceDataRequestProvider,
+  # PersistenceDataResponseProvider
 src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/   # FakeMessageMapper,
-  # FakePublishVkEventCommand, FakeVkConfirmationInputPortProvider, FakeVkProvider, port/FakeReceiveMessageInputPort
+  # FakePublishVkEventCommand, FakePublishVkEventCommandProvider, FakeVkConfirmationInputPortProvider,
+  # FakeVkProvider, port/FakeReceiveMessageInputPort
 src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/  # FakeIsRequireAnswerCommand,
   # FakeMessageNewInputPortProvider, FakeMessageReceivedInputPort
 ```
@@ -93,13 +101,81 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
 
 ### Провайдеры тестовых данных
 
-`FakeVoProvider` (`testfixtures/domain/FakeVoProvider.kt:14-62`) — единая точка создания доменных значений:
-`createDate`, `createHumanFromId`, `createGroupFromId`, `createGroupChatFromId`, `createGroupId`, `createPeerId`,
-`createConversationMessageId`, `createMessageText`, `createMessage`, `createForwardedMessage`,
-`createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него.
+Правило: **тестовые данные создаются только фабриками `*Provider`**; конвенция имени — `Fake*Provider`,
+у persistence-фабрик — `PersistenceData*Provider`.
 
-Правило: в тесте задаются только значимые поля, остальное берётся из провайдера
-(`FakeVoProvider.createMessage(messageText = ...)`).
+1. В `src/*/src/test/**` запрещено прямое создание (`Type(...)`, `Type.of(...)`) типов:
+   - доменных моделей, VO и событий `com.simarel.vkbot.share.domain.{model,vo,event}`;
+   - DTO под `**/adapter/output/**/dto/**`;
+   - request/response под `**/port/**` и `**/command/**`, включая вложенные типы контрактов.
+2. Данные берутся из фабрики `*Provider`: общие типы (`share`, `vk-facade`) — в `:src:testing:test-fixtures`,
+   типы модуля — в его `<module>/src/testFixtures` (`persistence`, `receiver`, `processor`). Фабрика —
+   единственное место, где эти типы создаются напрямую.
+3. У каждого параметра фабричного метода `create*` есть реалистичный дефолт; тест передаёт только поля,
+   от которых зависит проверка.
+4. Исключения: тест самого типа (`<Type>Test.kt`; для вложенного контракта — `<Owner>Test.kt`),
+   исключения-ошибки и сырые JSON-тела интеграционных тестов.
+5. Фейки-зависимости (`Fake*`, `Recording*`) по-прежнему создаются в тесте напрямую; общие фейки
+   переиспользуются, а не копируются локально.
+6. Нарушение ловит `TestDataFactoriesTest` в `:src:testing:arch-tests` (см. «Сторож правила»).
+
+Фабрики (дерево — в «Раскладка fake-объектов и фабрик»):
+
+- `domain/FakeVoProvider.kt:18-69` — единая точка создания доменных значений: `createDate`, `createFromId`,
+  `createHumanFromId`, `createGroupFromId`, `createGroupChatFromId`, `createGroupId`, `createPeerId`,
+  `createConversationMessageId`, `createMessageText`, `createMessage`, `createForwardedMessage`,
+  `createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него.
+- `domain/FakeModelProvider.kt` — `createStoredMessage`, `createSummary`, `createVkUserProfile`,
+  `createVkGroupProfile`, `createResponseMessage`.
+- `port/FakeProfilePortProvider.kt` — `createGetUserProfilesBatchRequest`,
+  `createGetGroupProfilesBatchRequest`.
+- `port/FakePersistencePortProvider.kt` — 9 request-фабрик `share`-портов persistence
+  (`createFindMessagesBeforeRequest`, `createFindMessagesBetweenRequest`, `createFindLastSummaryRequest`,
+  `createHasPendingSummaryRequest`, `createCreatePendingSummaryRequest`, `createSaveCompletedSummaryRequest`,
+  `createMarkSummaryFailedRequest`, `createFindUserProfilesByIdsRequest`,
+  `createFindGroupProfilesByIdsRequest`).
+- `vkFacade/FakeVkFacadeProvider.kt` — `createVkError`, `createVkResponseDto`, `createVkProfileRequest`,
+  `createVkProfileResponse`, `createVkSendMessageInputRequest`.
+- `command/FakeCommandProvider.kt` — `createRequest`, `createResponse`.
+- `PersistenceDataRequestProvider.kt` и `PersistenceDataResponseProvider.kt` в
+  `src/persistence/src/testFixtures` — 9 фабрик `PersistenceDataRequest.*` и 7 фабрик
+  `PersistenceDataResponse.*`.
+- `FakePublishVkEventCommandProvider.kt` в `src/receiver/src/testFixtures` — `createRequest`.
+
+Пример «добавили поле в модель»: в `Summary` появилось поле `language`:
+
+1. в тип — новое поле (nullable или с дефолтом);
+2. в `FakeModelProvider.createSummary` — параметр `language: String? = "ru"`;
+3. тесты не меняются: они не передавали `language`, фабрика подставляет дефолт.
+
+Так добавление поля, которое не влияет на проверки, стоит одной строки в фабрике, а не правки в каждом
+тесте.
+
+### Сторож правила
+
+`TestDataFactoriesTest` (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/TestDataFactoriesTest.kt`)
+— два теста:
+
+| Тест | Что проверяет |
+|---|---|
+| `test sources create test data only through test data providers` | в `src/*/src/test/**/*.kt` нет `Type(...)`/`Type.of(...)` для типов из правила; исключение — тест самого типа (`<Type>Test.kt`, для вложенного контракта — `<Owner>Test.kt`); `src/testFixtures` не сканируются |
+| `every factory method parameter has a default` | у каждого параметра каждого `fun create*` в `:src:testing:test-fixtures` и `<module>/src/testFixtures` есть `= <дефолт>` |
+
+Падение называет `path:line` и тип или параметр:
+`…:14: Message создаётся напрямую; используй Fake*Provider …`,
+`…:5: параметр requiredValue функции createRequest без дефолта; …`. Негативные прогоны: временное
+`Message.of(...)` в существующем тесте → `test sources create test data only through test data providers`
+FAILED с `path:line`; временный обязательный параметр в фабрике → `every factory method parameter has a
+default` FAILED с именем параметра. После отката оба теста PASSED.
+
+Ограничение: скан текстовый — строковые литералы и комментарии не разбираются (имя типа в них даёт ложное
+срабатывание), `copy(...)` не ловится, `Type` и `.of(` на разных строках тоже, пакеты вне перечисленных
+выше не проверяются. Дефолт с оператором сравнения (`limit > 0`) сбивает угловую глубину разбора
+параметров, аннотация после модификатора (`public @Suppress(...) data class`) не попадает в набор типов, а
+без системного свойства `project.root` скан пуст (fail-open). Ложное срабатывание лечится фабрикой или
+переименованием теста самого типа. Таск `:src:testing:arch-tests:test` не объявляет сканируемые тесты
+входами, поэтому локальный инкрементальный прогон после правки чужого теста может быть `UP-TO-DATE`; CI с
+чистого дерева выполняет сторож всегда.
 
 ## Как писать тесты
 
@@ -108,7 +184,7 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
 - **Unit-тест** — обычный JUnit 5 без Quarkus: собрать объект с fake-зависимостями, вызвать, проверить
   записи fake'а и результат (`ReceiveMessageUsecaseTest.kt:11-67`).
 - **Адаптер in-process** — шаблон для новых адаптеров: записать запрос в `port.input` и проверить обратный
-  маппинг (`PersistenceDataInProcessAdapterTest.kt:38-49`, `VkProfileInProcessAdapterTest.kt:17-33`).
+  маппинг (`PersistenceDataInProcessAdapterTest.kt:24-41`, `VkProfileInProcessAdapterTest.kt:16-34`).
 - **Fake с настраиваемым поведением** — параметр конструктора вместо `when(...)`:
   `FakeVkClient(vkResponseDto = ...)`.
 - **Thread safety** — `ConcurrentLinkedQueue` для записанных вызовов, не `mutableListOf`.
@@ -143,6 +219,8 @@ loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет
 | `ModuleDependenciesTest` | каждый бизнес-модуль зависит только от `share`; `share` — ни от кого |
 | `LayerDependenciesTest` | L1 `domain`, L2 `port`, L3 `usecase`/`command`, L4 входные адаптеры, L5 выходные адаптеры |
 | `GradleDependenciesTest` | найдено 12 build-файлов; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
+| `TestDataFactoriesTest` | сторож правила тестовых данных: прямое создание в тестах и дефолты параметров фабрик (см. «Сторож правила») |
+| `DetektExcludesPathTest` | глобы `excludes` из `detekt-config.yml` не матчат main-исходники даже при чек-ауте в каталоге с именем `test` |
 
 Негативная проверка (этот проход): класс пакета `receiver` в модуле `persistence`, зависящий от
 `persistence` → `ModuleDependenciesTest > receiver module should only depend on share() FAILED`, exit 1;

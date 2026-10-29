@@ -18,6 +18,8 @@ private const val GROUP_CHAT_FROM_ID_LOWER_BOUND: Long = 2_000_000_001
 object FakeVoProvider {
     fun createDate(value: OffsetDateTime? = null) = Date(value ?: OffsetDateTime.now())
 
+    fun createFromId(value: Long? = null) = FromId.of(value ?: Random.nextLong(1, HUMAN_FROM_ID_UPPER_BOUND))
+
     fun createHumanFromId() = FromId.of(Random.nextLong(1, HUMAN_FROM_ID_UPPER_BOUND))
     fun createGroupFromId() = FromId.of(-Random.nextLong(1, GROUP_FROM_ID_UPPER_BOUND))
     fun createGroupChatFromId() = FromId.of(Random.nextLong(GROUP_CHAT_FROM_ID_LOWER_BOUND, Long.MAX_VALUE))

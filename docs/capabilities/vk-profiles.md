@@ -64,10 +64,10 @@
 
 - **AC-vk-profiles-1** — КОГДА in-process порт запрашивает профили пользователей батчем, СИСТЕМА ДОЛЖНА
   передать только пользовательские id и вернуть профили. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:17-33`.
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:16-34`.
 - **AC-vk-profiles-2** — КОГДА in-process порт запрашивает профили групп батчем, СИСТЕМА ДОЛЖНА передать
   только групповые id и вернуть профили. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:35-51`.
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:36-52`.
 
 ## Пробелы приёмки
 

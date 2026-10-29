@@ -68,7 +68,16 @@
 
 - **Проблема:** доменный объект создаётся из внешних nullable-данных; нормализация должна быть одна.
 - **Где:** `Message.of(...)` (`share/domain/model/Message.kt:21-38`), `VkUserProfile.of`,
-  `VkGroupProfile.of`, `MessageText.of`, `PeerId.of`, `FromId.of`; для тестов — `FakeVoProvider.kt:14-62`.
+  `VkGroupProfile.of`, `MessageText.of`, `PeerId.of`, `FromId.of`. В тестах ту же роль играют фабрики
+  `*Provider` (конвенция имени — `Fake*Provider`, у persistence — `PersistenceData*Provider`): общие типы
+  (`share`, `vk-facade`) — в `:src:testing:test-fixtures` (`FakeVoProvider.kt:18-69`, `FakeModelProvider.kt`,
+  `FakeVkFacadeProvider.kt`), модульные — в `<module>/src/testFixtures` (`PersistenceDataRequestProvider.kt`,
+  `PersistenceDataResponseProvider.kt`, `FakePublishVkEventCommandProvider.kt`).
+- **В тестах:** прямое создание `of(...)` и конструкторов запрещено для доменных моделей, VO и событий
+  `share`, DTO под `**/adapter/output/**/dto/**` и request/response `**/port/**`/`**/command/**`, кроме
+  теста самого типа (`<Type>Test.kt`, для вложенного контракта — `<Owner>Test.kt`). Данные берутся из
+  этих фабрик, у каждого параметра `create*` есть дефолт: добавили поле в тип — добавили дефолтный
+  параметр в фабрику, тесты не меняются. Нарушение ловит `TestDataFactoriesTest` в `:src:testing:arch-tests`.
 - **Сила:** Single Responsibility — создание и валидация в одной точке; вызывающий код не повторяет `?: ""`.
 
 ## DMZ / Anti-Corruption Layer (граница VK)

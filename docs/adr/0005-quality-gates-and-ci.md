@@ -32,6 +32,24 @@ detekt, ktlint, jacoco и единственный `enforcedPlatform(quarkus-bom
 9 файлов `detekt-baseline.xml` — по одному в `src/ai`, `src/app`, `src/infrastructure`, `src/persistence`,
 `src/processor`, `src/share`, `src/vk-facade`, `src/testing/arch-tests` и `src/testing/test-fixtures`.
 
+### Независимость гейта линта от пути чек-аута
+
+Detekt сопоставляет глобы `excludes` с абсолютным путём файла, а не с путём относительно корня проекта.
+Широкий глоб `**/test/**` матчил любой файл чек-аута, лежащего в каталоге с именем `test`
+(`/Users/asmaksime1/IdeaProjects/test/vk`), поэтому локально 15 правил не применялись к `src/main`,
+и `./gradlew detekt` был зелёным при красном CI. Анкоринг глобов на source sets (`**/src/test/**`,
+`**/src/androidTest/**` и т.д.) выравнивает локальный прогон с CI: исключаются только тестовые
+исходники, где бы ни лежал чек-аут.
+
+Сторож — `DetektExcludesPathTest` (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/DetektExcludesPathTest.kt`):
+он извлекает глобы из `detekt-config.yml` и проверяет через `java.nio.file` glob-PathMatcher, что ни
+один из них не матчит main-исходник синтетического чек-аута в каталоге `test`
+(`/tmp/test/vk/<module>/src/main/kotlin/...`), и называет виновный глоб. Негативный прогон: если
+вернуть `'**/test/**'` хотя бы в один список `excludes`, `./gradlew :src:testing:arch-tests:test --tests
+"*DetektExcludesPathTest*"` падает с `detekt-config.yml excludes match main sources: [**/test/**]`; после
+отката — зелёный. `detekt-config.yml` объявлен входом `Test`-задач `:src:testing:arch-tests`, поэтому
+правка конфига перезапускает сторожа, а не оставляет задачу `UP-TO-DATE`.
+
 ### Покрытие
 
 Агрегат собирается из `src/*/build/jacoco/test.exec` восьми модулей (`build.gradle.kts:22-31`), `src/testing/*`

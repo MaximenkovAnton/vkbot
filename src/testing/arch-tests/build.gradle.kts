@@ -40,4 +40,5 @@ kotlin {
 tasks.withType<Test> {
     useJUnitPlatform()
     systemProperty("project.root", rootDir.absolutePath)
+    inputs.file(rootDir.resolve("detekt-config.yml"))
 }

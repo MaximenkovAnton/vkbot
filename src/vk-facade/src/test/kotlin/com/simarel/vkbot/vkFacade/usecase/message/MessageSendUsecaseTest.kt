@@ -1,9 +1,9 @@
 package com.simarel.vkbot.vkFacade.usecase.message
 
-import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.testfixtures.command.vkFacade.FakeSendVkMessageCommand
+import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
-import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
+import com.simarel.vkbot.testfixtures.vkFacade.FakeVkFacadeProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -16,7 +16,12 @@ class MessageSendUsecaseTest {
         val usecase = MessageSendUsecase(sendCommand)
         val peerId = FakeVoProvider.createPeerId()
         val messageText = FakeVoProvider.createMessageText()
-        val request = VkSendMessageInputRequest(ResponseMessage(messageText, FakeVoProvider.createMessage(peerId = peerId)))
+        val request = FakeVkFacadeProvider.createVkSendMessageInputRequest(
+            responseMessage = FakeModelProvider.createResponseMessage(
+                messageText = messageText,
+                responseTo = FakeVoProvider.createMessage(peerId = peerId),
+            ),
+        )
 
         // When
         usecase.execute(request)
