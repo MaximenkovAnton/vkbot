@@ -18,5 +18,5 @@ open class SummaryEntity {
 enum class SummaryStatus {
     PENDING,
     COMPLETED,
-    FAILED
+    FAILED,
 }

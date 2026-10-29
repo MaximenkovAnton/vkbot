@@ -7,9 +7,9 @@ import com.simarel.vkbot.share.port.input.InputPortResponse
 
 interface SaveMessageInputPort :
     InputPort<
-            SaveMessageInputPortRequest,
-            SaveMessageInputPortResponse,
-            >
+        SaveMessageInputPortRequest,
+        SaveMessageInputPortResponse,
+        >
 
 @JvmInline
 value class SaveMessageInputPortRequest(val message: Message) : InputPortRequest

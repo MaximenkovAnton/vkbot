@@ -6,9 +6,9 @@ import com.simarel.vkbot.share.port.output.OutputPortResponse
 
 interface VaneSearchOutputPort :
     OutputPort<
-            VaneSearchRequest,
-            VaneSearchResponse,
-            >
+        VaneSearchRequest,
+        VaneSearchResponse,
+        >
 
 data class VaneSearchRequest(
     val query: String,

@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
-import com.simarel.vkbot.persistence.domain.entity.Tables.VkUserProfiles
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkUserProfiles
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
@@ -8,7 +8,6 @@ import jakarta.inject.Inject
 import org.jooq.DSLContext
 import java.sql.Timestamp
 import java.time.OffsetDateTime
-import java.time.ZoneOffset
 
 @ApplicationScoped
 open class JooqVkUserProfileRepository {
@@ -26,7 +25,7 @@ open class JooqVkUserProfileRepository {
                 VkUserProfiles.BIRTH_DATE,
                 VkUserProfiles.CITY,
                 VkUserProfiles.LAST_UPDATED,
-                VkUserProfiles.CREATED_AT
+                VkUserProfiles.CREATED_AT,
             )
             .values(
                 profile.id.value,
@@ -36,7 +35,7 @@ open class JooqVkUserProfileRepository {
                 profile.birthDate,
                 profile.city,
                 Timestamp.from(profile.lastUpdated.toInstant()),
-                Timestamp.from(OffsetDateTime.now().toInstant())
+                Timestamp.from(OffsetDateTime.now().toInstant()),
             )
             .onConflict(VkUserProfiles.ID)
             .doUpdate()
@@ -66,7 +65,7 @@ open class JooqVkUserProfileRepository {
                     screenName = record.get(VkUserProfiles.SCREEN_NAME, String::class.java),
                     birthDate = record.get(VkUserProfiles.BIRTH_DATE, String::class.java),
                     city = record.get(VkUserProfiles.CITY, String::class.java),
-                    lastUpdated = record.get(VkUserProfiles.LAST_UPDATED, OffsetDateTime::class.java)
+                    lastUpdated = record.get(VkUserProfiles.LAST_UPDATED, OffsetDateTime::class.java),
                 )
             }
     }

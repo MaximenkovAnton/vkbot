@@ -1,467 +1,194 @@
 # Поток данных
 
-Документ описывает как данные проходят через систему от получения VK webhook'а до отправки ответа пользователю.
+Документ описывает реальные пути данных и вызовов в коде: от вебхука VK до отправки ответа, плюс
+саммаризацию, отказоустойчивость и известные ограничения. Модульная карта — [modules.md](modules.md),
+паттерны — [patterns.md](patterns.md).
 
-## Общая схема потока
+## События и их владельцы
 
-```mermaid
-flowchart TD
-    VK_IN[VK API Input] -->|POST /vk/callback| Router[VkMediatorRouter]
-    Router --> Security[SecurityDecorator]
-    Security -->|validated| UseCase[ReceiveMessageUsecase]
-    UseCase --> Mapper[MessageMapper]
-    Mapper -->|Domain Message| Publisher[PublishVkEventCommand]
-    Publisher -->|MESSAGE_RECEIVED| MQ[RabbitMQ all-events]
+`Event` — закрытый enum из шести значений (`share/domain/Event.kt:3-10`). Routing key в RabbitMQ равен
+имени события (`PublishEventOutputAdapter.kt:20-30`), диспетчер строит карту `Event.name → EventProcessor`
+(`EventDispatcher.kt:21-24`).
 
-    MQ -->|MESSAGE_RECEIVED| Dispatcher[EventDispatcher]
-    Dispatcher -->|route| NewMsg[MessageNewEventProcessor]
-    NewMsg -->|save| Persistence[SaveMessageUsecase]
-    NewMsg -->|MESSAGE_REQUIRE_ANSWER| MQ2[RabbitMQ]
+| Событие | Публикует (код) | Потребляет (код) | Payload |
+|---|---|---|---|
+| `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
+| `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
+| `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
+| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:35-42` (processor) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `SUMMARY_READY` | `PersistenceDataUsecase.kt:132-144` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
-    MQ2 -->|MESSAGE_REQUIRE_ANSWER| Dispatcher2[EventDispatcher]
-    Dispatcher2 -->|route| RequireAnswer[MessageRequireAnswerEventProcessor]
-    RequireAnswer --> AI[GenerateAnswerUsecase]
-    AI -->|Ollama API| Ollama[Ollama LLM]
-    Ollama -->|generated text| Command[GenerateAnswerCommand]
-    Command -->|SEND_MESSAGE| MQ3[RabbitMQ]
+Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
+конкретный тип в processor'е; payload'ы событий лежат в `share`, поэтому дрейф формата ловится компиляцией.
 
-    MQ3 -->|SEND_MESSAGE| Dispatcher3[EventDispatcher]
-    Dispatcher3 -->|route| SendProcessor[SendMessageEventProcessor]
-    SendProcessor --> VkFacade[SendVkMessageCommand]
-    VkFacade -->|HTTP POST| VK_OUT[VK API Output]
+## 1. Входящий webhook (VK → receiver)
 
-    style VK_IN fill:#e1f5fe
-    style VK_OUT fill:#e1f5fe
-    style MQ fill:#fff3e0
-    style MQ2 fill:#fff3e0
-    style MQ3 fill:#fff3e0
-    style Ollama fill:#f3e5f5
+```
+POST /vk/callback (JSON) → VkMediatorRouterSecurityDecorator → VkMediatorRouterImpl
+  → MessageMapper (DMZ) → ReceiveMessageUsecase → PublishVkEventCommand → MESSAGE_NEW
 ```
 
-## Детальный анализ этапов
+- **Секрет.** `VkMediatorRouterSecurityDecorator.kt:11-29` сравнивает `event.secret` с `vk.secret` до
+  бизнес-логики. Неверный/отсутствующий секрет → `AccessDeniedException` → HTTP 403
+  (`ExceptionHandler.kt:10-24`).
+- **Тип события.** `VkCallbackEvent.mapOrUnknown(type)` (`VkCallbackEvent.kt:10-14`): `message_new`,
+  `message_reply`, `confirmation`, иначе `UNKNOWN`.
+- **DMZ.** `MessageMapper.toDomain` (`MessageMapper.kt:13-37`) читает `object.message`, `fwd_messages`,
+  `reply_message` и `attachments` (wall-посты), собирает `List<Message>` и вызывает
+  `Message.of(...)`; `jakarta.json.JsonObject` не покидает адаптер.
+- **Маршрутизация.** `ReceiveMessageUsecase.kt:17-32`: `CONFIRMATION` → код подтверждения;
+  `UNKNOWN` → лог + `ok`; остальные типы с сообщением → `PublishVkEventCommand` → `MESSAGE_NEW`.
+- **Ответ VK.** Всегда `text/plain` `ok` (кроме confirmation и ошибки секрета): вебхук не ждёт обработки.
 
-### 1. Входящий webhook (VK → receiver)
+## 2. Event routing (RabbitMQ)
 
-**Входные данные**:
-```json
-{
-  "type": "message_new",
-  "object": {
-    "message": {
-      "text": "Привет, бот!",
-      "from_id": 173308266,
-      "peer_id": 2000000001,
-      "conversation_message_id": 2670,
-      "date": 1756381457
-    }
-  },
-  "group_id": 232142875,
-  "secret": "secret_key"
-}
+- Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
+  `application.yml:66-75`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+- `EventDispatcher.dispatch` (`EventDispatcher.kt:63-84`) читает `routingKey`, находит
+  `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
+- Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:86-88`).
+- Исключение обработки → `handleRetry` (`:90-111`): сообщение уходит в очередь уровня
+  `x-retry-count`, заголовок увеличивается; уровни/TTL — `application-queues.yml:1-32`:
+  `retry-5s` (5 с) → `retry-30s` (30 с) → `retry-1m` → `retry-15m` → `retry-1h` → `dlq-final` (без TTL).
+  Все retry-очереди возвращают сообщение в `all-events` через `x-dead-letter-exchange`.
+
+## 3. Сохранение нового сообщения (persistence)
+
+`MessageNewEventProcessor.process` (`MessageNewEventProcessor.kt:17-20`) читает `Message` из JSON и зовёт
+`SaveMessageInputPort`.
+
+`SaveMessageUsecase.execute` (`SaveMessageUsecase.kt:28-51`, `@Transactional`):
+
+1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:26-57`): собирает `from_id` из сообщения и
+   forward'ов; проверяет, какие профили уже есть (`FilterExisting*IdsPort`); недостающие получает через
+   in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
+   `VkProfileInProcessAdapter` → VK API `users.get`/`groups.getById`) и сохраняет. Ошибка получения профилей
+   не валит сохранение: логируется WARNING (`:63-95`).
+2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
+   с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
+3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
+4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
+
+## 4. Решение «нужен ли ответ» (processor)
+
+`MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
+(`MessageReceivedUsecaseInput.kt:21-44`) → `IsRequireAnswerCommand` (`IsRequireAnswerCommand.kt:22-33`):
+
+| Условие | Ответ |
+|---|---|
+| отправитель не человек (`!fromId.isHuman()`) | не нужен |
+| не групповой чат (`!peerId.isGroupChat()`) | нужен |
+| текст начинается с `!` или `\` | не нужен |
+| текст содержит `vk.bot.mention` | нужен |
+| последнее пересланное сообщение — от бота (`fromId == vk.bot.id`) | нужен |
+| иначе | не нужен |
+
+Если ответ нужен — публикуется `MESSAGE_REQUIRE_ANSWER`, иначе поток завершается.
+
+## 5. Генерация ответа (ai)
+
+`MessageRequireAnswerEventProcessor` (`MessageRequireAnswerEventProcessor.kt:17-20`) → `GenerateAnswerUsecase`
+(`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:32-47`):
+
+1. **Контекст** — `ConversationContextRestAdapter` (`ConversationContextRestAdapter.kt:28-67`):
+   последние 20 сообщений чата через `FindStoredMessagesBeforePort`, `from_id` из истории и текущего
+   сообщения (включая forward'ы), профили пользователей/групп через in-process persistence-порты;
+   `forwardedMessages` парсится из JSONB здесь же (`:88-95`).
+2. **LLM** — `GenerateAnswerOutputAdapter` (`GenerateAnswerOutputAdapter.kt:19-28`) форматирует профили,
+   историю и текущее сообщение (с forward-блоками) и вызывает `UserAnswerAiService`
+   (`UserAnswerAiService.kt:13-45`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, инструменты
+   `VaneSearchToolAdapter`). Память чата — `TransientChatMemoryProvider` (10 сообщений, только в рамках
+   запроса).
+3. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
+
+## 6. Отправка в VK (vk-facade)
+
+`SendMessageEventProcessor` (`SendMessageEventProcessor.kt:17-20`) читает `ResponseMessage` →
+`MessageSendUsecase` (`MessageSendUsecase.kt:17-27`):
+
+- `peer_id` и текст — из `responseTo` и ответа;
+- forward: для группового чата, если явно не задан, формируется `ForwardedMessages` (reply на исходное
+  сообщение) (`:29-35`);
+- `random_id` — детерминированный (SHA-256 от текста, `peer_id` и даты исходного сообщения, `:37-43`);
+- `SendVkMessageCommand` → `VkSendMessageOutputAdapter` (`VkSendMessageOutputAdapter.kt:18-29`) →
+  `VkClient.sendMessage` (`VkClient.kt:18-25`) `POST https://api.vk.ru/method/messages.send` с
+  `v=${vk.api.version}`, `disable_mentions=1`, `dont_parse_links=1` (`:12-15`);
+- ошибка VK (`response.error != null`) → `VkException` → retry через `EventDispatcher`.
+
+## 7. Саммаризация
+
+```
+SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
+   → in-process persistence: create pending, find messages, save completed/failed
+   → persistence/PersistenceDataUsecase.saveCompletedSummary → SUMMARY_READY
+   → vk-facade/SummaryReadyEventProcessor → VK API messages.send
 ```
 
-**Обработка**:
-1. `VkMediatorRouterSecurityDecorator` проверяет `secret`
-2. `VkMediatorRouterImpl` вызывает `ReceiveMessageInputPort`
-3. `ReceiveMessageUsecase` определяет тип события:
-   - `confirmation` → возвращает код подтверждения
-   - `message_new` → публикует событие MESSAGE_RECEIVED
-   - `unknown` → логирует и возвращает "ok"
-
-**Преобразования**:
-```markdown
-// VK JSON → VkEvent → Domain Event
-VkCallbackEvent.MESSAGE_NEW → Event.MESSAGE_RECEIVED
-
-// Для саммаризации
-Event.SUMMARY_REQUESTED → AI generation → Event.SUMMARY_READY
-```
-
----
-
-### 2. Event routing (RabbitMQ)
-
-**Публикация события**:
-```kotlin
-PublishEventOutputPortRequest(
-    event = Event.MESSAGE_RECEIVED,
-    payload = Payload(domainMessage)
-)
-```
-
-**RabbitMQ конфигурация**:
-- **Exchange**: `all-events` (topic)
-- **Routing key**: `MESSAGE_RECEIVED` (event name)
-- **Queue**: `queue` (consumer queue)
-
-**Стратегии повторных попыток**:
-```
-all-events → (fail) → retry-5s-queue (TTL 5s) → all-events
-                     ↓
-              retry-30s-queue (TTL 30s) → all-events
-                     ↓
-              retry-1m-queue (TTL 1m) → all-events
-                     ↓
-              retry-15m-queue (TTL 15m) → all-events
-                     ↓
-              retry-1h-queue (TTL 1h) → all-events
-                     ↓
-              dlq-final-queue (final dead letter queue)
-```
-
-**Диспетчеризация**:
-```markdown
-val processors: Map<String, EventProcessor> = [
-    "MESSAGE_RECEIVED" → MessageNewEventProcessor,
-    "MESSAGE_REQUIRE_ANSWER" → MessageRequireAnswerEventProcessor,
-    "SEND_MESSAGE" → SendMessageEventProcessor,
-    "SUMMARY_REQUESTED" → SummaryRequestedEventProcessor,
-    "SUMMARY_READY" → SummaryReadyEventProcessor
-]
-```
-
----
-
-### 3. Обработка нового сообщения (processor + persistence)
-
-**MessageNewEventProcessor**:
-```kotlin
-// JSON → Domain Message
-val message = objectMapper.readValue(jsonString, Message::class.java)
-messageNewInputPort.execute(MessageNewInputPortRequest(message))
-```
-
-**NewMessageUsecaseInput логика**:
-```kotlin
-override fun execute(request: MessageNewInputPortRequest): MessageNewInputPortResponse {
-    // Сохраняем сообщение
-    saveMessageUsecase.execute(request.message)
-
-    // Проверяем нужен ли ответ
-    if(requireAnswer(request)) {
-        publishEventCommand.execute(
-            PublishEventRequest(
-                event = Event.MESSAGE_REQUIRE_ANSWER,
-                payload = Payload(request.message)
-            )
-        )
-    }
-    return okResponse
-}
-```
-
-**Persistence (jOOQ + PostgreSQL)**:
-```kotlin
-// Запись сообщения через jOOQ DSL
-jooq.insertInto(MESSAGES)
-    .set(MESSAGES.FROM_ID, message.fromId.value)
-    .set(MESSAGES.PEER_ID, message.peerId.value)
-    .set(MESSAGES.MESSAGE_TEXT, message.messageText.value)
-    .set(MESSAGES.METADATA, jsonbConverter.to(message.metadata))
-    .execute()
-
-// Получение сообщений для саммаризации
-persistenceClient.findMessagesBetween(peerId, lastMessageId, currentMessageId, batchSize)
-```
-
----
-
-### 4. Генерация ответа (ai модуль)
-
-**MessageRequireAnswerEventProcessor**:
-```kotlin
-val message = objectMapper.readValue(jsonString, Message::class.java)
-
-// Генерируем ответ через AI
-val answerResponse = generateAnswerInputPort.execute(
-    GenerateAnswerInputPortRequest(message)
-)
-
-// Публикуем событие отправки
-val answerMessage = message.answer(answerResponse.generatedText)
-publishEventCommand.execute(PublishEventRequest(
-    event = Event.SEND_MESSAGE,
-    payload = Payload(answerMessage)
-))
-```
-
-**AI интеграция (LangChain4j + Ollama)**:
-```kotlin
-@RegisterAiService
-@SystemMessage("Ты - полезный бот в беседе. Твоя задача - отвечать на вопросы пользователей.")
-interface UserAnswerAiService {
-    @UserMessage("Сообщение пользователя: {message}")
-    fun answerUser(@V("message") message: String): String
-}
-```
-
-**GenerateAnswerOutputAdapter**:
-```kotlin
-class GenerateAnswerOutputAdapter(
-    private val aiService: UserAnswerAiService
-): GenerateAnswerOutputPort {
-    override fun execute(request: GenerateAnswerOutputPortRequest): GenerateAnswerOutputPortResponse {
-        val answer = aiService.answerUser(request.message.messageText.value)
-        return GenerateAnswerOutputPortResponse(MessageText.of(answer))
-    }
-}
-```
-
-**Создание ответного сообщения**:
-```kotlin
-fun Message.answer(text: MessageText): Message {
-    return this.copy(
-        messageText = text,
-        fromId = botId,  // Меняем отправителя на бота
-        date = Date.now()
-    )
-}
-```
-
----
-
-### 5. Отправка ответа (vk-facade → VK)
-
-**SendMessageEventProcessor**:
-```kotlin
-val message = objectMapper.readValue(jsonString, Message::class.java)
-sendVkMessageInputPort.execute(
-    SendVkMessageInputPortRequest(message.peerId, message.messageText)
-)
-```
-
-**SendVkMessageCommand**:
-```kotlin
-class SendVkMessageCommandImpl(
-    private val vkSendMessageOutputPort: VkSendMessageOutputPort
-): SendVkMessageCommand {
-    override fun execute(request: SendVkMessageCommandRequest): SendVkMessageCommandResponse {
-        val response = vkSendMessageOutputPort.execute(
-            VkSendMessageOutputPortRequest(
-                peerId = request.peerId,
-                message = request.message
-            )
-        )
-        return SendVkMessageCommandResponse(response.messageId)
-    }
-}
-```
-
-**VK API запрос**:
-```http
-POST https://api.vk.ru/method/messages.send
-Authorization: Bearer {VK_API_TOKEN}
-Content-Type: application/x-www-form-urlencoded
-
-peer_id=2000000001&message=Привет!+Как+дела%3F&random_id=12345&v=5.199&disable_mentions=1
-```
-
-**Обработка ошибок**:
-```kotlin
-val vkResponse = vkClient.sendMessage(peerId, message, randomId)
-if(vkResponse.error != null) {
-    throw VkException("${vkResponse.error.error_msg} (${vkResponse.error.error_code})")
-}
-```
-
----
-
-## Полная последовательность (Sequence Diagram)
-
-```mermaid
-sequenceDiagram
-    participant VK as VK API
-    participant R as receiver
-    participant MQ as RabbitMQ
-    participant P as processor
-    participant AI as ai
-    participant PER as persistence
-    participant VF as vk-facade
-
-    VK->>R: POST /vk/callback
-    R->>R: Security check (secret)
-    R->>R: Map VK JSON → Domain
-    R->>MQ: Publish MESSAGE_RECEIVED
-    R->>VK: Return "ok"
-
-    MQ->>P: Consume MESSAGE_RECEIVED
-    P->>PER: SaveMessageUsecase.execute()
-    PER->>PER: Save to PostgreSQL
-    P->>MQ: Publish MESSAGE_REQUIRE_ANSWER
-
-    MQ->>AI: Consume MESSAGE_REQUIRE_ANSWER
-    AI->>AI: GenerateAnswerUsecase.execute()
-    AI->>AI: Ollama LLM API call
-    AI->>MQ: Publish SEND_MESSAGE
-
-    MQ->>VF: Consume SEND_MESSAGE
-    VF->>VF: SendVkMessageCommand.execute()
-    VF->>VK: POST messages.send
-```
-
----
-
-## Асинхронность и отказоустойчивость
-
-### Event-driven преимущества
-- **Неблокирующая обработка**: VK webhook возвращается мгновенно ("ok")
-- **Отказоустойчивость**: сбой в одном модуле не влияет на остальные
-- **Retry механизм**: Автоматические повторы с увеличивающимися интервалами
-- **Горизонтальное масштабирование**: можно запускать множество обработчиков
-
-### Retry стратегия
-
-```yaml
-mp:
-  messaging:
-    incoming:
-      all-events-queue:
-        dead-letter-exchange: retry-5s-exchange  # При ошибке → retry
-      retry-5s-queue:
-        arguments:
-          x-message-ttl: 5000                     # Ждем 5 секунд
-          x-dead-letter-exchange: all-events     # Возвращаем в основную очередь
-      # ... retry-30s, retry-1m, retry-15m, retry-1h
-      dlq-final-queue:
-        # Финальная очередь для необрабатываемых сообщений
-```
-
-### Виртуальные потоки (Project Loom)
-
-```kotlin
-@Incoming("all-events-queue")
-@RunOnVirtualThread  // Легковесные потоки для I/O операций
-fun dispatch(message: Message<String>): CompletionStage<Void> {
-    // Обработка события
-}
-```
-
----
-
-## Трассировка и observability
-
-### OpenTelemetry интеграция
-
-Каждый этап обработки включает tracing:
-
-```kotlin
-@ApplicationScoped
-class EventDispatcher(private val tracer: Tracer) {
-    @Incoming("all-events-queue")
-    @RunOnVirtualThread
-    fun dispatch(message: Message<String>): CompletionStage<Void> {
-        val span = tracer.spanBuilder("process-event")
-            .setAttribute("event.type", routingKey)
-            .startSpan()
-
-        try {
-            processor.process(message.payload)
-        } finally {
-            span.end()
-        }
-    }
-}
-```
-
-### Корреляция по conversation_message_id
-
-```kotlin
-// Все логи содержат идентификатор для трассировки
-MDC.put("conversation_message_id", message.conversationMessageId.toString())
-MDC.put("peer_id", message.peerId.toString())
-log.info("Processing message: ${message.messageText}")
-```
-
-### Prometheus метрики
-
-```kotlin
-// Кастомные метрики
-@Inject
-lateinit var meterRegistry: MeterRegistry
-
-fun process(message: Message) {
-    meterRegistry.counter("messages.processed",
-        "type", message.type
-    ).increment()
-}
-```
-
----
-
-## Производительность
-
-### Оптимизации
-
-1. **Батчинг**: Сообщения обрабатываются по одному, но можно настроить батчинг
-2. **Кэширование**: AI ответы могут кэшироваться для частых вопросов
-3. **Пул соединений**: PostgreSQL и HTTP клиенты используют пулы
-
-### Бенчмарки
-
-| Метрика | Значение |
-|---------|----------|
-| Время обработки webhook | < 10ms |
-| Время генерации AI ответа | 1-3 секунды |
-| Пропускная способность | Зависит от модели Ollama |
-| Задержка отправки в VK | < 500ms |
-
----
-
-## Расширение потока
-
-Для добавления нового этапа обработки:
-
-1. **Создать новое значение в `Event` enum** в share модуле
-2. **Создать новый EventProcessor** в соответствующем модуле
-3. **Зарегистрировать в EventDispatcher** по имени события
-4. **Опубликовать новое событие** из предыдущего этапа
-
-### Пример добавления саммаризации (уже реализовано):
-
-```kotlin
-// 1. Добавляем события в enum
-enum class Event {
-    // ... существующие события
-    SUMMARY_REQUESTED,  // Запрос на саммаризацию
-    SUMMARY_READY       // Саммаризация готова
-}
-
-// 2. EventProcessor для генерации саммаризации
-@ApplicationScoped
-class SummaryRequestedEventProcessor : EventProcessor {
-    override fun process(payload: String) {
-        val request = parseSummaryRequest(payload)
-        val messages = persistenceClient.getMessages(request.peerId, request.range)
-        val summary = aiService.generateSummary(messages)
-        publishEvent(Event.SUMMARY_READY, summary)
-    }
-}
-
-// 3. EventProcessor для отправки саммаризации
-@ApplicationScoped
-class SummaryReadyEventProcessor : EventProcessor {
-    override fun process(payload: String) {
-        val summary = parseSummary(payload)
-        vkClient.sendMessage(summary.peerId, summary.text)
-    }
-}
-```
-
-Пример добавления модуля антиспама:
-
-```kotlin
-@ApplicationScoped
-class AntispamEventProcessor : EventProcessor {
-    override fun process(payload: String) {
-        val message = parseMessage(payload)
-        if (isSpam(message)) {
-            // Блокируем, не публикуем дальше
-            return
-        }
-        // Публикуем очищенное сообщение
-        publishEvent(Event.MESSAGE_RECEIVED_CLEANED, message)
-    }
-}
-```
-
-Поток данных спроектирован с учетом масштабируемости и гибкости, что позволяет легко добавлять новые этапы обработки без изменения существующего кода.
+- `ProcessSummaryCommandImpl.execute` (`ProcessSummaryCommandImpl.kt:36-106`):
+  - чат не в `summary.enabled-chats` → выход (`:37-40`);
+  - уже есть pending-саммари → пропуск (`:42-51`);
+  - последнее саммари зависло в `PENDING` → WARNING и пропуск (`:58-64`);
+  - сообщения: если саммари ещё не было — `findMessagesBefore(currentMessageId + 1, batchSize)`, иначе
+    `findMessagesBetween(lastSummary.lastMessageId, currentMessageId, batchSize)` (`:108-125`);
+  - меньше `summary.threshold` при наличии прошлого саммари → пропуск (`:72-79`);
+  - иначе `GenerateSummaryCommand` (`:89-103`).
+- `GenerateSummaryCommandImpl.execute` (`GenerateSummaryCommandImpl.kt:26-63`): создаёт pending-запись,
+  читает до 1000 сообщений, форматирует их с именами авторов (профили из in-process портов), вызывает
+  LLM (`SummarizationAiAdapter` — 3 попытки, `SummarizationAiAdapter.kt:18-41`), сохраняет completed;
+  при исключении помечает failed и пробрасывает дальше (`:59-62`).
+- Сохранение completed идёт через `SaveStoredCompletedSummaryPort` → in-process адаптер →
+  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:115-146`), который и
+  публикует `SUMMARY_READY` с текстом «📋 Суммаризация обсуждения…».
+- `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
+  сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
+
+## Отказоустойчивость и границы
+
+| Механизм | Где | Что гарантирует |
+|---|---|---|
+| At-least-once доставка | RabbitMQ + ack после `process` (`EventDispatcher.kt:76-82`) | сообщение не теряется при падении обработчика; возможны повторы |
+| Retry-лестница | `EventDispatcher.kt:90-111`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
+| DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
+| Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
+| Изоляция профилей | `FetchUserProfileCommandImpl.kt:63-95` | сбой VK при получении профилей не отменяет сохранение сообщения |
+| Повтор AI-саммари | `SummarizationAiAdapter.kt:10-40` | 3 попытки внутри одного события |
+| Детерминированный `random_id` | `MessageSendUsecase.kt:37-43` | повторная отправка того же ответа даёт тот же `random_id` |
+
+## Известные ограничения (не скрывать)
+
+- **Нет идемпотентности записи.** У `messages` нет уникального ключа, `JooqMessageRepository.persist` —
+  чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль.
+  Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
+  появятся в проде (в этом проходе не менялось, [ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md) §Последствия).
+- **Нет outbox.** Сохранение в БД и публикация в RabbitMQ не транзакционны относительно друг друга
+  (`SaveMessageUsecase.kt:28-51`): сбой публикации после записи оставляет сообщение без следующего шага.
+  Ретраи на уровне брокера не покрывают этот случай.
+- **`forwardedMessages` — строка.** `StoredMessage.forwardedMessages: String?`
+  (`share/domain/model/StoredMessage.kt:13`); JSONB парсится на границе в
+  `ConversationContextRestAdapter.kt:77-95`. Типизация — отдельная задача.
+- **Саммари-сообщение не идемпотентно по `random_id`:** синтетическое сообщение получает
+  `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
+- **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
+  (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:174-179`),
+  аннотаций нет; защита VK API — только retry-лестница брокера.
+
+## Observability
+
+- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml:35-42`);
+  экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:169-172`).
+- Собственного кода с `Tracer`, MDC или `MeterRegistry` в проекте нет — только конфигурация расширений и
+  logging-декораторы (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
+
+## Как добавить шаг в поток
+
+1. Новое значение в `Event` (`share/domain/Event.kt`) — если шаг асинхронный.
+2. Новый `EventProcessor` в модуле-владельце шага; он сам попадёт в карту диспетчера по `event()`.
+3. Публикация события из предыдущего use case через `PublishEventCommand` (не напрямую из адаптера).
+4. Если шаг синхронный и внутри деплоя — новый порт в `share` + in-process адаптер у поставщика
+   ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)), без HTTP.
+
+Никакая карта процессоров не регистрируется вручную: `@All processors: MutableList<EventProcessor>`
+(`EventDispatcher.kt:20-24`) собирает бины CDI.

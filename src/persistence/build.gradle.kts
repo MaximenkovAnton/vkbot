@@ -21,7 +21,6 @@ dependencies {
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
 
     // Quarkus platform for version management
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     // CDI
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
@@ -37,9 +36,6 @@ dependencies {
     // Quarkus REST (JAX-RS)
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-jackson")
-
-    // REST Client
-    implementation("io.quarkus:quarkus-rest-client-jackson")
 
     // jOOQ for type-safe SQL
     implementation("org.jooq:jooq:3.19.10")
@@ -66,7 +62,6 @@ dependencies {
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
     testImplementation(project(":src:infrastructure"))
 }

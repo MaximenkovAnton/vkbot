@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:GradleDependenciesTest.kt$GradleDependenciesTest$line.startsWith("//") || line.startsWith("/*") || line.startsWith("*") || line.isBlank()</ID>
+    <ID>LoopWithTooManyJumpStatements:GradleDependenciesTest.kt$GradleDependenciesTest$for</ID>
+    <ID>NestedBlockDepth:GradleDependenciesTest.kt$GradleDependenciesTest$private fun checkDependencyLine(line: String, buildFile: File, lineNumber: Int): String?</ID>
+  </CurrentIssues>
+</SmellBaseline>

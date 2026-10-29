@@ -64,9 +64,9 @@ class VkWebhookIntegrationTest {
                                 "eval_count": 20,
                                 "eval_duration": 1234567890
                             }
-                            """.trimIndent()
-                        )
-                )
+                            """.trimIndent(),
+                        ),
+                ),
         )
 
         WireMockTestResource.wireMockServer.stubFor(
@@ -89,9 +89,9 @@ class VkWebhookIntegrationTest {
                                     }
                                 ]
                             }
-                            """.trimIndent()
-                        )
-                )
+                            """.trimIndent(),
+                        ),
+                ),
         )
 
         WireMockTestResource.wireMockServer.stubFor(
@@ -111,9 +111,9 @@ class VkWebhookIntegrationTest {
                                     }
                                 ]
                             }
-                            """.trimIndent()
-                        )
-                )
+                            """.trimIndent(),
+                        ),
+                ),
         )
 
         WireMockTestResource.wireMockServer.stubFor(
@@ -122,8 +122,8 @@ class VkWebhookIntegrationTest {
                     aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("""{"response": 12345}""")
-                )
+                        .withBody("""{"response": 12345}"""),
+                ),
         )
 
         given()
@@ -155,7 +155,7 @@ class VkWebhookIntegrationTest {
                     },
                     "secret": "$TEST_SECRET"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -171,7 +171,7 @@ class VkWebhookIntegrationTest {
                 WireMockTestResource.wireMockServer.verify(
                     postRequestedFor(urlPathEqualTo("/method/messages.send"))
                         .withRequestBody(containing("peer_id"))
-                        .withRequestBody(containing("2000000001"))
+                        .withRequestBody(containing("2000000001")),
                 )
             }
     }
@@ -189,7 +189,7 @@ class VkWebhookIntegrationTest {
                     "type": "confirmation",
                     "secret": "$TEST_SECRET"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -212,7 +212,7 @@ class VkWebhookIntegrationTest {
                     "type": "bla-bla-bla",
                     "secret": "$TEST_SECRET"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -235,7 +235,7 @@ class VkWebhookIntegrationTest {
                     "type": "message_new",
                     "secret": "incorrect secret"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -257,7 +257,7 @@ class VkWebhookIntegrationTest {
                     "v": "5.199",
                     "type": "confirmation"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")
@@ -271,7 +271,7 @@ class VkWebhookIntegrationTest {
     fun `VK API failure should handle error gracefully`() {
         WireMockTestResource.wireMockServer.stubFor(
             post(urlPathEqualTo("/method/messages.send"))
-                .willReturn(aResponse().withStatus(500).withBody("Internal Server Error"))
+                .willReturn(aResponse().withStatus(500).withBody("Internal Server Error")),
         )
 
         given()
@@ -297,7 +297,7 @@ class VkWebhookIntegrationTest {
                     },
                     "secret": "$TEST_SECRET"
                 }
-                """.trimIndent()
+                """.trimIndent(),
             )
             .`when`()
             .post("/vk/callback")

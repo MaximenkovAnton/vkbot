@@ -30,28 +30,28 @@ class GenerateAnswerOutputAdapter(
     private fun formatChatHistory(
         history: List<ChatMessage>,
         userProfiles: Map<FromId, VkUserProfile>,
-        groupProfiles: Map<FromId, VkGroupProfile>
-    ): String {
-        return history.joinToString("\n") { msg ->
-            val author = formatAuthor(msg.fromId, userProfiles, groupProfiles)
-            buildString {
-                appendLine("[MESSAGE_START]")
-                appendLine("ID: ${msg.id.value} | Отправитель: $author")
-                appendLine("""Текст: "${msg.text.value}""".trimIndent())
-                append("[MESSAGE_END]")
-            }
+        groupProfiles: Map<FromId, VkGroupProfile>,
+    ): String = history.joinToString("\n") { msg ->
+        val author = formatAuthor(msg.fromId, userProfiles, groupProfiles)
+        buildString {
+            appendLine("[MESSAGE_START]")
+            appendLine("ID: ${msg.id.value} | Отправитель: $author")
+            appendLine("""Текст: "${msg.text.value}""".trimIndent())
+            append("[MESSAGE_END]")
         }
     }
 
     private fun formatCurrentMessage(
         message: Message,
         userProfiles: Map<FromId, VkUserProfile>,
-        groupProfiles: Map<FromId, VkGroupProfile>
+        groupProfiles: Map<FromId, VkGroupProfile>,
     ): String {
         val author = formatAuthor(message.fromId, userProfiles, groupProfiles)
         val forwardedBlock = if (message.forwardedMessages.isNotEmpty()) {
             formatForwardedBlock(message.forwardedMessages, userProfiles, groupProfiles, level = 1)
-        } else ""
+        } else {
+            ""
+        }
 
         return buildString {
             appendLine("[MESSAGE_START]")
@@ -68,41 +68,39 @@ class GenerateAnswerOutputAdapter(
         forwarded: List<Message>,
         userProfiles: Map<FromId, VkUserProfile>,
         groupProfiles: Map<FromId, VkGroupProfile>,
-        level: Int
-    ): String {
-        return forwarded.joinToString("\n") { msg ->
-            val author = formatAuthor(msg.fromId, userProfiles, groupProfiles)
-            val nested = if (msg.forwardedMessages.isNotEmpty()) {
-                formatForwardedBlock(msg.forwardedMessages, userProfiles, groupProfiles, level + 1)
-            } else ""
+        level: Int,
+    ): String = forwarded.joinToString("\n") { msg ->
+        val author = formatAuthor(msg.fromId, userProfiles, groupProfiles)
+        val nested = if (msg.forwardedMessages.isNotEmpty()) {
+            formatForwardedBlock(msg.forwardedMessages, userProfiles, groupProfiles, level + 1)
+        } else {
+            ""
+        }
 
-            val indent = "    ".repeat(level - 1)
-            buildString {
-                appendLine("${indent}[FORWARDED_BLOCK]")
-                appendLine("${indent}Уровень: $level | Отправитель: $author")
-                appendLine("""${indent}Текст: "${msg.messageText.value}""".trimIndent())
-                if (nested.isNotEmpty()) {
-                    appendLine(nested)
-                }
-                append("${indent}[END_LEVEL_$level]")
+        val indent = "    ".repeat(level - 1)
+        buildString {
+            appendLine("$indent[FORWARDED_BLOCK]")
+            appendLine("${indent}Уровень: $level | Отправитель: $author")
+            appendLine("""${indent}Текст: "${msg.messageText.value}""".trimIndent())
+            if (nested.isNotEmpty()) {
+                appendLine(nested)
             }
+            append("$indent[END_LEVEL_$level]")
         }
     }
 
     private fun formatAuthor(
         fromId: FromId,
         userProfiles: Map<FromId, VkUserProfile>,
-        groupProfiles: Map<FromId, VkGroupProfile>
-    ): String {
-        return when {
-            fromId.value < 0 -> {
-                val profile = groupProfiles[fromId]
-                profile?.let { "${it.name} (id${fromId.value})" } ?: "id${fromId.value}"
-            }
-            else -> {
-                val profile = userProfiles[fromId]
-                profile?.let { "${it.firstName} ${it.lastName} (id${fromId.value})" } ?: "id${fromId.value}"
-            }
+        groupProfiles: Map<FromId, VkGroupProfile>,
+    ): String = when {
+        fromId.value < 0 -> {
+            val profile = groupProfiles[fromId]
+            profile?.let { "${it.name} (id${fromId.value})" } ?: "id${fromId.value}"
+        }
+        else -> {
+            val profile = userProfiles[fromId]
+            profile?.let { "${it.firstName} ${it.lastName} (id${fromId.value})" } ?: "id${fromId.value}"
         }
     }
 

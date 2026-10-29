@@ -19,16 +19,17 @@ import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatus
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.event.SummaryReadyPayload
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.domain.vo.PeerId
-import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus
 import jakarta.enterprise.context.ApplicationScoped
 import java.time.OffsetDateTime
 import java.util.UUID
+import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus
 
 @ApplicationScoped
 open class PersistenceDataUsecase(
@@ -45,18 +46,16 @@ open class PersistenceDataUsecase(
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
-    override fun execute(request: PersistenceDataRequest): PersistenceDataResponse {
-        return when (request) {
-            is PersistenceDataRequest.FindMessagesBefore -> handleFindMessagesBefore(request)
-            is PersistenceDataRequest.FindMessagesBetween -> handleFindMessagesBetween(request)
-            is PersistenceDataRequest.FindLastSummary -> handleFindLastSummary(request)
-            is PersistenceDataRequest.HasPendingSummary -> handleHasPendingSummary(request)
-            is PersistenceDataRequest.CreatePendingSummary -> handleCreatePendingSummary(request)
-            is PersistenceDataRequest.SaveCompletedSummary -> handleSaveCompletedSummary(request)
-            is PersistenceDataRequest.MarkSummaryAsFailed -> handleMarkSummaryAsFailed(request)
-            is PersistenceDataRequest.FindUserProfilesByIds -> handleFindUserProfilesByIds(request)
-            is PersistenceDataRequest.FindGroupProfilesByIds -> handleFindGroupProfilesByIds(request)
-        }
+    override fun execute(request: PersistenceDataRequest): PersistenceDataResponse = when (request) {
+        is PersistenceDataRequest.FindMessagesBefore -> handleFindMessagesBefore(request)
+        is PersistenceDataRequest.FindMessagesBetween -> handleFindMessagesBetween(request)
+        is PersistenceDataRequest.FindLastSummary -> handleFindLastSummary(request)
+        is PersistenceDataRequest.HasPendingSummary -> handleHasPendingSummary(request)
+        is PersistenceDataRequest.CreatePendingSummary -> handleCreatePendingSummary(request)
+        is PersistenceDataRequest.SaveCompletedSummary -> handleSaveCompletedSummary(request)
+        is PersistenceDataRequest.MarkSummaryAsFailed -> handleMarkSummaryAsFailed(request)
+        is PersistenceDataRequest.FindUserProfilesByIds -> handleFindUserProfilesByIds(request)
+        is PersistenceDataRequest.FindGroupProfilesByIds -> handleFindGroupProfilesByIds(request)
     }
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
@@ -65,7 +64,7 @@ open class PersistenceDataUsecase(
                 PeerId.of(request.peerId),
                 ConversationMessageId.of(request.beforeConversationMessageId),
                 request.limit,
-            )
+            ),
         ).messages
         return PersistenceDataResponse.Messages(messages.map { it.toStoredMessage() })
     }
@@ -77,21 +76,21 @@ open class PersistenceDataUsecase(
                 ConversationMessageId.of(request.firstMessageId),
                 ConversationMessageId.of(request.lastMessageId),
                 request.limit,
-            )
+            ),
         ).messages
         return PersistenceDataResponse.Messages(messages.map { it.toStoredMessage() })
     }
 
     private fun handleFindLastSummary(request: PersistenceDataRequest.FindLastSummary): PersistenceDataResponse.OptionalSummary {
         val summary = findLastSummaryByPeerIdPort.execute(
-            FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdRequest(request.peerId)
+            FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdRequest(request.peerId),
         ).summary?.toSummary()
         return PersistenceDataResponse.OptionalSummary(summary)
     }
 
     private fun handleHasPendingSummary(request: PersistenceDataRequest.HasPendingSummary): PersistenceDataResponse.PendingStatus {
         val hasPending = hasPendingSummaryPort.execute(
-            HasPendingSummaryPort.HasPendingSummaryRequest(request.peerId)
+            HasPendingSummaryPort.HasPendingSummaryRequest(request.peerId),
         ).hasPending
         return PersistenceDataResponse.PendingStatus(hasPending)
     }
@@ -115,7 +114,7 @@ open class PersistenceDataUsecase(
 
     private fun handleSaveCompletedSummary(request: PersistenceDataRequest.SaveCompletedSummary): PersistenceDataResponse.Empty {
         val existingSummary = findSummaryByIdPort.execute(
-            FindSummaryByIdPort.FindSummaryByIdRequest(request.id)
+            FindSummaryByIdPort.FindSummaryByIdRequest(request.id),
         ).summary
             ?: throw IllegalArgumentException("Summary not found: ${request.id}")
 
@@ -127,7 +126,7 @@ open class PersistenceDataUsecase(
             updatedAt = OffsetDateTime.now()
         }
         updateSummaryStatusAndSummariesPort.execute(
-            UpdateSummaryStatusAndSummariesPort.UpdateSummaryStatusAndSummariesRequest(completedSummary)
+            UpdateSummaryStatusAndSummariesPort.UpdateSummaryStatusAndSummariesRequest(completedSummary),
         )
 
         publishEventCommand.execute(
@@ -153,7 +152,7 @@ open class PersistenceDataUsecase(
             updatedAt = OffsetDateTime.now()
         }
         updateSummaryStatusPort.execute(
-            UpdateSummaryStatusPort.UpdateSummaryStatusRequest(failedSummary)
+            UpdateSummaryStatusPort.UpdateSummaryStatusRequest(failedSummary),
         )
         return PersistenceDataResponse.Empty
     }
@@ -162,7 +161,7 @@ open class PersistenceDataUsecase(
         request: PersistenceDataRequest.FindUserProfilesByIds,
     ): PersistenceDataResponse.UserProfiles {
         val profiles = findUserProfilesByIdsPort.execute(
-            FindUserProfilesByIdsPort.FindUserProfilesByIdsRequest(request.ids.map { FromId.of(it) })
+            FindUserProfilesByIdsPort.FindUserProfilesByIdsRequest(request.ids.map { FromId.of(it) }),
         ).profiles
         return PersistenceDataResponse.UserProfiles(profiles)
     }
@@ -171,51 +170,38 @@ open class PersistenceDataUsecase(
         request: PersistenceDataRequest.FindGroupProfilesByIds,
     ): PersistenceDataResponse.GroupProfiles {
         val profiles = findGroupProfilesByIdsPort.execute(
-            FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest(request.ids.map { FromId.of(it) })
+            FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest(request.ids.map { FromId.of(it) }),
         ).profiles
         return PersistenceDataResponse.GroupProfiles(profiles)
     }
 
-    data class SummaryReadyPayload(
-        val peerId: Long,
-        val messageText: String,
-        val firstConversationMessageId: Long,
-        val lastConversationMessageId: Long,
-    )
-
     companion object {
-        private fun MessageEntity.toStoredMessage(): StoredMessage {
-            return StoredMessage(
-                id = id,
-                peerId = peerId!!,
-                conversationMessageId = conversationMessageId!!,
-                fromId = fromId!!,
-                messageText = messageText,
-                date = date!!,
-                forwardedMessages = forwardedMessages,
-            )
-        }
+        private fun MessageEntity.toStoredMessage(): StoredMessage = StoredMessage(
+            id = id,
+            peerId = peerId!!,
+            conversationMessageId = conversationMessageId!!,
+            fromId = fromId!!,
+            messageText = messageText,
+            date = date!!,
+            forwardedMessages = forwardedMessages,
+        )
 
-        private fun SummaryEntity.toSummary(): Summary {
-            return Summary(
-                id = id!!,
-                peerId = peerId!!,
-                firstMessageId = firstMessageId,
-                lastMessageId = lastMessageId,
-                shortSummary = shortSummary,
-                fullSummary = fullSummary,
-                status = status!!.toSharedStatus(),
-                createdAt = createdAt!!,
-                updatedAt = updatedAt!!,
-            )
-        }
+        private fun SummaryEntity.toSummary(): Summary = Summary(
+            id = id!!,
+            peerId = peerId!!,
+            firstMessageId = firstMessageId,
+            lastMessageId = lastMessageId,
+            shortSummary = shortSummary,
+            fullSummary = fullSummary,
+            status = status!!.toSharedStatus(),
+            createdAt = createdAt!!,
+            updatedAt = updatedAt!!,
+        )
 
-        private fun SummaryStatus.toSharedStatus(): SharedSummaryStatus {
-            return when (this) {
-                SummaryStatus.PENDING -> SharedSummaryStatus.PENDING
-                SummaryStatus.COMPLETED -> SharedSummaryStatus.COMPLETED
-                SummaryStatus.FAILED -> SharedSummaryStatus.FAILED
-            }
+        private fun SummaryStatus.toSharedStatus(): SharedSummaryStatus = when (this) {
+            SummaryStatus.PENDING -> SharedSummaryStatus.PENDING
+            SummaryStatus.COMPLETED -> SharedSummaryStatus.COMPLETED
+            SummaryStatus.FAILED -> SharedSummaryStatus.FAILED
         }
     }
 }

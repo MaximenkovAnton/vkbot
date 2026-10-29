@@ -1,13 +1,9 @@
 package com.simarel.vkbot.share.domain.vo
 
-import com.simarel.vkbot.share.domain.exception.ValidationException
-
 @JvmInline
 value class MessageText(val value: String) {
     companion object {
-        fun of(value: String?): MessageText {
-            return MessageText(value ?: "")
-        }
+        fun of(value: String?): MessageText = MessageText(value ?: "")
     }
 
     fun startsWith(prefix: String): Boolean = value.startsWith(prefix)

@@ -20,7 +20,7 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
                 peerId = request.responseMessage.responseTo.peerId,
                 message = request.responseMessage.messageText,
                 forwardedMessages = forwardMessagesIfNeeded(request.responseMessage.responseTo, request.forwardedMessages),
-                rand = countRand(request.responseMessage.responseTo)
+                rand = countRand(request.responseMessage.responseTo),
             ),
         )
         return response
@@ -28,7 +28,7 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
 
     private fun forwardMessagesIfNeeded(responseTo: Message, explicitForwarded: ForwardedMessages?): ForwardedMessages? {
         if (explicitForwarded != null) return explicitForwarded
-        if(responseTo.peerId.isHuman()) {
+        if (responseTo.peerId.isHuman()) {
             return null
         }
         return ForwardedMessages(responseTo)

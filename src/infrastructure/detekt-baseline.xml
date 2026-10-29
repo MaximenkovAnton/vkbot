@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>UseCheckOrError:EventDispatcher.kt$EventDispatcher$throw IllegalStateException("No emitter configured for queue: ${levelConfig.queueName()}")</ID>
+  </CurrentIssues>
+</SmellBaseline>

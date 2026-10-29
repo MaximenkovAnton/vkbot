@@ -8,7 +8,5 @@ import jakarta.enterprise.context.ApplicationScoped
 open class FindSummaryByIdAdapter(
     private val repository: JooqSummaryRepository,
 ) : FindSummaryByIdPort {
-    override fun execute(request: FindSummaryByIdPort.FindSummaryByIdRequest): FindSummaryByIdPort.FindSummaryByIdResponse {
-        return FindSummaryByIdPort.FindSummaryByIdResponse(repository.findById(request.id))
-    }
+    override fun execute(request: FindSummaryByIdPort.FindSummaryByIdRequest): FindSummaryByIdPort.FindSummaryByIdResponse = FindSummaryByIdPort.FindSummaryByIdResponse(repository.findById(request.id))
 }

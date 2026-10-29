@@ -1,9 +1,7 @@
 package com.simarel.vkbot.share.domain.vo
 
-import com.simarel.vkbot.share.domain.exception.ValidationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 

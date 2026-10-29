@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
-import com.simarel.vkbot.persistence.domain.entity.Tables.VkGroupProfiles
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkGroupProfiles
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
@@ -25,14 +25,14 @@ open class JooqVkGroupProfileRepository {
                 VkGroupProfiles.NAME,
                 VkGroupProfiles.SCREEN_NAME,
                 VkGroupProfiles.LAST_UPDATED,
-                VkGroupProfiles.CREATED_AT
+                VkGroupProfiles.CREATED_AT,
             )
             .values(
                 positiveId,
                 profile.name,
                 profile.screenName,
                 Timestamp.from(profile.lastUpdated.toInstant()),
-                Timestamp.from(OffsetDateTime.now().toInstant())
+                Timestamp.from(OffsetDateTime.now().toInstant()),
             )
             .onConflict(VkGroupProfiles.ID)
             .doUpdate()
@@ -63,7 +63,7 @@ open class JooqVkGroupProfileRepository {
                     id = FromId.of(-record.get(VkGroupProfiles.ID, Long::class.java)),
                     name = record.get(VkGroupProfiles.NAME, String::class.java),
                     screenName = record.get(VkGroupProfiles.SCREEN_NAME, String::class.java),
-                    lastUpdated = lastUpdated
+                    lastUpdated = lastUpdated,
                 )
             }
     }

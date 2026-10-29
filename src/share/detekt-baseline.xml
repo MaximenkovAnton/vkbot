@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MaxLineLength:ConversationMessageId.kt$ValidationConversationMessageIdNotNullException : ValidationException</ID>
+    <ID>MaxLineLength:CreateStoredPendingSummaryPort.kt$CreateStoredPendingSummaryPort$interface</ID>
+    <ID>MaxLineLength:FindLastStoredSummaryPort.kt$FindLastStoredSummaryPort$interface</ID>
+    <ID>MaxLineLength:FindStoredGroupProfilesByIdsPort.kt$FindStoredGroupProfilesByIdsPort$interface</ID>
+    <ID>MaxLineLength:FindStoredMessagesBeforePort.kt$FindStoredMessagesBeforePort$interface</ID>
+    <ID>MaxLineLength:FindStoredMessagesBetweenPort.kt$FindStoredMessagesBetweenPort$Request : OutputPortRequest</ID>
+    <ID>MaxLineLength:FindStoredMessagesBetweenPort.kt$FindStoredMessagesBetweenPort$interface</ID>
+    <ID>MaxLineLength:FindStoredUserProfilesByIdsPort.kt$FindStoredUserProfilesByIdsPort$interface</ID>
+    <ID>MaxLineLength:GetGroupProfilesBatchPort.kt$GetGroupProfilesBatchPort$interface</ID>
+    <ID>MaxLineLength:HasStoredPendingSummaryPort.kt$HasStoredPendingSummaryPort$interface</ID>
+    <ID>MaxLineLength:MarkStoredSummaryFailedPort.kt$MarkStoredSummaryFailedPort$interface</ID>
+    <ID>MaxLineLength:SaveStoredCompletedSummaryPort.kt$SaveStoredCompletedSummaryPort$interface</ID>
+  </CurrentIssues>
+</SmellBaseline>

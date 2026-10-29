@@ -21,14 +21,19 @@ dependencies {
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))
 
-    // Quarkus platform
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
-
-    // Core Quarkus dependencies
+    // Quarkus dependencies
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-core")
+    implementation("io.quarkus:quarkus-info")
+    implementation("io.quarkus:quarkus-logging-json")
+    implementation("io.quarkus:quarkus-micrometer-opentelemetry")
+    implementation("io.quarkus:quarkus-observability-devservices")
+    implementation("io.quarkus:quarkus-observability-devservices-lgtm")
+    implementation("io.quarkus:quarkus-opentelemetry")
     implementation("io.quarkus:quarkus-config-yaml")
     implementation("io.quarkus:quarkus-rest")
+    implementation("io.quarkus:quarkus-rest-client-jackson")
+    implementation("io.quarkus:quarkus-smallrye-health")
 
     // LangChain4j (via ai module)
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
@@ -39,7 +44,6 @@ dependencies {
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:test-common"))

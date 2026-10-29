@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter
 
 @RegisterAiService(
     chatMemoryProviderSupplier = TransientChatMemoryProvider::class,
-    tools = [VaneSearchToolAdapter::class]
+    tools = [VaneSearchToolAdapter::class],
 )
 @SystemMessage("{config:aiUseranswerSystemprompt}")
 @ApplicationScoped

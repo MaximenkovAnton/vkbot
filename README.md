@@ -1,263 +1,204 @@
 # VK Bot Application
 
-A Quarkus-based VK bot that processes incoming messages and provides AI-powered responses. The project follows Clean Architecture principles with clear separation of concerns, ensuring maintainability and scalability.
+A VK community bot: one Quarkus/Kotlin deployable that receives VK Callback webhooks, stores messages,
+decides whether an AI answer is needed, generates answers with LangChain4j/Ollama, sends them back to the
+VK API, and summarizes long conversations. The code follows hexagonal architecture: plain Kotlin behaviour
+behind ports, the framework at the edge (ADR 0003).
 
 ## Features
 
-- Clean Architecture with domain-driven design and Ports & Adapters pattern
-- VK API integration with webhook callbacks
-- AI-powered responses using LangChain4j and Ollama
-- Event-driven architecture with RabbitMQ
-- PostgreSQL persistence with Liquibase migrations and jOOQ type-safe queries
-- Chat summarization feature with configurable thresholds
-- AI-powered web search via Vane (Perplexica) integration
-- OpenTelemetry observability (traces, metrics, logs)
-- Retry strategies with dead letter queues (DLQ)
-- Docker support for multiple deployment options (JVM, native)
-- RESTful API endpoints for VK webhook integration
-- Comprehensive testing with Fake Objects pattern
-- ArchUnit architecture tests
+- VK Callback API webhook with secret validation and a DMZ mapper for VK JSON
+- Event-driven pipeline on RabbitMQ with a retry ladder and a final dead-letter queue
+- Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
+- AI answers via LangChain4j + Ollama, with web-search tools from Vane
+- Conversation summarization with a configurable threshold and enabled-chat list
+- In-process ports between modules of the same deployable (no loopback HTTP, ADR 0004)
+- OpenTelemetry traces/metrics/logs
+- Dockerfiles for JVM, legacy-jar, native and native-micro images
+- JUnit 5 tests with Fake Objects, ArchUnit architecture tests, JaCoCo coverage threshold
 
-## Technology Stack
+## Technology stack
 
 | Component | Technology |
-|-----------|------------|
-| Framework | Quarkus 3.34.2 (JDK 21) |
-| Language | Kotlin 2.3.0 |
-| Database | PostgreSQL + Liquibase + jOOQ |
-| Message Broker | RabbitMQ |
-| AI Integration | LangChain4j + Ollama |
-| Observability | OpenTelemetry, Prometheus, Micrometer |
+|---|---|
+| Framework | Quarkus 3.34.2 |
+| Language / runtime | Kotlin 2.3.0 on JDK 21 |
+| Build | Gradle 9.3.0 (Kotlin DSL wrapper) |
+| Database | PostgreSQL + Liquibase + jOOQ 3.19.10 |
+| Message broker | RabbitMQ (SmallRye Reactive Messaging) |
+| AI | LangChain4j 1.8.4 (`quarkus-langchain4j-ollama`) |
+| Observability | OpenTelemetry (OTLP), Micrometer |
 | Testing | JUnit 5, RestAssured, WireMock, ArchUnit |
-| Build Tool | Gradle with Kotlin DSL |
+| Lint / format / coverage | detekt, ktlint, JaCoCo |
 
-## Module Structure
+## Module structure
 
-The project follows a multi-module Gradle structure:
+One deployable (`src/app`) and eleven Gradle modules (`settings.gradle.kts:22-32`):
 
 ```
 src/
-├── ai/                    # AI integration with LangChain4j
-├── app/                   # Main application entry point
-├── infrastructure/        # Cross-cutting infrastructure (logging, events, config)
-├── persistence/           # Database persistence layer
-├── processor/             # Business logic and message processing
-├── receiver/              # VK webhook receiver (DMZ pattern)
-├── share/                 # Shared domain models and value objects
-├── vk-facade/             # VK API client and outgoing messages
-├── docker/                # Docker configurations
-└── testing/               # Testing modules
-    ├── arch-tests/        # Architecture tests (ArchUnit)
-    ├── test-common/       # Common test utilities
-    └── test-fixtures/     # Fake Objects for testing
+├── app/                    # @QuarkusMain, runtime config, composition root, integration tests
+├── share/                  # domain models, value objects, contracts (ports, commands, events)
+├── receiver/               # VK webhook entry point (DMZ)
+├── persistence/            # PostgreSQL storage, REST query API, in-process persistence ports
+├── processor/              # "does this message need an AI answer?"
+├── ai/                     # AI answer, summarization, OCR command, Vane tools
+├── vk-facade/              # VK API output, profile endpoints, in-process vk ports
+├── infrastructure/         # RabbitMQ dispatcher, retry/DLQ, logging decorators
+├── docker/                 # Dockerfile.jvm | legacy-jar | native | native-micro
+└── testing/
+    ├── arch-tests/         # ArchUnit: module, layer and build-graph rules
+    ├── test-common/        # shared test configuration
+    └── test-fixtures/      # Fake Objects and fake-data providers
 ```
+
+Production dependency direction: every business module depends only on `share`; `app` depends on all of
+them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/0003-module-boundaries-and-layer-rules.md`).
 
 ## Prerequisites
 
-- Java 21 (OpenJDK or GraalVM for native builds)
-- Docker (for containerized deployment)
-- VK developer account and group
-- PostgreSQL (or use DevServices for development)
-- RabbitMQ (or use DevServices for development)
-- Ollama (for AI responses, or use DevServices)
+- JDK 21 (the build pins a 21 toolchain)
+- Docker (DevServices for PostgreSQL, RabbitMQ and Ollama; also required by `@QuarkusTest` app tests)
+- A VK community with a callback server and an API token
+- Optional: a Vane (Perplexica) instance for web-search tools; Ollama for AI (DevServices can start it)
 
-## Setup and Configuration
+## Configuration
 
-### 1. Create VK Group and Configure Callback
+The production configuration is `src/app/src/main/resources/application.yml` (+ `application-queues.yml`).
+Values come from environment variables — never commit secrets (`.env` is git-ignored).
 
-1. Create a VK group (if not already created)
-2. Go to **Community Management → API**
-3. Set up a callback server:
-   - **URL**: `https://your-domain.com/vk/callback`
-   - **Secret**: Choose a secure secret key
-   - **Confirmation code**: VK generates this automatically
-4. Get the group's API token from the API section
+| Environment variable | Required | Description |
+|---|---|---|
+| `VK_SECRET` | yes | Callback secret from the VK community settings |
+| `VK_CONFIRMATION_CODE` | yes | Confirmation code from VK |
+| `VK_API_TOKEN` | yes | VK community API token |
+| `VK_BOT_ID` | yes | Bot user id used by the answer-decision rule |
+| `VANE_URL` | yes | Base URL of the Vane search API |
+| `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD` | in prod | PostgreSQL connection |
+| `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
+| `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
+| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
+| `SUMMARY_ENABLED_CHATS` | yes | Non-empty comma-separated peer ids whose chats get summaries. An unset or empty value fails startup (`SRCFG00040`); the tests use `1,2,3` |
+| `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 
-### 2. Configure Application
+Every key, its default and its consumer: `docs/development/configuration.md`.
 
-The application uses **environment variables** for configuration:
-
-| Environment Variable | Required | Description |
-|----------------------|----------|-------------|
-| `VK_SECRET` | Yes | Secret key from VK callback setup |
-| `VK_CONFIRMATION_CODE` | Yes | Confirmation code from VK (auto-generated) |
-| `VK_API_TOKEN` | Yes | VK group API token |
-| `VANE_URL` | Yes | Vane (Perplexica) search API URL |
-| `DATABASE_URL` | No | JDBC URL (default: DevServices) |
-| `DB_USERNAME` | No | Database username (default: postgres) |
-| `DB_PASSWORD` | No | Database password (default: password) |
-| `SUMMARY_ENABLED_CHATS` | No | Comma-separated list of chat IDs for summary feature |
-| `SUMMARY_THRESHOLD` | No | Minimum messages before generating summary (default: 100) |
-| `SUMMARY_BATCH_SIZE` | No | Max messages to include in summary (default: 100) |
-| `SUMMARY_SYSTEM_PROMPT` | No | Custom prompt for summary generation |
-
-Alternatively, you can configure via `application.yml` in the `app` module.
-
-> **Security Note**: Never commit credentials to version control. Use environment variables or secret management solutions.
-
-## Building and Running
-
-### Local Development
+## Building and running
 
 ```bash
-# Run with hot reloading (uses DevServices for PostgreSQL, RabbitMQ)
+# Build everything: compile, tests, detekt, ktlintCheck, coverage threshold, deployable
+./gradlew clean build
+
+# Local development with hot reload + DevServices (PostgreSQL, RabbitMQ, Ollama)
+export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+       SUMMARY_ENABLED_CHATS=1,2,3
 ./gradlew :src:app:quarkusDev
 ```
 
-DevServices automatically starts required services in Docker containers during development.
+The deployable artifact is `src/app/build/quarkus-app/quarkus-run.jar`; `./gradlew build` also checks that no
+second runner is produced.
 
-### Build for Production
-
-```bash
-# Build JVM application
-./gradlew build
-
-# Build native executable (requires GraalVM)
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false
-```
-
-### Docker Deployment
-
-#### JVM Mode (recommended for most deployments)
+### Docker
 
 ```bash
-# Build Docker image
+# JVM image (the confirmed path: Dockerfile.jvm copies src/app/build/quarkus-app)
+./gradlew :src:app:quarkusBuild
 docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
-
-# Run container
 docker run -p 8080:8080 \
-  -e VK_SECRET=your_secret \
-  -e VK_CONFIRMATION_CODE=your_code \
-  -e VK_API_TOKEN=your_token \
-  -e DATABASE_URL=jdbc:postgresql://host:5432/vkbot \
+  -e VK_SECRET=... -e VK_CONFIRMATION_CODE=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
+  -e VANE_URL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
+  -e QUARKUS_DATASOURCE_JDBC_URL=... -e QUARKUS_DATASOURCE_USERNAME=... \
+  -e QUARKUS_DATASOURCE_PASSWORD=... -e RABBITMQ_HOST=... \
   vkbot:jvm
 ```
 
-#### Native Mode (optimized for minimal resource usage)
+Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` currently whitelists only
+`src/app/build/quarkus-app/*` — see `docs/development/deployment.md` before building them.
 
-```bash
-# Build native image
-docker build -f src/docker/Dockerfile.native -t vkbot:native .
-
-# Run container
-docker run -p 8080:8080 \
-  -e VK_SECRET=your_secret \
-  -e VK_CONFIRMATION_CODE=your_code \
-  -e VK_API_TOKEN=your_token \
-  vkbot:native
-```
-
-**Native mode advantages**:
-- Startup time: ~0.1s (vs ~2s JVM)
-- Memory usage: ~50MB (vs ~200MB JVM)
-- Image size: ~100MB (vs ~300MB JVM)
-
-## API Endpoints
+## API endpoints
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/vk/callback` | POST | Handles incoming VK events |
-| `/health` | GET | Health check endpoint |
-| `/health/ready` | GET | Readiness probe |
-| `/health/live` | GET | Liveness probe |
-| `/metrics` | GET | Prometheus metrics |
+|---|---|---|
+| `/vk/callback` | POST | VK Callback webhook (confirmation, `message_new`, …) |
+| `/persistence/messages/*`, `/persistence/summaries/*`, `/persistence/profiles/*` | GET/POST | Query/storage API (`PersistenceDataController`) |
+| `/api/profiles/users/batch`, `/api/profiles/groups/batch` | GET | VK profile lookup (`VkFacadeController`) |
+| `/q/health`, `/q/health/ready`, `/q/health/live` | GET | Quarkus health checks |
 
-### Example VK Callback Request
+There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The health endpoints exist but
+currently report **DOWN** (503): seven retry/DLQ channels are declared without a downstream consumer and the
+messaging health check marks them `[KO]` (`SRMSG00208`); the webhook itself works. See
+`docs/development/deployment.md`. Example webhook body:
 
 ```json
 {
   "type": "message_new",
+  "group_id": 123456,
+  "secret": "your_secret",
   "object": {
     "message": {
-      "text": "Привет!",
+      "date": 1756381457,
       "from_id": 123456,
-      "peer_id": 789012,
-      "conversation_message_id": 1,
-      "date": 1756381457
+      "peer_id": 2000000001,
+      "conversation_message_id": 2670,
+      "text": "@simarel Привет!"
     }
-  },
-  "group_id": 123456,
-  "secret": "your_secret"
+  }
 }
 ```
 
-## Message Flow
+## Message flow
 
 ```
-VK Webhook → receiver → RabbitMQ → processor → RabbitMQ → ai
-                                                            ↓
-VK API ← vk-facade ← RabbitMQ ← processor ← persistence ←─┘
+VK webhook → receiver → MESSAGE_NEW → persistence (save + fetch profiles)
+           → MESSAGE_RECEIVED → processor → MESSAGE_REQUIRE_ANSWER
+           → ai → ANSWER_MESSAGE → vk-facade → VK API
+
+Summary flow:
+  persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API
 ```
 
-1. **receiver**: Validates and receives VK webhooks
-2. **processor**: Routes messages and coordinates processing
-3. **ai**: Generates AI responses using Ollama and chat summaries
-4. **persistence**: Stores message history with jOOQ type-safe queries
-5. **vk-facade**: Sends responses and summaries back to VK
+Events run on RabbitMQ with a five-step retry ladder and a final DLQ (`application-queues.yml`); synchronous
+calls inside the deployable go through `share` ports (ADR 0004). Details: `docs/architecture/data-flow.md`.
 
 ## Testing
 
-The project uses **Fake Objects** pattern for testing instead of mocks:
-
 ```bash
-# Run all tests
-./gradlew test
-
-# Run architecture tests
-./gradlew :src:testing:arch-tests:test
-
-# Run with coverage
-./gradlew jacocoTestReport
+./gradlew test                              # all tests (Docker needed for app integration tests)
+./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"   # one class (module-scoped)
+./gradlew :src:testing:arch-tests:test      # architecture rules
+./gradlew coverageReport coverageVerification   # aggregated report + threshold
 ```
 
-See [docs/development/testing.md](docs/development/testing.md) for detailed testing philosophy.
+Fake Objects (not mocks) live in `src/testing/test-fixtures` and module-local `testFixtures`; the coverage
+threshold is `0.25` (measured `0.2796`, ratchet target `0.40`). Philosophy and examples:
+`docs/development/testing.md`.
 
 ## Observability
 
-### OpenTelemetry Traces
-
-Distributed tracing is enabled across all message flows. Traces include:
-- VK webhook reception
-- Message processing steps
-- AI generation
-- Database operations
-- VK API calls
-
-### Metrics (Prometheus)
-
-Available at `/metrics`:
-- JVM metrics (memory, GC, threads)
-- HTTP request metrics
-- RabbitMQ message rates
-- Custom business metrics
-
-### Logging
-
-Structured JSON logging in production, readable format in development.
+OpenTelemetry is enabled for traces, metrics and logs (`quarkus.otel.*` in `application.yml`); Quarkus exports
+via OTLP (default endpoint `localhost:4317`, so logs during tests show export errors when no collector runs).
+Logging decorators wrap every command and port at TRACE level. No Prometheus scrape endpoint is configured.
 
 ## Documentation
 
-Detailed documentation is available in the `docs/` directory:
-
-- [Architecture Overview](docs/architecture/overview.md)
-- [Module Structure](docs/architecture/modules.md)
-- [Data Flow](docs/architecture/data-flow.md)
-- [Architecture Patterns](docs/architecture/patterns.md)
-- [AI Tools](docs/architecture/ai-tools.md)
-- [Testing Guide](docs/development/testing.md)
+- [Architecture overview](docs/architecture/overview.md)
+- [Module structure](docs/architecture/modules.md)
+- [Data flow](docs/architecture/data-flow.md)
+- [Architecture patterns](docs/architecture/patterns.md)
+- [Testing guide](docs/development/testing.md)
 - [Configuration](docs/development/configuration.md)
 - [Deployment](docs/development/deployment.md)
+- [Architecture decision records](docs/adr/)
+- [Documentation index](docs/README.md)
+- [Agent constitution](AGENTS.md)
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Follow conventional commits format and ensure all tests pass.
+1. Fork the repository, create a feature branch.
+2. Keep the module/layer rules (`./gradlew build` enforces them).
+3. Run `./gradlew build` before opening a pull request; follow conventional commits.
 
 ## License
 
-[Specify your license here]
+The repository does not declare a license yet. Add a `LICENSE` file and state the license here before
+distributing the project.

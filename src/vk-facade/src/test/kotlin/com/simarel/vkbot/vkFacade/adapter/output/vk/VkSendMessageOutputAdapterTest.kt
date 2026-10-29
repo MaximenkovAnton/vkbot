@@ -3,8 +3,7 @@ package com.simarel.vkbot.vkFacade.adapter.output.vk
 import com.simarel.vkbot.testfixtures.adapter.output.vk.FakeVkClient
 import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
 import com.simarel.vkbot.testfixtures.port.output.vk.FakeVkSendMessageOutputProvider
-import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkError
-import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
+import com.simarel.vkbot.testfixtures.vkFacade.FakeVkFacadeProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.exception.VkException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -29,7 +28,9 @@ class VkSendMessageOutputAdapterTest {
 
     @Test
     fun `send vk message error handling`() {
-        val vkClient = FakeVkClient(VkResponseDto(VkError(error_code = 1, "error happened")))
+        val vkClient = FakeVkClient(
+            FakeVkFacadeProvider.createVkResponseDto(FakeVkFacadeProvider.createVkError()),
+        )
         val vkSendMessageOutputAdapter = VkSendMessageOutputAdapter(vkClient, ObjectMapperProvider.create())
         val request = FakeVkSendMessageOutputProvider.createRequest()
 

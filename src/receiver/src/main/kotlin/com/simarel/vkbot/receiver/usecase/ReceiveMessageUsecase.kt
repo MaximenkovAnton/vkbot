@@ -6,19 +6,20 @@ import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
 import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
-import io.quarkus.logging.Log
 
 class ReceiveMessageUsecase(
     private val confirmationResponse: VkConfirmationInputPortResponse,
     private val okResponse: VkConfirmationInputPortResponse,
     private val publishVkEventCommand: PublishVkEventCommand,
 ) : ReceiveMessageInputPort {
+    private val logger = System.getLogger(ReceiveMessageUsecase::class.java.name)
+
     override fun execute(
         request: VkConfirmationInputPortRequest,
     ): VkConfirmationInputPortResponse = when (request.vkEvent.type) {
         VkCallbackEvent.CONFIRMATION -> confirmationResponse
         VkCallbackEvent.UNKNOWN -> {
-            Log.error("Unknown event: ${request.vkEvent.type}")
+            logger.log(System.Logger.Level.ERROR, "Unknown event: ${request.vkEvent.type}")
             okResponse
         }
 

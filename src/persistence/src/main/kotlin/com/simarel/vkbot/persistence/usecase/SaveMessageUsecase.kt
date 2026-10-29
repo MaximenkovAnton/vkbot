@@ -1,20 +1,19 @@
 package com.simarel.vkbot.persistence.usecase
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileCommand
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileRequest
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPort
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortRequest
+import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortResponse
+import com.simarel.vkbot.persistence.port.output.ForwardedMessagesSerializationPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveMessagePort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.event.SummaryRequestedPayload
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.Payload
-import com.simarel.vkbot.share.domain.vo.PeerId
-import com.simarel.vkbot.share.domain.vo.ConversationMessageId
-import com.simarel.vkbot.persistence.port.input.SaveMessageInputPort
-import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortRequest
-import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortResponse
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 import java.util.UUID
@@ -22,7 +21,7 @@ import java.util.UUID
 @ApplicationScoped
 open class SaveMessageUsecase(
     private val saveMessagePort: SaveMessagePort,
-    private val objectMapper: ObjectMapper,
+    private val forwardedMessagesSerializationPort: ForwardedMessagesSerializationPort,
     private val publishEventCommand: PublishEventCommand,
     private val fetchUserProfileCommand: FetchUserProfileCommand,
 ) : SaveMessageInputPort {
@@ -42,19 +41,14 @@ open class SaveMessageUsecase(
                 event = Event.SUMMARY_REQUESTED,
                 payload = Payload(
                     SummaryRequestedPayload(
-                        peerId = message.peerId,
-                        conversationMessageId = message.conversationMessageId
-                    )
+                        peerId = message.peerId.value,
+                        conversationMessageId = message.conversationMessageId.value,
+                    ),
                 ),
             ),
         )
         return SaveMessageInputPortResponse
     }
-
-    data class SummaryRequestedPayload(
-        val peerId: PeerId,
-        val conversationMessageId: ConversationMessageId
-    )
 
     private fun saveMessage(message: Message) {
         val entity = MessageEntity().apply {
@@ -65,11 +59,9 @@ open class SaveMessageUsecase(
             peerId = message.peerId.value
             conversationMessageId = message.conversationMessageId.value
             messageText = message.messageText.value
-            forwardedMessages = if (message.forwardedMessages.isEmpty()) {
-                null
-            } else {
-                objectMapper.writeValueAsString(message.forwardedMessages)
-            }
+            forwardedMessages = forwardedMessagesSerializationPort.execute(
+                ForwardedMessagesSerializationPort.Request(message.forwardedMessages),
+            ).json
         }
         saveMessagePort.execute(SaveMessagePort.SaveMessageRequest(entity))
     }

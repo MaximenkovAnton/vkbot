@@ -55,8 +55,8 @@ class VkMediatorRouterIntegrationTest {
                             .add("from_id", FakeVoProvider.createHumanFromId().value)
                             .add("peer_id", FakeVoProvider.createPeerId().value)
                             .add("conversation_message_id", FakeVoProvider.createConversationMessageId().value)
-                            .add("date", FakeVoProvider.createDate().value.toEpochSecond())
-                    )
+                            .add("date", FakeVoProvider.createDate().value.toEpochSecond()),
+                    ),
             )
             .add("secret", FakeVkProvider.SECRET)
             .build()

@@ -1,8 +1,7 @@
 package com.simarel.vkbot.infrastructure.decorator.logging
 
 import com.simarel.vkbot.testfixtures.command.FakeCommand
-import com.simarel.vkbot.testfixtures.command.FakeCommandRequest
-import com.simarel.vkbot.testfixtures.command.FakeCommandResponse
+import com.simarel.vkbot.testfixtures.command.FakeCommandProvider
 import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -15,8 +14,8 @@ class CommandLoggingDecoratorTest {
         val objectMapper = ObjectMapperProvider.create()
         val fakeCommand = FakeCommand()
         val decorator = CommandLoggingDecorator(fakeCommand, objectMapper)
-        val request = FakeCommandRequest("test-value")
-        val expectedResponse = FakeCommandResponse("test-result")
+        val request = FakeCommandProvider.createRequest("test-value")
+        val expectedResponse = FakeCommandProvider.createResponse("test-result")
         fakeCommand.response = expectedResponse
 
         // When
@@ -34,8 +33,8 @@ class CommandLoggingDecoratorTest {
         val objectMapper = ObjectMapperProvider.create()
         val fakeCommand = FakeCommand()
         val decorator = CommandLoggingDecorator(fakeCommand, objectMapper)
-        val request = FakeCommandRequest("input")
-        val expectedResponse = FakeCommandResponse("output")
+        val request = FakeCommandProvider.createRequest("input")
+        val expectedResponse = FakeCommandProvider.createResponse("output")
         fakeCommand.response = expectedResponse
 
         // When

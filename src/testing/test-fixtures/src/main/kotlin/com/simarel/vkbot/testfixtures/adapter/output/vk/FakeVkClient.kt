@@ -19,7 +19,7 @@ class FakeVkClient(
         peerId: Long,
         message: String,
         rand: Int,
-        forwardMessages: String?
+        forwardMessages: String?,
     ): VkResponseDto {
         sendMessageParameterCalls.add(SendMessageParameter(peerId, message, rand))
         return vkResponseDto ?: VkResponseDto(error = null)

@@ -1,38 +1,46 @@
-# VK Bot Documentation
+# Документация VK Bot
 
-Добро пожаловать в документацию VK Bot - современного чат-бота для ВКонтакте, построенного на принципах чистой архитектуры.
+Индекс документации проекта. Код — источник истины: если документ расходится с кодом, правится документ,
+а не наоборот. Конституция для агентов — [AGENTS.md](../AGENTS.md).
 
-## Содержание документации
+## Архитектура
 
-### Архитектура
-- **[Обзор архитектуры](architecture/overview.md)** - Clean Architecture, принципы и подходы
-- **[Модульная структура](architecture/modules.md)** - Текущие и планируемые модули
-- **[Поток данных](architecture/data-flow.md)** - От VK webhook до ответа пользователю
-- **[Архитектурные паттерны](architecture/patterns.md)** - Используемые паттерны и их применение
+| Документ | Что отвечает |
+|---|---|
+| [Обзор архитектуры](architecture/overview.md) | Стиль, слои, ADR id, runtime-топология, точки входа |
+| [Модульная структура](architecture/modules.md) | Каждый модуль: ответственность, публичный API, зависимости |
+| [Архитектурные паттерны](architecture/patterns.md) | Паттерны в коде с файлами и строками |
+| [Поток данных](architecture/data-flow.md) | Реальные пути событий и вызовов, отказоустойчивость, ограничения |
 
-### Разработка
-- **[Тестирование](development/testing.md)** - Философия Fake Objects и структура тестов
-- **[Конфигурация](development/configuration.md)** - Детальная настройка приложения
-- **[Деплой](development/deployment.md)** - Docker и варианты развертывания
+## Разработка
+
+| Документ | Что отвечает |
+|---|---|
+| [Тестирование](development/testing.md) | Стратегия, fake-объекты, интеграционные тесты, покрытие |
+| [Конфигурация](development/configuration.md) | Каждый ключ конфигурации, его значение по умолчанию и эффект |
+| [Деплой](development/deployment.md) | Артефакт, образы, обязательные env, миграции, откат |
+
+## Архитектурные решения (ADR)
+
+| # | Решение | Статус |
+|---|---|---|
+| [0001](adr/0001-stack-kotlin-quarkus-gradle.md) | Kotlin 2.3.0 + Gradle 9.3.0 + Quarkus 3.34.2 + JDK 21; один источник версии Quarkus | accepted |
+| [0002](adr/0002-single-deployable-app-module.md) | Один деплой `:src:app`; корень — агрегатор | accepted |
+| [0003](adr/0003-module-boundaries-and-layer-rules.md) | 11 модулей, правила слоёв L1–L6, CDI как composition root | accepted |
+| [0004](adr/0004-in-process-ports-instead-of-loopback-rest.md) | In-process порты вместо loopback-REST; события — RabbitMQ | accepted |
+| [0005](adr/0005-quality-gates-and-ci.md) | detekt/ktlint/JaCoCo-порог/ArchUnit и пять джобов CI | accepted |
+| [0006](adr/0006-configuration-and-secrets.md) | Один конфиг в `:src:app`, env для секретов; дубли конфига и loopback-ключи удалены, оставшиеся мёртвые ключи — долг | accepted |
+
+## Продуктовая карта
+
+- [Карта возможностей](capabilities/index.md) — по строке на каждую возможность: точки входа в коде,
+  общие данные, ADR. Пишется стадией `capabilities` из кода; чек `scripts/check-capabilities.sh` валит
+  сборку на несуществующем пути или ADR id.
 
 ## Быстрая навигация
 
-### Для новых разработчиков
-1. Начните с [обзора архитектуры](architecture/overview.md)
-2. Изучите [модульную структуру](architecture/modules.md)
-3. Прочитайте о [тестировании](development/testing.md)
-
-### Для DevOps
-1. [Конфигурация](development/configuration.md)
-2. [Деплой](development/deployment.md)
-
-### Для архитекторов
-1. [Архитектурные паттерны](architecture/patterns.md)
-2. [Поток данных](architecture/data-flow.md)
-
-## Участие в разработке
-
-Документация живет и развивается вместе с проектом. Если вы нашли неточности или хотите что-то дополнить:
-
-1. Создайте issue с описанием проблемы
-2. Или сразу отправьте pull request с исправлениями
+- Новый разработчик: [обзор архитектуры](architecture/overview.md) → [модули](architecture/modules.md) →
+  [тестирование](development/testing.md).
+- DevOps: [конфигурация](development/configuration.md) → [деплой](development/deployment.md).
+- Архитектор: [паттерны](architecture/patterns.md) → [поток данных](architecture/data-flow.md) →
+  [ADR](adr/).

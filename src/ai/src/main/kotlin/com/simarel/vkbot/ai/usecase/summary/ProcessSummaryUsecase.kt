@@ -13,7 +13,7 @@ class ProcessSummaryUsecase(
 
     override fun execute(request: ProcessSummaryInputPortRequest): ProcessSummaryInputPortResponse {
         processSummaryCommand.execute(
-            ProcessSummaryCommand.ProcessSummaryRequest(request.peerId, request.conversationMessageId)
+            ProcessSummaryCommand.ProcessSummaryRequest(request.peerId, request.conversationMessageId),
         )
         return ProcessSummaryInputPortResponse
     }

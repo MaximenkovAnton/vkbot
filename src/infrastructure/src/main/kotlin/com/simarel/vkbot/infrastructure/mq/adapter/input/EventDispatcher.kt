@@ -62,6 +62,7 @@ class EventDispatcher(
 
     @Incoming("all-events-queue")
     @RunOnVirtualThread
+    @Suppress("TooGenericExceptionCaught")
     fun dispatch(message: Message<String>): CompletionStage<Void> {
         val routingKey = message.getMetadata(IncomingRabbitMQMetadata::class.java)
             .map { it.routingKey }

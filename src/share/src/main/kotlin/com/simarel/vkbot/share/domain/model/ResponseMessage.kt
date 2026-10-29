@@ -4,5 +4,5 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 
 data class ResponseMessage(
     val messageText: MessageText,
-    val responseTo: Message
+    val responseTo: Message,
 )

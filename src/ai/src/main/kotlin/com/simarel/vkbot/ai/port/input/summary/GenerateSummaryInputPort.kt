@@ -7,9 +7,9 @@ import java.util.UUID
 
 interface GenerateSummaryInputPort :
     InputPort<
-            GenerateSummaryInputPortRequest,
-            GenerateSummaryInputPortResponse,
-            >
+        GenerateSummaryInputPortRequest,
+        GenerateSummaryInputPortResponse,
+        >
 
 data class GenerateSummaryInputPortRequest(
     val peerId: Long,

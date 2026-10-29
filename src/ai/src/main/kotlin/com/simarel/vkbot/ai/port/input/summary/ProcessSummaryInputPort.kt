@@ -6,9 +6,9 @@ import com.simarel.vkbot.share.port.input.InputPortResponse
 
 interface ProcessSummaryInputPort :
     InputPort<
-            ProcessSummaryInputPortRequest,
-            ProcessSummaryInputPortResponse,
-            >
+        ProcessSummaryInputPortRequest,
+        ProcessSummaryInputPortResponse,
+        >
 
 data class ProcessSummaryInputPortRequest(
     val peerId: Long,

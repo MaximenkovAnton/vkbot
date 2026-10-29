@@ -30,13 +30,13 @@ interface OcrAiService {
         - fullDescription: максимально детальное описание всего, что видно на изображении
 
         Отвечай ТОЛЬКО валидным JSON без дополнительного текста.
-        """
+        """,
     )
     fun recognize(images: List<Image>): OcrResults
 }
 
 data class OcrResults(
-    val results: List<OcrResult>
+    val results: List<OcrResult>,
 )
 
 data class OcrResult(

@@ -14,10 +14,9 @@ dependencies {
     implementation(project(":src:vk-facade"))
 
     // Common test resources
-    implementation(project(":src:testing:test-common"))
+    testFixturesImplementation(project(":src:testing:test-common"))
 
     // Quarkus platform for version management
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     // CDI
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
@@ -31,7 +30,6 @@ dependencies {
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     implementation(kotlin("test"))
 }
 

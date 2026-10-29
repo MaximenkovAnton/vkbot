@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:VkWebhookIntegrationTest.kt$VkWebhookIntegrationTest$@Test fun `full flow - message_new event is processed end to end with VK API call`()</ID>
+    <ID>LongMethod:WireMockTestResource.kt$WireMockTestResource.Companion$@JvmStatic private fun setupPersistenceStubs()</ID>
+    <ID>MaxLineLength:WireMockTestResource.kt$WireMockTestResource.Companion$?:</ID>
+    <ID>UseCheckOrError:WireMockTestResource.kt$WireMockTestResource.Companion$throw IllegalStateException("WireMock server not initialized. Ensure @QuarkusTestResource is applied.")</ID>
+  </CurrentIssues>
+</SmellBaseline>

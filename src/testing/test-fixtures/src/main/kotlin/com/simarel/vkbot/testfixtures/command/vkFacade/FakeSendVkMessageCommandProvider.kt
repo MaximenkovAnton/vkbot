@@ -11,7 +11,7 @@ object FakeSendVkMessageCommandProvider {
         peerId: PeerId? = null,
         messageText: MessageText? = null,
         forwardedMessages: ForwardedMessages? = null,
-        rand: Int = 0
+        rand: Int = 0,
     ) = SendVkMessageCommandRequest(
         peerId = peerId ?: FakeVoProvider.createPeerId(),
         message = messageText ?: FakeVoProvider.createMessageText(),

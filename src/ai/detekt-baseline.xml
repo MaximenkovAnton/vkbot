@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongMethod:ProcessSummaryCommandImpl.kt$ProcessSummaryCommandImpl$@Suppress("TooGenericExceptionCaught") override fun execute(request: ProcessSummaryCommand.ProcessSummaryRequest): ProcessSummaryCommand.ProcessSummaryResponse</ID>
+    <ID>LongParameterList:ProcessSummaryCommandImpl.kt$ProcessSummaryCommandImpl$( private val hasPendingSummaryPort: HasStoredPendingSummaryPort, private val findLastSummaryPort: FindLastStoredSummaryPort, private val findMessagesBeforePort: FindStoredMessagesBeforePort, private val findMessagesBetweenPort: FindStoredMessagesBetweenPort, private val generateSummaryCommand: GenerateSummaryCommand, @ConfigProperty(name = "summary.enabled-chats", defaultValue = "") private val enabledChatsConfig: String, @ConfigProperty(name = "summary.threshold", defaultValue = "100") private val summaryThreshold: Int, @ConfigProperty(name = "summary.batch-size", defaultValue = "100") private val summaryBatchSize: Int, )</ID>
+    <ID>MaxLineLength:GenerateSummaryCommand.kt$GenerateSummaryCommand$interface</ID>
+    <ID>MaxLineLength:GenerateSummaryCommandImpl.kt$GenerateSummaryCommandImpl$SaveStoredCompletedSummaryPort.Request(summaryId, "Нет сообщений", "Нет сообщений для суммаризации")</ID>
+    <ID>MaxLineLength:GenerateSummaryCommandImpl.kt$GenerateSummaryCommandImpl$SaveStoredCompletedSummaryPort.Request(summaryId, summaryResult.shortSummary, summaryResult.fullSummary)</ID>
+    <ID>MaxLineLength:GenerateSummaryCommandImpl.kt$GenerateSummaryCommandImpl$override</ID>
+    <ID>MaxLineLength:ProcessSummaryCommand.kt$ProcessSummaryCommand$interface</ID>
+    <ID>MaxLineLength:ProcessSummaryCommandImpl.kt$ProcessSummaryCommandImpl$override</ID>
+    <ID>MaxLineLength:VaneSearchCommand.kt$VaneSearchCommandImpl$private</ID>
+    <ID>UseCheckOrError:SummarizationAiAdapter.kt$SummarizationAiAdapter$throw lastException ?: IllegalStateException("Failed to generate summary after $MAX_RETRIES attempts")</ID>
+    <ID>UseCheckOrError:VaneSearchOutputAdapter.kt$VaneSearchOutputAdapter$throw IllegalStateException("No providers configured in Vane")</ID>
+  </CurrentIssues>
+</SmellBaseline>

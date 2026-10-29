@@ -14,7 +14,7 @@ class VkProfileUsecase(
             GetProfileCommand.GetProfileRequest(
                 userIds = request.userIds.map { FromId.of(it) },
                 groupIds = request.groupIds.map { FromId.of(it) },
-            )
+            ),
         )
         return VkProfileInputPort.VkProfileResponse(result.users, result.groups)
     }

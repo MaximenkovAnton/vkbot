@@ -4,6 +4,12 @@ vk:
   api:
     version: 5.199
     token: ${VK_API_TOKEN}
+  bot:
+    id: ${VK_BOT_ID}
+    mention: ${VK_BOT_MENTION:@simarel}
+aiUseranswerSystemprompt: ${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}
+aiSumarizationSystemprompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. Create a concise summary of the conversation. Provide both a detailed summary (full_summary) and a brief summary (short_summary) highlighting key topics and decisions.}
+aiOcrSystemPrompt: ${OCR_SYSTEM_PROMPT:Describe every image in detail and extract all visible text.}
 summary:
   enabled-chats: ${SUMMARY_ENABLED_CHATS:}
   threshold: ${SUMMARY_THRESHOLD:100}
@@ -23,8 +29,6 @@ quarkus:
       min-size: 2
       max-size: 20
       acquisition-timeout: 30s
-  jooq:
-    dialect: POSTGRES
   liquibase:
     migrate-at-start: true
     change-log: db/changelog/db.changelog-master.yaml
@@ -44,12 +48,11 @@ quarkus:
       url: https://api.vk.ru/method
       headers:
         Authorization: Bearer ${vk.api.token}
-    vk-facade:
-      url: http://localhost:8080
+    vane:
+      url: ${VANE_URL}
       scope: jakarta.inject.Singleton
-    persistence:
-      url: http://localhost:8080
-      scope: jakarta.inject.Singleton
+      connect-timeout: 30000
+      read-timeout: 120000
   rabbitmq:
     devservices:
       image-name: rabbitmq:latest

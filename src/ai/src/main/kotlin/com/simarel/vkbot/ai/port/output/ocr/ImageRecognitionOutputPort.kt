@@ -6,9 +6,9 @@ import com.simarel.vkbot.share.port.output.OutputPortResponse
 
 interface ImageRecognitionOutputPort :
     OutputPort<
-            ImageRecognitionRequest,
-            ImageRecognitionResponse,
-            >
+        ImageRecognitionRequest,
+        ImageRecognitionResponse,
+        >
 
 data class ImageRecognitionRequest(
     val imageUrls: List<String>,

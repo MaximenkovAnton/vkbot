@@ -2,6 +2,7 @@ package com.simarel.vkbot.vkFacade.adapter.input.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.event.SummaryReadyPayload
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.vo.MessageText
@@ -26,9 +27,9 @@ class SummaryReadyEventProcessor(
             peer_id = payload.peerId,
             conversation_message_ids = listOf(
                 payload.firstConversationMessageId,
-                payload.lastConversationMessageId
+                payload.lastConversationMessageId,
             ),
-            is_reply = false
+            is_reply = false,
         )
 
         val syntheticMessage = Message.of(
@@ -38,26 +39,19 @@ class SummaryReadyEventProcessor(
             peerId = payload.peerId,
             conversationMessageId = null,
             messageText = payload.messageText,
-            forwardedMessages = emptyList()
+            forwardedMessages = emptyList(),
         )
 
         vkSendMessageInputPort.execute(
             VkSendMessageInputRequest(
                 responseMessage = ResponseMessage(
                     messageText = MessageText.of(payload.messageText),
-                    responseTo = syntheticMessage
+                    responseTo = syntheticMessage,
                 ),
-                forwardedMessages = forwardedMessages
-            )
+                forwardedMessages = forwardedMessages,
+            ),
         )
     }
 
     override fun event() = Event.SUMMARY_READY
-
-    data class SummaryReadyPayload(
-        val peerId: Long,
-        val messageText: String,
-        val firstConversationMessageId: Long,
-        val lastConversationMessageId: Long,
-    )
 }
