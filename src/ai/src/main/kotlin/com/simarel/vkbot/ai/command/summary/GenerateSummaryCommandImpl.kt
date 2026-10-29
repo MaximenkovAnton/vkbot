@@ -23,6 +23,7 @@ class GenerateSummaryCommandImpl(
     private val findGroupProfilesByIdsPort: FindStoredGroupProfilesByIdsPort,
 ) : GenerateSummaryCommand {
 
+    @Suppress("TooGenericExceptionCaught")
     override fun execute(request: GenerateSummaryCommand.GenerateSummaryRequest): GenerateSummaryCommand.GenerateSummaryResponse {
         val summaryId = createPendingSummaryPort.execute(
             CreateStoredPendingSummaryPort.Request(

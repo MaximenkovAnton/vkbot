@@ -20,7 +20,7 @@
 |---|---|
 | `@Tool search_web` / `search_academic` / `search_discussions` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt:10-32` |
 | регистрация инструментов в AI-сервисе ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-16` |
-| команда: источники, режим, формат ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt:31-76` |
+| команда: источники, режим, формат ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt:31-77` |
 | выходной адаптер: выбор провайдера, маппинг источников | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt:15-58` |
 | REST-клиент Vane: `POST /api/search`, `GET /api/providers` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25` |
 

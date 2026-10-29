@@ -33,6 +33,7 @@ class ProcessSummaryCommandImpl(
             .toSet()
     }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun execute(request: ProcessSummaryCommand.ProcessSummaryRequest): ProcessSummaryCommand.ProcessSummaryResponse {
         if (!isSummarizationEnabled(request.peerId)) {
             logger.log(System.Logger.Level.DEBUG, "Summarization disabled for peerId=${request.peerId}")

@@ -29,8 +29,8 @@
 detekt, ktlint, jacoco и единственный `enforcedPlatform(quarkus-bom)` (`:44-51`). Detekt: `buildUponDefaultConfig`,
 `autoCorrect = false` (линтер не правит код), конфиг — `detekt-config.yml` (`:53-67`), baseline подключается,
 только если `${projectDir}/detekt-baseline.xml` существует. Baseline один раз сгенерирован и закоммичен:
-8 файлов `detekt-baseline.xml` — по одному в `src/ai`, `src/app`, `src/infrastructure`, `src/persistence`,
-`src/processor`, `src/share`, `src/vk-facade` и `src/testing/arch-tests`.
+9 файлов `detekt-baseline.xml` — по одному в `src/ai`, `src/app`, `src/infrastructure`, `src/persistence`,
+`src/processor`, `src/share`, `src/vk-facade`, `src/testing/arch-tests` и `src/testing/test-fixtures`.
 
 ### Покрытие
 
@@ -85,7 +85,7 @@ detekt, ktlint, jacoco и единственный `enforcedPlatform(quarkus-bom
 | Альтернатива | Почему нет |
 |---|---|
 | Spotless/Checkstyle вместо detekt/ktlint | В проекте уже объявлены detekt и ktlint; смена — churn |
-| Линт без baseline | 8 baseline-файлов фиксируют существующий долг; без них гейт был бы выключен навсегда |
+| Линт без baseline | 9 baseline-файлов фиксируют существующий долг; без них гейт был бы выключен навсегда |
 | Линт с `autoCorrect = true` | Линтер, который правит код в гейте, перестаёт быть проверкой |
 | Покрытие без порога | Отчёт без порога не валит сборку — не гейт |
 | Порог «на глаз» | Порог выведен из измеренного `L` формулой и записан константой |

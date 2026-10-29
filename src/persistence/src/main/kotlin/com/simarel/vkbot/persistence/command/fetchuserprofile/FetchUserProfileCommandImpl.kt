@@ -60,6 +60,7 @@ open class FetchUserProfileCommandImpl(
         messages.flatMap { it.forwardedMessages }.takeIf { it.isNotEmpty() }
     }.flatMap { it.asSequence().map(Message::fromId) }.toSet()
 
+    @Suppress("TooGenericExceptionCaught")
     private fun fetchAndSaveUserProfiles(userIds: List<FromId>) {
         try {
             val response = getUserProfilesBatchPort.execute(
@@ -77,6 +78,7 @@ open class FetchUserProfileCommandImpl(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun fetchAndSaveGroupProfiles(groupIds: List<FromId>) {
         try {
             val response = getGroupProfilesBatchPort.execute(

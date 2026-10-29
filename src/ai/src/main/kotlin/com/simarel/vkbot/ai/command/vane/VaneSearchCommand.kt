@@ -52,6 +52,7 @@ class VaneSearchCommandImpl(
         return VaneSearchCommandResponse(result)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun executeSearch(query: String, sources: List<String>, optimizationMode: String, sourceLabel: String): String = try {
         val response = vaneSearchPort.execute(
             VaneSearchRequest(

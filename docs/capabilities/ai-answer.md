@@ -27,7 +27,7 @@
 | сборка контекста (20 сообщений, профили, JSONB) | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt:28-103` |
 | форматирование промпта и вызов AI-сервиса | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/GenerateAnswerOutputAdapter.kt:19-119` |
 | LangChain4j AI-сервис, память, инструменты | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-44` |
-| транзиентная память чата | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/TransientChatMemoryProvider.kt:9-16` |
+| транзиентная память чата | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/TransientChatMemoryProvider.kt:11-18` |
 
 Конфигурация: `aiUseranswerSystemprompt`, `quarkus.langchain4j.*` в `src/app/src/main/resources/application.yml`.
 

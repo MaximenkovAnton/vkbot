@@ -31,9 +31,9 @@ in-process порт `message-storage`, который публикует `SUMMAR
 | Точка входа | Где в коде |
 |---|---|
 | `SUMMARY_REQUESTED` из `all-events-queue` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessor.kt:12-28` |
-| порог, включённые чаты, pending, batch-size | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt:36-125` |
-| создание pending, выборка, форматирование, LLM | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt:26-89` |
-| LLM-адаптер, 3 попытки | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt:17-41` |
+| порог, включённые чаты, pending, batch-size | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt:37-126` |
+| создание pending, выборка, форматирование, LLM | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt:27-90` |
+| LLM-адаптер, 3 попытки | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt:17-42` |
 | AI-сервис саммаризации и JSON-ответ | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiService.kt:8-37` |
 | сохранение completed → публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:115-146` |
 | `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-54` |

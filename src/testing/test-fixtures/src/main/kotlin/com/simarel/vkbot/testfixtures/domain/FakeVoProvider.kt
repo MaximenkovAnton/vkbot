@@ -11,12 +11,16 @@ import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
 import java.time.OffsetDateTime
 import kotlin.random.Random
 
+private const val HUMAN_FROM_ID_UPPER_BOUND: Long = 1_999_999_999
+private const val GROUP_FROM_ID_UPPER_BOUND: Long = 999_999_999
+private const val GROUP_CHAT_FROM_ID_LOWER_BOUND: Long = 2_000_000_001
+
 object FakeVoProvider {
     fun createDate(value: OffsetDateTime? = null) = Date(value ?: OffsetDateTime.now())
 
-    fun createHumanFromId() = FromId.of(Random.nextLong(1, 1_999_999_999))
-    fun createGroupFromId() = FromId.of(-Random.nextLong(1, 999_999_999))
-    fun createGroupChatFromId() = FromId.of(Random.nextLong(2_000_000_001, Long.MAX_VALUE))
+    fun createHumanFromId() = FromId.of(Random.nextLong(1, HUMAN_FROM_ID_UPPER_BOUND))
+    fun createGroupFromId() = FromId.of(-Random.nextLong(1, GROUP_FROM_ID_UPPER_BOUND))
+    fun createGroupChatFromId() = FromId.of(Random.nextLong(GROUP_CHAT_FROM_ID_LOWER_BOUND, Long.MAX_VALUE))
 
     fun createGroupId(value: Long? = null) = GroupId.of(value ?: Random.nextLong())
     fun createPeerId(value: Long? = null) = PeerId.of(value ?: Random.nextLong())

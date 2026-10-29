@@ -6,6 +6,7 @@ import io.quarkus.runtime.annotations.QuarkusMain
 @QuarkusMain
 object Application {
     @JvmStatic
+    @Suppress("SpreadOperator")
     fun main(args: Array<String>) {
         Quarkus.run(*args)
     }

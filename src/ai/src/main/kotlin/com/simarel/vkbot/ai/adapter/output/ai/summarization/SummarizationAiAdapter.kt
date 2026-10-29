@@ -15,6 +15,7 @@ class SummarizationAiAdapter(
 ) : SummarizationOutputPort {
 
     @ActivateRequestContext
+    @Suppress("TooGenericExceptionCaught")
     override fun execute(request: SummarizationRequest): SummarizationResponse {
         var lastException: Exception? = null
 
