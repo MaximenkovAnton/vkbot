@@ -1,7 +1,7 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.Messages
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
-import com.simarel.vkbot.persistence.domain.entity.Tables.Messages
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
@@ -26,7 +26,7 @@ open class JooqMessageRepository {
                 Messages.PEER_ID,
                 Messages.CONVERSATION_MESSAGE_ID,
                 Messages.MESSAGE_TEXT,
-                Messages.FORWARDED_MESSAGES
+                Messages.FORWARDED_MESSAGES,
             )
             .values(
                 entity.id,
@@ -36,7 +36,7 @@ open class JooqMessageRepository {
                 entity.peerId,
                 entity.conversationMessageId,
                 entity.messageText,
-                entity.forwardedMessages?.let { JSONB.valueOf(it) } //?: DSL.inline(null, SQLDataType.JSONB)
+                entity.forwardedMessages?.let { JSONB.valueOf(it) }, // ?: DSL.inline(null, SQLDataType.JSONB)
             )
             .execute()
     }

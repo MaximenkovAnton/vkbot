@@ -10,20 +10,17 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":src:ai"))
     implementation(project(":src:share"))
 
     // Test fixtures need access to share module classes and shared test-fixtures
-    testFixturesImplementation(project(":src:ai"))
     testFixturesImplementation(project(":src:share"))
     testFixturesImplementation(testFixtures(project(":src:testing:test-fixtures")))
 
     // Test fixtures (own testFixtures + shared test-fixtures for FakePublishEventCommand, FakeVoProvider)
-    testImplementation(testFixtures(project))  // Own testFixtures
-    testImplementation(testFixtures(project(":src:testing:test-fixtures")))  // Shared test-fixtures
+    testImplementation(testFixtures(project)) // Own testFixtures
+    testImplementation(testFixtures(project(":src:testing:test-fixtures"))) // Shared test-fixtures
 
     // Quarkus platform for version management
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     // CDI
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
@@ -37,7 +34,6 @@ dependencies {
 
     // Testing - infrastructure needed for CDI decorators in tests
     testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
     testImplementation(project(":src:infrastructure"))
 }

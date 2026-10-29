@@ -16,7 +16,5 @@ open class JooqConfig {
 
     @Produces
     @ApplicationScoped
-    open fun dslContext(): DSLContext {
-        return DSL.using(dataSource, SQLDialect.POSTGRES)
-    }
+    open fun dslContext(): DSLContext = DSL.using(dataSource, SQLDialect.POSTGRES)
 }

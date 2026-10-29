@@ -17,7 +17,7 @@ class GenerateSummaryUsecase(
                 peerId = request.peerId,
                 firstMessageId = request.firstMessageId,
                 lastMessageId = request.lastMessageId,
-            )
+            ),
         )
         return GenerateSummaryInputPortResponse(result.summaryId)
     }

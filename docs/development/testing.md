@@ -1,275 +1,169 @@
 # Тестирование
 
-Проект использует подход **Fake Objects** для тестирования, что обеспечивает высокую читаемость,
-maintainability и надежность тестов.
+Стратегия: **Fake Objects вместо моков**, unit-тесты без каркаса, интеграционные тесты через
+`@QuarkusTest` с DevServices и WireMock, архитектурные правила как тесты. Всё, что ниже, — из кода и
+прогонов этого прохода.
 
-## Философия тестирования
+## Команды
 
-### Fake Objects vs Mocks
-
-**Почему Fake Objects?**
-
-| Аспект | Mocks (Mockito) | Fake Objects |
-|--------|----------------|--------------|
-| **Настройка** | `when(mock.method()).thenReturn(value)` | `fakeObject.configuredResponse = value` |
-| **Верификация** | `verify(mock, times(2)).method()` | `assert(fakeObject.calls.size == 2)` |
-| **Читаемость** | Много boilerplate кода | Простые POJO объекты |
-| **Отладка** | Сложно понять что происходит | Можно поставить breakpoint и посмотреть |
-| **Refactoring** | Ломаются при изменении API | Compile-time проверка |
-| **Реалистичность** | Поведение определяется тестом | Поведение близко к реальному |
-
-**Пример проблемы с моками**:
-```kotlin
-// Сложно понять что происходит
-when(mockService.process(any()))
-    .thenReturn(response1)
-    .thenReturn(response2)
-    .thenThrow(RuntimeException())
-
-verify(mockService, times(3)).process(argThat { 
-    it.field1 == "expected" && it.field2.isNotEmpty() 
-})
+```bash
+./gradlew test                                  # все тесты (нужен Docker для app-тестов)
+./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"  # один класс (в своём модуле)
+./gradlew :src:testing:arch-tests:test          # архитектурные правила (15 тестов)
+./gradlew coverageReport                        # агрегированный HTML+XML отчёт
+./gradlew coverageVerification                  # порог покрытия (входит в ./gradlew build)
 ```
 
-**То же самое с Fake Object**:
-```kotlin
-// Понятно и просто
-val fakeService = FakeProcessingService()
-fakeService.responses = listOf(response1, response2, Exception())
+Фильтр `--tests` применяется ко всем test-задачам: корневой `./gradlew test --tests "*X*"` падает на
+модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
+запускается в своём модуле.
 
-// После выполнения
-assertEquals(3, fakeService.processCalls.size)
-assertEquals("expected", fakeService.processCalls[0].field1)
-assertTrue(fakeService.processCalls[0].field2.isNotEmpty())
-```
+Проверено в этом проходе: `./gradlew test` → `BUILD SUCCESSFUL`, **59 тестов, 0 падений, 0 ошибок,
+0 пропущенных**. Распределение по модулям: app — 7, receiver — 9, share — 8, vk-facade — 7, persistence — 9,
+processor — 2, infrastructure — 2, arch-tests — 15; **в `ai` собственных тестов нет**.
 
-## Структура тестовых объектов
+## Где лежат тесты
 
-### Организация fake объектов
-```
-src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
-├── adapter/
-│   └── output/
-│       ├── ai/FakeAiChatbotAnswerMessageOutputPort.kt
-│       ├── mq/FakePublishEventOutputPort.kt
-│       └── vk/FakeVkClient.kt
-├── command/
-│   ├── processor/FakeMessageAnswerTextGenerateCommand.kt
-│   └── vkFacade/FakePublishEventCommand.kt
-├── domain/
-│   ├── FakeMessageProvider.kt        # Фабрики доменных объектов
-│   └── FakeVoProvider.kt            # Фабрики Value Objects
-├── port/
-│   ├── input/FakeMessageNewInputPort.kt
-│   └── output/FakeVkSendMessageOutputProvider.kt
-└── service/
-    └── FakeUserAnswerAiService.kt
-```
+| Модуль | Файлы |
+|---|---|
+| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `WireMockTestResource`, `IntegrationTestProfile` |
+| `receiver` | `VkMediatorRouterIntegrationTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest`, `ExceptionHandlerTest` |
+| `persistence` | `PersistenceDataInProcessAdapterTest` (9 тестов — маппинг всех in-process портов) |
+| `processor` | `MessageReceivedUsecaseInputTest` |
+| `vk-facade` | `VkProfileInProcessAdapterTest`, `VkSendMessageOutputAdapterTest`, `PublishEventCommandImplTest`, `SendVkMessageCommandImplTest`, `MessageSendUsecaseTest` |
+| `share` | `MessageTextTest`, `ConversationMessageIdTest` |
+| `infrastructure` | `CommandLoggingDecoratorTest` |
+| `testing/arch-tests` | `ModuleDependenciesTest` (7), `LayerDependenciesTest` (5), `GradleDependenciesTest` (3) |
 
-## Паттерны Fake Objects
+Тестовые ресурсы: `src/app/src/test/resources/application.yaml` (базовый профиль `@QuarkusTest`),
+`application-integration-test.yaml` (профиль `integration-test`), `application.yml` (`%test`-настройки),
+`src/testing/test-common/src/main/resources/application.yaml` (общие значения для модульных тестов).
 
-### 1. Базовый Fake Object
+## Fake Objects
 
-**Структура**:
-```kotlin
-class FakeMessageAnswerTextGenerateCommand : MessageAnswerTextGenerateCommand {
-    val executeCalls = ConcurrentLinkedQueue<MessageAnswerTextGenerateCommandRequest>()
-    
-    override fun execute(request: MessageAnswerTextGenerateCommandRequest): MessageAnswerTextGenerateCommandResponse {
-        executeCalls.add(request)  // Записываем вызов
-        return MessageAnswerTextGenerateCommandResponse(FakeVoProvider.createMessageText())  // Возвращаем реалистичный ответ
-    }
-}
-```
-
-**Принципы**:
-- **Записывать все входящие параметры** в коллекцию для проверки
-- **Возвращать реалистичные объекты** через Provider'ы
-- **Использовать thread-safe коллекции** (ConcurrentLinkedQueue)
-
-### 2. Fake Object с настраиваемым поведением
+Ни одного mocking-фреймворка в сборке нет. Fake реализует тот же интерфейс, записывает вызовы в
+`ConcurrentLinkedQueue` и возвращает реалистичный ответ.
 
 ```kotlin
 class FakeVkClient(
-    val vkResponseDto: VkResponseDto? = null  // Настраиваемый ответ
-): VkClient {
+    val vkResponseDto: VkResponseDto? = null,
+    val vkUsersResponseDto: VkUsersResponseDto? = null,
+    val vkGroupsResponseDto: VkGroupsResponseDto? = null,
+) : VkClient {
     val sendMessageParameterCalls = ConcurrentLinkedQueue<SendMessageParameter>()
-
-    override fun sendMessage(peerId: Long, message: String, rand: Int): VkResponseDto {
+    override fun sendMessage(peerId: Long, message: String, rand: Int, forwardMessages: String?): VkResponseDto {
         sendMessageParameterCalls.add(SendMessageParameter(peerId, message, rand))
-        return vkResponseDto ?: VkResponseDto(error = null)  // По умолчанию успешный ответ
-    }
-
-    data class SendMessageParameter(val peerId: Long, val message: String, val rand: Int)
-}
-```
-
-**Использование в тесте**:
-```kotlin
-@Test
-fun `send vk message error handling`() {
-    // Given
-    val errorResponse = VkResponseDto(VkError(error_code = 1, "error happened"))
-    val vkClient = FakeVkClient(errorResponse)  // Настраиваем поведение
-    val adapter = VkSendMessageOutputAdapter(vkClient)
-    
-    // When & Then
-    assertThrows<VkException> {
-        adapter.execute(request)
-    }
-    
-    // Проверяем что вызов был сделан правильно
-    assertEquals(1, vkClient.sendMessageParameterCalls.size)
-    val call = vkClient.sendMessageParameterCalls.first()
-    assertEquals(request.messageText.value, call.message)
-}
-```
-
-### 3. Provider Pattern для Test Data
-
-**FakeVoProvider** - фабрика Value Objects:
-```kotlin
-object FakeVoProvider {
-    fun createDate(value: OffsetDateTime? = null) = Date(value ?: OffsetDateTime.now())
-    fun createFromId(value: Long? = null) = FromId.of(value ?: Random.nextLong())
-    fun createMessageText(value: String? = null) = MessageText.of(value ?: "Тестовое сообщение")
-    // ...
-}
-```
-
-**FakeMessageProvider** - фабрика доменных объектов:
-```kotlin
-object FakeMessageProvider {
-    fun createMessage(
-        date: Date = FakeVoProvider.createDate(),
-        fromId: FromId = FakeVoProvider.createFromId(),
-        // ... другие параметры с дефолтными значениями
-    ): Message = Message(date, fromId, groupId, peerId, conversationMessageId, messageText)
-}
-```
-
-**Преимущества Provider'ов**:
-- **Reasonable defaults** - тест фокусируется только на важных полях
-- **Переиспользование** - один провайдер для всех тестов
-- **Type safety** - помогает при рефакторинге
-- **Читаемость** - `FakeMessageProvider.createMessage(messageText = "test")` понятнее чем длинный конструктор
-
-## Примеры тестов
-
-### Unit Test с Fake Objects
-
-```kotlin
-class MessageAnswerTextGenerateCommandImplTest {
-    @Test
-    fun `execute command successfully`() {
-        // Given
-        val aiChatbotPort = FakeAiChatbotAnswerMessageOutputPort()
-        val command = MessageAnswerTextGenerateCommandImpl(aiChatbotPort)
-        val request = FakeMessageAnswerTextGenerateCommandProvider.createRequest()
-
-        // When
-        val result = command.execute(request)
-
-        // Then
-        assertEquals(1, aiChatbotPort.executeCalls.size)
-        assertEquals(request.message, aiChatbotPort.executeCalls.first().message)
-        assertNotNull(result.messageText)
+        return vkResponseDto ?: VkResponseDto(error = null)
     }
 }
 ```
 
-### Integration Test с множественными Fake Objects
+См. `src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`,
+`.../command/vkFacade/FakePublishEventCommand.kt:8-16`,
+`.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`.
 
-```kotlin
-class SendVkMessageCommandImplTest {
-    @Test
-    fun `execute command successfully`() {
-        // Given
-        val vkClient = FakeVkClient()  // Fake внешнего API
-        val vkOutputAdapter = VkSendMessageOutputAdapter(vkClient)  // Реальный адаптер
-        val command = SendVkMessageCommandImpl(vkOutputAdapter)  // Реальная команда
-        val request = FakeSendVkMessageCommandProvider.createRequest()
+### Раскладка fake-объектов
 
-        // When
-        command.execute(request)
+```
+src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
+├── adapter/
+│   ├── input/FakeEventProcessor.kt
+│   └── output/
+│       ├── mq/FakePublishEventOutputPort.kt
+│       └── vk/FakeVkClient.kt
+├── command/
+│   ├── FakeCommand.kt, FakeCommandRequest.kt, FakeCommandResponse.kt
+│   └── vkFacade/
+│       ├── FakePublishEventCommand.kt, FakePublishEventCommandProvider.kt
+│       └── FakeSendVkMessageCommand.kt, FakeSendVkMessageCommandProvider.kt
+├── domain/
+│   ├── FakeMessageProvider.kt
+│   └── FakeVoProvider.kt
+├── objectProvider/ObjectMapperProvider.kt
+└── port/output/vk/FakeVkSendMessageOutputProvider.kt
 
-        // Then - проверяем что правильные данные дошли до VK API
-        assertEquals(1, vkClient.sendMessageParameterCalls.size)
-        val call = vkClient.sendMessageParameterCalls.first()
-        assertEquals(request.message.value, call.message)
-        assertEquals(request.peerId.value, call.peerId)
-    }
-}
+src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/   # FakeMessageMapper,
+  # FakePublishVkEventCommand, FakeVkConfirmationInputPortProvider, FakeVkProvider, port/FakeReceiveMessageInputPort
+src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/  # FakeIsRequireAnswerCommand,
+  # FakeMessageNewInputPortProvider, FakeMessageReceivedInputPort
 ```
 
-## Best Practices
+Модульные `testFixtures` подключаются только в test-конфигурациях — это проверяет
+`GradleDependenciesTest`. Общий набор подключается через `testFixtures(project(":src:testing:test-fixtures"))`.
 
-### Именование
-- **Fake** + оригинальное имя: `FakeVkClient`, `FakeMessageRepository`
-- **Provider** для фабрик: `FakeMessageProvider`, `FakeVoProvider`  
-- **Calls коллекции**: `executeCalls`, `sendMessageCalls`
+### Провайдеры тестовых данных
 
-### Thread Safety
-```kotlin
-// Правильно - thread-safe
-val executeCalls = ConcurrentLinkedQueue<Request>()
+`FakeVoProvider` (`testfixtures/domain/FakeVoProvider.kt:14-62`) — единая точка создания доменных значений:
+`createDate`, `createHumanFromId`, `createGroupFromId`, `createGroupChatFromId`, `createGroupId`, `createPeerId`,
+`createConversationMessageId`, `createMessageText`, `createMessage`, `createForwardedMessage`,
+`createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него.
 
-// Неправильно - может быть race condition в параллельных тестах
-val executeCalls = mutableListOf<Request>()
-```
+Правило: в тесте задаются только значимые поля, остальное берётся из провайдера
+(`FakeVoProvider.createMessage(messageText = ...)`).
 
-### Реалистичные данные
-```kotlin
-// Правильно - возвращаем осмысленные объекты
-return MessageAnswerTextGenerateCommandResponse(FakeVoProvider.createMessageText())
+## Как писать тесты
 
-// Неправильно - возвращаем заглушки
-return MessageAnswerTextGenerateCommandResponse(MessageText.of(""))
-```
+- **Именование:** backtick-предложение, описывающее проверку: ``fun `execute with confirmation event returns confirmation response`()``
+  (`ReceiveMessageUsecaseTest.kt:14`). Стиль Given/When/Then — как в соседних тестах.
+- **Unit-тест** — обычный JUnit 5 без Quarkus: собрать объект с fake-зависимостями, вызвать, проверить
+  записи fake'а и результат (`ReceiveMessageUsecaseTest.kt:11-67`).
+- **Адаптер in-process** — шаблон для новых адаптеров: записать запрос в `port.input` и проверить обратный
+  маппинг (`PersistenceDataInProcessAdapterTest.kt:38-49`, `VkProfileInProcessAdapterTest.kt:17-33`).
+- **Fake с настраиваемым поведением** — параметр конструктора вместо `when(...)`:
+  `FakeVkClient(vkResponseDto = ...)`.
+- **Thread safety** — `ConcurrentLinkedQueue` для записанных вызовов, не `mutableListOf`.
+- **Реалистичные данные** — возвращать осмысленный объект из провайдера, не `""`/`null`.
 
-### Настраиваемость
-```kotlin
-// Правильно - можно настроить поведение
-class FakeAiService(val response: String = "default response")
+## Интеграционные тесты
 
-// Неправильно - жестко зашитое поведение
-class FakeAiService {
-    override fun generateResponse() = "always the same"
-}
-```
+`VkWebhookIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:27-177`):
 
-## Отладка тестов
+- `@QuarkusTest` + `@TestProfile(IntegrationTestProfile::class)` (профиль `integration-test`) +
+  `@QuarkusTestResource(WireMockTestResource::class)`;
+- DevServices поднимают PostgreSQL и RabbitMQ, поэтому **нужен Docker**; Ollama DevServices отключён,
+  LLM отвечает WireMock-заглушкой `/api/chat`; VK API (`/method/users.get`, `/method/groups.getById`,
+  `/method/messages.send`) тоже заглушается;
+- тест `full flow` отправляет `message_new` на `/vk/callback` и через Awaitility (до 120 с) проверяет, что
+  `messages.send` дошёл до WireMock — это сквозное доказательство, что in-process порты, CDI-проводка и
+  брокер работают вместе;
+- остальные тесты: confirmation, неизвестный тип, неверный/отсутствующий секрет (403), ошибка VK API
+  не роняет вебхук.
 
-### Простая отладка Fake Objects
-1. **Breakpoint в fake object** - можно посмотреть все параметры
-2. **Логирование вызовов**:
-```kotlin
-override fun execute(request: Request): Response {
-    println("FakeService called with: $request")  // Временное логирование
-    executeCalls.add(request)
-    return response
-}
-```
+`WireMockTestResource` задаёт только те REST-клиенты, которые есть в коде: VK API (`quarkus.rest-client.vk.url`)
+и Ollama (`quarkus.langchain4j.ollama.base-url`, `WireMockTestResource.kt:24-31`). Заглушек удалённых
+loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при возврате HTTP-контура
+между модулями (ADR 0004). Vane в тестах смотрит на `http://localhost:8075` (`src/app/src/test/resources/application.yaml:22-25`).
 
-3. **Inspection в IDE** - все данные видны в debugger'е
+## Архитектурные тесты
 
-### Проблемы с моками
-- Трудно понять почему тест упал
-- Сложно отладить взаимодействие между объектами  
-- Mock framework скрывает фактическое поведение
+`src/testing/arch-tests`:
 
-## Сравнение подходов
+| Тест | Что проверяет |
+|---|---|
+| `ModuleDependenciesTest` | каждый бизнес-модуль зависит только от `share`; `share` — ни от кого |
+| `LayerDependenciesTest` | L1 `domain`, L2 `port`, L3 `usecase`/`command`, L4 входные адаптеры, L5 выходные адаптеры |
+| `GradleDependenciesTest` | найдено 12 build-файлов; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
 
-### Время разработки
-- **Fake Objects**: Больше времени на создание, меньше на поддержку
-- **Mocks**: Меньше времени на создание, больше на поддержку и отладку
+Негативная проверка (этот проход): класс пакета `receiver` в модуле `persistence`, зависящий от
+`persistence` → `ModuleDependenciesTest > receiver module should only depend on share() FAILED`, exit 1;
+ссылка use case на адаптер → `LayerDependenciesTest > L3 … FAILED`, exit 1. После откатов — зелёные.
 
-### Надежность тестов
-- **Fake Objects**: Реже ломаются при рефакторинге
-- **Mocks**: Часто требуют обновления при изменениях
+## Покрытие
 
-### Понятность для новых разработчиков  
-- **Fake Objects**: Интуитивно понятны, код как книга
-- **Mocks**: Требуют знание framework'а, его особенностей, и требуют много времени на исправление нестандартной ошибки
+- Агрегат по 8 модулям (`ai, app, infrastructure, persistence, processor, receiver, share, vk-facade`),
+  `src/testing/*` исключён (`build.gradle.kts:22-31`).
+- Измерено: **line ratio 0.2796** (586 покрытых из 2096 строк), instruction 0.2862, branch 0.1527;
+  `coverageMin = 0.25` (`build.gradle.kts:19-20`).
+- Порог включён в `check` → `build` (`build.gradle.kts:130-133`) и в CI-джоб `coverage`.
+- Политика: порог не понижается; ратчет 0.40, затем 0.60 — отдельные задачи с новыми тестами (ADR 0005).
+  Покрытие меряется по бизнес-коду, а не по glue; `ai` и часть use case пока не покрыты.
+- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.27,
+  but expected minimum is 0.99`, exit 1.
 
-**Вывод**: Fake Objects требуют больше инвестиций вначале, но окупаются простотой поддержки и отладки в долгосрочной перспективе.
+## Ограничения
+
+- `@QuarkusTest` в `app` требует Docker (DevServices); в окружении без Docker эти тесты не пройдут.
+- Юнит-тестов `ai` нет: `GenerateAnswerUsecase`, `ProcessSummaryCommand`, `GenerateSummaryCommand` и
+  LangChain4j-адаптеры проверяются только сквозным интеграционным тестом.
+- Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`
+  (`build.gradle.kts:69-72`) — новый модуль без тестов не упадёт, но и не будет проверен.

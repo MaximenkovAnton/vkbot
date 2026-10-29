@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:function-naming")
+
 package com.simarel.vkbot.ai.adapter.output.ai.tool
 
 import com.simarel.vkbot.ai.command.vane.VaneSearchCommand

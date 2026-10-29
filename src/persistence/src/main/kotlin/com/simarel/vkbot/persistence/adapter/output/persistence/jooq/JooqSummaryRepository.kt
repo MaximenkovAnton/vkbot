@@ -1,16 +1,16 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.Summaries
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
-import com.simarel.vkbot.persistence.domain.entity.Tables.Messages as MessagesTable
-import com.simarel.vkbot.persistence.domain.entity.Tables.Summaries
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 import java.util.UUID
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.Messages as MessagesTable
 
 @ApplicationScoped
 open class JooqSummaryRepository {
@@ -29,7 +29,7 @@ open class JooqSummaryRepository {
                 Summaries.SHORT_SUMMARY,
                 Summaries.STATUS,
                 Summaries.CREATED_AT,
-                Summaries.UPDATED_AT
+                Summaries.UPDATED_AT,
             )
             .values(
                 entity.id,
@@ -40,7 +40,7 @@ open class JooqSummaryRepository {
                 entity.shortSummary,
                 entity.status?.name,
                 entity.createdAt?.let { Timestamp.from(it.toInstant()) },
-                entity.updatedAt?.let { Timestamp.from(it.toInstant()) }
+                entity.updatedAt?.let { Timestamp.from(it.toInstant()) },
             )
             .execute()
     }
@@ -105,15 +105,13 @@ open class JooqSummaryRepository {
         }
     }
 
-    open fun countMessagesBetween(peerIdValue: Long, fromMessageId: Long, toMessageId: Long): Int {
-        return dsl.fetchCount(
-            dsl.select()
-                .from(MessagesTable.TABLE)
-                .where(MessagesTable.PEER_ID.eq(peerIdValue))
-                .and(MessagesTable.CONVERSATION_MESSAGE_ID.greaterThan(fromMessageId))
-                .and(MessagesTable.CONVERSATION_MESSAGE_ID.le(toMessageId))
-        )
-    }
+    open fun countMessagesBetween(peerIdValue: Long, fromMessageId: Long, toMessageId: Long): Int = dsl.fetchCount(
+        dsl.select()
+            .from(MessagesTable.TABLE)
+            .where(MessagesTable.PEER_ID.eq(peerIdValue))
+            .and(MessagesTable.CONVERSATION_MESSAGE_ID.greaterThan(fromMessageId))
+            .and(MessagesTable.CONVERSATION_MESSAGE_ID.le(toMessageId)),
+    )
 
     open fun findMessagesBetween(peerIdValue: Long, fromMessageId: Long, toMessageId: Long, limit: Int): List<MessageEntity> {
         val records = dsl.select()
@@ -144,7 +142,7 @@ open class JooqSummaryRepository {
             dsl.select()
                 .from(Summaries.TABLE)
                 .where(Summaries.PEER_ID.eq(peerIdValue))
-                .and(Summaries.STATUS.eq(SummaryStatus.PENDING.name))
+                .and(Summaries.STATUS.eq(SummaryStatus.PENDING.name)),
         )
         return count > 0
     }

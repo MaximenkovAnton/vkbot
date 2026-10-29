@@ -33,7 +33,7 @@ class PersistenceDataController(
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.FindMessagesBefore(peerId, beforeConversationMessageId, limit)
+            PersistenceDataRequest.FindMessagesBefore(peerId, beforeConversationMessageId, limit),
         )
         return (response as PersistenceDataResponse.Messages).messages
     }
@@ -48,7 +48,7 @@ class PersistenceDataController(
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.FindMessagesBetween(peerId, firstMessageId, lastMessageId, limit)
+            PersistenceDataRequest.FindMessagesBetween(peerId, firstMessageId, lastMessageId, limit),
         )
         return (response as PersistenceDataResponse.Messages).messages
     }
@@ -58,7 +58,7 @@ class PersistenceDataController(
     @Produces(MediaType.APPLICATION_JSON)
     override fun findLastSummary(@QueryParam("peerId") peerId: Long): Summary? {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.FindLastSummary(peerId)
+            PersistenceDataRequest.FindLastSummary(peerId),
         )
         return (response as PersistenceDataResponse.OptionalSummary).summary
     }
@@ -68,7 +68,7 @@ class PersistenceDataController(
     @Produces(MediaType.APPLICATION_JSON)
     override fun hasPendingSummary(@QueryParam("peerId") peerId: Long): Boolean {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.HasPendingSummary(peerId)
+            PersistenceDataRequest.HasPendingSummary(peerId),
         )
         return (response as PersistenceDataResponse.PendingStatus).hasPending
     }
@@ -79,7 +79,7 @@ class PersistenceDataController(
     @Produces(MediaType.APPLICATION_JSON)
     override fun createPendingSummary(request: CreatePendingSummaryRequest): UUID {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.CreatePendingSummary(request.peerId, request.firstMessageId, request.lastMessageId)
+            PersistenceDataRequest.CreatePendingSummary(request.peerId, request.firstMessageId, request.lastMessageId),
         )
         return (response as PersistenceDataResponse.CreatedSummaryId).id
     }
@@ -92,7 +92,7 @@ class PersistenceDataController(
         request: CompleteSummaryRequest,
     ) {
         persistenceDataInputPort.execute(
-            PersistenceDataRequest.SaveCompletedSummary(id, request.shortSummary, request.fullSummary)
+            PersistenceDataRequest.SaveCompletedSummary(id, request.shortSummary, request.fullSummary),
         )
     }
 
@@ -101,7 +101,7 @@ class PersistenceDataController(
     @Consumes(MediaType.APPLICATION_JSON)
     override fun markSummaryAsFailed(@PathParam("id") id: UUID) {
         persistenceDataInputPort.execute(
-            PersistenceDataRequest.MarkSummaryAsFailed(id)
+            PersistenceDataRequest.MarkSummaryAsFailed(id),
         )
     }
 
@@ -110,7 +110,7 @@ class PersistenceDataController(
     @Produces(MediaType.APPLICATION_JSON)
     override fun findUserProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkUserProfile> {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.FindUserProfilesByIds(ids)
+            PersistenceDataRequest.FindUserProfilesByIds(ids),
         )
         return (response as PersistenceDataResponse.UserProfiles).profiles
     }
@@ -120,7 +120,7 @@ class PersistenceDataController(
     @Produces(MediaType.APPLICATION_JSON)
     override fun findGroupProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkGroupProfile> {
         val response = persistenceDataInputPort.execute(
-            PersistenceDataRequest.FindGroupProfilesByIds(ids)
+            PersistenceDataRequest.FindGroupProfilesByIds(ids),
         )
         return (response as PersistenceDataResponse.GroupProfiles).profiles
     }

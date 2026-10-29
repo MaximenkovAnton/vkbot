@@ -2,7 +2,6 @@ package com.simarel.vkbot.vkFacade.adapter.output.vk.circuitbreaker
 
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
 import com.simarel.vkbot.vkFacade.port.output.vk.VkGetGroupProfilesBatchPort
 import com.simarel.vkbot.vkFacade.port.output.vk.VkGetUserProfilesBatchPort

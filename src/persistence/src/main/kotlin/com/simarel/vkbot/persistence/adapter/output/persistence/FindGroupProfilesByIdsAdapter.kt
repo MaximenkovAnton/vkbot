@@ -2,8 +2,6 @@ package com.simarel.vkbot.persistence.adapter.output.persistence
 
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkGroupProfileRepository
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
-import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 

@@ -8,7 +8,5 @@ import jakarta.enterprise.context.ApplicationScoped
 open class FindLastSummaryByPeerIdAdapter(
     private val repository: JooqSummaryRepository,
 ) : FindLastSummaryByPeerIdPort {
-    override fun execute(request: FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdRequest): FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdResponse {
-        return FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdResponse(repository.findLastByPeerId(request.peerId))
-    }
+    override fun execute(request: FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdRequest): FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdResponse = FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdResponse(repository.findLastByPeerId(request.peerId))
 }

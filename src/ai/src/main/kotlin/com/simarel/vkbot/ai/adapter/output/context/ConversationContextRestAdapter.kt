@@ -8,8 +8,6 @@ import com.simarel.vkbot.ai.port.output.context.ConversationContextRequest
 import com.simarel.vkbot.ai.port.output.context.ConversationContextResponse
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.StoredMessage
-import com.simarel.vkbot.share.domain.model.VkGroupProfile
-import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
@@ -36,8 +34,8 @@ class ConversationContextRestAdapter(
             FindStoredMessagesBeforePort.Request(
                 peerId = peerId.value,
                 beforeConversationMessageId = currentMessageId.value,
-                limit = 20
-            )
+                limit = 20,
+            ),
         )
         val previousMessages = previousMessagesResponse.messages
 
@@ -52,10 +50,10 @@ class ConversationContextRestAdapter(
         val (groupFromIds, userIds) = allFromIds.partition { it.value < 0 }
 
         val userProfilesResponse = findUserProfilesByIdsPort.execute(
-            FindStoredUserProfilesByIdsPort.Request(userIds)
+            FindStoredUserProfilesByIdsPort.Request(userIds),
         )
         val groupProfilesResponse = findGroupProfilesByIdsPort.execute(
-            FindStoredGroupProfilesByIdsPort.Request(groupFromIds)
+            FindStoredGroupProfilesByIdsPort.Request(groupFromIds),
         )
         val userProfiles = userProfilesResponse.profiles
         val groupProfiles = groupProfilesResponse.profiles
@@ -96,13 +94,11 @@ class ConversationContextRestAdapter(
         }
     }
 
-    private fun StoredMessage.toChatMessage(): ChatMessage {
-        return ChatMessage(
-            id = ConversationMessageId.of(this.conversationMessageId),
-            fromId = FromId.of(this.fromId),
-            text = MessageText.of(this.messageText ?: ""),
-            date = Date.of(this.date),
-            forwardedMessages = this.forwardedMessages?.let { parseForwardedMessages(it) } ?: emptyList()
-        )
-    }
+    private fun StoredMessage.toChatMessage(): ChatMessage = ChatMessage(
+        id = ConversationMessageId.of(this.conversationMessageId),
+        fromId = FromId.of(this.fromId),
+        text = MessageText.of(this.messageText ?: ""),
+        date = Date.of(this.date),
+        forwardedMessages = this.forwardedMessages?.let { parseForwardedMessages(it) } ?: emptyList(),
+    )
 }

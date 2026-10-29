@@ -1,359 +1,157 @@
 # Конфигурация
 
-Подробное руководство по настройке и конфигурированию VK Bot приложения.
+Источник истины — `src/app/src/main/resources/application.yml` (179 строк) и подключаемый
+`src/app/src/main/resources/application-queues.yml` (`quarkus.config.locations: application-queues.yml`,
+`application.yml:18-20`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
+([ADR 0006](../adr/0006-configuration-and-secrets.md)).
 
-## Основные параметры
+Значения `${VAR}` без дефолта обязательны: без них приложение не стартует. Тот же эффект у
+`summary.enabled-chats`: его пустой дефолт тоже не даёт стартовать (см. «Промпты и саммаризация»).
+Секреты в репозиторий не коммитятся, `.env` в `.gitignore`.
 
-### VK API конфигурация
+## VK
 
-```yaml
-vk:
-  secret: ${VK_SECRET:<secret>}                    # Секретный ключ для webhook'ов
-  confirmation-code: ${VK_CONFIRMATION_CODE:123456} # Код подтверждения группы
-  api:
-    version: 5.131                                 # Версия VK API
-    token: ${VK_API_TOKEN}                        # Токен доступа группы
-```
+| Ключ | Значение / env | Эффект | Где читается |
+|---|---|---|---|
+| `vk.secret` | `${VK_SECRET}` | секрет Callback API; неверный/пустой → 403 | `receiver/adapter/input/vk/VkMediatorRouterSecurityDecorator.kt:17` |
+| `vk.confirmation-code` | `${VK_CONFIRMATION_CODE}` | ответ на `confirmation` | `receiver/config/ConstantConfiguration.kt:14` |
+| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13` |
+| `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | `application.yml:47-50` |
+| `vk.bot.id` | `${VK_BOT_ID}` | id бота в правиле «forward от бота → ответить» | `processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:17` |
+| `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | упоминание, включающее ответ в чате | там же `:19` |
 
-**Получение параметров VK**:
+Получение значений: сообщество VK → «Управление» → «API» → Callback API (URL `https://<host>/vk/callback`,
+секрет и строка подтверждения генерируются VK) → «Ключи доступа» (токен с правами на сообщения).
 
-1. **Создание группы**:
-   - Перейдите в раздел "Сообщества" → "Создать сообщество"
-   - Выберите тип сообщества и заполните информацию
+## Промпты и саммаризация
 
-2. **Настройка API**:
-   - Управление сообществом → API → Ключи доступа
-   - Создайте ключ с правами на сообщения
+| Ключ | Значение / env | Эффект | Где читается |
+|---|---|---|---|
+| `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}` | system-сообщение сервиса ответов | `ai/adapter/output/ai/answer/UserAnswerAiService.kt:17` |
+| `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | `ai/adapter/output/ai/summarization/SummarizationAiService.kt:11` |
+| `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/OcrAiService.kt:13` |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | **обязателен:** непустой список peerId через запятую (чаты, где включена саммаризация). Пустое/отсутствующее значение не конвертируется (`SRCFG00040`), приложение не стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
+| `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
+| `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке | там же `:22,108-125` |
+| `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml:17`) | — |
 
-3. **Настройка Callback API**:
-   - Управление сообществом → API → Callback API
-   - **URL сервера**: `https://your-domain.com/vk/callback`
-   - **Секретный ключ**: генерируется автоматически VK - скопируйте его
-   - **Строка подтверждения**: генерируется автоматически VK - скопируйте её
-   - **API токен**: используйте токен, созданный в п.2
+`summary.enabled-chats` — единственный ключ, у которого пустой дефолт не работает: SmallRye Config считает
+пустую строку `null` и валидация инъекции `ProcessSummaryCommandImpl.kt:18` валит старт с
+`SRCFG00040: The config property summary.enabled-chats is defined as the empty String ("") which the
+following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHATS` обязателен и непуст, а
+формулировка «пусто = саммаризация выключена» неверна: пустое значение — отказ старта, а не выключение.
 
-**Важно**: Секретный ключ, строка подтверждения и токен генерируются ВКонтакте автоматически. Пользователь должен только подставить эти значения в конфигурацию приложения.
+## База данных и миграции
 
-### Environment Variables
+| Ключ | Значение по умолчанию | Эффект |
+|---|---|---|
+| `quarkus.datasource.db-kind` | `postgresql` | драйвер PostgreSQL (`quarkus-jdbc-postgresql`) |
+| `quarkus.datasource.devservices.enabled` | `true` | поднять PostgreSQL в Docker в dev/test |
+| `quarkus.datasource.jdbc.initial-size` | `2` | начальный размер пула Agroal |
+| `quarkus.datasource.jdbc.min-size` | `2` | минимальный размер пула |
+| `quarkus.datasource.jdbc.max-size` | `20` | максимальный размер пула |
+| `quarkus.datasource.jdbc.acquisition-timeout` | `30s` | таймаут получения соединения |
+| `quarkus.liquibase.migrate-at-start` | `true` | применять changesets при старте |
+| `quarkus.liquibase.change-log` | `db/changelog/db.changelog-master.yaml` | master-чейнджлог (`src/persistence/src/main/resources/db/changelog/`) |
 
-| Переменная | Обязательная | Описание | Пример                                   |
-|------------|--------------|----------|------------------------------------------|
-| `VK_SECRET` | Да           | Секретный ключ VK callback | `my_super_secret_key`                    |
-| `VK_CONFIRMATION_CODE` | Да            | Код подтверждения VK | `123456`                                 |
-| `VK_API_TOKEN` | Да            | API токен VK группы | `vk1.a.abc123...`                        |
-| `VANE_URL` | Да            | URL Vane (Perplexica) search API | `https://vane-service.com`               |
-| `DATABASE_URL` | Нет            | JDBC URL PostgreSQL | `jdbc:postgresql://localhost:5432/vkbot` |
-| `DB_USERNAME` | Нет            | Имя пользователя БД | `postgres`                               |
-| `DB_PASSWORD` | Нет            | Пароль БД | `password`                               |
-| `RABBITMQ_HOST` | Нет            | Хост RabbitMQ | `localhost`                              |
-| `SUMMARY_ENABLED_CHATS` | Нет            | ID чатов для саммаризации (через запятую) | `2000000001,2000000002`                  |
-| `SUMMARY_THRESHOLD` | Нет            | Минимум сообщений для саммаризации | `100`                                    |
-| `SUMMARY_BATCH_SIZE` | Нет            | Максимум сообщений в саммаризации | `100`                                    |
-| `SUMMARY_SYSTEM_PROMPT` | Нет            | Промпт для генерации саммаризации | `You are a chat summarizer...`           |
-## Quarkus конфигурация
+В prod DevServices выключены автоматически (они живут только в dev/test), поэтому соединение задаётся
+через `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`
+(стандартное отображение env → `quarkus.datasource.*`).
 
-### База данных (PostgreSQL + Liquibase + jOOQ)
-```yaml
-quarkus:
-  datasource:
-    db-kind: postgresql
-    # DevServices автоматически стартует PostgreSQL в Docker для разработки
-    devservices:
-      enabled: true
-    jdbc:
-      initial-size: 2
-      min-size: 2
-      max-size: 20
-      acquisition-timeout: 30s
+## RabbitMQ и очереди
 
-  # Liquibase управляет миграциями схемы
-  liquibase:
-    migrate-at-start: true
-    change-log: db/changelog/db.changelog-master.yaml
+`application.yml:56-58` задаёт только DevServices (`quarkus.rabbitmq.devservices.image-name: rabbitmq:latest`);
+в prod параметры коннектора SmallRye RabbitMQ (`rabbitmq-host`, `rabbitmq-port`, `rabbitmq-username`,
+`rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем `application.yml` их нет,
+это делает деплой.
 
-  # jOOQ для типобезопасного SQL
-  jooq:
-    dialect: POSTGRES
-```
+Очереди (`mp.messaging.*`, `application.yml:66-167`):
 
-**Примечание**: Проект использует гибридный подход:
-- **Liquibase** — миграции схемы базы данных
-- **jOOQ** — типобезопасный доступ к данным (вместо JPA/Hibernate)
-- **Record-классы** — представление сущностей БД
+| Канал | Тип | Exchange / queue | Особенности |
+|---|---|---|---|
+| `all-events-queue` | incoming | `all-events` / `queue` | DLX `retry-5s-exchange` |
+| `retry-5s-queue` … `retry-1h-queue` | incoming | `retry-*` / `retry-*` | TTL 5s/30s/1m/15m/1h, DLX обратно в `all-events` |
+| `dlq-final-queue` | incoming | `dlq-final` | без TTL, ручной разбор |
+| `summary-ready-queue` | incoming | `all-events` / `summary-ready` | DLX `retry-5s-exchange`; **в коде нет `@Incoming` для этого канала** |
+| `events-exchange` | outgoing | `all-events` | публикация событий, routing key = имя события |
+| `retry-*-out`, `dlq-final-out` | outgoing | соответствующие exchange | перекладывание при retry |
 
-### RabbitMQ конфигурация
-```yaml
-quarkus:
-  rabbitmq:
-    devservices:
-      enabled: true                    # Автозапуск для разработки
-      image-name: rabbitmq:latest
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
+`dlq.levels[]` (`application-queues.yml:1-32`) связывает уровень retry с очередью и TTL; читается
+`infrastructure/config/DlqConfig.kt:6-16` и используется `EventDispatcher.kt:25-26,90-111`.
 
-mp:
-  messaging:
-    incoming:
-      all-events-queue:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: all-events
-          type: topic                  # Поддержка routing по event name
-        queue:
-          name: queue
-        dead-letter-exchange: retry-5s-exchange  # DLX для ошибок
-      retry-5s-queue:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: retry-5s-exchange
-        queue:
-          name: retry-5s
-          arguments:
-            x-message-ttl: 5000                     # 5 секунд
-            x-dead-letter-exchange: all-events
-            x-dead-letter-routing-key: queue
-      # ... retry-30s-queue, retry-1m-queue, retry-15m-queue, retry-1h-queue
-      dlq-final-queue:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: dlq-final-exchange
-        queue:
-          name: dlq-final
-    outgoing:
-      events-exchange:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: all-events
-```
+`smallrye.messaging.observation.enabled: true` (`application.yml:169-172`) включает наблюдаемость брокера.
 
-### REST Client (VK API)
-```yaml
-quarkus:
-  rest-client:
-    scope: jakarta.inject.Singleton    # Переиспользование клиента
-    logging:
-      scope: request-response         # Логирование HTTP запросов
-    vk:
-      url: https://api.vk.ru/method   # Base URL VK API
-      headers:
-        Authorization: Bearer ${vk.api.token}
-      connect-timeout: 5000           # Таймаут подключения (мс)
-      read-timeout: 30000            # Таймаут чтения (мс)
-    vane:
-      url: ${VANE_URL}                 # URL Vane search API
-      scope: jakarta.inject.Singleton
-```
+## REST-клиенты и LLM
 
-## Логирование и мониторинг
+| Ключ | Значение | Эффект |
+|---|---|---|
+| `quarkus.rest-client.scope` | `jakarta.inject.Singleton` | один клиент на приложение |
+| `quarkus.rest-client.logging.scope` | `request-response` | логирование запрос/ответ всех REST-клиентов |
+| `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | база VK API (`configKey = "vk"`) |
+| `quarkus.rest-client.vane.url` | `${VANE_URL}` | база Vane (`configKey = "vane"`); обязательна |
+| `quarkus.rest-client.vane.connect-timeout` | `30000` | таймаут соединения Vane |
+| `quarkus.rest-client.vane.read-timeout` | `120000` | таймаут чтения Vane |
 
-### Structured JSON логи
-```yaml
-quarkus:
-  logging:
-    json: 
-      enabled: true                   # JSON формат для production
-      exclude-keys: timestamp,level   # Исключить дублирующие поля
-  
-  # Log levels
-  log:
-    level: INFO
-    category:
-      "com.simarel.vkbot": DEBUG     # Подробное логирование приложения
-      "io.smallrye.reactive.messaging": INFO
-      "org.hibernate": WARN
-```
+Ollama/LangChain4j: в production-конфиге `quarkus.langchain4j.*` задан только логированием
+(`log-requests: true`, `log-responses: true`, `tracing.include-prompt/completion`, `application.yml:59-64`).
+Модель в dev поднимается DevServices; в prod endpoint/модель задаются стандартными ключами
+`quarkus.langchain4j.ollama.base-url` / `chat-model.model-id` (так они заданы в тестах:
+`src/app/src/test/resources/application-integration-test.yaml:85-92`, `WireMockTestResource.kt:24-31`).
+В текущем `application.yml` их нет — это задача деплоя.
 
-**Пример структурированного лога**:
-```json
-{
-  "timestamp": "2025-09-16T09:47:18.123Z",
-  "level": "INFO",
-  "logger": "com.simarel.vkbot.receiver.adapter.input.vk.VkMediatorRouterImpl",
-  "message": "Incoming VK callback",
-  "mdc": {
-    "traceId": "abc123",
-    "userId": "173308266",
-    "peerId": "2000000001"
-  }
-}
-```
+## OpenTelemetry
 
-### OpenTelemetry трассировка
-```yaml
-quarkus:
-  opentelemetry:
-    enabled: true
-    tracer:
-      exporter:
-        otlp:
-          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-    propagators: tracecontext,baggage # Передача trace между сервисами
-```
+| Ключ | Значение | Эффект |
+|---|---|---|
+| `quarkus.otel.logs.enabled` | `true` | экспорт логов по OTLP |
+| `quarkus.otel.logs.level` | `INFO` | минимальный уровень экспортируемых логов |
+| `quarkus.otel.metrics.enabled` | `true` | экспорт метрик |
+| `quarkus.otel.traces.enabled` | `true` | экспорт трейсов |
 
-### Метрики Prometheus
-```yaml
-quarkus:
-  micrometer:
-    registry-enabled-default: false
-    export:
-      prometheus:
-        enabled: true
-        path: /metrics                # Endpoint для Prometheus
-```
+Эндпоинт OTLP по умолчанию — `http://localhost:4317`; без коллектора в логах видны ошибки экспорта
+(наблюдалось в тестах). Prometheus-реестр не подключён, `/metrics` нет.
 
-## Профили конфигурации
+## Мёртвые и неподключённые ключи
 
-### Development Profile
-```yaml
-"%dev":
-  quarkus:
-    hibernate-orm:
-      schema-management:
-        strategy: drop-and-create     # Пересоздание БД каждый раз (исключительно для локальной разработки!)
-    log:
-      level: DEBUG                    # Подробное логирование
-      console:
-        json: false                   # Читаемые логи в консоли
-    rabbitmq:
-      devservices:
-        enabled: true                 # Автозапуск RabbitMQ
-```
+| Ключ | Почему мёртвый |
+|---|---|
+| `circuit-breaker.vk-profile` (`application.yml:174-179`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
+| `summary.system-prompt` | не читается, см. выше |
+| `summary-ready-queue` | канал объявлен, `@Incoming("summary-ready-queue")` в коде нет |
 
-### Test Profile
-```yaml
-"%test":
-  vk:
-    api:
-      token: test_token              # Заглушка для тестов
-  quarkus:
-    liquibase:
-      migrate-at-start: true         # Автомиграции для тестов
-```
+## Профили и тестовая конфигурация
 
-### Production Profile
-```yaml
-"%prod":
-  quarkus:
-    log:
-      level: INFO
-      console:
-        json: true                    # JSON логи для централизованной обработки
-    datasource:
-      jdbc:
-        max-size: 20                  # Pool размер для production
-        min-size: 5
-    liquibase:
-      migrate-at-start: true          # Миграции при старте
-    # jOOQ не требует schema-management (использует существующие таблицы)
-```
+- Production-профилей `%dev`/`%prod` в `src/app/src/main/resources` нет. Есть `%test` в
+  `src/app/src/test/resources/application.yml:1-8` (`hibernate-orm.enabled: false`, `liquibase.enabled: false`,
+  `summary.enabled-chats: 1,2,3`).
+- `src/app/src/test/resources/application.yaml` — базовая тестовая конфигурация: `vk.*`, `summary.enabled-chats: 1,2,3`,
+  DevServices вкл., observability off, `vane.url: http://localhost:8075`.
+- `src/app/src/test/resources/application-integration-test.yaml` — профиль `integration-test`: RabbitMQ 3.12
+  DevServices (shared, timeout 120s), PostgreSQL DevServices с `SELECT 1`, graceful shutdown, `auto-bind-exchange: false`
+  для всех каналов, Ollama DevServices off (мокается WireMock), Liquibase вкл.
+- `src/testing/test-common/src/main/resources/application.yaml` — общие значения для модульных тестов:
+  `vk.*`, DevServices off, observability off, `vane.url`.
 
-## Health Checks
+## Health
 
-```yaml
-quarkus:
-  health:
-    enabled: true
-  smallrye-health:
-    check:
-      "database": 
-        enabled: true             # Проверка подключения к БД
-      "rabbitmq":
-        enabled: true             # Проверка RabbitMQ
-```
+Расширение `quarkus-smallrye-health` подключено (`src/app/build.gradle.kts:36`), отдельных ключей нет —
+действуют умолчания Quarkus: `/q/health`, `/q/health/ready`, `/q/health/live`. Путей `/health` и `/metrics` нет.
+Эндпоинты сейчас отдают **503 DOWN**: семь incoming-каналов (`retry-*-queue`, `dlq-final-queue`,
+`summary-ready-queue`) не имеют downstream-консьюмера и попадают в messaging-проверку как `[KO]`
+(`SRMSG00208`). Health не входит в гейты; вывод и условие починки — `deployment.md`, раздел
+«Health и наблюдаемость».
 
-**Endpoints**:
-- `/health` - общий статус
-- `/health/ready` - готовность к трафику  
-- `/health/live` - проверка живости
+## jOOQ codegen (выключен)
 
-## Docker конфигурация
+`./gradlew :src:persistence:generateJooq` существует, но выполняется только при заданном `JOOQ_JDBC_URL`
+(`src/persistence/build.gradle.kts:89-125`, `onlyIf { System.getenv("JOOQ_JDBC_URL") != null }`).
+Переменные: `JOOQ_JDBC_URL`, `JOOQ_JDBC_USER`, `JOOQ_JDBC_PASSWORD`. Генерация не нужна для сборки:
+таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-57`.
 
-### Multi-stage Dockerfile
-```dockerfile
-# Build stage
-FROM gradle:8-jdk21 AS build
-COPY . /app
-WORKDIR /app
-RUN ./gradlew build -Dquarkus.package.jar.type=uber-jar
+## Секреты
 
-# Runtime stage
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.23
-COPY --from=build /app/build/lib/* /deployments/lib/
-COPY --from=build /app/build/*-runner.jar /deployments/
-EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/deployments/quarkus-run.jar"]
-```
-
-## Производительность
-
-### JVM оптимизация
-```yaml
-quarkus:
-  package:
-    jar:
-      type: uber-jar              # Один JAR со всеми зависимостями
-      
-# Environment variables для JVM
-JAVA_OPTS: >
-  -Xmx512m 
-  -Xms256m 
-  -XX:+UseG1GC
-  -XX:+UseStringDeduplication
-  -Dquarkus.http.host=0.0.0.0
-```
-
-### Native compilation (GraalVM)
-```bash
-# Сборка native образа
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false
-
-# Docker native образ
-docker build -f src/docker/Dockerfile.native -t vkbot-native .
-```
-
-**Преимущества native**:
-- Мгновенный старт (~0.1s vs ~2s)
-- Меньшее потребление памяти (~50MB vs ~200MB)
-- Меньший размер образа (~100MB vs ~300MB)
-
-**Недостатки native**:
-- Долгая сборка (5-10 минут)  
-- Ограничения reflection и динамического кода
-- Сложность отладки
-
-## Настройка IDE
-
-### IntelliJ IDEA
-1. Установите Quarkus плагин
-2. Настройте Environment Variables для запуска:
-   ```
-   VK_SECRET=dev_secret;VK_CONFIRMATION_CODE=123456;VK_API_TOKEN=your_token;SUMMARY_ENABLED_CHATS=2000000001
-   ```
-3. Включите Gradle auto-import
-
-### jOOQ Code Generation
-Для генерации jOOQ классов из схемы БД:
-```bash
-# Сначала запустите БД (DevServices или локально)
-export JOOQ_JDBC_URL=jdbc:postgresql://localhost:5432/vkbot
-export JOOQ_JDBC_USER=vkbot
-export JOOQ_JDBC_PASSWORD=vkbot
-
-./gradlew :src:persistence:generateJooq
-```
-
-Генерация отключена по умолчанию (требует запущенной БД). Проект использует
-ручные table constants и record классы.
-
-### VS Code
-```json
-{
-  "java.configuration.updateBuildConfiguration": "automatic",
-  "java.debug.settings.enableRunDebugCodeLens": true,
-  "quarkus.tools.enabledForWorkspace": true
-}
-```
-
-Конфигурация спроектирована для простоты разработки и гибкости production развертывания.
+В репозитории нет ни одного секрета. Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
+`VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `SUMMARY_ENABLED_CHATS` (непустой), `QUARKUS_DATASOURCE_JDBC_URL`,
+`QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `VK_BOT_MENTION`,
+`USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
+Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

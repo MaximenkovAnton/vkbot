@@ -13,9 +13,9 @@ import jakarta.enterprise.context.ApplicationScoped
 
 interface GenerateAnswerCommand :
     Command<
-            GenerateAnswerCommandRequest,
-            GenerateAnswerCommandResponse,
-            >
+        GenerateAnswerCommandRequest,
+        GenerateAnswerCommandResponse,
+        >
 
 @JvmInline
 value class GenerateAnswerCommandRequest(val message: Message) : CommandRequest

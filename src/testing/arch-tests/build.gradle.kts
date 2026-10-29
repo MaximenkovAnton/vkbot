@@ -10,18 +10,18 @@ repositories {
 dependencies {
     implementation("com.tngtech.archunit:archunit-junit5:1.3.0")
 
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
-
     implementation(project(":src:ai"))
+    implementation(project(":src:app"))
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))
     implementation(project(":src:vk-facade"))
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))
+    implementation(project(":src:persistence"))
 
     implementation(kotlin("stdlib-jdk8"))
 
-    implementation("org.junit.jupiter:junit-jupiter:5.10.3")
+    implementation("org.junit.jupiter:junit-jupiter")
     implementation(kotlin("test"))
 }
 
@@ -39,4 +39,5 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    systemProperty("project.root", rootDir.absolutePath)
 }

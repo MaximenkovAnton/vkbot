@@ -28,14 +28,14 @@ class SummarizationAiAdapter(
                 )
             } catch (e: Exception) {
                 lastException = e
-                Log.warnf("Failed to generate summary on attempt %d: %s", attempt, e.message)
+                Log.warnf(e, "Failed to generate summary on attempt %d: %s", attempt, e.message)
                 if (attempt < MAX_RETRIES) {
                     Log.debug("Retrying summary generation...")
                 }
             }
         }
 
-        Log.errorf("Failed to generate summary after %d attempts", MAX_RETRIES)
+        Log.errorf(lastException, "Failed to generate summary after %d attempts", MAX_RETRIES)
         throw lastException
             ?: IllegalStateException("Failed to generate summary after $MAX_RETRIES attempts")
     }

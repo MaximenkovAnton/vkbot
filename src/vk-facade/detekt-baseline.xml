@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ConstructorParameterNaming:ForwardedMessages.kt$ForwardedMessages$val conversation_message_ids: List&lt;Long&gt;</ID>
+    <ID>ConstructorParameterNaming:ForwardedMessages.kt$ForwardedMessages$val is_reply: Boolean</ID>
+    <ID>ConstructorParameterNaming:ForwardedMessages.kt$ForwardedMessages$val peer_id: Long</ID>
+    <ID>MaxLineLength:MessageSendUsecase.kt$MessageSendUsecase$forwardedMessages = forwardMessagesIfNeeded(request.responseMessage.responseTo, request.forwardedMessages)</ID>
+    <ID>MaxLineLength:MessageSendUsecase.kt$MessageSendUsecase$private</ID>
+    <ID>MaxLineLength:MessageSendUsecase.kt$MessageSendUsecase$val uniqueString = responseTo.messageText.value + responseTo.peerId.value + responseTo.date.value.toEpochSecond()</ID>
+    <ID>MaxLineLength:MessageSendUsecaseTest.kt$MessageSendUsecaseTest$val request = VkSendMessageInputRequest(ResponseMessage(messageText, FakeVoProvider.createMessage(peerId = peerId)))</ID>
+    <ID>MaxLineLength:SendVkMessageCommand.kt$SendVkMessageCommandRequest : CommandRequest</ID>
+    <ID>MaxLineLength:VkGetGroupProfilesBatchPort.kt$VkGetGroupProfilesBatchPort$interface</ID>
+    <ID>MaxLineLength:VkGetUserProfilesBatchPort.kt$VkGetUserProfilesBatchPort$interface</ID>
+  </CurrentIssues>
+</SmellBaseline>

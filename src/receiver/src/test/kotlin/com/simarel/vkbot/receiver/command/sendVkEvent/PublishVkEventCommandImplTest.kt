@@ -1,7 +1,6 @@
 package com.simarel.vkbot.receiver.command.sendVkEvent
 
 import com.simarel.vkbot.share.domain.Event
-import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.port.output.PublishEventOutputPort
 import com.simarel.vkbot.share.port.output.PublishEventOutputPortRequest
 import com.simarel.vkbot.share.port.output.PublishEventOutputPortResponse

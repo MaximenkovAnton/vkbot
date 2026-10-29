@@ -11,7 +11,7 @@ class RecognizeImagesCommandImpl(
 
     override fun execute(request: RecognizeImagesRequest): RecognizeImagesResponse {
         val response = imageRecognitionOutputPort.execute(
-            ImageRecognitionRequest(request.imageUrls)
+            ImageRecognitionRequest(request.imageUrls),
         )
 
         return RecognizeImagesResponse(
@@ -21,7 +21,7 @@ class RecognizeImagesCommandImpl(
                     shortDescription = it.shortDescription,
                     fullDescription = it.fullDescription,
                 )
-            }
+            },
         )
     }
 }

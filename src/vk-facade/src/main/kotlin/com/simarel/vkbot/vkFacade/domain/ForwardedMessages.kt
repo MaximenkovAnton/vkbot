@@ -10,6 +10,6 @@ data class ForwardedMessages(
     constructor(message: Message) : this(
         peer_id = message.peerId.value,
         conversation_message_ids = listOf(message.conversationMessageId.value),
-        is_reply = true
+        is_reply = true,
     )
 }

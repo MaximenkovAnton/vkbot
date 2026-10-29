@@ -11,7 +11,7 @@ interface FindMessagesBeforePort : OutputPort<FindMessagesBeforePort.FindMessage
     data class FindMessagesBeforeRequest(
         val peerId: PeerId,
         val beforeConversationMessageId: ConversationMessageId,
-        val limit: Int
+        val limit: Int,
     ) : OutputPortRequest
     data class FindMessagesBeforeResponse(val messages: List<MessageEntity>) : OutputPortResponse
 }

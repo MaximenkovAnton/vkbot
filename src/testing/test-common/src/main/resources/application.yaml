@@ -12,3 +12,7 @@ quarkus:
     enabled: false
   observability:
     enabled: false
+  rest-client:
+    vane:
+      url: http://localhost:8075
+      scope: jakarta.inject.Singleton

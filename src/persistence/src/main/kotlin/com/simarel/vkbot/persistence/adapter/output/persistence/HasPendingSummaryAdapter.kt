@@ -8,7 +8,5 @@ import jakarta.enterprise.context.ApplicationScoped
 open class HasPendingSummaryAdapter(
     private val repository: JooqSummaryRepository,
 ) : HasPendingSummaryPort {
-    override fun execute(request: HasPendingSummaryPort.HasPendingSummaryRequest): HasPendingSummaryPort.HasPendingSummaryResponse {
-        return HasPendingSummaryPort.HasPendingSummaryResponse(repository.hasPendingSummary(request.peerId))
-    }
+    override fun execute(request: HasPendingSummaryPort.HasPendingSummaryRequest): HasPendingSummaryPort.HasPendingSummaryResponse = HasPendingSummaryPort.HasPendingSummaryResponse(repository.hasPendingSummary(request.peerId))
 }

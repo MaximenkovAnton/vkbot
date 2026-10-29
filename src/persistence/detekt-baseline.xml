@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:PersistenceDataUsecase.kt$PersistenceDataUsecase$( private val findMessagesBeforePort: FindMessagesBeforePort, private val findMessagesBetweenPort: FindMessagesBetweenPort, private val findLastSummaryByPeerIdPort: FindLastSummaryByPeerIdPort, private val hasPendingSummaryPort: HasPendingSummaryPort, private val insertSummaryPort: InsertSummaryPort, private val updateSummaryStatusAndSummariesPort: UpdateSummaryStatusAndSummariesPort, private val updateSummaryStatusPort: UpdateSummaryStatusPort, private val findSummaryByIdPort: FindSummaryByIdPort, private val findUserProfilesByIdsPort: FindUserProfilesByIdsPort, private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort, private val publishEventCommand: PublishEventCommand, )</ID>
+    <ID>MaxLineLength:FilterExistingGroupIdsAdapter.kt$FilterExistingGroupIdsAdapter$override</ID>
+    <ID>MaxLineLength:FilterExistingGroupIdsPort.kt$FilterExistingGroupIdsPort$interface</ID>
+    <ID>MaxLineLength:FilterExistingUserIdsAdapter.kt$FilterExistingUserIdsAdapter$override</ID>
+    <ID>MaxLineLength:FilterExistingUserIdsPort.kt$FilterExistingUserIdsPort$interface</ID>
+    <ID>MaxLineLength:FindGroupProfilesByIdsAdapter.kt$FindGroupProfilesByIdsAdapter$override</ID>
+    <ID>MaxLineLength:FindGroupProfilesByIdsPort.kt$FindGroupProfilesByIdsPort$interface</ID>
+    <ID>MaxLineLength:FindLastSummaryByPeerIdAdapter.kt$FindLastSummaryByPeerIdAdapter$override fun execute(request: FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdRequest): FindLastSummaryByPeerIdPort.FindLastSummaryByPeerIdResponse</ID>
+    <ID>MaxLineLength:FindLastSummaryByPeerIdPort.kt$FindLastSummaryByPeerIdPort$interface</ID>
+    <ID>MaxLineLength:FindMessagesBeforeAdapter.kt$FindMessagesBeforeAdapter$override</ID>
+    <ID>MaxLineLength:FindMessagesBeforePort.kt$FindMessagesBeforePort$interface</ID>
+    <ID>MaxLineLength:FindMessagesBetweenAdapter.kt$FindMessagesBetweenAdapter$override</ID>
+    <ID>MaxLineLength:FindMessagesBetweenPort.kt$FindMessagesBetweenPort$interface</ID>
+    <ID>MaxLineLength:FindSummaryByIdAdapter.kt$FindSummaryByIdAdapter$override fun execute(request: FindSummaryByIdPort.FindSummaryByIdRequest): FindSummaryByIdPort.FindSummaryByIdResponse</ID>
+    <ID>MaxLineLength:FindSummaryByIdPort.kt$FindSummaryByIdPort$interface</ID>
+    <ID>MaxLineLength:FindUserProfilesByIdsAdapter.kt$FindUserProfilesByIdsAdapter$override</ID>
+    <ID>MaxLineLength:FindUserProfilesByIdsPort.kt$FindUserProfilesByIdsPort$interface</ID>
+    <ID>MaxLineLength:HasPendingSummaryAdapter.kt$HasPendingSummaryAdapter$override fun execute(request: HasPendingSummaryPort.HasPendingSummaryRequest): HasPendingSummaryPort.HasPendingSummaryResponse</ID>
+    <ID>MaxLineLength:HasPendingSummaryPort.kt$HasPendingSummaryPort$interface</ID>
+    <ID>MaxLineLength:InsertSummaryPort.kt$InsertSummaryPort$interface</ID>
+    <ID>MaxLineLength:JooqSummaryRepository.kt$JooqSummaryRepository$open</ID>
+    <ID>MaxLineLength:PersistenceDataUsecase.kt$PersistenceDataUsecase$private</ID>
+    <ID>MaxLineLength:SaveGroupProfileAdapter.kt$SaveGroupProfileAdapter$override</ID>
+    <ID>MaxLineLength:SaveGroupProfilePort.kt$SaveGroupProfilePort$interface</ID>
+    <ID>MaxLineLength:SaveUserProfileAdapter.kt$SaveUserProfileAdapter$override</ID>
+    <ID>MaxLineLength:SaveUserProfilePort.kt$SaveUserProfilePort$interface</ID>
+    <ID>MaxLineLength:UpdateSummaryStatusAdapter.kt$UpdateSummaryStatusAdapter$override</ID>
+    <ID>MaxLineLength:UpdateSummaryStatusAndSummariesAdapter.kt$UpdateSummaryStatusAndSummariesAdapter$override</ID>
+    <ID>MaxLineLength:UpdateSummaryStatusAndSummariesPort.kt$UpdateSummaryStatusAndSummariesPort$interface</ID>
+    <ID>MaxLineLength:UpdateSummaryStatusPort.kt$UpdateSummaryStatusPort$interface</ID>
+  </CurrentIssues>
+</SmellBaseline>

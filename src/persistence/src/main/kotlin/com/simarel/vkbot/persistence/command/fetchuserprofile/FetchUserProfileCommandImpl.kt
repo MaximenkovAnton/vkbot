@@ -8,7 +8,6 @@ import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.vk.GetGroupProfilesBatchPort
 import com.simarel.vkbot.share.port.output.vk.GetUserProfilesBatchPort
-import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 
@@ -22,6 +21,8 @@ open class FetchUserProfileCommandImpl(
     private val getGroupProfilesBatchPort: GetGroupProfilesBatchPort,
 ) : FetchUserProfileCommand {
 
+    private val logger = System.getLogger(FetchUserProfileCommandImpl::class.java.name)
+
     @Transactional
     override fun execute(request: FetchUserProfileRequest): FetchUserProfileResponse {
         val allFromIds = collectAllFromIds(request.message)
@@ -32,12 +33,12 @@ open class FetchUserProfileCommandImpl(
             }
 
         val existingUserIds = userProfileRepositoryPort.execute(
-            FilterExistingUserIdsPort.FilterExistingUserIdsRequest(potentialUserIds)
+            FilterExistingUserIdsPort.FilterExistingUserIdsRequest(potentialUserIds),
         ).existingIds
         val missingUserIds = potentialUserIds - existingUserIds
 
         val existingGroupIds = groupProfileRepositoryPort.execute(
-            FilterExistingGroupIdsPort.FilterExistingGroupIdsRequest(potentialGroupIds)
+            FilterExistingGroupIdsPort.FilterExistingGroupIdsRequest(potentialGroupIds),
         ).existingIds
         val missingGroupIds = potentialGroupIds - existingGroupIds
 
@@ -55,37 +56,41 @@ open class FetchUserProfileCommandImpl(
         return FetchUserProfileResponse(success = true)
     }
 
-    private fun collectAllFromIds(message: Message): Set<FromId> {
-        return generateSequence(listOf(message)) { messages ->
-            messages.flatMap { it.forwardedMessages }.takeIf { it.isNotEmpty() }
-        }.flatMap { it.asSequence().map(Message::fromId) }.toSet()
-    }
+    private fun collectAllFromIds(message: Message): Set<FromId> = generateSequence(listOf(message)) { messages ->
+        messages.flatMap { it.forwardedMessages }.takeIf { it.isNotEmpty() }
+    }.flatMap { it.asSequence().map(Message::fromId) }.toSet()
 
     private fun fetchAndSaveUserProfiles(userIds: List<FromId>) {
         try {
             val response = getUserProfilesBatchPort.execute(
-                GetUserProfilesBatchPort.Request(userIds)
+                GetUserProfilesBatchPort.Request(userIds),
             )
             response.profiles.forEach { profile ->
                 saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(profile))
-                Log.debug("Saved user profile for id: ${profile.id.value}")
+                logger.log(System.Logger.Level.DEBUG, "Saved user profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {
-            Log.warn("Failed to fetch/save user profiles for ids: ${userIds.map { it.value }}, error: ${e.message}")
+            logger.log(
+                System.Logger.Level.WARNING,
+                "Failed to fetch/save user profiles for ids: ${userIds.map { it.value }}, error: ${e.message}",
+            )
         }
     }
 
     private fun fetchAndSaveGroupProfiles(groupIds: List<FromId>) {
         try {
             val response = getGroupProfilesBatchPort.execute(
-                GetGroupProfilesBatchPort.Request(groupIds)
+                GetGroupProfilesBatchPort.Request(groupIds),
             )
             response.profiles.forEach { profile ->
                 saveGroupProfilePort.execute(SaveGroupProfilePort.SaveGroupProfileRequest(profile))
-                Log.debug("Saved group profile for id: ${profile.id.value}")
+                logger.log(System.Logger.Level.DEBUG, "Saved group profile for id: ${profile.id.value}")
             }
         } catch (e: Exception) {
-            Log.warn("Failed to fetch/save group profiles for ids: ${groupIds.map { it.value }}, error: ${e.message}")
+            logger.log(
+                System.Logger.Level.WARNING,
+                "Failed to fetch/save group profiles for ids: ${groupIds.map { it.value }}, error: ${e.message}",
+            )
         }
     }
 }

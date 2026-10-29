@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.ai.port.input.summary.ProcessSummaryInputPort
 import com.simarel.vkbot.ai.port.input.summary.ProcessSummaryInputPortRequest
 import com.simarel.vkbot.share.domain.Event
+import com.simarel.vkbot.share.domain.event.SummaryRequestedPayload
 import com.simarel.vkbot.share.port.input.EventProcessor
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -18,15 +19,10 @@ class SummaryRequestedEventProcessor(
         processSummaryInputPort.execute(
             ProcessSummaryInputPortRequest(
                 peerId = summaryPayload.peerId,
-                conversationMessageId = summaryPayload.conversationMessageId
-            )
+                conversationMessageId = summaryPayload.conversationMessageId,
+            ),
         )
     }
 
     override fun event() = Event.SUMMARY_REQUESTED
-
-    data class SummaryRequestedPayload(
-        val peerId: Long,
-        val conversationMessageId: Long
-    )
 }

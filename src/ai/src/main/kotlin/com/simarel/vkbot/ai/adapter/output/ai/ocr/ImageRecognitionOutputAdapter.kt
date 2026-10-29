@@ -32,7 +32,7 @@ class ImageRecognitionOutputAdapter(
                     shortDescription = result.shortDescription,
                     fullDescription = result.fullDescription,
                 )
-            }
+            },
         )
     }
 }

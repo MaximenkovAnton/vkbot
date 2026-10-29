@@ -7,15 +7,15 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.share.port.output.OutputPort
 import com.simarel.vkbot.share.port.output.OutputPortRequest
 import com.simarel.vkbot.share.port.output.OutputPortResponse
-import com.simarel.vkbot.share.port.output.OutputPort
 
 interface GenerateAnswerOutputPort :
     OutputPort<
-            GenerateAnswerOutputPortRequest,
-            GenerateAnswerOutputPortResponse,
-            >
+        GenerateAnswerOutputPortRequest,
+        GenerateAnswerOutputPortResponse,
+        >
 
 data class GenerateAnswerOutputPortRequest(
     val currentMessage: Message,

@@ -7,7 +7,7 @@ import java.io.File
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GradleDependenciesTest {
 
-    private val projectRoot = File(".")
+    private val projectRoot = File(System.getProperty("project.root") ?: ".")
 
     private val testOnlyConfigurations = setOf(
         "testImplementation",
@@ -32,14 +32,91 @@ class GradleDependenciesTest {
         ":src:testing:arch-tests",
     )
 
+    private val allowedProductionDependencies = mapOf(
+        ":" to emptySet(),
+        ":src:share" to emptySet(),
+        ":src:receiver" to setOf(":src:share"),
+        ":src:processor" to setOf(":src:share"),
+        ":src:ai" to setOf(":src:share"),
+        ":src:persistence" to setOf(":src:share"),
+        ":src:vk-facade" to setOf(":src:share"),
+        ":src:infrastructure" to setOf(":src:share"),
+        ":src:app" to setOf(
+            ":src:ai",
+            ":src:share",
+            ":src:infrastructure",
+            ":src:persistence",
+            ":src:vk-facade",
+            ":src:processor",
+            ":src:receiver",
+        ),
+        ":src:testing:test-common" to emptySet(),
+        ":src:testing:test-fixtures" to setOf(":src:share", ":src:vk-facade"),
+        ":src:testing:arch-tests" to setOf(
+            ":src:ai",
+            ":src:share",
+            ":src:infrastructure",
+            ":src:vk-facade",
+            ":src:processor",
+            ":src:receiver",
+            ":src:persistence",
+            ":src:app",
+        ),
+    )
+
+    @Test
+    fun `build files are discovered`() {
+        val buildFiles = findBuildGradleKtsFiles()
+
+        if (buildFiles.isEmpty()) {
+            throw AssertionError("No build.gradle.kts files found under ${projectRoot.absolutePath}")
+        }
+        if (buildFiles.size != 12) {
+            throw AssertionError(
+                "Expected 12 build.gradle.kts files (root + 11 modules), found ${buildFiles.size}: " +
+                    buildFiles.map { it.toProjectPath() }.sorted(),
+            )
+        }
+    }
+
+    @Test
+    fun `production project dependencies follow the allowlist`() {
+        val violations = mutableListOf<String>()
+
+        for (buildFile in findBuildGradleKtsFiles()) {
+            val modulePath = buildFile.toProjectPath()
+            val allowed = allowedProductionDependencies[modulePath]
+                ?: run {
+                    violations.add("$modulePath: module is not part of the allowlist")
+                    emptySet()
+                }
+            for ((configuration, dependency) in productionProjectDependencies(buildFile)) {
+                if (dependency !in allowed) {
+                    violations.add("$modulePath: $configuration(project(\"$dependency\")) is not allowed")
+                }
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            val message = buildString {
+                appendLine("Production project dependencies outside the allowlist:")
+                violations.forEach { appendLine("  - $it") }
+                appendLine()
+                appendLine("Allowed production dependencies:")
+                allowedProductionDependencies.toSortedMap().forEach { (module, dependencies) ->
+                    appendLine("  $module -> ${dependencies.sorted()}")
+                }
+            }
+            throw AssertionError(message)
+        }
+    }
+
     @Test
     fun `testing modules should only be used in test configurations`() {
         val violations = mutableListOf<String>()
-        val buildFiles = findBuildGradleKtsFiles()
 
-        for (buildFile in buildFiles) {
-            val violationsInFile = checkBuildFile(buildFile)
-            violations.addAll(violationsInFile)
+        for (buildFile in findBuildGradleKtsFiles()) {
+            violations.addAll(checkBuildFile(buildFile))
         }
 
         if (violations.isNotEmpty()) {
@@ -54,15 +131,49 @@ class GradleDependenciesTest {
         }
     }
 
-    private fun findBuildGradleKtsFiles(): List<File> {
-        val buildFiles = mutableListOf<File>()
+    private fun findBuildGradleKtsFiles(): List<File> = projectRoot.walkTopDown()
+        .onEnter { it.name != "build" && it.name != ".worktrees" && it.name != ".gradle" }
+        .filter { it.isFile && it.name == "build.gradle.kts" }
+        .sortedBy { it.path }
+        .toList()
 
-        projectRoot.walkTopDown()
-            .filter { it.name == "build.gradle.kts" }
-            .filter { !it.path.contains("build") }
-            .forEach { buildFiles.add(it) }
+    private fun File.toProjectPath(): String {
+        val normalized = relativeTo(projectRoot).invariantSeparatorsPath
+        if (normalized == "build.gradle.kts") {
+            return ":"
+        }
+        val modulePath = normalized.removeSuffix("/build.gradle.kts")
+        return ":$modulePath".replace('/', ':')
+    }
 
-        return buildFiles
+    private fun productionProjectDependencies(buildFile: File): List<Pair<String, String>> {
+        val dependencies = mutableListOf<Pair<String, String>>()
+        val block = dependenciesBlock(buildFile.readText()) ?: return dependencies
+        val pattern = Regex("""\b(implementation|api|compileOnly|runtimeOnly)\s*\(\s*project\(\s*"(:[^"]+)"\s*\)""")
+        for (match in pattern.findAll(block)) {
+            dependencies.add(match.groupValues[1] to match.groupValues[2])
+        }
+        return dependencies
+    }
+
+    private fun dependenciesBlock(content: String): String? {
+        val start = content.indexOf("dependencies {")
+        if (start < 0) {
+            return null
+        }
+        var depth = 0
+        for (index in start until content.length) {
+            when (content[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) {
+                        return content.substring(start, index + 1)
+                    }
+                }
+            }
+        }
+        return null
     }
 
     private fun checkBuildFile(buildFile: File): List<String> {

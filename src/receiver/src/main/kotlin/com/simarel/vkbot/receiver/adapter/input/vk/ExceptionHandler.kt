@@ -24,10 +24,9 @@ object ExceptionHandler {
     }
 
     @ServerExceptionMapper
-    fun handleClassCastException(exception: ClassCastException): Response =
-        handleInternalException(
-            ValidationException(exception.message ?: "Unknown class cast exception", exception),
-        )
+    fun handleClassCastException(exception: ClassCastException): Response = handleInternalException(
+        ValidationException(exception.message ?: "Unknown class cast exception", exception),
+    )
 
     @ServerExceptionMapper
     fun handleUnknownException(exception: RuntimeException): Response {

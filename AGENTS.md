@@ -1,280 +1,240 @@
-# AGENTS.md - Coding Guidelines for AI Agents
+# AGENTS.md — constitution for this repository
 
-Essential information for AI coding agents working with this Kotlin/Quarkus codebase.
+This file is the first thing every agent session must read. It describes the code **as built**.
+If a statement here contradicts the code, the code wins: fix this file in the same change.
 
-## Key Facts for Agents
+## 1. What this project is
 
-- **Stack**: Quarkus, Kotlin, RabbitMQ, LangChain4j, Java 21
-- **Testing**: Fake Objects (not mocks/Mockito), located in `objectProvider/fake/`
-- **Main modules**: receiver, persistence, processor, ai, vkFacade, infrastructure, share
+A VK community bot: one Quarkus/Kotlin deployable that receives VK Callback webhooks, stores messages,
+decides whether an AI answer is needed, generates answers with LangChain4j/Ollama, sends them back to the
+VK API, and summarizes long conversations. Runtime path:
+`VK webhook → receiver → RabbitMQ → persistence → processor → ai → vk-facade → VK API`.
 
-## Architecture
+## 2. Stack and versions (source of truth)
 
-### Modules
-- **receiver** — VK webhook entry point (`POST /vk/callback`), DMZ layer for VK API JSON parsing
-- **persistence** — message/profile/summary storage, REST API for data queries
-- **processor** — message filtering: determines if message requires AI answer
-- **ai** — AI answer generation + conversation summarization (LangChain4j)
-- **vkFacade** — VK API exit point: send messages, fetch profiles
-- **share** — shared domain: `Message`, `Event`, `Port`, `Command`, Value Objects, output port interfaces
-- **infrastructure** — RabbitMQ, logging decorators
-
-### Data Flow
-```
-VK webhook → receiver → MESSAGE_NEW (RabbitMQ)
-           → persistence → MESSAGE_RECEIVED (save + fetch profiles)
-           → persistence → SUMMARY_REQUESTED (RabbitMQ)
-           → processor → MESSAGE_REQUIRE_ANSWER (RabbitMQ)
-           → ai → ANSWER_MESSAGE (RabbitMQ)
-           → vkFacade → VK API (sendMessage)
-
-Summary flow:
-  MESSAGE_RECEIVED → persistence → SUMMARY_REQUESTED (RabbitMQ)
-  → ai → SUMMARY_READY (RabbitMQ)
-  → vkFacade → VK API
-```
-
-### Key Patterns
-
-| Pattern | Application |
-|---------|-------------|
-| **Ports & Adapters** | Interfaces in `port/`, implementations in `adapter/` |
-| **Command** | `Command<REQ, RESP>` — atomic reusable operations |
-| **UseCase** | Business process coordination, implements InputPort |
-| **Decorator** | `@Decorator` — Security, Logging |
-| **Value Objects** | `@JvmInline value class` — `MessageText`, `PeerId`, `FromId` |
-| **DMZ** | Isolation of external VK API from domain model in `receiver` |
-
-### Architecture Patterns
-
-#### Hexagonal Architecture (Ports & Adapters)
-- Strict separation between domain logic and external integrations
-- Domain models and interfaces in `share` module
-- Implementation in adapter modules (`receiver`, `vkFacade`, etc.)
-
-#### Mandatory Flow (NON-NEGOTIABLE)
-Every request must follow this exact path. No shortcuts, no bypasses:
-
-```
-adapter input → port input → usecase → command → command impl → port output → adapter output
-```
-
-**EXPLICITLY FORBIDDEN:**
-
-| Violation | Example | Why |
+| Layer | Version | Where it is pinned |
 |---|---|---|
-| EventProcessor → Command directly | `SummaryReadyEventProcessor` injecting `SendVkMessageCommand` | Bypasses usecase business logic |
-| Input adapter → OutputPort | `VkFacadeController` injecting `VkProfileOutputPort` | Reverses dependency direction |
-| Adapter → jOOQ/concrete repo directly | `PersistenceDataController` injecting `JooqMessageRepository` | No abstraction layer |
-| Usecase → Usecase via InputPort | `ProcessSummaryUsecase` calling `GenerateSummaryInputPort` | Usecase should call Command, not another InputPort |
-| Usecase → OutputPort directly | Usecase calling persistence port without Command layer | Missing command abstraction |
-| Domain VO wrapping infra type | `VkEvent` wrapping `jakarta.json.JsonObject` | Infrastructure leaks into domain |
-| Command layer importing adapter DTO | `MessageMapper` in `command/` importing `adapter.input.dto.*` | Violates Dependency Inversion |
-| `@Tool` on Command class | `VaneSearchCommandImpl` with `@Tool` methods | Adapter→Command reverse dependency |
+| JDK | 21 (Temurin 21.0.5) | `kotlin { jvmToolchain(21) }` in all 11 modules; `.sdkmanrc`; CI `java-version: '21'` |
+| Gradle | 9.3.0 wrapper, Kotlin DSL | `gradle/wrapper/gradle-wrapper.properties:3` |
+| Kotlin | 2.3.0 | `settings.gradle.kts:14` |
+| Quarkus | 3.34.2 (`quarkus-bom`) | `gradle.properties:3-7`; the only `enforcedPlatform` is `build.gradle.kts:44-51` |
+| LangChain4j | 1.8.4 | `gradle.properties:8` |
+| DB | PostgreSQL + Liquibase + jOOQ 3.19.10 (codegen off, tables handwritten) | `src/persistence/build.gradle.kts:41,47,55,89-125` |
+| Broker | RabbitMQ (`quarkus-messaging-rabbitmq`) | `src/infrastructure/build.gradle.kts:18-20` |
+| Tests | JUnit 5, ArchUnit 1.3.0, WireMock 3.9.1, Awaitility 4.2.0 | `src/testing/arch-tests/build.gradle.kts:11`, `src/app/build.gradle.kts:45-56` |
+| Lint / format | detekt 1.23.8, ktlint plugin 13.1.0 | `gradle.properties:9-10`, `build.gradle.kts:5-6` |
+| Coverage | JaCoCo 0.8.14 | aggregated task `coverageReport` (see §6) |
 
-#### OutputPort Contract (NON-NEGOTIABLE)
-Every output port MUST extend `OutputPort<REQ, RESP>` with a single `execute(request: REQ): RESP` method. Raw multi-method interfaces are forbidden — split each method into its own port:
+Do not bump a version and leave the ADRs untouched. Version policy: ADR 0001.
 
-```kotlin
-// WRONG — raw interface, multiple methods
-interface PersistenceDataOutputPort {
-    fun findMessagesBefore(peerId: Long, ...): List<StoredMessage>
-    fun findLastSummary(peerId: Long): Summary?
-}
+## 3. Module map (11 Gradle modules, one deployable)
 
-// CORRECT — one port per operation
-interface FindStoredMessagesBeforePort : OutputPort<FindStoredMessagesBeforePort.Request, FindStoredMessagesBeforePort.Response> {
-    data class Request(val peerId: Long, val beforeConversationMessageId: Long, val limit: Int) : OutputPortRequest
-    data class Response(val messages: List<StoredMessage>) : OutputPortResponse
-}
+`settings.gradle.kts:22-32`; production dependency allowlist: `GradleDependenciesTest.kt:35-65`.
+The single deployable is `:src:app` (ADR 0002). The root project is an aggregator with conventions only.
+
+| Module | Owns | Public entry points | Depends on (production) |
+|---|---|---|---|
+| `src:share` | Domain and contracts: `Message`, `StoredMessage`, `Summary`, `VkUserProfile`/`VkGroupProfile`, value objects, `Event`, `Command`, `Port`/`InputPort`/`OutputPort`, `EventProcessor`, 9 persistence ports, 2 vk ports, event payloads | — (contracts only) | — |
+| `src:receiver` | VK Callback entry, secret check, DMZ JSON→domain mapping, publishes `MESSAGE_NEW` | `POST /vk/callback` (`VkMediatorRouterImpl.kt:16-40`), `ReceiveMessageInputPort` | share |
+| `src:persistence` | Message/profile/summary storage (jOOQ + Liquibase), query REST API, in-process implementation of share persistence ports, profile fetching | `POST /persistence/*` (`PersistenceDataController.kt:21-127`), `MessageNewEventProcessor.kt:12-22`, `PersistenceDataInProcessAdapter.kt:17-144` | share |
+| `src:processor` | Answer-decision logic, publishes `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedEventProcessor.kt:12-22` | share |
+| `src:ai` | AI answers, summarization, OCR command, Vane tools; consumes `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`, publishes `ANSWER_MESSAGE`/`SUMMARY_READY` | `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28` | share |
+| `src:vk-facade` | VK API output, profile endpoints, in-process implementation of share vk ports; consumes `ANSWER_MESSAGE`/`SUMMARY_READY` | `GET /api/profiles/*` (`VkFacadeController.kt:14-32`), `SendMessageEventProcessor.kt:12-22`, `SummaryReadyEventProcessor.kt:18-57`, `VkProfileInProcessAdapter.kt:8-36` | share |
+| `src:infrastructure` | RabbitMQ dispatcher, retry ladder + final DLQ, event publishing, logging decorators, Jackson config | `@Incoming("all-events-queue")` (`EventDispatcher.kt:63-84`), `PublishEventOutputAdapter.kt:15-33` | share |
+| `src:app` | Deployable, `@QuarkusMain`, runtime config, integration tests, composition root | `Application.kt:6-12` | receiver, persistence, processor, ai, vk-facade, infrastructure, share |
+| `src:testing:test-fixtures` | Shared fakes and fake-data providers | — | share, vk-facade (tests only) |
+| `src:testing:test-common` | Shared test `application.yaml` | — | — |
+| `src:testing:arch-tests` | ArchUnit: module rules, layer rules, build-graph allowlist | `ModuleDependenciesTest`, `LayerDependenciesTest`, `GradleDependenciesTest` | all modules + app (tests only) |
+
+Layers inside every business module (ADR 0003):
+
+```
+<module>/domain/        entities, VOs, errors — no framework, no other layer
+<module>/port/input/    use-case contracts called by the outside
+<module>/port/output/   what the logic needs from outside (no implementations)
+<module>/usecase/       port/input implementations over domain + port/output
+<module>/command/       atomic Command<REQ,RESP> operations
+<module>/adapter/input/ REST, @Incoming consumers, in-process adapters
+<module>/adapter/output/ DB (jOOQ), VK API, AI, Vane, JSON
+<module>/config/        CDI producers / module configuration
 ```
 
-#### Command Contract (NON-NEGOTIABLE)
-Every command MUST implement `Command<REQ, RESP>`. Loose classes with arbitrary `execute()` signatures are forbidden:
+`share` has no `adapter` layer. Composition root is CDI + `:src:app`; explicit producers only in
+`receiver/config/UsecaseConfiguration.kt:12-25`, `receiver/config/ConstantConfiguration.kt:9-15`,
+`persistence/config/JooqConfig.kt:11-20`, `infrastructure/config/MapperConfig.kt:9-18`.
 
-```kotlin
-// WRONG
-class IsRequireAnswerCommand(...) {
-    fun execute(message: Message): Boolean  // no Command<REQ,RESP>
-}
+## 4. Dependency direction and forbidden imports (enforced by the build)
 
-// CORRECT
-interface IsRequireAnswerCommand : Command<IsRequireAnswerRequest, IsRequireAnswerResponse> {
-    data class IsRequireAnswerRequest(val message: Message) : CommandRequest
-    data class IsRequireAnswerResponse(val requiresAnswer: Boolean) : CommandResponse
-}
+```
+share -> nobody
+receiver|processor|ai|persistence|vk-facade|infrastructure -> share
+app -> all six business modules + share
+```
+Enforced by `LayerDependenciesTest` (L1–L5, one `@Test` per rule), `ModuleDependenciesTest` (L6 and the
+module rules) and the `GradleDependenciesTest` allowlist. A violation fails `./gradlew build`, not a review.
+
+Forbidden — each rule names the test that catches it:
+
+| Violation | Caught by |
+|---|---|
+| `domain` imports a framework (`io.quarkus`, `jakarta`, `org.jooq`, `com.fasterxml`, `io.smallrye`, `org.eclipse`, `dev.langchain4j`) or another layer | L1 |
+| `port` imports an adapter/usecase/command/config | L2 |
+| `usecase`/`command` imports an adapter, jOOQ, Jackson, JAX-RS, `jakarta.json`, LangChain4j, SmallRye, `io.quarkus` (DI annotations `jakarta.inject`/`jakarta.enterprise`/`jakarta.transaction`/`org.eclipse.microprofile.config.inject` are allowed) | L3 |
+| input adapter goes to `command`/`usecase`/`adapter.output` instead of `port.input` | L4 |
+| output adapter goes to `adapter.input`/`usecase` (calling `command` is allowed: `VaneSearchToolAdapter`) | L5 |
+| a module imports another module outside the allowlist | `ModuleDependenciesTest`, `GradleDependenciesTest` |
+| testing modules used in a production configuration | `GradleDependenciesTest` |
+
+Mandatory flow (non-negotiable):
+
+```
+adapter input -> port input -> usecase -> command -> command impl -> port output -> adapter output
 ```
 
-#### @Tool Annotations on Adapters, Not Commands
-LangChain4j `@Tool` methods must live in adapter-layer classes (e.g., `VaneSearchToolAdapter`), not in command implementations. The adapter delegates to `Command.execute()`. This keeps the single entry point into the command and avoids reverse dependencies from output adapters into the command layer.
+Contracts that must keep their shape:
 
-#### Port Granularity
-- **Single-method ports**: Every output port exposes exactly one operation via `execute(Request): Response`
-- Multi-method repository-style interfaces are split into individual ports
-- Naming: `{Verb}{Noun}Port` — e.g., `FindStoredMessagesBeforePort`, `SaveMessagePort`
+- Every output port is a `fun interface OutputPort<REQ, RESP>` with one `execute` (`share/port/output/OutputPort.kt:7-13`);
+  one operation per port. Raw multi-method repository interfaces are forbidden.
+- Every command is `Command<REQ, RESP>` (`share/command/Command.kt:3-8`); loose `execute()` classes are forbidden.
+- Every event consumer implements `EventProcessor` (`share/port/input/EventProcessor.kt:5-8`).
+- `@Tool` (LangChain4j) lives on adapter classes only: `VaneSearchToolAdapter.kt:10-32` delegates to
+  `VaneSearchCommand`. Never annotate a command with `@Tool`.
+- Cross-module synchronous calls use `share` ports implemented in-process (ADR 0004); never a loopback HTTP
+  call, never another module's use case directly.
 
-#### Command Pattern
-```kotlin
-interface Command<REQ: CommandRequest, RESP: CommandResponse> {
-    fun execute(request: REQ): RESP
-}
-```
+## 5. Configuration
 
-#### Module Structure
-```
-module/
-├── adapter/
-│   ├── input/     # Entry points (REST controllers, event listeners)
-│   └── output/    # Integrations (databases, external APIs)
-├── command/       # Reusable atomic actions
-├── domain/        # Business logic and domain models
-├── port/          
-│   ├── input/     # Inbound interfaces
-│   └── output/    # Outbound interfaces
-├── usecase/       # Coordination of business processes
-└── config/        # Module configuration
-```
+One production config: `src/app/src/main/resources/application.yml` + `application-queues.yml`.
+Required env: `VK_SECRET`, `VK_CONFIRMATION_CODE`, `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`,
+`SUMMARY_ENABLED_CHATS` (non-empty comma-separated peer ids), `QUARKUS_DATASOURCE_JDBC_URL`,
+`QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`, `RABBITMQ_HOST`
+(and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed). `summary.enabled-chats: ${SUMMARY_ENABLED_CHATS:}`
+(`application.yml:14`) expands to the empty String when the variable is unset, and Quarkus rejects that value
+(`SRCFG00040`), so the variable is required and must not be empty. Details and every key:
+`docs/development/configuration.md` and ADR 0006. Never commit secrets; `.env` is git-ignored.
 
-### Testing Approach
+## 6. Commands that exist and were run (this pass)
 
-#### Fake Objects Over Mocks
-We use Fake Objects instead of mocking frameworks for better readability and maintainability:
+| Command | What it does | Result in this pass |
+|---|---|---|
+| `./gradlew build` | compiles, tests, detekt, ktlintCheck, coverage threshold, capability map, `:src:app:quarkusBuild` | `BUILD SUCCESSFUL`, exit 0 |
+| `./gradlew clean build` | same from scratch | `BUILD SUCCESSFUL in 2m 4s`, 168 tasks, exit 0 |
+| `./gradlew test` | JUnit 5 tests (needs Docker for DevServices in `app` tests) | 59 tests, 0 failures, exit 0 |
+| `./gradlew :src:<module>:test --tests "*ClassName*"` | one test class, module-scoped (a root-level `test --tests` fails on a module with no match) | works; used for single-class runs (this pass: `:src:processor:test --tests "*MessageReceivedUsecaseInputTest*"`) |
+| `./gradlew detekt` | detekt over all 11 modules, `maxIssues: 0` | `BUILD SUCCESSFUL`, exit 0 |
+| `./gradlew ktlintCheck` | ktlint format check over all modules | `BUILD SUCCESSFUL`, exit 0 |
+| `./gradlew ktlintFormat` | formatter (not a gate) | task exists (`--dry-run` lists it); not applied, code is already formatted |
+| `./gradlew coverageReport` | aggregated JaCoCo HTML+XML in `build/reports/jacoco/coverageReport/` | exit 0 |
+| `./gradlew coverageVerification` | fails below `coverageMin = 0.25` (measured line ratio 0.2796) | exit 0 |
+| `./gradlew :src:testing:arch-tests:test` | module, layer and build-graph rules (15 tests) | `BUILD SUCCESSFUL`, exit 0 |
+| `./gradlew :src:app:quarkusBuild` | builds the single artifact `src/app/build/quarkus-app/quarkus-run.jar` | exit 0 |
+| `./gradlew :src:app:quarkusDev` | local dev with hot reload + DevServices | started in 17.6 s with the env of §7; webhook smoke green (`test` 200, wrong secret 403); `/q/health` returns 503 (7 channels without downstream); needs Docker |
+| `./gradlew clean` | removes build outputs | works |
+| `./scripts/check-capabilities.sh` | capability-map check: entry-point and test paths, statuses, ADR ids (`docs/capabilities/`) | `OK: capability map paths, test paths, statuses and ADR ids resolve`, exit 0 |
+| `./gradlew capabilitiesCheck` | runs the capability-map check as part of `check` (and therefore `build`) | `BUILD SUCCESSFUL`, exit 0 |
 
-```kotlin
-// Preferred: Fake Object
-class FakeVkClient(
-    val response: VkResponseDto? = null
-): VkClient {
-    val calls = ConcurrentLinkedQueue<SendMessageParams>()
-    
-    override fun sendMessage(peerId: Long, message: String, rand: Int): VkResponseDto {
-        calls.add(SendMessageParams(peerId, message, rand))
-        return response ?: VkResponseDto(null)
-    }
-}
-```
+Not supported: `./gradlew jacocoTestReport` — the per-module task in `:src:app` fails a Gradle validation
+(`:src:app:jandex` output is not declared as its input). Use `coverageReport`/`coverageVerification`.
+There is no root `quarkusDev`/`quarkusBuild`: the deployable lives in `:src:app` only.
 
-### Error Handling
-
-1. **Custom Exceptions**:
-   ```kotlin
-   class ValidationException(message: String) : VkBotAppException(message)
-   ```
-
-### Dependency Injection
-
-Quarkus CDI is used for dependency injection:
-- `@ApplicationScoped` for singleton services
-- `@Singleton` for stateless services
-- Constructor injection preferred over field injection
-
-### Code Quality Rules
-
-1. **Detekt Configuration**:
-   - Located in `detekt-config.yml`
-   - Zero tolerance for issues (`build.maxIssues = 0`)
-   - Focus on complexity, naming, and style rules
-
-2. **KtLint Formatting**:
-   - IntelliJ IDEA code style defaults
-   - No trailing commas on call sites
-   - Final newlines required
-
-3. **Complexity Limits**:
-   - Maximum function length: 60 lines
-   - Maximum class length: 600 lines
-   - Maximum parameter count: 8 parameters
-   - Maximum cyclomatic complexity: 15
-
-## Build/lint/test commands
+## 7. How to run locally
 
 ```bash
-./gradlew quarkusDev     # dev with hot-reload + DevServices (RabbitMQ)
-./gradlew test           # tests with Fake Objects
-./gradlew test --tests "*ClassName*"  # run specific test class
-./gradlew build          # build the application
-./gradlew check          # run all checks (tests + linting)
-./gradlew detekt         # run linting checks
-./gradlew ktlintFormat   # run code formatting
-./gradlew clean          # clean build artifacts
-
-# Docker builds
-docker build -f src/docker/Dockerfile.jvm -t vkbot .      # JVM Docker
-docker build -f src/docker/Dockerfile.native -t vkbot .   # Native Docker
+export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+       SUMMARY_ENABLED_CHATS=1,2,3
+./gradlew :src:app:quarkusDev
 ```
 
-## Code Style Guidelines
+`SUMMARY_ENABLED_CHATS` is the non-empty comma-separated list of peer ids whose chats are summarized
+(`summary.enabled-chats`, `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34`). It is required: an unset or
+empty value expands `${SUMMARY_ENABLED_CHATS:}` (`application.yml:14`) to the empty String, and Quarkus'
+converter rejects it (`SRCFG00040`), so the application does not start. This exact command was run in the setup
+pass with `SUMMARY_ENABLED_CHATS=1,2,3`: the app started in 17.6 s, `POST /vk/callback` with the configured
+secret returned `test` (200) and a wrong secret returned 403.
 
-### Kotlin Conventions
-- Use Kotlin official coding conventions
-- Apply IntelliJ IDEA Kotlin style defaults
-- No wildcard imports (explicit imports only)
-- Maximum line length: 120 characters
+Docker is needed for DevServices (PostgreSQL, RabbitMQ, Ollama; LGTM for observability). The webhook is
+`POST http://localhost:8080/vk/callback` with a JSON body carrying `secret` and `type`.
+Health: `/q/health`, `/q/health/ready`, `/q/health/live` exist, but they currently report **DOWN**: the incoming
+channels `retry-*-queue`, `dlq-final-queue` and `summary-ready-queue` have no downstream consumer
+(`SRMSG00208: has no downstreams`), so the messaging checks list them as `[KO]`. Treat health as informational
+until those channels are excluded from health checks. There is no `/health` and no `/metrics` endpoint.
+Tests: `./gradlew test` starts DevServices itself; `@QuarkusTest` app tests also need Docker.
 
-### Naming Conventions
-- Classes: PascalCase (`MessageProcessor`)
-- Functions/Variables: camelCase (`processMessage()`, `userId`)
-- Constants: UPPER_SNAKE_CASE (`MAX_RETRY_COUNT`)
-- Packages: lowercase with dots (`com.simarel.vkbot.receiver`)
+## 8. Testing: fakes, not mocks
 
-### Value Objects
-Use inline value classes for type safety:
-```kotlin
-@JvmInline
-value class MessageText(val value: String) {
-    companion object {
-        fun of(value: String) = MessageText(value)
-    }
-}
-```
+- No mocking framework in the project. Fakes live in `src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/`
+  and in module-local test fixtures under `<module>/src/testFixtures` (`receiver`, `processor`).
+- A fake records calls in a `ConcurrentLinkedQueue` and returns a realistic response:
+  `FakeVkClient.kt:9-41`, `FakePublishEventCommand.kt:8-16`, `FakePublishEventOutputPort.kt:8-16`.
+- Fake-data providers: `FakeVoProvider.kt:14-62` (`createMessage`, `createDate`, `createHumanFromId`, …).
+  Use them instead of constructing VOs by hand in tests.
+- Test names are backtick sentences describing the check (`ReceiveMessageUsecaseTest.kt:14-29`).
+  Unit tests are plain JUnit 5 classes without Quarkus; integration tests use `@QuarkusTest`
+  (`VkWebhookIntegrationTest.kt:27-30`) plus `@QuarkusTestResource(WireMockTestResource::class)`.
+- In-process adapter tests are the template for new adapters: record the `port.input` request and assert the
+  mapping (`PersistenceDataInProcessAdapterTest.kt:38-49`).
+- Coverage: aggregate line ratio over 8 business modules, `src/testing/*` excluded; threshold 0.25 today,
+  ratchet target 0.40 then 0.60 (ADR 0005). A test that "passes" without its command output is not evidence.
 
-### Null Safety
-- Prefer non-nullable types
-- Use `?.`, `?:`, and `let` for safe calls
-- Avoid `!!` operator unless absolutely necessary
+## 9. Errors and logging
 
-## Testing with Fake Objects
+- Errors: the base type is `VkBotAppException` with `status(): ExceptionStatus`
+  (`share/domain/exception/VkBotAppException.kt:3-11`, `ExceptionStatus.kt:3-8`). Concrete mapped exceptions
+  live next to their module's entry point: `receiver/domain/exception/ValidationException.kt:6-12`
+  → `VALIDATION_FAILED`, `receiver/domain/exception/AccessDeniedException.kt:6-8` → `ACCESS_DENIED`,
+  `vk-facade/.../adapter/output/vk/exception/VkException.kt:6-8` → `EXTERNAL_FAILURE`.
+- HTTP mapping is one place: `receiver/adapter/input/vk/ExceptionHandler.kt:10-39` (`@ServerExceptionMapper`):
+  `VkBotAppException` with validation → 400, access denied → 403, external/unknown → 503.
+- `share/domain/exception/ValidationException.kt:3` is a plain `RuntimeException` thrown by value objects
+  (`PeerId.kt:22`); it is **not** a `VkBotAppException`, so it falls to the generic mapper
+  (`ExceptionHandler.kt:31-38`) → 503, not 400. That is the current behaviour; changing it is a code task.
+- Async failures are not swallowed: `EventDispatcher.dispatch` catches processing exceptions and moves the
+  message along the retry ladder (`EventDispatcher.kt:76-82,90-111`); final stop is `dlq-final` with no TTL.
+  Retry levels and TTLs: `src/app/src/main/resources/application-queues.yml:1-32`.
+- Logging: `java.lang.System.Logger` in `usecase`/`command` (framework-free business layer); Quarkus `Log` in
+  adapters and infrastructure. Logging decorators wrap every `Command` and `Port`:
+  `CommandLoggingDecorator.kt:11-28`, `UsecaseLoggingDecorator.kt:11-28`; they log only at TRACE.
+- Do not log secrets, tokens or full webhook payloads.
 
-Instead of mocks, we use Fake Objects located in `src/testing/test-fixtures`:
+## 10. Code style (what the gates check)
 
-```kotlin
-// Fake Object records calls and returns realistic responses
-class FakeVkClient : VkClient {
-    val calls = ConcurrentLinkedQueue<SendMessageParameter>()
-    override fun sendMessage(peerId: Long, message: String, rand: Int): VkResponseDto {
-        calls.add(SendMessageParameter(peerId, message, rand))
-        return VkResponseDto(error = null)  // Realistic response
-    }
-}
-// Provider for test data 
-object FakeVoProvider {
-    fun createMessageText(value: String? = null) = MessageText.of(value ?: "Test")
-    fun createPeerId(value: Long? = null) = PeerId.of(value ?: Random.nextLong())
-}
-```
+- Kotlin official style + IntelliJ defaults; ktlint config is `.editorconfig` (trailing commas on call sites
+  are **allowed**: `ij_kotlin_allow_trailing_comma_on_call_site = true`), max line length 120, explicit imports.
+- detekt limits: `maxIssues: 0` (`detekt-config.yml:2`), cyclomatic complexity 15, long method 60, large class 600,
+  long parameter list 8 (function and constructor), too many functions 11 per file/class (`detekt-config.yml:108-172`).
+  A baseline exists per module; do not add new findings to it.
+- Kotlin conventions: `data class` for value types, `@JvmInline value class` for domain VOs
+  (`MessageText.kt:3-12`), sealed interfaces for closed request/response sets
+  (`PersistenceDataInputPort.kt:12-55`), non-null by default, avoid `!!`.
+- No comments unless the neighbouring code already documents itself that way; the ADR/plan carries decisions.
 
-## Configuration
+## 11. What never to do
 
-| Variable | Description |
-|----------|-------------|
-| `VK_SECRET` | VK callback secret |
-| `VK_CONFIRMATION_CODE` | Group confirmation code |
-| `VK_API_TOKEN` | Group API token |
+1. Never add a second Quarkus runner or another deployable; the artifact is `:src:app`.
+2. Never let a domain/usecase/command import an adapter, jOOQ, Jackson, JAX-RS, LangChain4j or `io.quarkus`.
+3. Never let an input adapter query storage or call a repository directly; go through `port.input`.
+4. Never call another module's use case or repository directly instead of a `share` port.
+5. Never add a loopback HTTP call between modules of this deployable.
+6. Never add a module outside the allowlist without updating `GradleDependenciesTest`, `ModuleDependenciesTest`
+   and ADR 0003.
+7. Never annotate a command with `@Tool`; tools live in adapters.
+8. Never commit secrets, `.env`, build outputs, or edit an applied Liquibase changeset (add the next one).
+9. Never delete an accepted ADR: add a successor with `supersedes` and keep `docs/README.md` current.
+10. Never claim a gate exists without its passing (and, for a gate, failing) command output.
+11. Do not document as existing: `/metrics`, `/health`, `DATABASE_URL`/`DB_USERNAME`/`DB_PASSWORD`,
+    `jacocoTestReport` or `SEND_MESSAGE`. None of them exist in this codebase (the coverage gate is
+    `coverageReport`/`coverageVerification`).
 
-## AI Integration
+## 12. Documents
 
-LangChain4j with Russian responses. Interface: `UserAnswerAiService` with `@SystemMessage`.
-
-## Documentation References
-
-For deeper understanding of the architecture and patterns, refer to the detailed documentation:
-
-- `docs/architecture/overview.md` - General architectural concepts
-- `docs/architecture/modules.md` - Detailed module descriptions and interactions
-- `docs/architecture/patterns.md` - In-depth explanation of architectural patterns
-- `docs/architecture/data-flow.md` - Detailed data flow diagrams and explanations
-- `docs/development/testing.md` - Comprehensive guide to the Fake Objects testing approach
-- `docs/development/configuration.md` - Detailed configuration options
-- `docs/development/deployment.md` - Deployment strategies and options
-
-This guide provides essential information for AI agents to effectively contribute to this codebase while maintaining consistency with existing patterns and practices.
+- `docs/architecture/overview.md` — style, layers, ADR ids, runtime topology.
+- `docs/architecture/modules.md` — every module: responsibility, public API, dependencies.
+- `docs/architecture/patterns.md` — patterns in use and where they live in code.
+- `docs/architecture/data-flow.md` — real event and call paths, failure modes.
+- `docs/development/testing.md` — test strategy, fakes, coverage policy.
+- `docs/development/configuration.md` — every config key, default and effect.
+- `docs/development/deployment.md` — artifact, images, env, rollback.
+- `docs/adr/` — accepted decisions 0001–0006.
+- `docs/capabilities/` — product record: `index.md` with one row per capability plus one file per
+  capability (status, entry points, owned data, journey, shared ownership, ADR and AC ids, test paths),
+  checked by `./scripts/check-capabilities.sh` inside `check`.

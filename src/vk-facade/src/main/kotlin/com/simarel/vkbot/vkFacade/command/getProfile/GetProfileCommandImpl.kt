@@ -12,15 +12,19 @@ class GetProfileCommandImpl(
     override fun execute(request: GetProfileCommand.GetProfileRequest): GetProfileCommand.GetProfileResponse {
         val users = if (request.userIds.isNotEmpty()) {
             vkGetUserProfilesBatchPort.execute(
-                VkGetUserProfilesBatchPort.Request(request.userIds)
+                VkGetUserProfilesBatchPort.Request(request.userIds),
             ).profiles
-        } else emptyList()
+        } else {
+            emptyList()
+        }
 
         val groups = if (request.groupIds.isNotEmpty()) {
             vkGetGroupProfilesBatchPort.execute(
-                VkGetGroupProfilesBatchPort.Request(request.groupIds)
+                VkGetGroupProfilesBatchPort.Request(request.groupIds),
             ).profiles
-        } else emptyList()
+        } else {
+            emptyList()
+        }
 
         return GetProfileCommand.GetProfileResponse(users, groups)
     }

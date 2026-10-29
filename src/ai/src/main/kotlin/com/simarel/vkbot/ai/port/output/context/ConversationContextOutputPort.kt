@@ -11,9 +11,9 @@ import com.simarel.vkbot.share.port.output.OutputPortResponse
 
 interface ConversationContextOutputPort :
     OutputPort<
-            ConversationContextRequest,
-            ConversationContextResponse,
-            >
+        ConversationContextRequest,
+        ConversationContextResponse,
+        >
 
 data class ConversationContextRequest(
     val message: Message,

@@ -21,11 +21,10 @@ dependencies {
     testFixturesImplementation("org.eclipse.parsson:parsson:1.1.5")
 
     // Test dependencies
-    testImplementation(testFixtures(project))  // Own testFixtures
-    testImplementation(testFixtures(project(":src:testing:test-fixtures")))  // Shared test-fixtures
+    testImplementation(testFixtures(project)) // Own testFixtures
+    testImplementation(testFixtures(project(":src:testing:test-fixtures"))) // Shared test-fixtures
 
     // Quarkus dependencies
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
     implementation("io.quarkus:quarkus-arc")
     implementation("io.quarkus:quarkus-jackson")
     implementation("io.quarkus:quarkus-rest")
@@ -38,14 +37,13 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
 
     // Jackson for JSON serialization
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:latest")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // Jakarta JSON API
     implementation("jakarta.json:jakarta.json-api:2.1.3")
 
     // Testing - infrastructure needed for CDI decorators in tests
     testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
     testImplementation(project(":src:infrastructure"))
 }

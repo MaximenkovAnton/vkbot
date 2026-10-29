@@ -6,9 +6,9 @@ import com.simarel.vkbot.share.port.output.OutputPortResponse
 
 interface SummarizationOutputPort :
     OutputPort<
-            SummarizationRequest,
-            SummarizationResponse,
-            >
+        SummarizationRequest,
+        SummarizationResponse,
+        >
 
 data class SummarizationRequest(
     val messages: String,

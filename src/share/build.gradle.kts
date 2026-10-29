@@ -11,7 +11,6 @@ repositories {
 
 dependencies {
     // Quarkus platform
-    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.34.2"))
 
     // CDI
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
@@ -35,7 +34,6 @@ dependencies {
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
     testImplementation(kotlin("test"))
 }
 

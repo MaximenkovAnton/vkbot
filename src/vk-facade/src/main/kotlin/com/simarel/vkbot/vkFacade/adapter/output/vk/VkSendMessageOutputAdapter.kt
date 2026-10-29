@@ -11,7 +11,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient
 @ApplicationScoped
 class VkSendMessageOutputAdapter(
     @RestClient private val vkClient: VkClient,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) : VkSendMessageOutputPort {
     private val response = VkSendMessageOutputResponse()
 

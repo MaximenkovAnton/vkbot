@@ -14,5 +14,4 @@ value class ConversationMessageId(val value: Long) {
     override fun toString(): String = value.toString()
 }
 
-class ValidationConversationMessageIdNotNullException(message: String = "Conversation Message Id can't be null") :
-    ValidationException(message)
+class ValidationConversationMessageIdNotNullException(message: String = "Conversation Message Id can't be null") : ValidationException(message)
