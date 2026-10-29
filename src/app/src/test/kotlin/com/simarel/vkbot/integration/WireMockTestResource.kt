@@ -27,6 +27,7 @@ class WireMockTestResource : QuarkusTestResourceLifecycleManager {
 
         return mapOf(
             "quarkus.rest-client.vk.url" to "${server!!.baseUrl()}/method",
+            "quarkus.rest-client.vane.url" to server!!.baseUrl(),
             "quarkus.langchain4j.ollama.base-url" to server!!.baseUrl(),
         )
     }

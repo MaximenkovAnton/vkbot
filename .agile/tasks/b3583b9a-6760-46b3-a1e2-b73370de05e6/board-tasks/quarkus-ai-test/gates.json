@@ -1,0 +1,50 @@
+[
+  {
+    "id": "b58d4f05-39d1-4341-b0fe-c08c8d5fd648",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "quarkus-ai-test",
+    "stage": "write",
+    "criterion": "lint",
+    "command": "./gradlew detekt ktlintCheck",
+    "exitCode": 0,
+    "output": "> Task :src:app:ktlintTestSourceSetCheck\n> Task :src:app:detekt\n> Task :src:app:ktlintCheck\nBUILD SUCCESSFUL in 1s",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793291386109
+  },
+  {
+    "id": "6bb3a910-4d09-4b86-8ce0-a845b43a116e",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "quarkus-ai-test",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew :src:app:test --tests \"*AiIntegrationTest*\"",
+    "exitCode": 0,
+    "output": "> Task :src:app:test\nBUILD SUCCESSFUL in 1m 4s\nJUnit XML src/app/build/test-results/test/TEST-com.simarel.vkbot.integration.AiIntegrationTest.xml: tests=6 failures=0 errors=0 (generate answer port returns the answer produced by the model; generate answer port sends formatted profiles, chat history and current message to the model; summarization port parses short and full summaries from the model json; summarization port retries model failures and throws after three attempts; vane port returns the message and sources mapped from the provider response; vane port fails when no provider has both chat and embedding models)",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793291884804
+  },
+  {
+    "id": "85ac56e0-12d2-4fcf-ac98-d8c03bca13be",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "quarkus-ai-test",
+    "stage": "write",
+    "criterion": "tests",
+    "command": "./gradlew test",
+    "exitCode": 0,
+    "output": "> Task :src:app:test\n> Task :src:ai:test\n> Task :src:testing:arch-tests:test\n...\nBUILD SUCCESSFUL in 2m 12s\n67 actionable tasks: 8 executed, 59 up-to-date\nJUnit XML aggregate (all test tasks re-executed, mtimes 19:41:58-19:42:54): TOTAL 130 tests, 0 failures, 0 errors, 0 skipped — src/ai 62, src/testing 18, src/app 13 (incl. AiIntegrationTest 6, VkWebhookIntegrationTest 6, InitTest 1), src/persistence 9, src/receiver 9, src/share 8, src/vk-facade 7, src/processor 2, src/infrastructure 2",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292187760
+  },
+  {
+    "id": "a0445616-07ee-4729-b517-c51900b512f9",
+    "taskId": "b3583b9a-6760-46b3-a1e2-b73370de05e6",
+    "boardTaskId": "quarkus-ai-test",
+    "stage": "write",
+    "criterion": "build",
+    "command": "./gradlew build",
+    "exitCode": 0,
+    "output": "> Task :capabilitiesCheck\n> Task :coverageVerification UP-TO-DATE\n> Task :src:app:quarkusBuild UP-TO-DATE\n> Task :src:app:test\n> Task :src:ai:test\n> Task :src:testing:arch-tests:test\nBUILD SUCCESSFUL in 6s\n163 actionable tasks: 7 executed, 156 up-to-date",
+    "treeHash": "8ff1c9d1bb1a8d8fdd3a3dfe19a099910500afaf2144ccd2e50775fb65edf82e",
+    "at": 1793292210292
+  }
+]

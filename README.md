@@ -163,14 +163,14 @@ calls inside the deployable go through `share` ports (ADR 0004). Details: `docs/
 ## Testing
 
 ```bash
-./gradlew test                              # all tests (Docker needed for app integration tests)
+./gradlew test                              # all tests, incl. ai unit tests (Docker needed for app integration tests)
 ./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"   # one class (module-scoped)
 ./gradlew :src:testing:arch-tests:test      # architecture rules
 ./gradlew coverageReport coverageVerification   # aggregated report + threshold
 ```
 
 Fake Objects (not mocks) live in `src/testing/test-fixtures` and module-local `testFixtures`; the coverage
-threshold is `0.25` (measured `0.2796`, ratchet target `0.40`). Philosophy and examples:
+threshold is `0.40` (measured `0.5043`, ratchet target `0.60`). Philosophy and examples:
 `docs/development/testing.md`.
 
 ## Observability

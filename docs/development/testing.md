@@ -8,7 +8,10 @@
 
 ```bash
 ./gradlew test                                  # все тесты (нужен Docker для app-тестов)
+./gradlew :src:ai:test                          # юнит-тесты модуля ai (без Docker)
+./gradlew :src:ai:test --tests "*GenerateAnswerUsecaseTest*"  # один класс ai (в своём модуле)
 ./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"  # один класс (в своём модуле)
+./gradlew :src:app:test --tests "*AiIntegrationTest*"  # Quarkus-проводка ai (нужен Docker)
 ./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (18 тестов)
 ./gradlew coverageReport                        # агрегированный HTML+XML отчёт
 ./gradlew coverageVerification                  # порог покрытия (входит в ./gradlew build)
@@ -18,15 +21,16 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в этом проходе: `./gradlew test` → `BUILD SUCCESSFUL`, **62 теста, 0 падений, 0 ошибок,
-0 пропущенных**. Распределение по модулям: app — 7, receiver — 9, share — 8, vk-facade — 7, persistence — 9,
-processor — 2, infrastructure — 2, arch-tests — 18; **в `ai` собственных тестов нет**.
+Проверено в этом проходе: `./gradlew test --rerun-tasks` → `BUILD SUCCESSFUL`, **130 тестов, 0 падений,
+0 ошибок, 0 пропущенных**. Распределение по модулям: app — 13 (в т.ч. `AiIntegrationTest` — 6), ai — 62,
+receiver — 9, share — 8, vk-facade — 7, persistence — 9, processor — 2, infrastructure — 2, arch-tests — 18.
 
 ## Где лежат тесты
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `WireMockTestResource`, `IntegrationTestProfile` |
+| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `integration/AiIntegrationTest` (6 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile` |
+| `ai` | 14 классов, 62 теста: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
 | `receiver` | `VkMediatorRouterIntegrationTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest`, `ExceptionHandlerTest` |
 | `persistence` | `PersistenceDataInProcessAdapterTest` (9 тестов — маппинг всех in-process портов) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
@@ -77,6 +81,7 @@ src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 │       ├── FakePublishEventCommand.kt, FakePublishEventCommandProvider.kt
 │       └── FakeSendVkMessageCommand.kt, FakeSendVkMessageCommandProvider.kt
 ├── domain/
+│   ├── FakeEventProvider.kt
 │   ├── FakeMessageProvider.kt
 │   ├── FakeModelProvider.kt
 │   └── FakeVoProvider.kt
@@ -94,6 +99,8 @@ src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/   # Fa
   # FakeVkProvider, port/FakeReceiveMessageInputPort
 src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/  # FakeIsRequireAnswerCommand,
   # FakeMessageNewInputPortProvider, FakeMessageReceivedInputPort
+src/ai/src/testFixtures/kotlin/com/simarel/vkbot/ai/testfixtures/   # FakeAnswerProvider, FakeSummaryProvider,
+  # FakeVaneProvider, FakeConversationContextPortProvider
 ```
 
 Модульные `testFixtures` подключаются только в test-конфигурациях — это проверяет
@@ -109,7 +116,7 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
    - DTO под `**/adapter/output/**/dto/**`;
    - request/response под `**/port/**` и `**/command/**`, включая вложенные типы контрактов.
 2. Данные берутся из фабрики `*Provider`: общие типы (`share`, `vk-facade`) — в `:src:testing:test-fixtures`,
-   типы модуля — в его `<module>/src/testFixtures` (`persistence`, `receiver`, `processor`). Фабрика —
+   типы модуля — в его `<module>/src/testFixtures` (`ai`, `persistence`, `receiver`, `processor`). Фабрика —
    единственное место, где эти типы создаются напрямую.
 3. У каждого параметра фабричного метода `create*` есть реалистичный дефолт; тест передаёт только поля,
    от которых зависит проверка.
@@ -124,7 +131,8 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
 - `domain/FakeVoProvider.kt:18-69` — единая точка создания доменных значений: `createDate`, `createFromId`,
   `createHumanFromId`, `createGroupFromId`, `createGroupChatFromId`, `createGroupId`, `createPeerId`,
   `createConversationMessageId`, `createMessageText`, `createMessage`, `createForwardedMessage`,
-  `createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него.
+  `createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него, `FakeEventProvider` —
+  `createSummaryRequestedPayload`.
 - `domain/FakeModelProvider.kt` — `createStoredMessage`, `createSummary`, `createVkUserProfile`,
   `createVkGroupProfile`, `createResponseMessage`.
 - `port/FakeProfilePortProvider.kt` — `createGetUserProfilesBatchRequest`,
@@ -137,6 +145,10 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
 - `vkFacade/FakeVkFacadeProvider.kt` — `createVkError`, `createVkResponseDto`, `createVkProfileRequest`,
   `createVkProfileResponse`, `createVkSendMessageInputRequest`.
 - `command/FakeCommandProvider.kt` — `createRequest`, `createResponse`.
+- `src/ai/src/testFixtures/.../ai/testfixtures/` — `FakeAnswerProvider` (message/answer, контекст и
+  request/response команд и портов `ai-answer`), `FakeSummaryProvider` (саммаризация и summary-команды),
+  `FakeVaneProvider` (порт и REST-клиент Vane, одноимённые типы разведены именами фабрик),
+  `FakeConversationContextPortProvider` (ответы persistence-портов контекста).
 - `PersistenceDataRequestProvider.kt` и `PersistenceDataResponseProvider.kt` в
   `src/persistence/src/testFixtures` — 9 фабрик `PersistenceDataRequest.*` и 7 фабрик
   `PersistenceDataResponse.*`.
@@ -205,10 +217,17 @@ default` FAILED с именем параметра. После отката об
 - остальные тесты: confirmation, неизвестный тип, неверный/отсутствующий секрет (403), ошибка VK API
   не роняет вебхук.
 
-`WireMockTestResource` задаёт только те REST-клиенты, которые есть в коде: VK API (`quarkus.rest-client.vk.url`)
-и Ollama (`quarkus.langchain4j.ollama.base-url`, `WireMockTestResource.kt:24-31`). Заглушек удалённых
-loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при возврате HTTP-контура
-между модулями (ADR 0004). Vane в тестах смотрит на `http://localhost:8075` (`src/app/src/test/resources/application.yaml:22-25`).
+`AiIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`) — 6 тестов
+реальной проводки `ai` в единственном деплое: инжектятся CDI-бины `GenerateAnswerOutputPort`,
+`SummarizationOutputPort`, `VaneSearchOutputPort`, а Ollama и Vane подменены WireMock-заглушками на
+HTTP-границе. Проверены ответ модели, тело промпта (профили, история, текущее сообщение), парсинг JSON
+саммари, 3 попытки порта (9 HTTP-вызовов), маппинг ответа Vane и `IllegalStateException` при отсутствии
+провайдера с chat- и embedding-моделью.
+
+`WireMockTestResource` подменяет HTTP-границу трёх клиентов: VK API (`quarkus.rest-client.vk.url`), Vane
+(`quarkus.rest-client.vane.url`) и Ollama (`quarkus.langchain4j.ollama.base-url`, `WireMockTestResource.kt:24-33`).
+Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
+возврате HTTP-контура между модулями (ADR 0004).
 
 ## Архитектурные тесты
 
@@ -230,18 +249,19 @@ loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет
 
 - Агрегат по 8 модулям (`ai, app, infrastructure, persistence, processor, receiver, share, vk-facade`),
   `src/testing/*` исключён (`build.gradle.kts:22-31`).
-- Измерено: **line ratio 0.2796** (586 покрытых из 2096 строк), instruction 0.2862, branch 0.1527;
-  `coverageMin = 0.25` (`build.gradle.kts:19-20`).
+- Измерено: **line ratio 0.5043** (1057 покрытых из 2096 строк), instruction 0.5041, branch 0.4089;
+  `coverageMin = 0.40`, `measuredLineCoverage = 0.5043` (`build.gradle.kts:19-20`).
 - Порог включён в `check` → `build` (`build.gradle.kts:130-133`) и в CI-джоб `coverage`.
-- Политика: порог не понижается; ратчет 0.40, затем 0.60 — отдельные задачи с новыми тестами (ADR 0005).
-  Покрытие меряется по бизнес-коду, а не по glue; `ai` и часть use case пока не покрыты.
-- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.27,
+- Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), следующий целевой
+  порог 0.60 — отдельная задача с новыми тестами (ADR 0005). Покрытие меряется по бизнес-коду, а не по glue.
+- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.50,
   but expected minimum is 0.99`, exit 1.
 
 ## Ограничения
 
 - `@QuarkusTest` в `app` требует Docker (DevServices); в окружении без Docker эти тесты не пройдут.
-- Юнит-тестов `ai` нет: `GenerateAnswerUsecase`, `ProcessSummaryCommand`, `GenerateSummaryCommand` и
-  LangChain4j-адаптеры проверяются только сквозным интеграционным тестом.
+- `@QuarkusTest` в `:src:ai` не запускается (нет плагина `io.quarkus`, ADR 0002), поэтому проводка `ai`
+  проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
+  plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`
   (`build.gradle.kts:69-72`) — новый модуль без тестов не упадёт, но и не будет проверен.

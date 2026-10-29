@@ -45,6 +45,7 @@ dependencies {
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation(kotlin("test"))
+    testImplementation(testFixtures(project(":src:ai")))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:test-common"))
 

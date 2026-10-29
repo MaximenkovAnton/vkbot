@@ -78,15 +78,46 @@ in-process порт `message-storage`, который публикует `SUMMAR
 
 ## Acceptance criteria
 
-Нет AC с тестом: ни один существующий тест не доказывает ни одно поведение этой возможности (в тестовом
-профиле `summary.enabled-chats: 1,2,3`, а peerId интеграционного теста — `2000000001`/`2000000002`,
-поэтому шаг не запускается; в модуле `ai` тестов нет). Это пробел продукта, зафиксированный в
-`capabilities.md`, а не отсутствие возможности — код её реализует.
+- **AC-conversation-summary-1** — КОГДА чат не входит в `summary.enabled-chats`, или у него есть
+  `PENDING`-саммари, или последнее саммари зависло в `PENDING`, СИСТЕМА ДОЛЖНА пропустить прогон, не вызывая
+  `GenerateSummaryCommand`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImplTest.kt`.
+- **AC-conversation-summary-2** — КОГДА саммаризация продолжается, СИСТЕМА ДОЛЖНА взять окно сообщений
+  размером `summary.batch-size` (`FindStoredMessagesBefore(peerId, current+1, batchSize)` без прошлого саммари;
+  иначе `FindStoredMessagesBetween(peerId, lastMessageId ?: 0, current, batchSize)`), пропустить прогон при
+  пустом окне и при `size < summary.threshold` вместе с прошлым саммари, а иначе вызвать
+  `GenerateSummaryCommand` с first/last id из окна. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImplTest.kt`.
+- **AC-conversation-summary-3** — КОГДА `GenerateSummaryCommandImpl` выполняется, СИСТЕМА ДОЛЖНА создать
+  `PENDING`-запись, сохранить `COMPLETED` с short/full из LLM; при пустом диапазоне сохранить `COMPLETED` с
+  текстом «Нет сообщений»; при исключении LLM пометить запись `FAILED` и пробросить исключение. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImplTest.kt`.
+- **AC-conversation-summary-4** — КОГДА сообщения форматируются для LLM, СИСТЕМА ДОЛЖНА собрать
+  `[автор]: текст` через `\n\n`, где автор — «Имя Фамилия» пользователя, имя группы (id берётся как
+  `-fromId`), либо fallback «Пользователь N» / «Группа N»; профили запрашиваются раздельно для пользователей
+  и групп. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImplTest.kt`.
+- **AC-conversation-summary-5** — КОГДА LLM-саммаризация падает, СИСТЕМА ДОЛЖНА повторить попытку до 3 раз и
+  после третьей пробросить последнее исключение (успех на 2-й попытке не пробрасывает и не зовёт LLM в третий
+  раз). Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapterTest.kt`.
+- **AC-conversation-summary-6** — КОГДА приходит JSON-payload `SUMMARY_REQUESTED`, СИСТЕМА ДОЛЖНА разобрать
+  `peerId` и `conversationMessageId`, передать их в `ProcessSummaryInputPort` и назвать событие
+  `SUMMARY_REQUESTED`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessorTest.kt`.
+- **AC-conversation-summary-7** — КОГДА выполняются `ProcessSummaryUsecase` / `GenerateSummaryUsecase`,
+  СИСТЕМА ДОЛЖНА передать id в соответствующую команду и вернуть её результат (`GenerateSummary` —
+  `summaryId`). Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/usecase/summary/ProcessSummaryUsecaseTest.kt`,
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/usecase/summary/GenerateSummaryUsecaseTest.kt`.
 
 ## Пробелы приёмки
 
-- `ProcessSummaryCommandImpl` (включённые чаты, pending, порог, batch-size) не покрыт тестом.
-- `GenerateSummaryCommandImpl` (pending → completed/failed, форматирование авторов) не покрыт тестом.
-- `SummarizationAiAdapter` (3 попытки, затем failed) не покрыт тестом.
-- `SummaryReadyEventProcessor` (forward на диапазон, синтетическое сообщение) не покрыт тестом.
-- Handler `handleSaveCompletedSummary` и публикация `SUMMARY_READY` не покрыты тестом.
+- Участок `SUMMARY_READY` → forward-блок (`SummaryReadyEventProcessor`, `vk-facade`) и сохранение completed
+  с публикацией события (`handleSaveCompletedSummary`, `persistence`) по-прежнему без теста: это код соседних
+  модулей в `journey-summary`, а не шага саммаризации.
+- Событие с пустым `summary.enabled-chats` недостижимо: production-конфиг требует непустой
+  `SUMMARY_ENABLED_CHATS` (Quarkus не стартует с пустым значением, ADR 0006); парсинг списка с пробелами
+  проверен тестом.
+- `ProcessSummaryCommandImpl` ловит исключение `GenerateSummaryCommand`; покрыто проглатывание, а не логи
+  (лог — ненаблюдаемое для пользователя поведение).

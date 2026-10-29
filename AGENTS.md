@@ -119,13 +119,13 @@ Required env: `VK_SECRET`, `VK_CONFIRMATION_CODE`, `VK_API_TOKEN`, `VK_BOT_ID`, 
 |---|---|---|
 | `./gradlew build` | compiles, tests, detekt, ktlintCheck, coverage threshold, capability map, `:src:app:quarkusBuild` | `BUILD SUCCESSFUL`, exit 0 |
 | `./gradlew clean build` | same from scratch | `BUILD SUCCESSFUL in 2m 4s`, 168 tasks, exit 0 |
-| `./gradlew test` | JUnit 5 tests (needs Docker for DevServices in `app` tests) | 62 tests, 0 failures, exit 0 |
+| `./gradlew test` | JUnit 5 tests (needs Docker for DevServices in `app` tests) | 130 tests, 0 failures, exit 0 |
 | `./gradlew :src:<module>:test --tests "*ClassName*"` | one test class, module-scoped (a root-level `test --tests` fails on a module with no match) | works; used for single-class runs (this pass: `:src:processor:test --tests "*MessageReceivedUsecaseInputTest*"`) |
 | `./gradlew detekt` | detekt over all 11 modules, `maxIssues: 0` | `BUILD SUCCESSFUL`, exit 0 |
 | `./gradlew ktlintCheck` | ktlint format check over all modules | `BUILD SUCCESSFUL`, exit 0 |
 | `./gradlew ktlintFormat` | formatter (not a gate) | task exists (`--dry-run` lists it); not applied, code is already formatted |
 | `./gradlew coverageReport` | aggregated JaCoCo HTML+XML in `build/reports/jacoco/coverageReport/` | exit 0 |
-| `./gradlew coverageVerification` | fails below `coverageMin = 0.25` (measured line ratio 0.2796) | exit 0 |
+| `./gradlew coverageVerification` | fails below `coverageMin = 0.40` (measured line ratio 0.5043) | exit 0 |
 | `./gradlew :src:testing:arch-tests:test` | module, layer and build-graph rules plus the `TestDataFactoriesTest` guard (18 tests) | `BUILD SUCCESSFUL`, exit 0 |
 | `./gradlew :src:app:quarkusBuild` | builds the single artifact `src/app/build/quarkus-app/quarkus-run.jar` | exit 0 |
 | `./gradlew :src:app:quarkusDev` | local dev with hot reload + DevServices | started in 17.6 s with the env of §7; webhook smoke green (`test` 200, wrong secret 403); `/q/health` returns 503 (7 channels without downstream); needs Docker |
@@ -163,14 +163,15 @@ Tests: `./gradlew test` starts DevServices itself; `@QuarkusTest` app tests also
 ## 8. Testing: fakes, not mocks
 
 - No mocking framework in the project. Fakes live in `src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/`
-  and in module-local test fixtures under `<module>/src/testFixtures` (`receiver`, `processor`, `persistence`).
+  and in module-local test fixtures under `<module>/src/testFixtures` (`ai`, `receiver`, `processor`, `persistence`).
 - A fake records calls in a `ConcurrentLinkedQueue` and returns a realistic response:
   `FakeVkClient.kt:9-41`, `FakePublishEventCommand.kt:8-16`, `FakePublishEventOutputPort.kt:8-16`.
 - Test data comes only from `*Provider` factories (naming convention `Fake*Provider`; persistence factories
   are `PersistenceData*Provider`): common types (`share`, `vk-facade`) in
   `src/testing/test-fixtures/.../testfixtures/` (`FakeVoProvider.kt:18-69`, `FakeModelProvider.kt`,
-  `FakeVkFacadeProvider.kt`), `persistence`/`receiver`/`processor` types in `<module>/src/testFixtures`
-  (`PersistenceDataRequestProvider.kt`, `PersistenceDataResponseProvider.kt`,
+  `FakeVkFacadeProvider.kt`), `ai`/`persistence`/`receiver`/`processor` types in `<module>/src/testFixtures`
+  (`FakeAnswerProvider.kt`, `FakeSummaryProvider.kt`, `FakeVaneProvider.kt`,
+  `PersistenceDataRequestProvider.kt`, `PersistenceDataResponseProvider.kt`,
   `FakePublishVkEventCommandProvider.kt`).
 - Direct `Type(...)`/`Type.of(...)` in `src/*/src/test/**` is forbidden for `share` domain models, VOs and
   events, adapter DTOs under `**/adapter/output/**/dto/**`, and port/command request/response types.
@@ -184,8 +185,8 @@ Tests: `./gradlew test` starts DevServices itself; `@QuarkusTest` app tests also
   (`VkWebhookIntegrationTest.kt:27-30`) plus `@QuarkusTestResource(WireMockTestResource::class)`.
 - In-process adapter tests are the template for new adapters: record the `port.input` request and assert the
   mapping (`PersistenceDataInProcessAdapterTest.kt:24-41`).
-- Coverage: aggregate line ratio over 8 business modules, `src/testing/*` excluded; threshold 0.25 today,
-  ratchet target 0.40 then 0.60 (ADR 0005). A test that "passes" without its command output is not evidence.
+- Coverage: aggregate line ratio over 8 business modules, `src/testing/*` excluded; threshold 0.40 today,
+  ratchet target 0.60 (ADR 0005). A test that "passes" without its command output is not evidence.
 
 ## 9. Errors and logging
 
