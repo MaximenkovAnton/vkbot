@@ -1,13 +1,13 @@
 # VK Bot Application
 
-A VK community bot: one Quarkus/Kotlin deployable that receives VK Callback webhooks, stores messages,
-decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM OpenAI-compatible
-API, sends them back to the VK API, and summarizes long conversations. The code follows
+A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
+stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM
+OpenAI-compatible API, sends them back to the VK API, and summarizes long conversations. The code follows
 hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 0003).
 
 ## Features
 
-- VK Callback API webhook with secret validation and a DMZ mapper for VK JSON
+- VK Bots Long Poll receiver (`groups.getLongPollServer` + `a_check`, `ts` position in PostgreSQL) with a DMZ mapper for VK JSON
 - Event-driven pipeline on RabbitMQ with a retry ladder and a final dead-letter queue
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
 - AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
@@ -39,7 +39,7 @@ One deployable (`src/app`) and eleven Gradle modules (`settings.gradle.kts:22-32
 src/
 ├── app/                    # @QuarkusMain, runtime config, composition root, integration tests
 ├── share/                  # domain models, value objects, contracts (ports, commands, events)
-├── receiver/               # VK webhook entry point (DMZ)
+├── receiver/               # VK Bots Long Poll entry point (DMZ)
 ├── persistence/            # PostgreSQL storage, REST query API, in-process persistence ports
 ├── processor/              # "does this message need an AI answer?"
 ├── ai/                     # AI answer, summarization, OCR command, Vane tools
@@ -59,7 +59,7 @@ them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/00
 
 - JDK 21 (the build pins a 21 toolchain)
 - Docker (DevServices for PostgreSQL and RabbitMQ; also required by `@QuarkusTest` app tests)
-- A VK community with a callback server and an API token
+- A VK community with the Bots Long Poll API enabled and an API token
 - A vLLM OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
 - Optional: a Vane (Perplexica) instance for web-search tools
 
@@ -70,10 +70,10 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 
 | Environment variable | Required | Description |
 |---|---|---|
-| `VK_SECRET` | yes | Callback secret from the VK community settings |
-| `VK_CONFIRMATION_CODE` | yes | Confirmation code from VK |
+| `VK_GROUP_ID` | yes | Positive community id used by `groups.getLongPollServer` |
 | `VK_API_TOKEN` | yes | VK community API token |
 | `VK_BOT_ID` | yes | Bot user id used by the answer-decision rule |
+| `VK_LONGPOLL_ENABLED` | no | Enables Bots Long Poll polling at startup (default `true`) |
 | `VANE_URL` | yes | Base URL of the Vane search API |
 | `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
 | `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries and OCR |
@@ -94,7 +94,7 @@ Every key, its default and its consumer: `docs/development/configuration.md`.
 ./gradlew clean build
 
 # Local development with hot reload + DevServices (PostgreSQL, RabbitMQ)
-export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+export VK_GROUP_ID=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
        AI_BASE_URL=http://localhost:8000/v1 AI_CHAT_MODEL=... \
        SUMMARY_ENABLED_CHATS=1,2,3
 ./gradlew :src:app:quarkusDev
@@ -110,7 +110,7 @@ second runner is produced.
 ./gradlew :src:app:quarkusBuild
 docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 docker run -p 8080:8080 \
-  -e VK_SECRET=... -e VK_CONFIRMATION_CODE=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
+  -e VK_GROUP_ID=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
   -e VANE_URL=... -e AI_BASE_URL=... -e AI_CHAT_MODEL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
   -e QUARKUS_DATASOURCE_JDBC_URL=... -e QUARKUS_DATASOURCE_USERNAME=... \
   -e QUARKUS_DATASOURCE_PASSWORD=... -e RABBITMQ_HOST=... \
@@ -124,39 +124,22 @@ Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` 
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/vk/callback` | POST | VK Callback webhook (confirmation, `message_new`, …) |
 | `/persistence/messages/*`, `/persistence/summaries/*`, `/persistence/profiles/*` | GET/POST | Query/storage API (`PersistenceDataController`) |
 | `/api/profiles/users/batch`, `/api/profiles/groups/batch` | GET | VK profile lookup (`VkFacadeController`) |
 | `/q/health`, `/q/health/ready`, `/q/health/live` | GET | Quarkus health checks |
 
-There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The health endpoints exist but
-currently report **DOWN** (503): seven retry/DLQ channels are declared without a downstream consumer and the
-messaging health check marks them `[KO]` (`SRMSG00208`); the webhook itself works. See
-`docs/development/deployment.md`. Example webhook body:
-
-```json
-{
-  "type": "message_new",
-  "group_id": 123456,
-  "secret": "your_secret",
-  "object": {
-    "message": {
-      "date": 1756381457,
-      "from_id": 123456,
-      "peer_id": 2000000001,
-      "conversation_message_id": 2670,
-      "text": "@simarel Привет!"
-    }
-  }
-}
-```
+`receiver` has no HTTP endpoint: VK events arrive through Bots Long Poll polling, and `POST /vk/callback`
+returns 404 (ADR 0008). There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The
+health endpoints exist but currently report **DOWN** (503): seven retry/DLQ channels are declared without a
+downstream consumer and the messaging health check marks them `[KO]` (`SRMSG00208`); the polling loop itself
+runs independently of HTTP health probes. See `docs/development/deployment.md`.
 
 ## Message flow
 
 ```
-VK webhook → receiver → MESSAGE_NEW → persistence (save + fetch profiles)
-           → MESSAGE_RECEIVED → processor → MESSAGE_REQUIRE_ANSWER
-           → ai → ANSWER_MESSAGE → vk-facade → VK API
+VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles)
+            → MESSAGE_RECEIVED → processor → MESSAGE_REQUIRE_ANSWER
+            → ai → ANSWER_MESSAGE → vk-facade → VK API
 
 Summary flow:
   persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API

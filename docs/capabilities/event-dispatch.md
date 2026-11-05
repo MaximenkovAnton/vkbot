@@ -44,7 +44,7 @@
 |---|---|---|
 | `Event` (каталог из шести имён и routing key) | все producer/consumer возможностей | `event-dispatch` |
 | `EventProcessor` | `MessageNewEventProcessor`, `MessageReceivedEventProcessor`, `MessageRequireAnswerEventProcessor`, `SummaryRequestedEventProcessor`, `SendMessageEventProcessor`, `SummaryReadyEventProcessor` | `event-dispatch` |
-| `PublishEventOutputPort` | `vk-webhook`, `message-storage`, `answer-decision`, `ai-answer`, `conversation-summary` | `event-dispatch` |
+| `PublishEventOutputPort` | `vk-long-poll`, `message-storage`, `answer-decision`, `ai-answer`, `conversation-summary` | `event-dispatch` |
 | `PublishEventCommand` и его реализация | все публикующие возможности | `event-dispatch` |
 | payload каждого события | producer соответствующего события (см. `message-storage`, `ai-answer`, `vk-message-send`, `conversation-summary`) | producer события |
 
@@ -66,7 +66,7 @@
 - **AC-event-dispatch-2** — КОГДА событие попадает в очередь, СИСТЕМА ДОЛЖНА вызвать процессор, чей `event()`
   совпал с routing key: цепочка `MESSAGE_NEW → MESSAGE_RECEIVED → MESSAGE_REQUIRE_ANSWER → ANSWER_MESSAGE`
   доходит до `messages.send`. Test:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:42-177`.
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`.
 
 ## Пробелы приёмки
 

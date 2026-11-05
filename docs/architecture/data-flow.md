@@ -1,6 +1,6 @@
 # Поток данных
 
-Документ описывает реальные пути данных и вызовов в коде: от вебхука VK до отправки ответа, плюс
+Документ описывает реальные пути данных и вызовов в коде: от Bots Long Poll VK до отправки ответа, плюс
 саммаризацию, отказоустойчивость и известные ограничения. Модульная карта — [modules.md](modules.md),
 паттерны — [patterns.md](patterns.md).
 
@@ -22,29 +22,41 @@
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
 конкретный тип в processor'е; payload'ы событий лежат в `share`, поэтому дрейф формата ловится компиляцией.
 
-## 1. Входящий webhook (VK → receiver)
+## 1. Входящий Bots Long Poll (VK → receiver)
 
 ```
-POST /vk/callback (JSON) → VkMediatorRouterSecurityDecorator → VkMediatorRouterImpl
+LongPollRunner (виртуальный поток, старт по StartupEvent)
+  → groups.getLongPollServer (REST-клиент configKey "vk")
+  → a_check: {server}?act=a_check&key=…&ts=…&wait=25
   → MessageMapper (DMZ) → ReceiveMessageUsecase → PublishVkEventCommand → MESSAGE_NEW
+  → SaveLongPollTsPort: ts сохраняется только после успешной публикации
 ```
 
-- **Секрет.** `VkMediatorRouterSecurityDecorator.kt:11-29` сравнивает `event.secret` с `vk.secret` до
-  бизнес-логики. Неверный/отсутствующий секрет → `AccessDeniedException` → HTTP 403
-  (`ExceptionHandler.kt:10-24`).
-- **Тип события.** `VkCallbackEvent.mapOrUnknown(type)` (`VkCallbackEvent.kt:10-14`): `message_new`,
-  `message_reply`, `confirmation`, иначе `UNKNOWN`.
+- **Транспорт.** `receiver` сам опрашивает Bots Long Poll API; публичного HTTP-входа у него нет —
+  `POST /vk/callback` отвечает 404, `vk.secret`/`vk.confirmation-code` в конфигурации отсутствуют
+  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)). `groups.getLongPollServer` возвращает
+  `server`, `key` и `ts`; на старте сессия запрашивается заново, а `server` и `key` нигде не хранятся.
+- **Позиция.** В PostgreSQL (`long_poll_position`) лежит только `ts` последнего обработанного обновления.
+  Если он есть, первый `a_check` идёт с ним — так доставляются сообщения, пришедшие за время простоя;
+  если записи нет, опрос начинается с `ts` из ответа `groups.getLongPollServer`. `ts` сохраняется драйвером
+  `LongPollRunner`, а не use case, и только после успешной публикации `MESSAGE_NEW`.
+- **Тип обновления.** `VkUpdateType` (`VkUpdateType.kt`): `MESSAGE_NEW`, `MESSAGE_REPLY`, иначе `UNKNOWN`.
 - **DMZ.** `MessageMapper.toDomain` (`MessageMapper.kt:13-37`) читает `object.message`, `fwd_messages`,
   `reply_message` и `attachments` (wall-посты), собирает `List<Message>` и вызывает
   `Message.of(...)`; `jakarta.json.JsonObject` не покидает адаптер.
-- **Маршрутизация.** `ReceiveMessageUsecase.kt:17-32`: `CONFIRMATION` → код подтверждения;
-  `UNKNOWN` → лог + `ok`; остальные типы с сообщением → `PublishVkEventCommand` → `MESSAGE_NEW`.
-- **Ответ VK.** Всегда `text/plain` `ok` (кроме confirmation и ошибки секрета): вебхук не ждёт обработки.
+- **Маршрутизация.** `ReceiveMessageUsecase`: обновление с сообщением → `PublishVkEventCommand` →
+  `MESSAGE_NEW`; `UNKNOWN` или ошибка маппинга → обновление пропускается с ERROR-логом, `ts` сохраняется.
+- **Ответ VK.** Потоковый: приложение не отвечает на событие, а забирает следующую пачку запросом
+  `a_check`; время ожидания VK — `wait=25`, read-timeout клиента — 60 с.
+- **Коды `failed`.** `1` — продолжить с новым `ts` из ответа (часть истории VK потерял, WARN); `2` —
+  новая сессия с тем же `ts`; `3` — новая сессия и `ts` из `groups.getLongPollServer`.
+- **Сбои.** Сбой публикации → пауза 5 с, `ts` не сохраняется, то же обновление повторяется; сеть или
+  5xx на `a_check` → пауза нарастает до 60 с и сбрасывается после успеха.
 
 ## 2. Event routing (RabbitMQ)
 
 - Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
-  `application.yml:72-81`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+  `application.yml:74-83`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
 - `EventDispatcher.dispatch` (`EventDispatcher.kt:63-84`) читает `routingKey`, находит
   `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
 - Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:86-88`).
@@ -148,6 +160,8 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 | Механизм | Где | Что гарантирует |
 |---|---|---|
 | At-least-once доставка | RabbitMQ + ack после `process` (`EventDispatcher.kt:76-82`) | сообщение не теряется при падении обработчика; возможны повторы |
+| Позиция `ts` после публикации | `LongPollRunner` | сбой между публикацией и сохранением даёт дубликат, но не потерю обновления |
+| Паузы опроса | `LongPollRunner` | 5 с при сбое публикации, нарастающая до 60 с при сетевых ошибках и 5xx; цикл не падает |
 | Retry-лестница | `EventDispatcher.kt:90-111`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
 | DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
 | Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
@@ -158,9 +172,15 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 ## Известные ограничения (не скрывать)
 
 - **Нет идемпотентности записи.** У `messages` нет уникального ключа, `JooqMessageRepository.persist` —
-  чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль.
+  чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
+  Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.
   Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
   появятся в проде (в этом проходе не менялось, [ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md) §Последствия).
+- **Приём рассчитан на один экземпляр.** Токен сообщества и позиция `ts` одни на деплой: второй экземпляр
+  опрашивал бы VK с тем же `ts` и мешал первому. Горизонтальное масштабирование приёма не поддерживается
+  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+- **`failed: 1` теряет часть истории.** VK отбрасывает события, которые приложение не забрало; опрос
+  продолжается с нового `ts`, потеря фиксируется WARN-логом и восстановлению не подлежит.
 - **Нет outbox.** Сохранение в БД и публикация в RabbitMQ не транзакционны относительно друг друга
   (`SaveMessageUsecase.kt:28-51`): сбой публикации после записи оставляет сообщение без следующего шага.
   Ретраи на уровне брокера не покрывают этот случай.
@@ -171,14 +191,14 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
   `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
 - **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
   (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
-- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:181-185`),
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:182-187`),
   аннотаций нет; защита VK API — только retry-лестница брокера.
 
 ## Observability
 
-- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml:35-42`);
+- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml:37-44`);
   экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
-- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:175-178`).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:177-180`).
 - Собственного кода с `Tracer`, MDC или `MeterRegistry` в проекте нет — только конфигурация расширений и
   logging-декораторы (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
 

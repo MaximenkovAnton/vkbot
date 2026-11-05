@@ -1,8 +1,8 @@
 # Деплой и развёртывание
 
 Один деплой — `:src:app` ([ADR 0002](../adr/0002-single-deployable-app-module.md)). Документ описывает
-артефакт, образы, обязательные переменные окружения, миграции и откат; всё, что не проверялось прогоном,
-помечено явно.
+артефакт, образы, обязательные переменные окружения, переключение сообщества на Bots Long Poll, миграции и
+откат; всё, что не проверялось прогоном, помечено явно.
 
 ## Артефакт
 
@@ -37,7 +37,7 @@ test ! -e build/quarkus-app                          # второго ранне
 ./gradlew clean build
 docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 docker run -p 8080:8080 \
-  -e VK_SECRET=... -e VK_CONFIRMATION_CODE=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
+  -e VK_GROUP_ID=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
   -e VANE_URL=... -e AI_BASE_URL=... -e AI_CHAT_MODEL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
   -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/vkbot \
   -e QUARKUS_DATASOURCE_USERNAME=... -e QUARKUS_DATASOURCE_PASSWORD=... \
@@ -63,8 +63,7 @@ docker run -p 8080:8080 \
 
 | Переменная | Назначение |
 |---|---|
-| `VK_SECRET` | секрет Callback API |
-| `VK_CONFIRMATION_CODE` | код подтверждения VK |
+| `VK_GROUP_ID` | положительный id сообщества; `groups.getLongPollServer` без него не собрать |
 | `VK_API_TOKEN` | токен группы VK |
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
@@ -75,9 +74,13 @@ docker run -p 8080:8080 \
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
 
 Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
-`VK_BOT_MENTION`, `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
+`VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
+`SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
+
+`VK_SECRET` и `VK_CONFIRMATION_CODE` из контракта деплоя удалены: Callback-эндпоинта нет, приём идёт
+опросом Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
 
 Замечания:
 
@@ -91,15 +94,39 @@ docker run -p 8080:8080 \
 
 Полная таблица ключей и значений по умолчанию — [configuration.md](configuration.md).
 
+## Переключение сообщества на Bots Long Poll
+
+Порядок фиксирован: настройки сообщества меняет человек, образ выкатывается последним.
+
+1. VK → «Управление» → «API» → Bots Long Poll API: включить Long Poll API и событие `message_new`.
+   Callback API пока остаётся включённым — старый образ продолжает принимать Callback-события, и приём не
+   прерывается.
+2. Отключить Callback API в том же разделе.
+3. Выкатить образ без `VK_SECRET`/`VK_CONFIRMATION_CODE` и с `VK_GROUP_ID`
+   (`VK_LONGPOLL_ENABLED` можно не задавать — дефолт `true`).
+
+Окно между шагами 2 и 3 держите минимальным: пока новый образ не запущен, опрос не идёт. После старта
+приложение само запрашивает `groups.getLongPollServer`; сохранённой позиции при первом переключении нет,
+поэтому опрос начинается с `ts` из ответа VK. Дальше `ts` переживает рестарты в таблице
+`long_poll_position`.
+
+Требование: **один экземпляр приложения**. Токен и позиция `ts` одни на сообщество; два экземпляра с
+одним токеном и одной позицией не поддерживаются — они делили бы `ts` и теряли события. По той же
+причине rolling update с двумя одновременно живыми экземплярами не подходит: сначала останавливается
+старый, затем поднимается новый (стратегия `Recreate`).
+
+Откат: вернуть предыдущий образ, снова включить Callback API и передать прежние `VK_SECRET` и
+`VK_CONFIRMATION_CODE`; сохранённый `ts` остаётся в таблице и откату не мешает.
+
 ## Миграции и откат
 
 - Схема принадлежит `:src:persistence`; master-чейнджлог
   `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml` включает changesets
   `001-create-messages-table`, `002-create-user-profiles-table`, `003-create-group-profiles-table`,
-  `004-create-summaries-table`.
+  `004-create-summaries-table`, `005-create-long-poll-position-table`.
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
-  `application.yml:32-34`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
-- Правило: **применённый changeset не редактируется**; следующий номер — `005`.
+  `application.yml:34-36`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
+- Правило: **применённый changeset не редактируется**; следующий номер — `006`.
 - Rollback-команд Liquibase в проекте нет: откат приложения — предыдущий образ, схема обязана быть
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - Порядок деплоя: сначала применить совместимую миграцию (новый образ при старте), затем переключить
@@ -110,10 +137,10 @@ docker run -p 8080:8080 \
 - Health-эндпоинты: `/q/health`, `/q/health/ready`, `/q/health/live` (`quarkus-smallrye-health`).
   **Сейчас они отдают 503 DOWN:** семь incoming-каналов (`retry-5s-queue` … `retry-1h-queue`,
   `dlq-final-queue`, `summary-ready-queue`) объявлены без downstream-консьюмера, и проверка SmallRye
-  Reactive Messaging помечает их `[KO]` (`SRMSG00208: has no downstreams`). Проверено в этом проходе:
-  `GET /q/health` → 503, при этом `POST /vk/callback` работает (confirmation → 200 `test`, неверный
-  секрет → 403). Это не гейт деплоя, но readiness-проба Kubernetes не пройдёт; чтобы health стал
-  зелёным, эти каналы нужно исключить из проверок или дать им консьюмера — отдельная задача.
+  Reactive Messaging помечает их `[KO]` (`SRMSG00208: has no downstreams`). Это не гейт деплоя, но
+  readiness-проба Kubernetes не пройдёт; чтобы health стал зелёным, эти каналы нужно исключить из
+  проверок или дать им консьюмера — отдельная задача. Health не связан с приёмом событий: опрос Bots Long
+  Poll идёт своим циклом и от HTTP-проб не зависит.
 - OpenTelemetry: экспорт логов/метрик/трейсов по OTLP (по умолчанию `http://localhost:4317`);
   эндпоинт коллектора задаётся стандартными ключами OTel. Prometheus-scrape и `/metrics` отсутствуют.
 - Логи — JSON-формат (`quarkus-logging-json`) в собранном деплое.
@@ -133,17 +160,18 @@ docker run -p 8080:8080 \
 ## Локальный запуск
 
 ```bash
-export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+export VK_GROUP_ID=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
        AI_BASE_URL=http://localhost:8000/v1 AI_CHAT_MODEL=... \
        SUMMARY_ENABLED_CHATS=1,2,3
 ./gradlew :src:app:quarkusDev
 ```
 
 DevServices поднимают PostgreSQL и RabbitMQ (нужен Docker); LLM — внешний OpenAI-совместимый endpoint из
-`AI_BASE_URL` (DevServices его больше не поднимают). В dev доступны dev-UI и hot reload.
-Вебхук — `POST http://localhost:8080/vk/callback`. `SUMMARY_ENABLED_CHATS` опционален: без него (или с
-пустым значением) приложение стартует с выключенной саммаризацией (`application.yml:14`); в тестовых
-профилях задан `1,2,3`.
+`AI_BASE_URL` (DevServices его больше не поднимают). В dev доступны dev-UI и hot reload. Публичного
+HTTP-входа у приложения нет: `/vk/callback` отвечает 404, события приходят опросом Bots Long Poll —
+приложение само обращается к VK (`VK_GROUP_ID` и `VK_API_TOKEN`). `SUMMARY_ENABLED_CHATS` опционален: без
+него (или с пустым значением) приложение стартует с выключенной саммаризацией (`application.yml:16`); в
+тестовых профилях задан `1,2,3`.
 
 ## Что не проверено в этом проходе
 

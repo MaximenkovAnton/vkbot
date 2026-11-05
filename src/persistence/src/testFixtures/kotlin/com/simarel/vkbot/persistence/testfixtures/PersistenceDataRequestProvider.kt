@@ -62,4 +62,10 @@ object PersistenceDataRequestProvider {
     fun createFindGroupProfilesByIdsRequest(
         ids: List<Long> = emptyList(),
     ) = PersistenceDataRequest.FindGroupProfilesByIds(ids = ids)
+
+    fun createFindLongPollTsRequest() = PersistenceDataRequest.FindLongPollTs
+
+    fun createSaveLongPollTsRequest(
+        ts: String = "ts-1",
+    ) = PersistenceDataRequest.SaveLongPollTs(ts = ts)
 }

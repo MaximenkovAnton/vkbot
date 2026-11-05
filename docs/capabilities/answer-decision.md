@@ -43,7 +43,7 @@
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| доменное `Message` | `vk-webhook` (producer), `message-storage`, `ai-answer` | `vk-webhook` |
+| доменное `Message` | `vk-long-poll` (producer), `message-storage`, `ai-answer` | `vk-long-poll` |
 | событие `MESSAGE_REQUIRE_ANSWER` | `ai-answer` (consumer) | `answer-decision` |
 | событие `MESSAGE_RECEIVED` | producer — `message-storage` | `message-storage` |
 | `PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |

@@ -3,6 +3,7 @@ package com.simarel.vkbot.persistence.adapter.input.inprocess
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.persistence.testfixtures.LongPollTsPortProvider
 import com.simarel.vkbot.persistence.testfixtures.PersistenceDataRequestProvider
 import com.simarel.vkbot.persistence.testfixtures.PersistenceDataResponseProvider
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
@@ -184,6 +185,32 @@ class PersistenceDataInProcessAdapterTest {
             port.requests.single(),
         )
         assertEquals(listOf(profile), response.profiles)
+    }
+
+    @Test
+    fun `find long poll ts returns ts`() {
+        val port = RecordingPersistenceDataInputPort(
+            PersistenceDataResponseProvider.createLongPollTsResponse(ts = "ts-1"),
+        )
+        val adapter = FindLongPollTsInProcessAdapter(port)
+
+        val response = adapter.execute(LongPollTsPortProvider.createFindLongPollTsRequest())
+
+        assertEquals(PersistenceDataRequestProvider.createFindLongPollTsRequest(), port.requests.single())
+        assertEquals("ts-1", response.ts?.value)
+    }
+
+    @Test
+    fun `save long poll ts forwards ts`() {
+        val port = RecordingPersistenceDataInputPort(PersistenceDataResponseProvider.createEmptyResponse())
+        val adapter = SaveLongPollTsInProcessAdapter(port)
+
+        adapter.execute(LongPollTsPortProvider.createSaveLongPollTsRequest(ts = "ts-2"))
+
+        assertEquals(
+            PersistenceDataRequestProvider.createSaveLongPollTsRequest(ts = "ts-2"),
+            port.requests.single(),
+        )
     }
 
     private class RecordingPersistenceDataInputPort(

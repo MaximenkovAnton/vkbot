@@ -42,6 +42,8 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class MarkSummaryAsFailed(val id: UUID) : PersistenceDataRequest
     data class FindUserProfilesByIds(val ids: List<Long>) : PersistenceDataRequest
     data class FindGroupProfilesByIds(val ids: List<Long>) : PersistenceDataRequest
+    data object FindLongPollTs : PersistenceDataRequest
+    data class SaveLongPollTs(val ts: String) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -52,4 +54,5 @@ sealed interface PersistenceDataResponse : InputPortResponse {
     data object Empty : PersistenceDataResponse
     data class UserProfiles(val profiles: List<VkUserProfile>) : PersistenceDataResponse
     data class GroupProfiles(val profiles: List<VkGroupProfile>) : PersistenceDataResponse
+    data class LongPollTs(val ts: String?) : PersistenceDataResponse
 }

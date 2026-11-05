@@ -1,19 +1,24 @@
 package com.simarel.vkbot.receiver.fixtures.port
 
-import com.simarel.vkbot.receiver.domain.vo.VkResponse
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
-import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
-import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
+import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortRequest
+import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortResponse
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeReceiveMessageInputPort(
-    val configuredResponse: VkConfirmationInputPortResponse? = null,
+    val journal: MutableList<String> = mutableListOf(),
 ) : ReceiveMessageInputPort {
-    val executeCalls = ConcurrentLinkedQueue<VkConfirmationInputPortRequest>()
-    private val defaultResponse = VkConfirmationInputPortResponse(VkResponse("ok"))
+    val executeCalls = ConcurrentLinkedQueue<VkUpdateInputPortRequest>()
+    var failure: RuntimeException? = null
 
-    override fun execute(request: VkConfirmationInputPortRequest): VkConfirmationInputPortResponse {
+    override fun execute(request: VkUpdateInputPortRequest): VkUpdateInputPortResponse {
         executeCalls.add(request)
-        return configuredResponse ?: defaultResponse
+        failure?.let { throw it }
+        journal.add(PUBLISH)
+        return VkUpdateInputPortResponse
+    }
+
+    private companion object {
+        const val PUBLISH = "publish"
     }
 }

@@ -69,7 +69,7 @@ LLM может вызвать веб-поиск — это возможност�
 
 - **AC-ai-answer-1** — КОГДА `MESSAGE_REQUIRE_ANSWER` обработан, СИСТЕМА ДОЛЖНА опубликовать
   `ANSWER_MESSAGE` и довести ответ до `messages.send` с `peer_id` исходного сообщения. Test:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:42-177`.
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`.
 - **AC-ai-answer-2** — КОГДА `MESSAGE_REQUIRE_ANSWER` обработан, СИСТЕМА ДОЛЖНА опубликовать
   `ANSWER_MESSAGE` с payload `ResponseMessage(messageText = сгенерированный ответ, responseTo = исходное
   сообщение)` и вернуть `ok`. Test:
@@ -95,7 +95,7 @@ LLM может вызвать веб-поиск — это возможност�
 ## Пробелы приёмки
 
 - Сборка контекста, форматирование промпта, публикация `ANSWER_MESSAGE` и разбор входящего события покрыты
-  юнит-тестами `src/ai/src/test`; сквозной путь — `VkWebhookIntegrationTest`, реальная проводка
+  юнит-тестами `src/ai/src/test`; сквозной путь — `VkLongPollIntegrationTest`, реальная проводка
   LangChain4j/Quarkus REST — `AiIntegrationTest`.
 - `Message.forwardedContextString()`
   (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/Message.kt:40`)

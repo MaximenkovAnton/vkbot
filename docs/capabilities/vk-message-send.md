@@ -77,6 +77,6 @@
 
 - Детерминированный `random_id` (SHA-256) не проверен: `MessageSendUsecaseTest` не смотрит на `rand`.
 - Forward для группового чата (`forwardMessagesIfNeeded`) не покрыт тестом.
-- Ошибка VK на уровне сквозного сценария: интеграционный тест `VK API failure should handle error
-  gracefully` проверяет только ответ вебхука `200`, но не факт retry/DLQ
-  (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:270-307`).
+- Ошибка VK на уровне сквозного сценария не покрыта: теста, который подставляет 500 на `messages.send` и
+  проверяет retry/DLQ, нет (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`
+  проверяет только успешную отправку).

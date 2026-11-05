@@ -27,6 +27,16 @@
 - **Сила:** Adapter + Dependency Inversion: поставщик реализует порт, потребитель о нём не знает.
   Тестовая замена — тот же порт с фейком (`PersistenceDataInProcessAdapterTest`).
 
+## Фоновый poller (Bots Long Poll)
+
+- **Проблема:** события VK нужно забирать самим, а не ждать HTTP-запроса; цикл не должен блокировать поток
+  запуска и должен переживать сбои сети и брокера.
+- **Где:** `receiver/adapter/input/vk/LongPollRunner.kt` — виртуальный поток, старт по `StartupEvent`,
+  остановка по `ShutdownEvent`, паузы 5 с при сбое публикации и до 60 с при сетевых ошибках;
+  включается ключом `vk.longpoll.enabled`.
+- **Сила:** входящему транспорту не нужен публичный порт, а backoff изолирует отказ внешнего API от
+  остального приложения.
+
 ## Command
 
 - **Проблема:** атомарные действия нужны в нескольких сценариях и должны логироваться/декорироваться
@@ -49,9 +59,9 @@
 
 ## Decorator (CDI `@Decorator`)
 
-- **Проблема:** сквозное поведение (проверка секрета, TRACE-логирование) не должно засорять бизнес-код.
-- **Где:** `VkMediatorRouterSecurityDecorator.kt:11-29` (секрет VK до вызова use case),
-  `CommandLoggingDecorator.kt:12-28` и `UsecaseLoggingDecorator.kt:12-28` (TRACE-логи запрос/ответ).
+- **Проблема:** сквозное поведение (TRACE-логирование) не должно засорять бизнес-код.
+- **Где:** `CommandLoggingDecorator.kt:12-28` и `UsecaseLoggingDecorator.kt:12-28` (TRACE-логи
+  запрос/ответ).
 - **Сила:** Protected Variations — граница защищена декоратором, а не копипастой в каждом адаптере.
 
 ## Value Object
@@ -82,8 +92,8 @@
 
 ## DMZ / Anti-Corruption Layer (граница VK)
 
-- **Проблема:** формат VK Callback и словарь VK (`message_new`, `reply_message`, `attachments`) не должны
-  протекать в домен.
+- **Проблема:** формат обновлений Bots Long Poll и словарь VK (`message_new`, `reply_message`,
+  `attachments`) не должны протекать в домен.
 - **Где:** `receiver/adapter/input/dto/MessageDto.kt:5-43` и `WallAttachmentDto`, парсинг —
   `MessageMapper.kt:13-58`; `jakarta.json.JsonObject` не покидает входной адаптер. На выходе — DTO VK API
   `vkFacade/adapter/output/vk/dto/VkResponseDto.kt` и маппинг в `GetProfileAdapter.kt:12-71`,
@@ -92,7 +102,7 @@
 
 ## Publisher (события RabbitMQ)
 
-- **Проблема:** вебхук VK должен отвечать быстро; AI и запись в БД не должны быть в его таймауте.
+- **Проблема:** приём событий VK не должен ждать AI, а AI и запись в БД не должны быть в его таймауте.
 - **Где:** публикация — `PublishEventOutputAdapter.kt:15-33` (routing key = `Event.name`), потребление —
   `EventDispatcher.kt:63-84` (карта `Event.name → EventProcessor`), `@Incoming("all-events-queue")`.
   События — `Event.kt:3-10`; payload'ы — `share/domain/event/`.
@@ -114,15 +124,14 @@
   с коллекцией.
 - **Где:** jOOQ-репозитории `persistence/adapter/output/persistence/jooq/Jooq{Message,Summary,VkUserProfile,VkGroupProfile}Repository.kt`
   и порты-адаптеры `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
-  таблицы — `jooq/Tables.kt:6-57` (ручные константы, кодогенерация выключена).
+  таблицы — `jooq/Tables.kt:6-64` (ручные константы, кодогенерация выключена).
 - **Сила:** Dependency Inversion — бизнес-слой видит порт, а не DSLContext; замена хранилища — новый адаптер.
 
 ## Singleton / Dependency Injection (Quarkus CDI)
 
 - **Проблема:** связывание реализаций с портами должно быть в одном месте и проверяться на сборке.
 - **Где:** `@ApplicationScoped`/`@Singleton` на реализациях; composition root — деплой `:src:app`;
-  явные продюсеры — `UsecaseConfiguration.kt:12-25`, `ConstantConfiguration.kt:9-15`,
-  `JooqConfig.kt:11-20`, `MapperConfig.kt:9-18`.
+  явные продюсеры — `JooqConfig.kt:11-20`, `MapperConfig.kt:9-18`.
 - **Сила:** ArC валидирует injection points на этапе сборки: забытая реализация порта валит `build`, а не прод.
 
 ## Чего в коде нет (не приписывать проекту)
@@ -130,7 +139,7 @@
 | Паттерн | Почему нет |
 |---|---|
 | Event Sourcing / CQRS | События не сохраняются, event store отсутствует; чтение и запись — одни и те же модели |
-| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:181-185`) никем не читается |
+| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:182-187`) никем не читается |
 | Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 0007; выбор модели — конфиг, а не рантайм-стратегия |
 | Chain of Responsibility | Валидация не выстроена в цепочку; правила решения — один `when` в `IsRequireAnswerCommand.kt:22-33` |
 | Observer / fan-out | Один процессор на событие; множество подписчиков не поддерживается картой диспетчера |

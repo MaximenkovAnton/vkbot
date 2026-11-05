@@ -1,68 +1,42 @@
 package com.simarel.vkbot.receiver.usecase
 
-import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
+import com.simarel.vkbot.receiver.domain.vo.VkUpdateType
 import com.simarel.vkbot.receiver.fixtures.FakePublishVkEventCommand
-import com.simarel.vkbot.receiver.fixtures.FakeVkConfirmationInputPortProvider
-import com.simarel.vkbot.receiver.fixtures.FakeVkProvider
+import com.simarel.vkbot.receiver.fixtures.FakeVkUpdateInputPortProvider
+import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortResponse
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ReceiveMessageUsecaseTest {
 
     @Test
-    fun `execute with confirmation event returns confirmation response`() {
-        // Given
-        val confirmationResponse = FakeVkConfirmationInputPortProvider.createConfirmationResponse()
-        val okResponse = FakeVkConfirmationInputPortProvider.createOkResponse()
+    fun `execute publishes the message of the update`() {
         val publishCommand = FakePublishVkEventCommand()
-        val usecase = ReceiveMessageUsecase(confirmationResponse, okResponse, publishCommand)
-        val vkEvent = FakeVkProvider.createVkEvent(VkCallbackEvent.CONFIRMATION)
-        val request = FakeVkConfirmationInputPortProvider.createRequest(vkEvent)
-
-        // When
-        val result = usecase.execute(request)
-
-        // Then
-        assertEquals(confirmationResponse.response.value, result.response.value)
-        assertEquals(0, publishCommand.executeCalls.size)
-    }
-
-    @Test
-    fun `execute with unknown event returns ok response`() {
-        // Given
-        val confirmationResponse = FakeVkConfirmationInputPortProvider.createConfirmationResponse()
-        val okResponse = FakeVkConfirmationInputPortProvider.createOkResponse()
-        val publishCommand = FakePublishVkEventCommand()
-        val usecase = ReceiveMessageUsecase(confirmationResponse, okResponse, publishCommand)
-        val vkEvent = FakeVkProvider.createVkEvent(VkCallbackEvent.UNKNOWN)
-        val request = FakeVkConfirmationInputPortProvider.createRequest(vkEvent)
-
-        // When
-        val result = usecase.execute(request)
-
-        // Then
-        assertEquals(okResponse.response.value, result.response.value)
-        assertEquals(0, publishCommand.executeCalls.size)
-    }
-
-    @Test
-    fun `execute with message_new event publishes event and returns ok`() {
-        // Given
-        val confirmationResponse = FakeVkConfirmationInputPortProvider.createConfirmationResponse()
-        val okResponse = FakeVkConfirmationInputPortProvider.createOkResponse()
-        val publishCommand = FakePublishVkEventCommand()
-        val usecase = ReceiveMessageUsecase(confirmationResponse, okResponse, publishCommand)
-        val vkEvent = FakeVkProvider.createVkEvent(VkCallbackEvent.MESSAGE_NEW)
+        val usecase = ReceiveMessageUsecase(publishCommand)
         val message = FakeVoProvider.createMessage()
-        val request = FakeVkConfirmationInputPortProvider.createRequest(vkEvent, message)
+        val request = FakeVkUpdateInputPortProvider.createRequest(
+            type = VkUpdateType.MESSAGE_NEW,
+            message = message,
+        )
 
-        // When
         val result = usecase.execute(request)
 
-        // Then
-        assertEquals(okResponse.response.value, result.response.value)
+        assertEquals(VkUpdateInputPortResponse, result)
         assertEquals(1, publishCommand.executeCalls.size)
         assertEquals(message, publishCommand.executeCalls.first().message)
+    }
+
+    @Test
+    fun `execute without a message publishes nothing`() {
+        val publishCommand = FakePublishVkEventCommand()
+        val usecase = ReceiveMessageUsecase(publishCommand)
+        val request = FakeVkUpdateInputPortProvider.createRequest(type = VkUpdateType.UNKNOWN)
+
+        val result = usecase.execute(request)
+
+        assertEquals(VkUpdateInputPortResponse, result)
+        assertTrue(publishCommand.executeCalls.isEmpty())
     }
 }

@@ -39,7 +39,7 @@ REST-эндпоинты остаются публичным API модулей �
 `vkFacade/adapter/input/rest/VkFacadeController.kt:14-32`. Контроллер и in-process адаптер — два входных
 адаптера к одному `port.input` (Information Expert: логика в use case, адаптеры только маппят).
 
-Асинхронный поток остаётся на RabbitMQ: вебхук VK не должен ждать AI. Публикация —
+Асинхронный поток остаётся на RabbitMQ: приём событий VK не должен ждать AI. Публикация —
 `infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` (Jackson-строка + routing key = имя
 события), потребление — `infrastructure/mq/adapter/input/EventDispatcher.kt:63-84` с retry-лестницей
 (`:90-111`). Payload'ы событий — тоже контракт и переехали в `share`:
@@ -54,12 +54,12 @@ REST-эндпоинты остаются публичным API модулей �
 - Один контракт на вызов: изменение типа в `share` ломает компиляцию обеих сторон.
 - Проводка валидируется сборкой (ArC: injection point без реализации или с двумя реализациями валит
   `./gradlew build`) и полным интеграционным тестом
-  (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:42-177`).
+  (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`).
 - Публичный REST остаётся; его удаление — отдельная задача при подтверждённом отсутствии внешних потребителей.
 - `CircuitBreaker` для VK API **не применён**: расширение `quarkus-smallrye-fault-tolerance` объявлено
   (`src/vk-facade/build.gradle.kts:21`), пакет называется `adapter/output/vk/circuitbreaker`, но ни одной
   аннотации `@CircuitBreaker`/`@Retry` в коде нет, а блок `circuit-breaker.vk-profile` в
-  `src/app/src/main/resources/application.yml:181-185` никем не читается. Это заявленный долг, а не
+  `src/app/src/main/resources/application.yml:182-187` никем не читается. Это заявленный долг, а не
   работающий механизм.
 
 ## Отклонённые альтернативы
