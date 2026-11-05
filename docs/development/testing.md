@@ -22,16 +22,15 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в проходе vLLM (до перехода на Bots Long Poll): `./gradlew test --rerun-tasks` →
-`BUILD SUCCESSFUL`, **130 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app —
-15 (в т.ч. `AiIntegrationTest` — 8), ai — 60, receiver — 9, share — 8, vk-facade — 7, persistence — 9,
-processor — 2, infrastructure — 2, arch-tests — 18.
+Проверено в проходе Bots Long Poll: `./gradlew build -x capabilitiesCheck` → `BUILD SUCCESSFUL in 1m 44s`,
+**147 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app — 15 (в т.ч.
+`AiIntegrationTest` — 8), ai — 62, receiver — 22, share — 8, vk-facade — 7, persistence — 11,
+infrastructure — 2, processor — 2, arch-tests — 18.
 
-`src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt` компилируется
-и содержит два `@Test`, но `:src:ai:test` его не обнаруживает — ни в полном прогоне, ни с `--tests` по этому классу:
-в отчёте 13 классов вместо 14, два теста не выполняются. Причина не установлена, вынесено в
-`_bmad-output/deferred-work.md`; продуктовая карта ссылается на этот файл как на тест acceptance criterion,
-поэтому до починки эта ссылка ничего не доказывает.
+`src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt`
+в этом проходе выполняется (2 теста, 14 классов в `:src:ai`) — прежнее «класс не обнаруживается» из более
+раннего прохода не воспроизводится; если снова пропадёт из отчёта, проверять `--rerun-tasks` и кэш
+`build/test-results`.
 
 ## Где лежат тесты
 
@@ -39,7 +38,7 @@ processor — 2, infrastructure — 2, arch-tests — 18.
 |---|---|
 | `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `integration/VkLongPollIntegrationTest` (приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile` |
 | `ai` | 13 классов, 60 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
-| `receiver` | `LongPollRunnerTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
+| `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
 | `persistence` | `PersistenceDataInProcessAdapterTest` (11 тестов — маппинг всех in-process портов) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
 | `vk-facade` | `VkProfileInProcessAdapterTest`, `VkSendMessageOutputAdapterTest`, `PublishEventCommandImplTest`, `SendVkMessageCommandImplTest`, `MessageSendUsecaseTest` |
