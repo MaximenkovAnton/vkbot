@@ -31,7 +31,7 @@ system-промпты), а документация обещала env `DATABASE
 | `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:…}` | `UserAnswerAiService.kt:17` |
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | `SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:…}` | `OcrAiService.kt:13` |
-| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; пустое значение не конвертируется (`SRCFG00040`), поэтому переменная обязательна и непуста |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; `String` с пустым дефолтом — пустое значение выключает саммаризацию, но старт не валит |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | `ProcessSummaryCommandImpl.kt:20` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | `ProcessSummaryCommandImpl.kt:22` |
 | `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | `VkClient` (`configKey = "vk"`, `VkClient.kt:12`) |
@@ -49,11 +49,11 @@ system-промпты), а документация обещала env `DATABASE
 
 - DevServices (PostgreSQL, RabbitMQ, Ollama, LGTM) включены в `application.yml:23-26,56-58` и в тестовых
   профилях; production задаётся env. Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
-  `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `SUMMARY_ENABLED_CHATS` (непустой: `${SUMMARY_ENABLED_CHATS:}`
-  разворачивается в пустую строку, которую конвертер отвергает с `SRCFG00040`, — отказ старта),
+  `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`,
   `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`,
   `RABBITMQ_HOST` (плюс `RABBITMQ_PORT/USERNAME/PASSWORD` при необходимости);
-  опциональные — `VK_BOT_MENTION`, `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
+  опциональные — `VK_BOT_MENTION`, `SUMMARY_ENABLED_CHATS` (пусто = саммаризация выключена),
+  `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
   `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
 - Тестовые конфиги: `src/app/src/test/resources/application.yaml` (профиль по умолчанию для `@QuarkusTest`),
   `application-integration-test.yaml` (профиль `integration-test`: RabbitMQ/PostgreSQL DevServices, Ollama

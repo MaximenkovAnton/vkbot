@@ -5,8 +5,7 @@
 `application.yml:18-20`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
 ([ADR 0006](../adr/0006-configuration-and-secrets.md)).
 
-Значения `${VAR}` без дефолта обязательны: без них приложение не стартует. Тот же эффект у
-`summary.enabled-chats`: его пустой дефолт тоже не даёт стартовать (см. «Промпты и саммаризация»).
+Значения `${VAR}` без дефолта обязательны: без них приложение не стартует.
 Секреты в репозиторий не коммитятся, `.env` в `.gitignore`.
 
 ## VK
@@ -30,16 +29,15 @@
 | `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}` | system-сообщение сервиса ответов | `ai/adapter/output/ai/answer/UserAnswerAiService.kt:17` |
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | `ai/adapter/output/ai/summarization/SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/OcrAiService.kt:13` |
-| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | **обязателен:** непустой список peerId через запятую (чаты, где включена саммаризация). Пустое/отсутствующее значение не конвертируется (`SRCFG00040`), приложение не стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке | там же `:22,108-125` |
 | `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml:17`) | — |
 
-`summary.enabled-chats` — единственный ключ, у которого пустой дефолт не работает: SmallRye Config считает
-пустую строку `null` и валидация инъекции `ProcessSummaryCommandImpl.kt:18` валит старт с
-`SRCFG00040: The config property summary.enabled-chats is defined as the empty String ("") which the
-following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHATS` обязателен и непуст, а
-формулировка «пусто = саммаризация выключена» неверна: пустое значение — отказ старта, а не выключение.
+`summary.enabled-chats` биндится как `String` с `defaultValue = ""` (`ProcessSummaryCommandImpl.kt:18`),
+поэтому пустая строка конвертером не отвергается: приложение стартует, `split(",")` даёт пустой набор
+чатов и саммаризация выключается. `SRCFG00040` на этом ключе не возникает — он появляется только у
+конвертеров, считающих пустую строку `null` (числа, списки).
 
 ## База данных и миграции
 

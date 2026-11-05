@@ -24,7 +24,7 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle mo
 - Deployable and composition root: `src/app`; business modules and shared contracts: `src/*`, `src/share`.
 - Before editing a module, read its section in `docs/architecture/modules.md` — responsibility, public API, dependencies.
 - A behaviour change updates `docs/capabilities/` and the matching `docs/` page in the same change.
-- Architecture rules live as tests in `src/testing/arch-tests`; fakes live in `src/testing/test-fixtures` and each module's `testFixtures`.
+- Architecture rules live as tests in `src/testing/arch-tests`; fakes live in `src/testing/test-fixtures` and in `src/<module>/src/testFixtures` for `ai`, `persistence`, `processor` and `receiver`.
 
 ## Running and verifying
 
@@ -45,7 +45,7 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle mo
 ## Known pitfalls
 
 - `share/domain/exception/ValidationException` is a plain `RuntimeException`, not a `VkBotAppException`: it maps to 503, not 400. Only `receiver`'s `ValidationException` returns 400.
-- `SUMMARY_ENABLED_CHATS` must be a non-empty comma-separated list; an unset or empty value fails startup with `SRCFG00040`.
+- `SUMMARY_ENABLED_CHATS` is optional: an unset or empty value starts the app with summarization silently off — set the peer ids whose chats get summarized.
 - `/q/health` reports DOWN because declared channels have no downstream consumer; the webhook itself works — treat health as informational.
 - A behaviour change that skips the docs leaves the product record stale: `./scripts/check-capabilities.sh` catches broken paths and ADR ids, not stale prose.
 

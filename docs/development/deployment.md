@@ -68,12 +68,12 @@ docker run -p 8080:8080 \
 | `VK_API_TOKEN` | токен группы VK |
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
-| `SUMMARY_ENABLED_CHATS` | непустой список peerId через запятую; пустое значение не конвертируется (`SRCFG00040`) и валит старт |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
 
-Опциональные: `VK_BOT_MENTION`, `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
+Опциональные: `VK_BOT_MENTION`, `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
+выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
 
 Замечания:
@@ -134,8 +134,9 @@ export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VAN
 ```
 
 DevServices поднимают PostgreSQL, RabbitMQ и Ollama (нужен Docker); в dev доступны dev-UI и hot reload.
-Вебхук — `POST http://localhost:8080/vk/callback`. `SUMMARY_ENABLED_CHATS` обязателен и непуст
-(`application.yml:14`); в тестовых профилях задан `1,2,3`.
+Вебхук — `POST http://localhost:8080/vk/callback`. `SUMMARY_ENABLED_CHATS` опционален: без него (или с
+пустым значением) приложение стартует с выключенной саммаризацией (`application.yml:14`); в тестовых
+профилях задан `1,2,3`.
 
 ## Что не проверено в этом проходе
 

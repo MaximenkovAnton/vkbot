@@ -78,7 +78,7 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
 | `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
 | `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
-| `SUMMARY_ENABLED_CHATS` | yes | Non-empty comma-separated peer ids whose chats get summaries. An unset or empty value fails startup (`SRCFG00040`); the tests use `1,2,3` |
+| `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 
 Every key, its default and its consumer: `docs/development/configuration.md`.
