@@ -118,6 +118,27 @@ docker run -p 8080:8080 \
 Откат: вернуть предыдущий образ, снова включить Callback API и передать прежние `VK_SECRET` и
 `VK_CONFIRMATION_CODE`; сохранённый `ts` остаётся в таблице и откату не мешает.
 
+## Проверка токена и Long Poll перед выкаткой
+
+Две проверки до старта образа — они отделяют отказ доступа от ошибки приложения:
+
+```bash
+curl -s "https://api.vk.com/method/groups.getById?access_token=$VK_API_TOKEN&v=5.199"
+curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP_ID&access_token=$VK_API_TOKEN&v=5.199"
+```
+
+Ожидаемо: первая команда возвращает сообщество с `id` = `VK_GROUP_ID` (токен принадлежит этому сообществу),
+вторая — `"is_enabled":true` и `message_new` в `events`. Если вместо этого приходит `{"error":{…}}`,
+приложение стартует, но опрос не пойдёт: `groups.getLongPollServer` вернёт тот же отказ, а в ERROR уйдёт
+`VK long poll request failed (VkLongPollServerException): groups.getLongPollServer failed: code 15 subcode
+1133 message …` с паузой до 60 с.
+
+| Код | Что значит | Что делать |
+|---|---|---|
+| `15` | «Access denied… cannot be called with current scopes»: у ключа сообщества нет права `manage` — VK требует его для `groups.getLongPollServer`; реже — ключ от другого сообщества или Long Poll API в сообществе выключен | пересоздать ключ доступа сообщества с правом `manage` (и правами на сообщения), сверить `id` из первой команды, включить Long Poll API |
+| `27` | ключ группы недействителен или выпущен для другого сообщества | выпустить ключ заново для `VK_GROUP_ID` |
+| `100` | неверный `group_id` | `VK_GROUP_ID` — положительный id сообщества, не id пользователя и не id приложения |
+
 ## Миграции и откат
 
 - Схема принадлежит `:src:persistence`; master-чейнджлог

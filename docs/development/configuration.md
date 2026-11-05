@@ -14,7 +14,7 @@
 |---|---|---|---|
 | `vk.group.id` | `${VK_GROUP_ID}` | положительный id сообщества для `groups.getLongPollServer`; без него приложение не стартует | `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` (`group_id` запроса), `receiver/adapter/input/vk/LongPollRunner.kt` |
 | `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | включает опрос Bots Long Poll при старте; `false` — цикл опроса не запускается (тестовый профиль) | `receiver/adapter/input/vk/LongPollRunner.kt` |
-| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13`, `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt:99` (`groups.getLongPollServer`) |
+| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13`, `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt:104` (`groups.getLongPollServer`) |
 | `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | `application.yml:49-52` |
 | `vk.bot.id` | `${VK_BOT_ID}` | id бота в правиле «forward от бота → ответить» | `processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:17` |
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | упоминание, включающее ответ в чате | там же `:19` |
@@ -22,9 +22,10 @@
 Ключей `vk.secret` и `vk.confirmation-code` больше нет: Callback-эндпоинт удалён, события приходят опросом
 Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
 
-Получение значений: сообщество VK → «Управление» → «API» → Bots Long Poll API: включить Long Poll API с
-событием `message_new` и отключить Callback API; `VK_GROUP_ID` — положительный id сообщества из того же
-раздела; `VK_API_TOKEN` — «Ключи доступа» (токен с правами на сообщения). Порядок переключения —
+Получение значений: сообщество VK → «Управление» → «Работа с API»: во вкладке **Long Poll API** включить
+Long Poll API с событием `message_new` и отключить Callback API; `VK_GROUP_ID` — положительный id сообщества
+из того же раздела; `VK_API_TOKEN` — «Ключи доступа», ключ сообщества с правом `manage` (VK не даёт вызвать
+`groups.getLongPollServer` ключом без него) и правами на сообщения. Порядок переключения —
 [deployment.md](deployment.md).
 
 ## Промпты и саммаризация

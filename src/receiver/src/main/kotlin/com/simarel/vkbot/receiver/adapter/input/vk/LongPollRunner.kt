@@ -2,6 +2,7 @@ package com.simarel.vkbot.receiver.adapter.input.vk
 
 import com.simarel.vkbot.receiver.adapter.input.vk.mapper.MessageMapper
 import com.simarel.vkbot.receiver.domain.exception.VkEventPublishException
+import com.simarel.vkbot.receiver.domain.exception.VkLongPollServerException
 import com.simarel.vkbot.receiver.domain.vo.LongPollFailure
 import com.simarel.vkbot.receiver.domain.vo.VkUpdateType
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
@@ -115,7 +116,8 @@ open class LongPollRunner(
             } catch (e: Exception) {
                 failures++
                 val pauseMillis = networkPauseMillis(failures)
-                Log.error("VK long poll request failed (${e.javaClass.name}), retrying in $pauseMillis ms")
+                val reason = (e as? VkLongPollServerException)?.message ?: e.javaClass.name
+                Log.error("VK long poll request failed ($reason), retrying in $pauseMillis ms")
                 pause(pauseMillis)
             }
         }
