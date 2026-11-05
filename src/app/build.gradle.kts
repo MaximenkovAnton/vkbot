@@ -36,7 +36,7 @@ dependencies {
     implementation("io.quarkus:quarkus-smallrye-health")
 
     // LangChain4j (via ai module)
-    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
+    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-openai:$quarkusLangChain4jVersion")
 
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))

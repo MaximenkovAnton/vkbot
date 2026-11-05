@@ -1,11 +1,8 @@
 # AGENTS.md — constitution for this repository
 
-<!-- bmad:context -->
-<!-- Verified 2026-11-05 against 8b80e58. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
-
 ## vkbot
 
-VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle modules, hexagonal — plain Kotlin behind `share` ports, framework at the edge. Runtime path: `VK webhook → receiver → RabbitMQ → persistence → processor → ai → vk-facade → VK API`. Docs index: `docs/README.md`; design in `docs/architecture/`, decisions in `docs/adr/`, product record in `docs/capabilities/`; planning artifacts go to `_bmad-output/`. Code is the source of truth: when this block and the code disagree, fix the block in the same change.
+VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle modules, hexagonal — plain Kotlin behind `share` ports, framework at the edge. Runtime path: `VK webhook → receiver → RabbitMQ → persistence → processor → ai → vk-facade → VK API`. Docs index: `docs/README.md`; design in `docs/architecture/`, decisions in `docs/adr/`, product record in `docs/capabilities/`. Code is the source of truth: when this block and the code disagree, fix the block in the same change.
 
 ## Policy
 
@@ -16,7 +13,6 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle mo
 - Never add a second deployable or Quarkus runner; the artifact is `:src:app` (ADR 0002).
 - Never bump a version without updating its ADR (ADR 0001).
 - Never add a Gradle module or a production dependency outside the allowlist without updating `GradleDependenciesTest`, `ModuleDependenciesTest` and ADR 0003.
-- Never hand-edit `_bmad/scripts` — the `bmad` setup regenerates them.
 - Never claim a gate passes without its command output, and never document an endpoint, command or config key the code does not have.
 
 ## Where things are
@@ -30,7 +26,7 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle mo
 
 - `./gradlew build` is the full gate: compile, tests, detekt, ktlintCheck, coverage threshold, capability check, `:src:app:quarkusBuild`.
 - One test class runs module-scoped: `./gradlew :src:<module>:test --tests "*ClassName*"`; a root-level `test --tests` fails where a module has no match.
-- Docker is required — DevServices for PostgreSQL, RabbitMQ and Ollama, and every `@QuarkusTest`.
+- Docker is required — DevServices for PostgreSQL and RabbitMQ, and every `@QuarkusTest`.
 - There is no root `quarkusDev`/`quarkusBuild`; both are `:src:app:` tasks.
 - `./gradlew jacocoTestReport` fails; use `coverageReport` and `coverageVerification`.
 
@@ -48,5 +44,3 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 11 Gradle mo
 - `SUMMARY_ENABLED_CHATS` is optional: an unset or empty value starts the app with summarization silently off — set the peer ids whose chats get summarized.
 - `/q/health` reports DOWN because declared channels have no downstream consumer; the webhook itself works — treat health as informational.
 - A behaviour change that skips the docs leaves the product record stale: `./scripts/check-capabilities.sh` catches broken paths and ADR ids, not stale prose.
-
-<!-- /bmad:context -->

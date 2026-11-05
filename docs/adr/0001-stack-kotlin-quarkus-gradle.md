@@ -18,7 +18,7 @@
 | Gradle | 9.3.0 (wrapper, Kotlin DSL) | `gradle/wrapper/gradle-wrapper.properties:3` |
 | Kotlin | 2.3.0 | `settings.gradle.kts:14` |
 | Quarkus | 3.34.2 (`quarkus-bom`) | `gradle.properties:3-7`; единственный `enforcedPlatform` в `build.gradle.kts:44-51` |
-| LangChain4j | 1.8.4 (`quarkus-langchain4j-ollama`) | `gradle.properties:8`; `src/app/build.gradle.kts:39` |
+| LangChain4j | 1.8.4 (`quarkus-langchain4j-openai`) | `gradle.properties:8`; `src/app/build.gradle.kts:39` |
 | Хранилище | PostgreSQL + Liquibase, jOOQ 3.19.10 | `src/persistence/build.gradle.kts:41,47,55` |
 | Брокер | RabbitMQ (`quarkus-messaging-rabbitmq`) | `src/infrastructure/build.gradle.kts:18-20` |
 | Тесты | JUnit 5, ArchUnit 1.3.0, WireMock 3.9.1, Awaitility 4.2.0 | `src/testing/arch-tests/build.gradle.kts:11`, `src/app/build.gradle.kts:45-56` |

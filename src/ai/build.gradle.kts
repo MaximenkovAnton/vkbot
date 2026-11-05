@@ -38,7 +38,7 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
 
     // LangChain4j
-    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
+    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-openai:$quarkusLangChain4jVersion")
 
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")

@@ -38,7 +38,7 @@ in-process порт `message-storage`, который публикует `SUMMAR
 | сохранение completed → публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:115-146` |
 | `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-54` |
 
-Конфигурация: `summary.enabled-chats` (обязательный непустой `SUMMARY_ENABLED_CHATS`, ADR 0006),
+Конфигурация: `summary.enabled-chats` (`SUMMARY_ENABLED_CHATS`, ADR 0006),
 `summary.threshold`, `summary.batch-size`, `aiSumarizationSystemprompt`
 в `src/app/src/main/resources/application.yml`.
 

@@ -44,7 +44,7 @@ POST /vk/callback (JSON) → VkMediatorRouterSecurityDecorator → VkMediatorRou
 ## 2. Event routing (RabbitMQ)
 
 - Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
-  `application.yml:66-75`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+  `application.yml:72-81`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
 - `EventDispatcher.dispatch` (`EventDispatcher.kt:63-84`) читает `routingKey`, находит
   `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
 - Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:86-88`).
@@ -171,14 +171,14 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
   `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
 - **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
   (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
-- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:174-179`),
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:181-185`),
   аннотаций нет; защита VK API — только retry-лестница брокера.
 
 ## Observability
 
 - OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml:35-42`);
   экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
-- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:169-172`).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:175-178`).
 - Собственного кода с `Tracer`, MDC или `MeterRegistry` в проекте нет — только конфигурация расширений и
   logging-декораторы (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
 

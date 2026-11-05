@@ -51,7 +51,7 @@ VK Bot — **гексагональный монолит в одном депл�
   PostgreSQL                 -> persistence/adapter/output/persistence/jooq/*
   VK API                     -> vk-facade/adapter/output/vk/VkClient.kt:12-39 (configKey "vk")
   Vane (search)              -> ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25 (configKey "vane")
-  Ollama (LLM)               -> ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-19 (LangChain4j)
+  LLM (OpenAI API, vLLM)     -> ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-19 (LangChain4j)
 
 In-process (без HTTP):
   ai -> persistence          -> share/port/output/persistence/*  <-  PersistenceDataInProcessAdapter.kt
@@ -135,7 +135,8 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 - нет circuit breaker: расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), но
   аннотаций `@CircuitBreaker`/`@Retry` нет, блок `circuit-breaker.vk-profile` в конфиге никем не читается;
 - нет Prometheus-эндпоинта `/metrics` и пути `/health`; health — `/q/health`;
-- нет отдельного «AI-клиента»: AI вызывается через LangChain4j AI-сервисы (`@RegisterAiService`).
+- нет отдельного «AI-клиента»: AI вызывается через LangChain4j AI-сервисы (`@RegisterAiService`) к
+  OpenAI-совместимому endpoint, в деплое — vLLM ([ADR 0007](../adr/0007-llm-provider-vllm-openai.md)).
 
 ## Связанные решения
 
@@ -147,3 +148,4 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 | [0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md) | in-process порты, события RabbitMQ |
 | [0005](../adr/0005-quality-gates-and-ci.md) | гейты и CI |
 | [0006](../adr/0006-configuration-and-secrets.md) | конфигурация и секреты |
+| [0007](../adr/0007-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API |

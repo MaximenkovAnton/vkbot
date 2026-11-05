@@ -12,9 +12,12 @@ import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.simarel.vkbot.ai.adapter.output.ai.tool.vane.VaneProvidersResponse
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPort
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPortRequest
+import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionOutputPort
+import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionRequest
 import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
 import com.simarel.vkbot.ai.port.output.vane.VaneSearchOutputPort
 import com.simarel.vkbot.ai.testfixtures.FakeAnswerProvider
+import com.simarel.vkbot.ai.testfixtures.FakeOcrProvider
 import com.simarel.vkbot.ai.testfixtures.FakeSummaryProvider
 import com.simarel.vkbot.ai.testfixtures.FakeVaneProvider
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
@@ -40,6 +43,9 @@ class AiIntegrationTest {
 
     @Inject
     lateinit var summarizationOutputPort: SummarizationOutputPort
+
+    @Inject
+    lateinit var imageRecognitionOutputPort: ImageRecognitionOutputPort
 
     @Inject
     lateinit var vaneSearchOutputPort: VaneSearchOutputPort
@@ -70,7 +76,7 @@ class AiIntegrationTest {
         generateAnswerOutputPort.execute(answerRequest())
 
         wireMock.verify(
-            postRequestedFor(urlPathEqualTo("/api/chat"))
+            postRequestedFor(urlPathEqualTo("/v1/chat/completions"))
                 .withRequestBody(containing("- id30: Ivan Petrov (@ivan_petrov)"))
                 .withRequestBody(containing("- id-40: Test Group (@testgroup)"))
                 .withRequestBody(containing("ID: 1 | Отправитель: Ivan Petrov (id30)"))
@@ -92,7 +98,8 @@ class AiIntegrationTest {
     @Test
     fun `summarization port retries model failures and throws after three attempts`() {
         wireMock.stubFor(
-            post(urlPathEqualTo("/api/chat")).willReturn(aResponse().withStatus(500).withBody("model is down")),
+            post(urlPathEqualTo("/v1/chat/completions"))
+                .willReturn(aResponse().withStatus(500).withBody("model is down")),
         )
 
         assertThrows(RuntimeException::class.java) {
@@ -100,7 +107,7 @@ class AiIntegrationTest {
         }
         wireMock.verify(
             PORT_ATTEMPTS * MODEL_ATTEMPTS_PER_PORT_ATTEMPT,
-            postRequestedFor(urlPathEqualTo("/api/chat")),
+            postRequestedFor(urlPathEqualTo("/v1/chat/completions")),
         )
     }
 
@@ -147,6 +154,45 @@ class AiIntegrationTest {
         assertEquals("No providers configured in Vane", exception.message)
     }
 
+    @Test
+    fun `image recognition port sends the image url to the model and maps its descriptions`() {
+        stubChatReply(ocrReply())
+
+        val response = imageRecognitionOutputPort.execute(imageRecognitionRequest())
+
+        assertEquals(IMAGE_URL, response.results.single().imageUrl)
+        assertEquals("short from model", response.results.single().shortDescription)
+        assertEquals("full from model", response.results.single().fullDescription)
+        wireMock.verify(
+            postRequestedFor(urlPathEqualTo("/v1/chat/completions"))
+                .withRequestBody(containing("\"image_url\""))
+                .withRequestBody(containing(IMAGE_URL)),
+        )
+    }
+
+    @Test
+    fun `image recognition port propagates a model failure`() {
+        wireMock.stubFor(
+            post(urlPathEqualTo("/v1/chat/completions"))
+                .willReturn(aResponse().withStatus(500).withBody("model does not support images")),
+        )
+
+        assertThrows(RuntimeException::class.java) {
+            imageRecognitionOutputPort.execute(imageRecognitionRequest())
+        }
+    }
+
+    private fun imageRecognitionRequest(): ImageRecognitionRequest = FakeOcrProvider.createImageRecognitionRequest(
+        imageUrls = listOf(IMAGE_URL),
+    )
+
+    private fun ocrReply(): String = objectMapper.writeValueAsString(
+        FakeOcrProvider.createOcrResults(
+            shortDescription = "short from model",
+            fullDescription = "full from model",
+        ),
+    )
+
     private fun answerRequest(): GenerateAnswerOutputPortRequest {
         val user = FakeModelProvider.createVkUserProfile(
             id = 30,
@@ -174,12 +220,28 @@ class AiIntegrationTest {
     }
 
     private fun stubChatReply(content: String) {
+        val body = objectMapper.writeValueAsString(
+            mapOf(
+                "id" to "chatcmpl-test",
+                "object" to "chat.completion",
+                "created" to 1735689600,
+                "model" to "test-model",
+                "choices" to listOf(
+                    mapOf(
+                        "index" to 0,
+                        "message" to mapOf("role" to "assistant", "content" to content),
+                        "finish_reason" to "stop",
+                    ),
+                ),
+                "usage" to mapOf("prompt_tokens" to 1, "completion_tokens" to 1, "total_tokens" to 2),
+            ),
+        )
         wireMock.stubFor(
-            post(urlPathEqualTo("/api/chat")).willReturn(
+            post(urlPathEqualTo("/v1/chat/completions")).willReturn(
                 aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "application/json")
-                    .withBody("""{"message":{"role":"assistant","content":"$content"},"done":true}"""),
+                    .withBody(body),
             ),
         )
     }
@@ -204,6 +266,7 @@ class AiIntegrationTest {
     private companion object {
         const val PORT_ATTEMPTS = 3
         const val MODEL_ATTEMPTS_PER_PORT_ATTEMPT = 3
-        const val SUMMARY_JSON = """{\"shortSummary\":\"short from model\",\"fullSummary\":\"full from model\"}"""
+        const val IMAGE_URL = "https://example.com/image.png"
+        const val SUMMARY_JSON = """{"shortSummary":"short from model","fullSummary":"full from model"}"""
     }
 }

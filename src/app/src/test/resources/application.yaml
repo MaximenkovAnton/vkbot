@@ -19,6 +19,14 @@ quarkus:
       enabled: true
   observability:
     enabled: false
+  langchain4j:
+    devservices:
+      enabled: false
+    openai:
+      base-url: http://localhost:8000/v1
+      api-key: test-key
+      chat-model:
+        model-name: test-model
   rest-client:
     vane:
       url: http://localhost:8075
