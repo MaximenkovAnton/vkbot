@@ -36,7 +36,7 @@ in-process порт `message-storage`, который публикует `SUMMAR
 | LLM-адаптер, 3 попытки | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt:17-42` |
 | AI-сервис саммаризации и JSON-ответ | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiService.kt:8-37` |
 | сохранение completed → публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:115-146` |
-| `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-54` |
+| `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-57` |
 
 Конфигурация: `summary.enabled-chats` (`SUMMARY_ENABLED_CHATS`, ADR 0006),
 `summary.threshold`, `summary.batch-size`, `aiSumarizationSystemprompt`
@@ -110,12 +110,16 @@ in-process порт `message-storage`, который публикует `SUMMAR
   `summaryId`). Tests:
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/usecase/summary/ProcessSummaryUsecaseTest.kt`,
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/usecase/summary/GenerateSummaryUsecaseTest.kt`.
+- **AC-conversation-summary-8** — КОГДА приходит `SUMMARY_READY`, СИСТЕМА ДОЛЖНА отправить текст итога в чат
+  `peerId` с forward-блоком `[firstConversationMessageId, lastConversationMessageId]` и `is_reply = false`;
+  автор сообщения — бот (`vk.bot.id`), сообщество — `vk.group.id`, `conversationMessageId` —
+  `lastConversationMessageId` из payload. Test:
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessorTest.kt`.
 
 ## Пробелы приёмки
 
-- Участок `SUMMARY_READY` → forward-блок (`SummaryReadyEventProcessor`, `vk-facade`) и сохранение completed
-  с публикацией события (`handleSaveCompletedSummary`, `persistence`) по-прежнему без теста: это код соседних
-  модулей в `journey-summary`, а не шага саммаризации.
+- Сохранение completed с публикацией события (`handleSaveCompletedSummary`, `persistence`) по-прежнему без
+  теста: это код соседнего модуля в `journey-summary`, а не шага саммаризации.
 - Пустой `summary.enabled-chats` (пустой или отсутствующий `SUMMARY_ENABLED_CHATS`) достижим и означает
   «саммаризация выключена»; поведение этого случая тестом не покрыто — проверен только парсинг списка с
   пробелами.

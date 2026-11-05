@@ -11,6 +11,7 @@ import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
 import jakarta.enterprise.context.ApplicationScoped
+import org.eclipse.microprofile.config.inject.ConfigProperty
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -18,6 +19,8 @@ import java.time.ZoneOffset
 class SummaryReadyEventProcessor(
     private val objectMapper: ObjectMapper,
     private val vkSendMessageInputPort: VkSendMessageInputPort,
+    @ConfigProperty(name = "vk.bot.id") private val botId: Long,
+    @ConfigProperty(name = "vk.group.id") private val groupId: Long,
 ) : EventProcessor {
 
     override fun process(jsonString: String) {
@@ -32,12 +35,12 @@ class SummaryReadyEventProcessor(
             is_reply = false,
         )
 
-        val syntheticMessage = Message.of(
-            groupId = null,
+        val summaryMessage = Message.of(
+            groupId = groupId,
             date = Instant.now().atOffset(ZoneOffset.UTC),
-            fromId = null,
+            fromId = botId,
             peerId = payload.peerId,
-            conversationMessageId = null,
+            conversationMessageId = payload.lastConversationMessageId,
             messageText = payload.messageText,
             forwardedMessages = emptyList(),
         )
@@ -46,7 +49,7 @@ class SummaryReadyEventProcessor(
             VkSendMessageInputRequest(
                 responseMessage = ResponseMessage(
                     messageText = MessageText.of(payload.messageText),
-                    responseTo = syntheticMessage,
+                    responseTo = summaryMessage,
                 ),
                 forwardedMessages = forwardedMessages,
             ),
