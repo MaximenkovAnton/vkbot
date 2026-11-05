@@ -1,16 +1,16 @@
 # VK Bot Application
 
 A VK community bot: one Quarkus/Kotlin deployable that receives VK Callback webhooks, stores messages,
-decides whether an AI answer is needed, generates answers with LangChain4j/Ollama, sends them back to the
-VK API, and summarizes long conversations. The code follows hexagonal architecture: plain Kotlin behaviour
-behind ports, the framework at the edge (ADR 0003).
+decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM OpenAI-compatible
+API, sends them back to the VK API, and summarizes long conversations. The code follows
+hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 0003).
 
 ## Features
 
 - VK Callback API webhook with secret validation and a DMZ mapper for VK JSON
 - Event-driven pipeline on RabbitMQ with a retry ladder and a final dead-letter queue
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
-- AI answers via LangChain4j + Ollama, with web-search tools from Vane
+- AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 0004)
 - OpenTelemetry traces/metrics/logs
@@ -26,7 +26,7 @@ behind ports, the framework at the edge (ADR 0003).
 | Build | Gradle 9.3.0 (Kotlin DSL wrapper) |
 | Database | PostgreSQL + Liquibase + jOOQ 3.19.10 |
 | Message broker | RabbitMQ (SmallRye Reactive Messaging) |
-| AI | LangChain4j 1.8.4 (`quarkus-langchain4j-ollama`) |
+| AI | LangChain4j 1.8.4 (`quarkus-langchain4j-openai`) |
 | Observability | OpenTelemetry (OTLP), Micrometer |
 | Testing | JUnit 5, RestAssured, WireMock, ArchUnit |
 | Lint / format / coverage | detekt, ktlint, JaCoCo |
@@ -58,9 +58,10 @@ them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/00
 ## Prerequisites
 
 - JDK 21 (the build pins a 21 toolchain)
-- Docker (DevServices for PostgreSQL, RabbitMQ and Ollama; also required by `@QuarkusTest` app tests)
+- Docker (DevServices for PostgreSQL and RabbitMQ; also required by `@QuarkusTest` app tests)
 - A VK community with a callback server and an API token
-- Optional: a Vane (Perplexica) instance for web-search tools; Ollama for AI (DevServices can start it)
+- A vLLM OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
+- Optional: a Vane (Perplexica) instance for web-search tools
 
 ## Configuration
 
@@ -74,11 +75,14 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `VK_API_TOKEN` | yes | VK community API token |
 | `VK_BOT_ID` | yes | Bot user id used by the answer-decision rule |
 | `VANE_URL` | yes | Base URL of the Vane search API |
+| `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
+| `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries and OCR |
+| `AI_API_KEY` | no | LLM API key (default `dummy`; needed only when the server enables authorization) |
 | `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD` | in prod | PostgreSQL connection |
 | `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
 | `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
 | `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
-| `SUMMARY_ENABLED_CHATS` | yes | Non-empty comma-separated peer ids whose chats get summaries. An unset or empty value fails startup (`SRCFG00040`); the tests use `1,2,3` |
+| `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 
 Every key, its default and its consumer: `docs/development/configuration.md`.
@@ -89,8 +93,9 @@ Every key, its default and its consumer: `docs/development/configuration.md`.
 # Build everything: compile, tests, detekt, ktlintCheck, coverage threshold, deployable
 ./gradlew clean build
 
-# Local development with hot reload + DevServices (PostgreSQL, RabbitMQ, Ollama)
+# Local development with hot reload + DevServices (PostgreSQL, RabbitMQ)
 export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+       AI_BASE_URL=http://localhost:8000/v1 AI_CHAT_MODEL=... \
        SUMMARY_ENABLED_CHATS=1,2,3
 ./gradlew :src:app:quarkusDev
 ```
@@ -106,7 +111,7 @@ second runner is produced.
 docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 docker run -p 8080:8080 \
   -e VK_SECRET=... -e VK_CONFIRMATION_CODE=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
-  -e VANE_URL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
+  -e VANE_URL=... -e AI_BASE_URL=... -e AI_CHAT_MODEL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
   -e QUARKUS_DATASOURCE_JDBC_URL=... -e QUARKUS_DATASOURCE_USERNAME=... \
   -e QUARKUS_DATASOURCE_PASSWORD=... -e RABBITMQ_HOST=... \
   vkbot:jvm

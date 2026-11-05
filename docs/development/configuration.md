@@ -1,12 +1,11 @@
 # Конфигурация
 
-Источник истины — `src/app/src/main/resources/application.yml` (179 строк) и подключаемый
+Источник истины — `src/app/src/main/resources/application.yml` (185 строк) и подключаемый
 `src/app/src/main/resources/application-queues.yml` (`quarkus.config.locations: application-queues.yml`,
 `application.yml:18-20`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
 ([ADR 0006](../adr/0006-configuration-and-secrets.md)).
 
-Значения `${VAR}` без дефолта обязательны: без них приложение не стартует. Тот же эффект у
-`summary.enabled-chats`: его пустой дефолт тоже не даёт стартовать (см. «Промпты и саммаризация»).
+Значения `${VAR}` без дефолта обязательны: без них приложение не стартует.
 Секреты в репозиторий не коммитятся, `.env` в `.gitignore`.
 
 ## VK
@@ -30,16 +29,15 @@
 | `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}` | system-сообщение сервиса ответов | `ai/adapter/output/ai/answer/UserAnswerAiService.kt:17` |
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | `ai/adapter/output/ai/summarization/SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/OcrAiService.kt:13` |
-| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | **обязателен:** непустой список peerId через запятую (чаты, где включена саммаризация). Пустое/отсутствующее значение не конвертируется (`SRCFG00040`), приложение не стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке | там же `:22,108-125` |
 | `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml:17`) | — |
 
-`summary.enabled-chats` — единственный ключ, у которого пустой дефолт не работает: SmallRye Config считает
-пустую строку `null` и валидация инъекции `ProcessSummaryCommandImpl.kt:18` валит старт с
-`SRCFG00040: The config property summary.enabled-chats is defined as the empty String ("") which the
-following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHATS` обязателен и непуст, а
-формулировка «пусто = саммаризация выключена» неверна: пустое значение — отказ старта, а не выключение.
+`summary.enabled-chats` биндится как `String` с `defaultValue = ""` (`ProcessSummaryCommandImpl.kt:18`),
+поэтому пустая строка конвертером не отвергается: приложение стартует, `split(",")` даёт пустой набор
+чатов и саммаризация выключается. `SRCFG00040` на этом ключе не возникает — он появляется только у
+конвертеров, считающих пустую строку `null` (числа, списки).
 
 ## База данных и миграции
 
@@ -65,7 +63,7 @@ following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHAT
 `rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем `application.yml` их нет,
 это делает деплой.
 
-Очереди (`mp.messaging.*`, `application.yml:66-167`):
+Очереди (`mp.messaging.*`, `application.yml:72-173`):
 
 | Канал | Тип | Exchange / queue | Особенности |
 |---|---|---|---|
@@ -79,7 +77,7 @@ following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHAT
 `dlq.levels[]` (`application-queues.yml:1-32`) связывает уровень retry с очередью и TTL; читается
 `infrastructure/config/DlqConfig.kt:6-16` и используется `EventDispatcher.kt:25-26,90-111`.
 
-`smallrye.messaging.observation.enabled: true` (`application.yml:169-172`) включает наблюдаемость брокера.
+`smallrye.messaging.observation.enabled: true` (`application.yml:175-178`) включает наблюдаемость брокера.
 
 ## REST-клиенты и LLM
 
@@ -91,13 +89,19 @@ following Converter considered to be null`. Поэтому `SUMMARY_ENABLED_CHAT
 | `quarkus.rest-client.vane.url` | `${VANE_URL}` | база Vane (`configKey = "vane"`); обязательна |
 | `quarkus.rest-client.vane.connect-timeout` | `30000` | таймаут соединения Vane |
 | `quarkus.rest-client.vane.read-timeout` | `120000` | таймаут чтения Vane |
+| `quarkus.langchain4j.openai.base-url` | `${AI_BASE_URL}` | корень OpenAI-совместимого API вместе с `/v1`; без него приложение не стартует |
+| `quarkus.langchain4j.openai.api-key` | `${AI_API_KEY:dummy}` | ключ авторизации; дефолт `dummy` vLLM без `--api-key` игнорирует |
+| `quarkus.langchain4j.openai.max-retries` | `2` | повторы после первой попытки — три попытки провайдера на вызов |
+| `quarkus.langchain4j.openai.chat-model.model-name` | `${AI_CHAT_MODEL}` | имя chat-модели для ответа, саммаризации и OCR |
 
-Ollama/LangChain4j: в production-конфиге `quarkus.langchain4j.*` задан только логированием
-(`log-requests: true`, `log-responses: true`, `tracing.include-prompt/completion`, `application.yml:59-64`).
-Модель в dev поднимается DevServices; в prod endpoint/модель задаются стандартными ключами
-`quarkus.langchain4j.ollama.base-url` / `chat-model.model-id` (так они заданы в тестах:
-`src/app/src/test/resources/application-integration-test.yaml:85-92`, `WireMockTestResource.kt:24-31`).
-В текущем `application.yml` их нет — это задача деплоя.
+LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
+production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
+`log-responses: true`, `tracing.include-prompt/completion`, `application.yml:59-64`).
+Ловушка миграции: `base-url` — корень OpenAI API вместе с `/v1`, расширение само дописывает
+`/chat/completions`; у прежнего провайдера это был голый корень сервера. DevServices LLM больше не
+поднимают. В тестах те же ключи заданы в `src/app/src/test/resources/application.yaml:22-29` и
+`application-integration-test.yaml:85-93`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
+(`base-url` = `baseUrl()/v1`).
 
 ## OpenTelemetry
 
@@ -115,7 +119,7 @@ Ollama/LangChain4j: в production-конфиге `quarkus.langchain4j.*` зад�
 
 | Ключ | Почему мёртвый |
 |---|---|
-| `circuit-breaker.vk-profile` (`application.yml:174-179`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
+| `circuit-breaker.vk-profile` (`application.yml:181-185`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
 | `summary.system-prompt` | не читается, см. выше |
 | `summary-ready-queue` | канал объявлен, `@Incoming("summary-ready-queue")` в коде нет |
 
@@ -128,7 +132,7 @@ Ollama/LangChain4j: в production-конфиге `quarkus.langchain4j.*` зад�
   DevServices вкл., observability off, `vane.url: http://localhost:8075`.
 - `src/app/src/test/resources/application-integration-test.yaml` — профиль `integration-test`: RabbitMQ 3.12
   DevServices (shared, timeout 120s), PostgreSQL DevServices с `SELECT 1`, graceful shutdown, `auto-bind-exchange: false`
-  для всех каналов, Ollama DevServices off (мокается WireMock), Liquibase вкл.
+  для всех каналов, LangChain4j DevServices off (LLM мокается WireMock), Liquibase вкл.
 - `src/testing/test-common/src/main/resources/application.yaml` — общие значения для модульных тестов:
   `vk.*`, DevServices off, observability off, `vane.url`.
 
@@ -151,7 +155,8 @@ Ollama/LangChain4j: в production-конфиге `quarkus.langchain4j.*` зад�
 ## Секреты
 
 В репозитории нет ни одного секрета. Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
-`VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `SUMMARY_ENABLED_CHATS` (непустой), `QUARKUS_DATASOURCE_JDBC_URL`,
-`QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `VK_BOT_MENTION`,
+`VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`, `QUARKUS_DATASOURCE_JDBC_URL`,
+`QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `AI_API_KEY` (дефолт
+`dummy`), `VK_BOT_MENTION`,
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

@@ -62,6 +62,12 @@ quarkus:
     tracing:
       include-prompt: true
       include-completion: true
+    openai:
+      base-url: ${AI_BASE_URL}
+      api-key: ${AI_API_KEY:dummy}
+      max-retries: 2
+      chat-model:
+        model-name: ${AI_CHAT_MODEL}
 
 mp:
   messaging:

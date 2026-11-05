@@ -38,7 +38,7 @@ test ! -e build/quarkus-app                          # второго ранне
 docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 docker run -p 8080:8080 \
   -e VK_SECRET=... -e VK_CONFIRMATION_CODE=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
-  -e VANE_URL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
+  -e VANE_URL=... -e AI_BASE_URL=... -e AI_CHAT_MODEL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
   -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/vkbot \
   -e QUARKUS_DATASOURCE_USERNAME=... -e QUARKUS_DATASOURCE_PASSWORD=... \
   -e RABBITMQ_HOST=rabbitmq \
@@ -68,18 +68,23 @@ docker run -p 8080:8080 \
 | `VK_API_TOKEN` | токен группы VK |
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
-| `SUMMARY_ENABLED_CHATS` | непустой список peerId через запятую; пустое значение не конвертируется (`SRCFG00040`) и валит старт |
+| `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — vLLM) |
+| `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари и OCR |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
 
-Опциональные: `VK_BOT_MENTION`, `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
+Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
+`VK_BOT_MENTION`, `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
+выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
 
 Замечания:
 
-- В `application.yml` prod-ключи RabbitMQ и Ollama не заданы (только DevServices) — их должен задать
-  деплой: `rabbitmq-host`/`rabbitmq-port`/… для коннектора и `quarkus.langchain4j.ollama.base-url` для LLM.
+- В `application.yml` prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
+  `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в `application.yml` есть, но читают env:
+  `AI_BASE_URL` — это корень OpenAI API вместе с `/v1` (расширение дописывает `/chat/completions`),
+  `AI_CHAT_MODEL` — имя модели (ADR 0007).
 - `RABBITMQ_HOST` — стандартное отображение MicroProfile Config на `rabbitmq-host`; запуском prod-конфигурации
   в этом проходе не проверялось.
 - Секреты храните в секрет-менеджере платформы; в репозиторий и образ они не попадают.
@@ -129,16 +134,20 @@ docker run -p 8080:8080 \
 
 ```bash
 export VK_SECRET=... VK_CONFIRMATION_CODE=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:3000 \
+       AI_BASE_URL=http://localhost:8000/v1 AI_CHAT_MODEL=... \
        SUMMARY_ENABLED_CHATS=1,2,3
 ./gradlew :src:app:quarkusDev
 ```
 
-DevServices поднимают PostgreSQL, RabbitMQ и Ollama (нужен Docker); в dev доступны dev-UI и hot reload.
-Вебхук — `POST http://localhost:8080/vk/callback`. `SUMMARY_ENABLED_CHATS` обязателен и непуст
-(`application.yml:14`); в тестовых профилях задан `1,2,3`.
+DevServices поднимают PostgreSQL и RabbitMQ (нужен Docker); LLM — внешний OpenAI-совместимый endpoint из
+`AI_BASE_URL` (DevServices его больше не поднимают). В dev доступны dev-UI и hot reload.
+Вебхук — `POST http://localhost:8080/vk/callback`. `SUMMARY_ENABLED_CHATS` опционален: без него (или с
+пустым значением) приложение стартует с выключенной саммаризацией (`application.yml:14`); в тестовых
+профилях задан `1,2,3`.
 
 ## Что не проверено в этом проходе
 
 - Сборка Docker-образов (JVM/native/legacy) — Dockerfile'ы прочитаны, `docker build` не запускался.
-- Production-конфигурация RabbitMQ/Ollama — ключей в `application.yml` нет, деплой задаёт их сам.
+- Production-конфигурация RabbitMQ — ключей в `application.yml` нет, деплой задаёт их сам; ключи LLM в
+  конфиге есть, но их значения приходят из env `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY`.
 - Native-сборка и её образ.

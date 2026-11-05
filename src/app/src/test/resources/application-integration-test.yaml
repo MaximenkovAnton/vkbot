@@ -81,14 +81,15 @@ quarkus:
       test-port: 0
   liquibase:
     migrate-at-start: true
-  # Disable Ollama devservices - we mock it via WireMock
+  # Disable LangChain4j devservices - we mock the LLM via WireMock
   langchain4j:
     devservices:
       enabled: false
-    ollama:
+    openai:
       timeout: 30s
+      max-retries: 2
       chat-model:
-        model-id: llama3.2
+        model-name: test-model
         temperature: 0.0
   rest-client:
     vane:

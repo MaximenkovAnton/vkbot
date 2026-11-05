@@ -114,8 +114,8 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `VaneSearchClient.kt:11-25` (`/api/search`, `/api/providers`);
   - OCR: `RecognizeImagesCommandImpl.kt:8-27`, `ImageRecognitionOutputAdapter.kt:12-38`, `OcrAiService.kt:9-46`;
   - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
-- **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j Ollama
-  (`src/ai/build.gradle.kts:13-24`).
+- **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
+  провайдер (`quarkus-langchain4j-openai`, ADR 0007) (`src/ai/build.gradle.kts:14-46`).
 
 ## `vk-facade` — выход в VK API и профили
 

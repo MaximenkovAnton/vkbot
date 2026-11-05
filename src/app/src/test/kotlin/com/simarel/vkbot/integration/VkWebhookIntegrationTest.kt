@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
  *
  * Requires:
  * - RabbitMQ devservices (automatically started by Quarkus)
- * - WireMock for mocking VK API and Ollama (started via @QuarkusTestResource)
+ * - WireMock for mocking VK API and OpenAI (vLLM) (started via @QuarkusTestResource)
  */
 @QuarkusTest
 @TestProfile(IntegrationTestProfile::class)
@@ -42,7 +42,7 @@ class VkWebhookIntegrationTest {
     @Test
     fun `full flow - message_new event is processed end to end with VK API call`() {
         WireMockTestResource.wireMockServer.stubFor(
-            post(urlPathEqualTo("/api/chat"))
+            post(urlPathEqualTo("/v1/chat/completions"))
                 .willReturn(
                     aResponse()
                         .withStatus(200)
@@ -50,19 +50,25 @@ class VkWebhookIntegrationTest {
                         .withBody(
                             """
                             {
-                                "model": "llama3.2",
-                                "created_at": "2024-01-01T00:00:00Z",
-                                "message": {
-                                    "role": "assistant",
-                                    "content": "Hello! This is a response from AI."
-                                },
-                                "done": true,
-                                "total_duration": 1234567890,
-                                "load_duration": 12345678,
-                                "prompt_eval_count": 50,
-                                "prompt_eval_duration": 12345678,
-                                "eval_count": 20,
-                                "eval_duration": 1234567890
+                                "id": "chatcmpl-test",
+                                "object": "chat.completion",
+                                "created": 1735689600,
+                                "model": "test-model",
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {
+                                            "role": "assistant",
+                                            "content": "Hello! This is a response from AI."
+                                        },
+                                        "finish_reason": "stop"
+                                    }
+                                ],
+                                "usage": {
+                                    "prompt_tokens": 50,
+                                    "completion_tokens": 20,
+                                    "total_tokens": 70
+                                }
                             }
                             """.trimIndent(),
                         ),

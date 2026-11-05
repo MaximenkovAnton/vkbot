@@ -130,8 +130,8 @@
 | Паттерн | Почему нет |
 |---|---|
 | Event Sourcing / CQRS | События не сохраняются, event store отсутствует; чтение и запись — одни и те же модели |
-| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:174-179`) никем не читается |
-| Strategy для AI-провайдеров | Провайдер один — Ollama через LangChain4j; выбор модели — конфиг, а не рантайм-стратегия |
+| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:181-185`) никем не читается |
+| Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 0007; выбор модели — конфиг, а не рантайм-стратегия |
 | Chain of Responsibility | Валидация не выстроена в цепочку; правила решения — один `when` в `IsRequireAnswerCommand.kt:22-33` |
 | Observer / fan-out | Один процессор на событие; множество подписчиков не поддерживается картой диспетчера |
 | Saga / Outbox | Согласованность между БД и RabbitMQ не гарантируется; сообщение сохраняется и публикуется в одном use case без outbox (`SaveMessageUsecase.kt:28-51`) |

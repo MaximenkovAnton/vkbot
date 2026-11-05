@@ -31,7 +31,7 @@ system-промпты), а документация обещала env `DATABASE
 | `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:…}` | `UserAnswerAiService.kt:17` |
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | `SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:…}` | `OcrAiService.kt:13` |
-| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; пустое значение не конвертируется (`SRCFG00040`), поэтому переменная обязательна и непуста |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; `String` с пустым дефолтом — пустое значение выключает саммаризацию, но старт не валит |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | `ProcessSummaryCommandImpl.kt:20` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | `ProcessSummaryCommandImpl.kt:22` |
 | `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | `VkClient` (`configKey = "vk"`, `VkClient.kt:12`) |
@@ -40,37 +40,40 @@ system-промпты), а документация обещала env `DATABASE
 | `quarkus.datasource.*` | `db-kind: postgresql`, DevServices, pool 2/2/20 | Agroal/jOOQ |
 | `quarkus.liquibase.*` | `migrate-at-start: true`, `db/changelog/db.changelog-master.yaml` | миграции (`application.yml:32-34`) |
 | `quarkus.otel.logs/metrics/traces.enabled` | `true` | OpenTelemetry |
-| `mp.messaging.*` | очереди/обменники/retry | `application.yml:66-167` + `application-queues.yml:1-32` |
+| `mp.messaging.*` | очереди/обменники/retry | `application.yml:72-173` + `application-queues.yml:1-32` |
 | `dlq.levels[]` | `retry-count`, `queue-name`, `ttl-ms`, `exchange-name` | `DlqConfig.kt:6-16`, `EventDispatcher.kt:25-26` |
-| `smallrye.messaging.observation.enabled` | `true` | `application.yml:169-172` |
-| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг | `application.yml:59-64` |
+| `smallrye.messaging.observation.enabled` | `true` | `application.yml:175-178` |
+| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг; OpenAI-совместимый провайдер: `openai.base-url` / `openai.api-key` / `openai.max-retries` / `openai.chat-model.model-name` (ADR 0007) | `application.yml:59-70` |
 
 ### Dev/test и prod
 
-- DevServices (PostgreSQL, RabbitMQ, Ollama, LGTM) включены в `application.yml:23-26,56-58` и в тестовых
-  профилях; production задаётся env. Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
-  `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `SUMMARY_ENABLED_CHATS` (непустой: `${SUMMARY_ENABLED_CHATS:}`
-  разворачивается в пустую строку, которую конвертер отвергает с `SRCFG00040`, — отказ старта),
+- DevServices (PostgreSQL, RabbitMQ, LGTM) включены в `application.yml:23-26,56-58` и в тестовых
+  профилях; production задаётся env. LLM больше не поднимается DevServices: это внешний
+  OpenAI-совместимый endpoint (ADR 0007). Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
+  `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`,
   `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`,
   `RABBITMQ_HOST` (плюс `RABBITMQ_PORT/USERNAME/PASSWORD` при необходимости);
-  опциональные — `VK_BOT_MENTION`, `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
+  опциональные — `AI_API_KEY` (дефолт `dummy`), `VK_BOT_MENTION`, `SUMMARY_ENABLED_CHATS`
+  (пусто = саммаризация выключена),
+  `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
   `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
 - Тестовые конфиги: `src/app/src/test/resources/application.yaml` (профиль по умолчанию для `@QuarkusTest`),
-  `application-integration-test.yaml` (профиль `integration-test`: RabbitMQ/PostgreSQL DevServices, Ollama
-  отключён, WireMock), `application.yml` (`%test`-настройки), `src/testing/test-common/src/main/resources/application.yaml`
+  `application-integration-test.yaml` (профиль `integration-test`: RabbitMQ/PostgreSQL DevServices,
+  LangChain4j DevServices отключены, WireMock), `application.yml` (`%test`-настройки),
+  `src/testing/test-common/src/main/resources/application.yaml`
   (`vk.*`, `vane.url` для тестов без env).
 
 ### Секреты
 
-В репозитории секретов нет: значения приходят из `${ENV}`; `.env` в `.gitignore`. Дефолт-URL Vane не
-добавляется: без `VANE_URL` приложение не стартует в prod — это осознанно (отказ на старте лучше, чем
-запрос в неизвестный хост).
+В репозитории секретов нет: значения приходят из `${ENV}`; `.env` в `.gitignore`. Дефолт-URL не
+добавляется ни для Vane, ни для LLM: без `VANE_URL`, `AI_BASE_URL` или `AI_CHAT_MODEL` приложение не
+стартует в prod — это осознанно (отказ на старте лучше, чем запрос в неизвестный хост).
 
 ## Последствия
 
 - Один файл конфигурации на деплой; второй копии нет.
 - Формально объявленный, но не связанный с кодом долг: блок `circuit-breaker.vk-profile`
-  (`application.yml:174-179`) и ключ `summary.system-prompt` (`application.yml:17`) никем не читаются.
+  (`application.yml:181-185`) и ключ `summary.system-prompt` (`application.yml:17`) никем не читаются.
   Это зафиксировано как долг; удаление или подключение — отдельная задача.
 - Наблюдаемость: OTel включён, Prometheus-endpoint **не** обещается (в сборке нет
   `quarkus-micrometer-registry-prometheus`).

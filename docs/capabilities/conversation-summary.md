@@ -12,7 +12,7 @@
 
 | Условие | Поведение |
 |---|---|
-| чат не в `summary.enabled-chats` (список приходит из обязательного непустого `SUMMARY_ENABLED_CHATS`; пустое значение не даёт стартовать, `SRCFG00040`) | выйти, ничего не делать |
+| чат не в `summary.enabled-chats` (список приходит из `SUMMARY_ENABLED_CHATS`; пустое значение даёт пустой список — саммаризация выключена) | выйти, ничего не делать |
 | у чата уже есть `PENDING`-саммари | пропустить, чтобы не запускать второй прогон |
 | последнее саммари зависло в `PENDING` | WARNING и пропуск |
 | сообщений меньше `summary.threshold` и прошлое саммари есть | пропустить |
@@ -38,7 +38,7 @@ in-process порт `message-storage`, который публикует `SUMMAR
 | сохранение completed → публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:115-146` |
 | `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-54` |
 
-Конфигурация: `summary.enabled-chats` (обязательный непустой `SUMMARY_ENABLED_CHATS`, ADR 0006),
+Конфигурация: `summary.enabled-chats` (`SUMMARY_ENABLED_CHATS`, ADR 0006),
 `summary.threshold`, `summary.batch-size`, `aiSumarizationSystemprompt`
 в `src/app/src/main/resources/application.yml`.
 
@@ -73,8 +73,8 @@ in-process порт `message-storage`, который публикует `SUMMAR
 
 - ADR 0003 — вся бизнес-логика саммаризации в `command`, LLM — только в `adapter/output`.
 - ADR 0004 — сообщения и профили читаются in-process портами, `SUMMARY_READY` публикуется событием.
-- ADR 0006 — порог и batch-size — конфигурация с дефолтами `100`; включённые чаты — обязательный непустой
-  `SUMMARY_ENABLED_CHATS`, без него приложение не стартует, поэтому «выключено по умолчанию» недостижимо.
+- ADR 0006 — порог и batch-size — конфигурация с дефолтами `100`; включённые чаты — `SUMMARY_ENABLED_CHATS`,
+  пустое значение оставляет саммаризацию выключенной.
 
 ## Acceptance criteria
 
@@ -116,8 +116,8 @@ in-process порт `message-storage`, который публикует `SUMMAR
 - Участок `SUMMARY_READY` → forward-блок (`SummaryReadyEventProcessor`, `vk-facade`) и сохранение completed
   с публикацией события (`handleSaveCompletedSummary`, `persistence`) по-прежнему без теста: это код соседних
   модулей в `journey-summary`, а не шага саммаризации.
-- Событие с пустым `summary.enabled-chats` недостижимо: production-конфиг требует непустой
-  `SUMMARY_ENABLED_CHATS` (Quarkus не стартует с пустым значением, ADR 0006); парсинг списка с пробелами
-  проверен тестом.
+- Пустой `summary.enabled-chats` (пустой или отсутствующий `SUMMARY_ENABLED_CHATS`) достижим и означает
+  «саммаризация выключена»; поведение этого случая тестом не покрыто — проверен только парсинг списка с
+  пробелами.
 - `ProcessSummaryCommandImpl` ловит исключение `GenerateSummaryCommand`; покрыто проглатывание, а не логи
   (лог — ненаблюдаемое для пользователя поведение).

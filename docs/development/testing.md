@@ -22,15 +22,21 @@
 запускается в своём модуле.
 
 Проверено в этом проходе: `./gradlew test --rerun-tasks` → `BUILD SUCCESSFUL`, **130 тестов, 0 падений,
-0 ошибок, 0 пропущенных**. Распределение по модулям: app — 13 (в т.ч. `AiIntegrationTest` — 6), ai — 62,
+0 ошибок, 0 пропущенных**. Распределение по модулям: app — 15 (в т.ч. `AiIntegrationTest` — 8), ai — 60,
 receiver — 9, share — 8, vk-facade — 7, persistence — 9, processor — 2, infrastructure — 2, arch-tests — 18.
+
+`src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt` компилируется
+и содержит два `@Test`, но `:src:ai:test` его не обнаруживает — ни в полном прогоне, ни с `--tests` по этому классу:
+в отчёте 13 классов вместо 14, два теста не выполняются. Причина не установлена, вынесено в
+`_bmad-output/deferred-work.md`; продуктовая карта ссылается на этот файл как на тест acceptance criterion,
+поэтому до починки эта ссылка ничего не доказывает.
 
 ## Где лежат тесты
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `integration/AiIntegrationTest` (6 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile` |
-| `ai` | 14 классов, 62 теста: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
+| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `integration/AiIntegrationTest` (8 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile` |
+| `ai` | 13 классов, 60 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
 | `receiver` | `VkMediatorRouterIntegrationTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest`, `ExceptionHandlerTest` |
 | `persistence` | `PersistenceDataInProcessAdapterTest` (9 тестов — маппинг всех in-process портов) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
@@ -208,24 +214,26 @@ default` FAILED с именем параметра. После отката об
 
 - `@QuarkusTest` + `@TestProfile(IntegrationTestProfile::class)` (профиль `integration-test`) +
   `@QuarkusTestResource(WireMockTestResource::class)`;
-- DevServices поднимают PostgreSQL и RabbitMQ, поэтому **нужен Docker**; Ollama DevServices отключён,
-  LLM отвечает WireMock-заглушкой `/api/chat`; VK API (`/method/users.get`, `/method/groups.getById`,
-  `/method/messages.send`) тоже заглушается;
+- DevServices поднимают PostgreSQL и RabbitMQ, поэтому **нужен Docker**; LangChain4j DevServices
+  отключены, LLM отвечает WireMock-заглушкой `/v1/chat/completions`; VK API (`/method/users.get`,
+  `/method/groups.getById`, `/method/messages.send`) тоже заглушается;
 - тест `full flow` отправляет `message_new` на `/vk/callback` и через Awaitility (до 120 с) проверяет, что
   `messages.send` дошёл до WireMock — это сквозное доказательство, что in-process порты, CDI-проводка и
   брокер работают вместе;
 - остальные тесты: confirmation, неизвестный тип, неверный/отсутствующий секрет (403), ошибка VK API
   не роняет вебхук.
 
-`AiIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`) — 6 тестов
+`AiIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`) — 8 тестов
 реальной проводки `ai` в единственном деплое: инжектятся CDI-бины `GenerateAnswerOutputPort`,
-`SummarizationOutputPort`, `VaneSearchOutputPort`, а Ollama и Vane подменены WireMock-заглушками на
-HTTP-границе. Проверены ответ модели, тело промпта (профили, история, текущее сообщение), парсинг JSON
-саммари, 3 попытки порта (9 HTTP-вызовов), маппинг ответа Vane и `IllegalStateException` при отсутствии
+`SummarizationOutputPort`, `ImageRecognitionOutputPort`, `VaneSearchOutputPort`, а OpenAI-совместимый endpoint
+LLM и Vane подменены WireMock-заглушками на HTTP-границе. Проверены ответ модели, тело промпта (профили,
+история, текущее сообщение), парсинг JSON
+саммари, 3 попытки порта (9 HTTP-вызовов), картинки в запросе к модели (`image_url` с url изображения) и
+проброс отказа модели, маппинг ответа Vane и `IllegalStateException` при отсутствии
 провайдера с chat- и embedding-моделью.
 
 `WireMockTestResource` подменяет HTTP-границу трёх клиентов: VK API (`quarkus.rest-client.vk.url`), Vane
-(`quarkus.rest-client.vane.url`) и Ollama (`quarkus.langchain4j.ollama.base-url`, `WireMockTestResource.kt:24-33`).
+(`quarkus.rest-client.vane.url`) и LLM (`quarkus.langchain4j.openai.base-url`, `WireMockTestResource.kt:24-34`).
 Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
 возврате HTTP-контура между модулями (ADR 0004).
 
