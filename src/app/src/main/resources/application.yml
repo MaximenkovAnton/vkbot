@@ -1,6 +1,8 @@
 vk:
-  secret: ${VK_SECRET}
-  confirmation-code: ${VK_CONFIRMATION_CODE}
+  group:
+    id: ${VK_GROUP_ID}
+  longpoll:
+    enabled: ${VK_LONGPOLL_ENABLED:true}
   api:
     version: 5.199
     token: ${VK_API_TOKEN}

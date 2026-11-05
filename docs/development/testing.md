@@ -11,6 +11,7 @@
 ./gradlew :src:ai:test                          # юнит-тесты модуля ai (без Docker)
 ./gradlew :src:ai:test --tests "*GenerateAnswerUsecaseTest*"  # один класс ai (в своём модуле)
 ./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"  # один класс (в своём модуле)
+./gradlew :src:receiver:test --tests "*LongPollRunnerTest*"  # цикл Long Poll на fake-портах (без Docker)
 ./gradlew :src:app:test --tests "*AiIntegrationTest*"  # Quarkus-проводка ai (нужен Docker)
 ./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (18 тестов)
 ./gradlew coverageReport                        # агрегированный HTML+XML отчёт
@@ -21,9 +22,10 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в этом проходе: `./gradlew test --rerun-tasks` → `BUILD SUCCESSFUL`, **130 тестов, 0 падений,
-0 ошибок, 0 пропущенных**. Распределение по модулям: app — 15 (в т.ч. `AiIntegrationTest` — 8), ai — 60,
-receiver — 9, share — 8, vk-facade — 7, persistence — 9, processor — 2, infrastructure — 2, arch-tests — 18.
+Проверено в проходе vLLM (до перехода на Bots Long Poll): `./gradlew test --rerun-tasks` →
+`BUILD SUCCESSFUL`, **130 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app —
+15 (в т.ч. `AiIntegrationTest` — 8), ai — 60, receiver — 9, share — 8, vk-facade — 7, persistence — 9,
+processor — 2, infrastructure — 2, arch-tests — 18.
 
 `src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt` компилируется
 и содержит два `@Test`, но `:src:ai:test` его не обнаруживает — ни в полном прогоне, ни с `--tests` по этому классу:
@@ -35,10 +37,10 @@ receiver — 9, share — 8, vk-facade — 7, persistence — 9, processor — 2
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается), `integration/VkWebhookIntegrationTest` (6 тестов), `integration/AiIntegrationTest` (8 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile` |
+| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `integration/VkLongPollIntegrationTest` (приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile` |
 | `ai` | 13 классов, 60 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
-| `receiver` | `VkMediatorRouterIntegrationTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest`, `ExceptionHandlerTest` |
-| `persistence` | `PersistenceDataInProcessAdapterTest` (9 тестов — маппинг всех in-process портов) |
+| `receiver` | `LongPollRunnerTest`, `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
+| `persistence` | `PersistenceDataInProcessAdapterTest` (11 тестов — маппинг всех in-process портов) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
 | `vk-facade` | `VkProfileInProcessAdapterTest`, `VkSendMessageOutputAdapterTest`, `PublishEventCommandImplTest`, `SendVkMessageCommandImplTest`, `MessageSendUsecaseTest` |
 | `share` | `MessageTextTest`, `ConversationMessageIdTest` |
@@ -101,8 +103,9 @@ src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 src/persistence/src/testFixtures/kotlin/com/simarel/vkbot/persistence/testfixtures/  # PersistenceDataRequestProvider,
   # PersistenceDataResponseProvider
 src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/   # FakeMessageMapper,
-  # FakePublishVkEventCommand, FakePublishVkEventCommandProvider, FakeVkConfirmationInputPortProvider,
-  # FakeVkProvider, port/FakeReceiveMessageInputPort
+  # FakePublishVkEventCommand, FakePublishVkEventCommandProvider, FakeVkUpdateInputPortProvider,
+  # FakeLongPollPortProvider, port/{FakeGetLongPollServerPort, FakeCheckLongPollPort,
+  # FakeFindLongPollTsPort, FakeSaveLongPollTsPort, FakeReceiveMessageInputPort}
 src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/  # FakeIsRequireAnswerCommand,
   # FakeMessageNewInputPortProvider, FakeMessageReceivedInputPort
 src/ai/src/testFixtures/kotlin/com/simarel/vkbot/ai/testfixtures/   # FakeAnswerProvider, FakeSummaryProvider,
@@ -197,8 +200,8 @@ default` FAILED с именем параметра. После отката об
 
 ## Как писать тесты
 
-- **Именование:** backtick-предложение, описывающее проверку: ``fun `execute with confirmation event returns confirmation response`()``
-  (`ReceiveMessageUsecaseTest.kt:14`). Стиль Given/When/Then — как в соседних тестах.
+- **Именование:** backtick-предложение, описывающее проверку (`LongPollRunnerTest`, `ReceiveMessageUsecaseTest`).
+  Стиль Given/When/Then — как в соседних тестах.
 - **Unit-тест** — обычный JUnit 5 без Quarkus: собрать объект с fake-зависимостями, вызвать, проверить
   записи fake'а и результат (`ReceiveMessageUsecaseTest.kt:11-67`).
 - **Адаптер in-process** — шаблон для новых адаптеров: записать запрос в `port.input` и проверить обратный
@@ -210,18 +213,22 @@ default` FAILED с именем параметра. После отката об
 
 ## Интеграционные тесты
 
-`VkWebhookIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkWebhookIntegrationTest.kt:27-177`):
+`VkLongPollIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`):
 
 - `@QuarkusTest` + `@TestProfile(IntegrationTestProfile::class)` (профиль `integration-test`) +
-  `@QuarkusTestResource(WireMockTestResource::class)`;
+  `@QuarkusTestResource(WireMockTestResource::class)`; опрос Bots Long Poll включён;
 - DevServices поднимают PostgreSQL и RabbitMQ, поэтому **нужен Docker**; LangChain4j DevServices
   отключены, LLM отвечает WireMock-заглушкой `/v1/chat/completions`; VK API (`/method/users.get`,
-  `/method/groups.getById`, `/method/messages.send`) тоже заглушается;
-- тест `full flow` отправляет `message_new` на `/vk/callback` и через Awaitility (до 120 с) проверяет, что
-  `messages.send` дошёл до WireMock — это сквозное доказательство, что in-process порты, CDI-проводка и
-  брокер работают вместе;
-- остальные тесты: confirmation, неизвестный тип, неверный/отсутствующий секрет (403), ошибка VK API
-  не роняет вебхук.
+  `/method/groups.getById`, `/method/messages.send`, `/method/groups.getLongPollServer`) тоже заглушается;
+- WireMock-сценарий приёма: `groups.getLongPollServer` отдаёт `server` = базовый URL WireMock и `ts`,
+  первый `a_check` возвращает одно обновление `message_new`, следующие — пустые; иначе одно и то же
+  обновление доставлялось бы бесконечно. Тест сквозной: доставленное обновление доходит до
+  `messages.send` с `peer_id` исходного сообщения (Awaitility, до 120 с), а `ts` сохраняется в
+  `long_poll_position`;
+- позиция переживает пачку: `ts` сохраняется после ответа `a_check`, и следующий запрос идёт с ним;
+- `failed: 3`: заглушка видит новый `groups.getLongPollServer`, опрос идёт с `ts` из его ответа;
+- неизвестный тип обновления пропускается, опрос продолжается с новым `ts`, `messages.send` не вызывается;
+- `POST /vk/callback` → 404: HTTP-входа у `receiver` нет.
 
 `AiIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`) — 8 тестов
 реальной проводки `ai` в единственном деплое: инжектятся CDI-бины `GenerateAnswerOutputPort`,
@@ -234,6 +241,8 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 
 `WireMockTestResource` подменяет HTTP-границу трёх клиентов: VK API (`quarkus.rest-client.vk.url`), Vane
 (`quarkus.rest-client.vane.url`) и LLM (`quarkus.langchain4j.openai.base-url`, `WireMockTestResource.kt:24-34`).
+Этого достаточно и для Long Poll: `groups.getLongPollServer` идёт в `/method`, а `a_check` — на `server` из
+ответа заглушки, то есть на тот же базовый URL WireMock.
 Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
 возврате HTTP-контура между модулями (ADR 0004).
 

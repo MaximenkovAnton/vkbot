@@ -1,0 +1,19 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-long-poll-position-table
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: long_poll_position
+            columns:
+              - column:
+                  name: id
+                  type: SMALLINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: ts
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false

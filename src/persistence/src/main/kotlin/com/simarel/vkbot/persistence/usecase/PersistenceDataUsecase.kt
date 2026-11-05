@@ -8,12 +8,14 @@ import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastSummaryByPeerIdPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatusAndSummariesPort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatusPort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
@@ -43,6 +45,8 @@ open class PersistenceDataUsecase(
     private val findSummaryByIdPort: FindSummaryByIdPort,
     private val findUserProfilesByIdsPort: FindUserProfilesByIdsPort,
     private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort,
+    private val findLongPollTsPort: FindLongPollTsPort,
+    private val saveLongPollTsPort: SaveLongPollTsPort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -56,6 +60,13 @@ open class PersistenceDataUsecase(
         is PersistenceDataRequest.MarkSummaryAsFailed -> handleMarkSummaryAsFailed(request)
         is PersistenceDataRequest.FindUserProfilesByIds -> handleFindUserProfilesByIds(request)
         is PersistenceDataRequest.FindGroupProfilesByIds -> handleFindGroupProfilesByIds(request)
+        is PersistenceDataRequest.FindLongPollTs -> PersistenceDataResponse.LongPollTs(
+            findLongPollTsPort.execute(FindLongPollTsPort.FindLongPollTsRequest).ts,
+        )
+        is PersistenceDataRequest.SaveLongPollTs -> {
+            saveLongPollTsPort.execute(SaveLongPollTsPort.SaveLongPollTsRequest(request.ts))
+            PersistenceDataResponse.Empty
+        }
     }
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {

@@ -69,9 +69,8 @@ test, и не создаёт деплоев на фичу — деплой од�
 
 `@QuarkusMain` — `:src:app`. Связывание — CDI: реализации помечены `@ApplicationScoped`/`@Singleton`,
 порты `share` инжектятся по интерфейсу. Явные `@Produces` — только там, где нужна ручная сборка:
-`receiver/config/UsecaseConfiguration.kt:12-25` (`ReceiveMessageUsecase` с двумя ответами),
-`receiver/config/ConstantConfiguration.kt:9-15` (`ConfirmationCode`), `persistence/config/JooqConfig.kt:11-20`
-(`DSLContext`), `infrastructure/config/MapperConfig.kt:9-18` (Jackson Kotlin module).
+`persistence/config/JooqConfig.kt:11-20` (`DSLContext`), `infrastructure/config/MapperConfig.kt:9-18`
+(Jackson Kotlin module).
 
 ## Последствия
 

@@ -19,7 +19,7 @@ VK Bot — **гексагональный монолит в одном депл�
 4. **Синхронные вызовы внутри деплоя — in-process.** `ai` и `persistence` общаются через порты `share`,
    реализованные модулем-поставщиком, а не через loopback HTTP
    ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)).
-5. **Асинхронность только там, где она нужна.** Вебхук VK не ждёт AI: этапы идут через RabbitMQ с
+5. **Асинхронность только там, где она нужна.** Приём событий VK не ждёт AI: этапы идут через RabbitMQ с
    retry-лестницей и финальным DLQ.
 
 ## Слои
@@ -41,7 +41,7 @@ VK Bot — **гексагональный монолит в одном депл�
 
 ```
 Вход:
-  POST /vk/callback          -> receiver/adapter/input/vk/VkMediatorRouterImpl.kt:16-40
+  Bots Long Poll (groups.getLongPollServer, a_check) -> receiver/adapter/input/vk/LongPollRunner.kt
   GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-127
   GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkFacadeController.kt:14-32
   RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-84
@@ -49,7 +49,8 @@ VK Bot — **гексагональный монолит в одном депл�
 Выход:
   RabbitMQ events-exchange   -> infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33
   PostgreSQL                 -> persistence/adapter/output/persistence/jooq/*
-  VK API                     -> vk-facade/adapter/output/vk/VkClient.kt:12-39 (configKey "vk")
+  VK API (Long Poll)         -> receiver/adapter/output/vk/VkLongPollOutputAdapter.kt (configKey "vk")
+  VK API (сообщения, профили) -> vk-facade/adapter/output/vk/VkClient.kt:12-39 (configKey "vk")
   Vane (search)              -> ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25 (configKey "vane")
   LLM (OpenAI API, vLLM)     -> ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-19 (LangChain4j)
 
@@ -65,9 +66,9 @@ In-process (без HTTP):
 `SUMMARY_READY`.
 
 ```
-VK ──POST /vk/callback──> receiver
-    secret check (декоратор) → DMZ-маппинг JSON → ReceiveMessageUsecase
-    → MESSAGE_NEW (RabbitMQ)
+VK ──Bots Long Poll──> receiver
+    groups.getLongPollServer → a_check (wait=25) → DMZ-маппинг JSON → ReceiveMessageUsecase
+    → MESSAGE_NEW (RabbitMQ), затем ts сохраняется в PostgreSQL
 
 MESSAGE_NEW ──> persistence/MessageNewEventProcessor
     SaveMessageUsecase: fetch profiles (in-process vk-порт) → save message
@@ -110,22 +111,23 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `FetchUserProfileCommand`, `GenerateAnswerCommand`, `GenerateSummaryCommand`, `ProcessSummaryCommand`,
   `RecognizeImagesCommand` (реализована, ни к одному use case не подключена), `SendVkMessageCommand`,
   `GetProfileCommand`, `VaneSearchCommand`.
-- **Адаптеры**: входные — REST-контроллеры, `@Incoming`-процессоры, in-process адаптеры; выходные —
-  jOOQ-репозитории, VK REST client, LangChain4j AI-сервисы, Vane client, Jackson-сериализация.
+- **Адаптеры**: входные — `LongPollRunner` (опрос VK), REST-контроллеры, `@Incoming`-процессоры,
+  in-process адаптеры; выходные — jOOQ-репозитории, VK REST client, LangChain4j AI-сервисы, Vane client,
+  Jackson-сериализация.
 - **Инфраструктура**: `EventDispatcher` (маршрутизация по routing key = имя события, retry, DLQ),
   `PublishEventOutputAdapter`, logging-декораторы, `DlqConfig`, `MapperConfig`.
 
 ## Безопасность и валидация
 
-- **Секрет VK** проверяется CDI-декоратором до бизнес-логики:
-  `receiver/adapter/input/vk/VkMediatorRouterSecurityDecorator.kt:11-29`. Неверный/отсутствующий секрет →
-  `AccessDeniedException` → HTTP 403 (`ExceptionHandler.kt:10-24`).
+- **Публичного HTTP-входа у `receiver` нет:** `POST /vk/callback` отвечает 404, секрета и
+  confirmation-кода в конфигурации нет. Единственный вход событий VK — исходящий опрос Bots Long Poll
+  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)); токен VK уходит заголовком `Authorization`.
 - **DMZ**: VK JSON парсится в DTO в `receiver/adapter/input/dto/`, в домен маппится
   `receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58`. `jakarta.json.JsonObject` не покидает входной
   адаптер.
 - **Value objects** валидируют и нормализуют значения (`MessageText.of`, `PeerId.of`, `FromId.of`).
-- **Ошибки** — иерархия `VkBotAppException` со статусом (`share/domain/exception/`), единый маппинг в
-  `ExceptionHandler.kt:10-39`.
+- **Ошибки** — иерархия `VkBotAppException` со статусом (`share/domain/exception/`); HTTP-маппинг в
+  деплое остался только у REST-контроллеров `persistence` и `vk-facade`.
 
 ## Что здесь не реализовано
 
@@ -135,6 +137,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 - нет circuit breaker: расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), но
   аннотаций `@CircuitBreaker`/`@Retry` нет, блок `circuit-breaker.vk-profile` в конфиге никем не читается;
 - нет Prometheus-эндпоинта `/metrics` и пути `/health`; health — `/q/health`;
+- нет публичного HTTP-входа для VK: `/vk/callback` отсутствует, события приходят опросом Bots Long Poll;
 - нет отдельного «AI-клиента»: AI вызывается через LangChain4j AI-сервисы (`@RegisterAiService`) к
   OpenAI-совместимому endpoint, в деплое — vLLM ([ADR 0007](../adr/0007-llm-provider-vllm-openai.md)).
 
@@ -149,3 +152,4 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 | [0005](../adr/0005-quality-gates-and-ci.md) | гейты и CI |
 | [0006](../adr/0006-configuration-and-secrets.md) | конфигурация и секреты |
 | [0007](../adr/0007-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API |
+| [0008](../adr/0008-bots-long-poll-transport.md) | приём событий VK — Bots Long Poll, позиция `ts` в PostgreSQL |

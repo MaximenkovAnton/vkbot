@@ -54,4 +54,11 @@ object Tables {
         val CREATED_AT = DSL.field("created_at")
         val UPDATED_AT = DSL.field("updated_at")
     }
+
+    object LongPollPosition {
+        val TABLE = DSL.table("long_poll_position")
+
+        val ID = DSL.field("id")
+        val TS = DSL.field("ts")
+    }
 }

@@ -34,4 +34,8 @@ object PersistenceDataResponseProvider {
     fun createGroupProfilesResponse(
         profiles: List<VkGroupProfile> = emptyList(),
     ) = PersistenceDataResponse.GroupProfiles(profiles = profiles)
+
+    fun createLongPollTsResponse(
+        ts: String? = null,
+    ) = PersistenceDataResponse.LongPollTs(ts = ts)
 }

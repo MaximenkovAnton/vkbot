@@ -2,7 +2,7 @@
 
 11 Gradle-модулей (`settings.gradle.kts:22-32`), один деплой — `:src:app`
 ([ADR 0002](../adr/0002-single-deployable-app-module.md)). Модули — горизонтальные бизнес-модули вокруг
-общего ядра `share`; фичи (вебхук, ответ, саммари, профили) — вертикали внутри них. Компилятор делает
+общего ядра `share`; фичи (приём событий VK, ответ, саммари, профили) — вертикали внутри них. Компилятор делает
 неправильный импорт ошибкой сборки, а ArchUnit-тесты проверяют правила слоёв
 ([ADR 0003](../adr/0003-module-boundaries-and-layer-rules.md)).
 
@@ -34,50 +34,60 @@ Test-scope рёбра (не входят в production-граф, разреше�
   которыми пользуются остальные модули. Никакой реализации и никаких адаптеров — слоя `adapter` здесь нет.
 - **Публичный API:**
   - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile}.kt`;
-  - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload}.kt` —
+  - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
   - события: `share/domain/Event.kt:3-10` (6 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
   - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
     `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
     `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
-  - исходящие порты: 9 persistence (`share/port/output/persistence/`) и 2 vk
-    (`share/port/output/vk/`) — каждый `OutputPort<REQ,RESP>` с одной операцией;
+  - исходящие порты: 9 `persistence`-портов для сообщений и саммари, 2 — для позиции Long Poll
+    (`FindLongPollTsPort`, `SaveLongPollTsPort`) и 2 vk (`share/port/output/vk/`) — каждый
+    `OutputPort<REQ,RESP>` с одной операцией;
   - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt`.
 - **Зависимости:** нет проектных (только библиотеки: Jakarta CDI, Quarkus core/arc, RabbitMQ messaging,
   Jackson, REST client — `src/share/build.gradle.kts:16-33`).
 
-## `receiver` — вход VK Callback
+## `receiver` — вход событий VK (Bots Long Poll)
 
-- **Ответственность:** принять `POST /vk/callback`, проверить секрет, распарсить VK JSON в DMZ-DTO,
-  смаппить в доменное `Message` и опубликовать `MESSAGE_NEW`.
+- **Ответственность:** владелец входящего транспорта VK: опрашивает Bots Long Poll API
+  (`groups.getLongPollServer` → `a_check`), парсит VK JSON в DMZ-DTO, маппит в доменное `Message`,
+  публикует `MESSAGE_NEW` и сохраняет позицию опроса `ts`. HTTP-эндпоинта у модуля нет: `POST /vk/callback`
+  отвечает 404. Исходящие вызовы VK API (`messages.send`, профили) остаются за `vk-facade`
+  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
 - **Публичный API:**
-  - `POST /vk/callback` — `receiver/adapter/input/vk/VkMediatorRouterImpl.kt:16-40` (тип события:
-    `VkCallbackEvent.mapOrUnknown`, `VkCallbackEvent.kt:10-14`);
-  - `ReceiveMessageInputPort` — `receiver/port/input/ReceiveMessageInputPort.kt:10-15`;
-  - CDI-декоратор проверки секрета — `VkMediatorRouterSecurityDecorator.kt:11-29`;
-  - единый маппинг ошибок в HTTP — `ExceptionHandler.kt:10-39`.
-- **Ключевые классы:** `ReceiveMessageUsecase.kt:10-33` (confirmation/unknown/message),
+  - цикл опроса — `receiver/adapter/input/vk/LongPollRunner.kt` (виртуальный поток, старт по
+    `StartupEvent`, стоп по `ShutdownEvent`, включение ключом `vk.longpoll.enabled`);
+  - `ReceiveMessageInputPort` — `receiver/port/input/ReceiveMessageInputPort.kt`
+    (`VkUpdateInputPortRequest(type, message)`);
+  - порты Long Poll — `receiver/port/output/LongPollPort.kt` (сессия и `a_check`), выходной адаптер —
+    `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` (REST-клиент `configKey = "vk"`,
+    read-timeout 60 с).
+- **Ключевые классы:** `ReceiveMessageUsecase.kt` (тип обновления → `MESSAGE_NEW`),
   `PublishVkEventCommandImpl.kt:10-23` (публикует `MESSAGE_NEW`), `MessageMapper.kt:13-58` (DMZ, включая
-  forward/reply/wall), DTO `adapter/input/dto/{MessageDto,WallAttachmentDto}.kt`.
+  forward/reply/wall), `VkUpdateType.kt` (`MESSAGE_NEW`, `MESSAGE_REPLY`, `UNKNOWN`), DTO
+  `adapter/input/dto/{MessageDto,WallAttachmentDto}.kt`.
 - **Сборка:** `implementation(project(":src:share"))` (`src/receiver/build.gradle.kts:16`).
 
 ## `persistence` — хранение и запросы
 
-- **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари;
-  публичный REST запросов; in-process реализация share-портов persistence; подтягивание профилей VK.
+- **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари и
+  позиции Long Poll (`long_poll_position`); публичный REST запросов; in-process реализация share-портов
+  persistence; подтягивание профилей VK.
 - **Публичный API:**
   - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-127`, контракт —
     `PersistenceService.kt:18-79` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:81-90`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
-  - in-process: `PersistenceDataInProcessAdapter.kt:17-144` — 9 классов-адаптеров share-портов,
-    делегируют в `PersistenceDataInputPort`;
+  - in-process: `PersistenceDataInProcessAdapter.kt` — 11 классов-адаптеров share-портов
+    (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
-  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt:34-207` (9 операций; публикует `SUMMARY_READY` при
+  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (11 операций; публикует `SUMMARY_READY` при
   сохранении завершённого саммари, `:132-144`), `FetchUserProfileCommandImpl.kt:15-96` (сначала локальные
   профили, недостающие — через in-process vk-порты), `JooqConfig.kt:11-20`,
-  jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt`, таблицы `.../jooq/Tables.kt:6-57`,
-  порты `persistence/port/output/persistence/` (15) и `ForwardedMessagesSerializationPort.kt:8-16`.
+  jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
+  `JooqLongPollPositionRepository` — одна строка `long_poll_position`), таблицы `.../jooq/Tables.kt:6-64`,
+  changeset `005-create-long-poll-position-table`, порты `persistence/port/output/persistence/` и
+  `ForwardedMessagesSerializationPort.kt:8-16`.
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
@@ -189,10 +199,11 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | Порт (`share`) | Реализация | Потребитель |
 |---|---|---|
 | 9 `port/output/persistence/*` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-144` | `ai` (`GenerateSummaryCommandImpl.kt:7-12`, `ConversationContextRestAdapter.kt:22-26`) |
+| `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |
 
 Проводка валидируется ArC на этапе сборки деплоя и полным интеграционным тестом
-(`VkWebhookIntegrationTest.kt:42-177`).
+(`VkLongPollIntegrationTest.kt`).
 
 ### Публичный REST
 

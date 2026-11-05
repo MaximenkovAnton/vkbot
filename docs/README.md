@@ -31,6 +31,7 @@
 | [0005](adr/0005-quality-gates-and-ci.md) | detekt/ktlint/JaCoCo-порог/ArchUnit и пять джобов CI | accepted |
 | [0006](adr/0006-configuration-and-secrets.md) | Один конфиг в `:src:app`, env для секретов; дубли конфига и loopback-ключи удалены, оставшиеся мёртвые ключи — долг | accepted |
 | [0007](adr/0007-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API (`quarkus-langchain4j-openai`), env `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY` | accepted |
+| [0008](adr/0008-bots-long-poll-transport.md) | Приём событий VK — Bots Long Poll (`groups.getLongPollServer` + `a_check`), позиция `ts` в PostgreSQL; Callback, `vk.secret`/`vk.confirmation-code` удалены | accepted |
 
 ## Продуктовая карта
 

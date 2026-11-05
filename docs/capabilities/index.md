@@ -1,7 +1,7 @@
 # Карта возможностей VK Bot
 
-VK-бот — один деплой (`:src:app`), который принимает Callback-события сообщества VK, хранит переписку,
-решает, нужен ли AI-ответ, генерирует его и отправляет в VK, а на длинных обсуждениях делает
+VK-бот — один деплой (`:src:app`), который принимает события сообщества VK через Bots Long Poll, хранит
+переписку, решает, нужен ли AI-ответ, генерирует его и отправляет в VK, а на длинных обсуждениях делает
 саммаризацию. Карта — продуктовый рекорд, написанный из кода: строка на возможность, дальше файл
 возможности со статусом, точками входа, данными, отношениями владения, ADR, acceptance criteria и тестами.
 
@@ -15,7 +15,7 @@ VK-бот — один деплой (`:src:app`), который принима�
 
 | Journey | Шаги |
 |---|---|
-| `journey-answer` — «Диалог с ботом»: участник пишет боту, бот отвечает в чате | `vk-webhook` → `message-storage` → `answer-decision` → `ai-answer` → `vk-message-send`; транспорт событий — `event-dispatch`, имена участников даёт `vk-profiles`, веб-поиск внутри ответа — `ai-tools-vane` |
+| `journey-answer` — «Диалог с ботом»: участник пишет боту, бот отвечает в чате | `vk-long-poll` → `message-storage` → `answer-decision` → `ai-answer` → `vk-message-send`; транспорт событий — `event-dispatch`, имена участников даёт `vk-profiles`, веб-поиск внутри ответа — `ai-tools-vane` |
 | `journey-summary` — «Итог обсуждения»: бот подводит итог переписки и присылает его с forward-блоком | `message-storage` → `conversation-summary` → `vk-message-send`; транспорт событий — `event-dispatch` |
 | `journey-stored-data` — «Сохранённые данные по запросу»: внешний клиент читает переписку, саммари и профили | `message-storage` (REST `/persistence/*`) |
 
@@ -23,7 +23,7 @@ VK-бот — один деплой (`:src:app`), который принима�
 
 | id | Что делает | Точки входа |
 |---|---|---|
-| [`vk-webhook`](vk-webhook.md) | принимает VK Callback: секрет, confirmation-код, `message_new`/`message_reply`, DMZ-маппинг JSON → домен, публикация `MESSAGE_NEW` | `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/VkMediatorRouterImpl.kt:16-40`, `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/VkMediatorRouterSecurityDecorator.kt:11-29` |
+| [`vk-long-poll`](vk-long-poll.md) | опрашивает Bots Long Poll API (`groups.getLongPollServer` → `a_check`), хранит позицию `ts` в PostgreSQL, маппит `message_new`/`message_reply` в домен и публикует `MESSAGE_NEW`; HTTP-входа нет | `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt`, `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` |
 | [`message-storage`](message-storage.md) | хранит сообщения, профили и саммари в PostgreSQL; читает их по REST и по in-process портам; публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt:12-22`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-127` |
 | [`answer-decision`](answer-decision.md) | по правилам решает, нужен ли AI-ответ, и публикует `MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22`, `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33` |
 | [`ai-answer`](ai-answer.md) | собирает контекст чата и профили, генерирует ответ LLM и публикует `ANSWER_MESSAGE` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt:12-22`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/answer/GenerateAnswerCommand.kt:32-47` |

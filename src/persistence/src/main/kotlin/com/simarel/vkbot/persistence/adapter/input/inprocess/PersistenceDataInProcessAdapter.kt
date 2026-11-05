@@ -3,14 +3,17 @@ package com.simarel.vkbot.persistence.adapter.input.inprocess
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.share.domain.vo.LongPollTs
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
+import com.simarel.vkbot.share.port.output.persistence.SaveLongPollTsPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
 import jakarta.enterprise.context.ApplicationScoped
 
@@ -140,5 +143,26 @@ class FindStoredGroupProfilesByIdsInProcessAdapter(
             PersistenceDataRequest.FindGroupProfilesByIds(request.ids.map { it.value }),
         )
         return FindStoredGroupProfilesByIdsPort.Response((response as PersistenceDataResponse.GroupProfiles).profiles)
+    }
+}
+
+@ApplicationScoped
+class FindLongPollTsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindLongPollTsPort {
+    override fun execute(request: FindLongPollTsPort.Request): FindLongPollTsPort.Response {
+        val response = persistenceDataInputPort.execute(PersistenceDataRequest.FindLongPollTs)
+        val ts = (response as PersistenceDataResponse.LongPollTs).ts
+        return FindLongPollTsPort.Response(ts?.let { LongPollTs(it) })
+    }
+}
+
+@ApplicationScoped
+class SaveLongPollTsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : SaveLongPollTsPort {
+    override fun execute(request: SaveLongPollTsPort.Request): SaveLongPollTsPort.Response {
+        persistenceDataInputPort.execute(PersistenceDataRequest.SaveLongPollTs(request.ts.value))
+        return SaveLongPollTsPort.Response
     }
 }

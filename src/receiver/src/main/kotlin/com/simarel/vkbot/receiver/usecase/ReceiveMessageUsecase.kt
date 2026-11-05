@@ -2,32 +2,20 @@ package com.simarel.vkbot.receiver.usecase
 
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommand
 import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandRequest
-import com.simarel.vkbot.receiver.domain.vo.VkCallbackEvent
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
-import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortRequest
-import com.simarel.vkbot.receiver.port.input.VkConfirmationInputPortResponse
+import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortRequest
+import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortResponse
+import jakarta.enterprise.context.ApplicationScoped
 
+@ApplicationScoped
 class ReceiveMessageUsecase(
-    private val confirmationResponse: VkConfirmationInputPortResponse,
-    private val okResponse: VkConfirmationInputPortResponse,
     private val publishVkEventCommand: PublishVkEventCommand,
 ) : ReceiveMessageInputPort {
-    private val logger = System.getLogger(ReceiveMessageUsecase::class.java.name)
 
-    override fun execute(
-        request: VkConfirmationInputPortRequest,
-    ): VkConfirmationInputPortResponse = when (request.vkEvent.type) {
-        VkCallbackEvent.CONFIRMATION -> confirmationResponse
-        VkCallbackEvent.UNKNOWN -> {
-            logger.log(System.Logger.Level.ERROR, "Unknown event: ${request.vkEvent.type}")
-            okResponse
+    override fun execute(request: VkUpdateInputPortRequest): VkUpdateInputPortResponse {
+        request.message?.let { message ->
+            publishVkEventCommand.execute(PublishVkEventCommandRequest(message))
         }
-
-        else -> {
-            request.message?.let { message ->
-                publishVkEventCommand.execute(PublishVkEventCommandRequest(message))
-            }
-            okResponse
-        }
+        return VkUpdateInputPortResponse
     }
 }

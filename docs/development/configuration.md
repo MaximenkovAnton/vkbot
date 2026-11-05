@@ -1,8 +1,8 @@
 # Конфигурация
 
-Источник истины — `src/app/src/main/resources/application.yml` (185 строк) и подключаемый
+Источник истины — `src/app/src/main/resources/application.yml` и подключаемый
 `src/app/src/main/resources/application-queues.yml` (`quarkus.config.locations: application-queues.yml`,
-`application.yml:18-20`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
+`application.yml:20-22`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
 ([ADR 0006](../adr/0006-configuration-and-secrets.md)).
 
 Значения `${VAR}` без дефолта обязательны: без них приложение не стартует.
@@ -12,15 +12,20 @@
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `vk.secret` | `${VK_SECRET}` | секрет Callback API; неверный/пустой → 403 | `receiver/adapter/input/vk/VkMediatorRouterSecurityDecorator.kt:17` |
-| `vk.confirmation-code` | `${VK_CONFIRMATION_CODE}` | ответ на `confirmation` | `receiver/config/ConstantConfiguration.kt:14` |
-| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13` |
-| `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | `application.yml:47-50` |
+| `vk.group.id` | `${VK_GROUP_ID}` | положительный id сообщества для `groups.getLongPollServer`; без него приложение не стартует | `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` (`group_id` запроса), `receiver/adapter/input/vk/LongPollRunner.kt` |
+| `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | включает опрос Bots Long Poll при старте; `false` — цикл опроса не запускается (тестовый профиль) | `receiver/adapter/input/vk/LongPollRunner.kt` |
+| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13`, `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt:99` (`groups.getLongPollServer`) |
+| `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | `application.yml:49-52` |
 | `vk.bot.id` | `${VK_BOT_ID}` | id бота в правиле «forward от бота → ответить» | `processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:17` |
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | упоминание, включающее ответ в чате | там же `:19` |
 
-Получение значений: сообщество VK → «Управление» → «API» → Callback API (URL `https://<host>/vk/callback`,
-секрет и строка подтверждения генерируются VK) → «Ключи доступа» (токен с правами на сообщения).
+Ключей `vk.secret` и `vk.confirmation-code` больше нет: Callback-эндпоинт удалён, события приходят опросом
+Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+
+Получение значений: сообщество VK → «Управление» → «API» → Bots Long Poll API: включить Long Poll API с
+событием `message_new` и отключить Callback API; `VK_GROUP_ID` — положительный id сообщества из того же
+раздела; `VK_API_TOKEN` — «Ключи доступа» (токен с правами на сообщения). Порядок переключения —
+[deployment.md](deployment.md).
 
 ## Промпты и саммаризация
 
@@ -32,7 +37,7 @@
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке | там же `:22,108-125` |
-| `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml:17`) | — |
+| `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml:19`) | — |
 
 `summary.enabled-chats` биндится как `String` с `defaultValue = ""` (`ProcessSummaryCommandImpl.kt:18`),
 поэтому пустая строка конвертером не отвергается: приложение стартует, `split(",")` даёт пустой набор
@@ -58,12 +63,12 @@
 
 ## RabbitMQ и очереди
 
-`application.yml:56-58` задаёт только DevServices (`quarkus.rabbitmq.devservices.image-name: rabbitmq:latest`);
+`application.yml:58-60` задаёт только DevServices (`quarkus.rabbitmq.devservices.image-name: rabbitmq:latest`);
 в prod параметры коннектора SmallRye RabbitMQ (`rabbitmq-host`, `rabbitmq-port`, `rabbitmq-username`,
 `rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем `application.yml` их нет,
 это делает деплой.
 
-Очереди (`mp.messaging.*`, `application.yml:72-173`):
+Очереди (`mp.messaging.*`, `application.yml:74-175`):
 
 | Канал | Тип | Exchange / queue | Особенности |
 |---|---|---|---|
@@ -77,7 +82,7 @@
 `dlq.levels[]` (`application-queues.yml:1-32`) связывает уровень retry с очередью и TTL; читается
 `infrastructure/config/DlqConfig.kt:6-16` и используется `EventDispatcher.kt:25-26,90-111`.
 
-`smallrye.messaging.observation.enabled: true` (`application.yml:175-178`) включает наблюдаемость брокера.
+`smallrye.messaging.observation.enabled: true` (`application.yml:177-180`) включает наблюдаемость брокера.
 
 ## REST-клиенты и LLM
 
@@ -85,7 +90,7 @@
 |---|---|---|
 | `quarkus.rest-client.scope` | `jakarta.inject.Singleton` | один клиент на приложение |
 | `quarkus.rest-client.logging.scope` | `request-response` | логирование запрос/ответ всех REST-клиентов |
-| `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | база VK API (`configKey = "vk"`) |
+| `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | база VK API (`configKey = "vk"`), в том числе для `groups.getLongPollServer` |
 | `quarkus.rest-client.vane.url` | `${VANE_URL}` | база Vane (`configKey = "vane"`); обязательна |
 | `quarkus.rest-client.vane.connect-timeout` | `30000` | таймаут соединения Vane |
 | `quarkus.rest-client.vane.read-timeout` | `120000` | таймаут чтения Vane |
@@ -96,12 +101,16 @@
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
-`log-responses: true`, `tracing.include-prompt/completion`, `application.yml:59-64`).
+`log-responses: true`, `tracing.include-prompt/completion`, `application.yml:61-66`).
 Ловушка миграции: `base-url` — корень OpenAI API вместе с `/v1`, расширение само дописывает
 `/chat/completions`; у прежнего провайдера это был голый корень сервера. DevServices LLM больше не
 поднимают. В тестах те же ключи заданы в `src/app/src/test/resources/application.yaml:22-29` и
 `application-integration-test.yaml:85-93`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
 (`base-url` = `baseUrl()/v1`).
+
+Long Poll использует тот же `configKey = "vk"` для `groups.getLongPollServer`, а `a_check` уходит на
+динамический `server` из ответа через `RestClientBuilder.baseUri`. Таймаут чтения клиента — 60 с: при
+`wait=25` VK держит соединение до 25 секунд, и меньший таймаут рвал бы холостой ответ.
 
 ## OpenTelemetry
 
@@ -119,7 +128,7 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 
 | Ключ | Почему мёртвый |
 |---|---|
-| `circuit-breaker.vk-profile` (`application.yml:181-185`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
+| `circuit-breaker.vk-profile` (`application.yml:182-187`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
 | `summary.system-prompt` | не читается, см. выше |
 | `summary-ready-queue` | канал объявлен, `@Incoming("summary-ready-queue")` в коде нет |
 
@@ -128,13 +137,16 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 - Production-профилей `%dev`/`%prod` в `src/app/src/main/resources` нет. Есть `%test` в
   `src/app/src/test/resources/application.yml:1-8` (`hibernate-orm.enabled: false`, `liquibase.enabled: false`,
   `summary.enabled-chats: 1,2,3`).
-- `src/app/src/test/resources/application.yaml` — базовая тестовая конфигурация: `vk.*`, `summary.enabled-chats: 1,2,3`,
-  DevServices вкл., observability off, `vane.url: http://localhost:8075`.
+- `src/app/src/test/resources/application.yaml` — базовая тестовая конфигурация: `vk.group.id`,
+  `vk.longpoll.enabled` (у `InitTest` опрос выключен — `vk.longpoll.enabled: false`), `vk.bot.*`,
+  `summary.enabled-chats: 1,2,3`, DevServices вкл., observability off, `vane.url: http://localhost:8075`.
 - `src/app/src/test/resources/application-integration-test.yaml` — профиль `integration-test`: RabbitMQ 3.12
   DevServices (shared, timeout 120s), PostgreSQL DevServices с `SELECT 1`, graceful shutdown, `auto-bind-exchange: false`
-  для всех каналов, LangChain4j DevServices off (LLM мокается WireMock), Liquibase вкл.
+  для всех каналов, LangChain4j DevServices off (LLM мокается WireMock), Liquibase вкл.; опрос Bots Long Poll
+  включается для `VkLongPollIntegrationTest`.
 - `src/testing/test-common/src/main/resources/application.yaml` — общие значения для модульных тестов:
-  `vk.*`, DevServices off, observability off, `vane.url`.
+  `vk.group.id`, `vk.longpoll.enabled: false`, `vk.api.*`, `vk.bot.*`, DevServices off, observability off,
+  `vane.url`.
 
 ## Health
 
@@ -150,13 +162,14 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 `./gradlew :src:persistence:generateJooq` существует, но выполняется только при заданном `JOOQ_JDBC_URL`
 (`src/persistence/build.gradle.kts:89-125`, `onlyIf { System.getenv("JOOQ_JDBC_URL") != null }`).
 Переменные: `JOOQ_JDBC_URL`, `JOOQ_JDBC_USER`, `JOOQ_JDBC_PASSWORD`. Генерация не нужна для сборки:
-таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-57`.
+таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-64`.
 
 ## Секреты
 
-В репозитории нет ни одного секрета. Обязательные env для prod: `VK_SECRET`, `VK_CONFIRMATION_CODE`,
-`VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`, `QUARKUS_DATASOURCE_JDBC_URL`,
+В репозитории нет ни одного секрета. Обязательные env для prod: `VK_GROUP_ID`, `VK_API_TOKEN`,
+`VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`, `QUARKUS_DATASOURCE_JDBC_URL`,
 `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `AI_API_KEY` (дефолт
-`dummy`), `VK_BOT_MENTION`,
+`dummy`), `VK_BOT_MENTION`, `VK_LONGPOLL_ENABLED` (дефолт `true`),
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
+`VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 0008).
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).
