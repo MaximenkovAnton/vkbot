@@ -70,6 +70,20 @@ quarkus:
       max-retries: 2
       chat-model:
         model-name: ${AI_CHAT_MODEL}
+  messaging:
+    health:
+      retry-5s-queue:
+        enabled: false
+      retry-30s-queue:
+        enabled: false
+      retry-1m-queue:
+        enabled: false
+      retry-15m-queue:
+        enabled: false
+      retry-1h-queue:
+        enabled: false
+      dlq-final-queue:
+        enabled: false
 
 mp:
   messaging:
@@ -137,13 +151,6 @@ mp:
           name: dlq-final-exchange
         queue:
           name: dlq-final
-      summary-ready-queue:
-        connector: smallrye-rabbitmq
-        exchange:
-          name: all-events
-        queue:
-          name: summary-ready
-        dead-letter-exchange: retry-5s-exchange
     outgoing:
       events-exchange:
         connector: smallrye-rabbitmq
