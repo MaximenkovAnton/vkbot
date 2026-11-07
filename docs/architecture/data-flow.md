@@ -72,11 +72,13 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 `SaveMessageUsecase.execute` (`SaveMessageUsecase.kt:28-51`, `@Transactional`):
 
-1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:26-57`): собирает `from_id` из сообщения и
-   forward'ов; проверяет, какие профили уже есть (`FilterExisting*IdsPort`); недостающие получает через
+1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:29-58`): собирает `from_id` из сообщения и
+   forward'ов; читает сохранённые профили через `FindUserProfilesByIdsPort`/`FindGroupProfilesByIdsPort` и
+   считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
-   `VkProfileInProcessAdapter` → VK API `users.get`/`groups.getById`) и сохраняет. Ошибка получения профилей
-   не валит сохранение: логируется WARNING (`:63-95`).
+   `VkProfileInProcessAdapter` → VK API `users.get`/`groups.getById`), сливает с сохранёнными (значение из
+   VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`. Ошибка получения
+   профилей не валит сохранение: логируется WARNING (`:67-107`).
 2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
    с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
@@ -207,7 +209,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 | Retry-лестница | `EventDispatcher.kt:91-113`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
 | DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
 | Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
-| Изоляция профилей | `FetchUserProfileCommandImpl.kt:63-95` | сбой VK при получении профилей не отменяет сохранение сообщения |
+| Изоляция профилей | `FetchUserProfileCommandImpl.kt:67-107` | сбой VK при получении профилей не отменяет сохранение сообщения |
 | Повтор AI-саммари | `SummarizationAiAdapter.kt:10-40` | 3 попытки внутри одного события |
 | Детерминированный `random_id` | `MessageSendUsecase.kt:37-43` | повторная отправка того же ответа даёт тот же `random_id` |
 

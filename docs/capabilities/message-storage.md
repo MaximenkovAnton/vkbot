@@ -7,11 +7,16 @@
 
 Владеет схемой PostgreSQL и всей записью/чтением данных бота:
 
-- по событию `MESSAGE_NEW` подтягивает отсутствующие профили авторов (через in-process порты `vk-profiles`),
-  сохраняет сообщение вместе с пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
+- по событию `MESSAGE_NEW` подтягивает профили авторов сообщения и forward'ов: отсутствующие и устаревшие
+  (`last_updated` старше месяца) запрашивает через in-process порты `vk-profiles`, изменившиеся поля
+  обновляет, а поля, которых VK больше не отдаёт, оставляет прежними; сохраняет сообщение вместе с
+  пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
 - по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили; ведёт
   записи саммари по lifecycle (`PENDING` → `COMPLETED`/`FAILED`);
 - при сохранении завершённого саммари публикует `SUMMARY_READY`.
+
+Профиль, который VK не вернул по запросу, не перезаписывается: сохранённые данные остаются, а строка
+остаётся устаревшей и будет перезапрошена при следующем сообщении.
 
 Читать можно двумя входами к одному `port.input`: публичным REST `/persistence/*` и in-process адаптерами,
 которые подключают модули `ai` и `persistence` без HTTP (ADR 0004).
@@ -38,8 +43,9 @@
 Схема и миграции — единственный владелец (другие модули данных в БД не видят):
 
 - `messages` — сообщение, `forwarded_messages` как `JSONB`, индексы по `from_id`, `peer_id`, `date`;
-- `vk_user_profiles` — профиль пользователя, индекс по `last_updated`;
-- `vk_group_profiles` — профиль группы (id хранится отрицательным), индекс по `last_updated`;
+- `vk_user_profiles` — профиль пользователя, `last_updated` — дата последней актуализации, индекс по ней;
+- `vk_group_profiles` — профиль группы, id хранится отрицательным (как в домене), `last_updated` — дата
+  последней актуализации, индекс по ней;
 - `summaries` — `PENDING`/`COMPLETED`/`FAILED`, диапазон сообщений, short/full, индексы по `peer_id`;
 - `greeting_log` — одна строка на `(greeting_date, peer_id)` (PK), признак «поздравление за этот день уже
   отправлено»; пишется модулем `daily-greetings` через `ClaimDailyGreetingPort`, схема — здесь.
@@ -94,6 +100,14 @@
   СИСТЕМА ДОЛЖНА передать их в `PersistenceDataInputPort` как `SaveCompletedSummary`. Test:
   `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt:147-169`.
 
+- **AC-message-storage-3** — КОГДА приходит сообщение, а профиль его автора отсутствует или `last_updated`
+  старше месяца, СИСТЕМА ДОЛЖНА запросить профиль через in-process порт `vk-profiles`, заменить изменившиеся
+  поля и сохранить прежние значения полей, которых VK больше не отдаёт. Test:
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImplTest.kt`.
+- **AC-message-storage-4** — КОГДА профиль группы сохранён с отрицательным id, СИСТЕМА ДОЛЖНА находить его
+  по тому же id и отдавать вместе с датой последней актуализации. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileStorageIntegrationTest.kt`.
+
 ## Пробелы приёмки
 
 - Сохранение в PostgreSQL (`SaveMessageUsecase` + jOOQ) не покрыто ни одним тестом: интеграционный тест
@@ -101,3 +115,5 @@
 - REST `/persistence/*` не покрыт ни одним HTTP-тестом.
 - Публикация `SUMMARY_READY` при сохранении завершённого саммари не покрыта тестом —
   `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:195-207`.
+- Запись профилей jOOQ-репозиториями не покрыта тестом: `ProfileStorageIntegrationTest` проверяет чтение
+  сохранённых строк, `FetchUserProfileCommandImplTest` — слияние и сохранение на fake-портах.

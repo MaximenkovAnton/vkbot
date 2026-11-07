@@ -86,8 +86,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
   `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (15 операций; публикует `SUMMARY_READY` при
-  сохранении завершённого саммари, `:132-144`), `FetchUserProfileCommandImpl.kt:15-96` (сначала локальные
-  профили, недостающие — через in-process vk-порты), `JooqConfig.kt:11-20`,
+  сохранении завершённого саммари, `:132-144`), `FetchUserProfileCommandImpl.kt:18-58` (читает сохранённые
+  профили; отсутствующие и устаревшие старше месяца обновляет через in-process vk-порты, поля сливает с
+  сохранёнными), `JooqConfig.kt:11-20`,
   jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
   `JooqLongPollPositionRepository` — одна строка `long_poll_position`, и `JooqGreetingLogRepository` —
   claim `greeting_log`), таблицы `.../jooq/Tables.kt`, changesets

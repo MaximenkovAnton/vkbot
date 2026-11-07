@@ -11,8 +11,10 @@
 id: запрос уходит с `-id`, ответ возвращается как `-id` (`VkGetGroupProfilesBatchAdapter`). Ошибка VK —
 `VkApiException`.
 
-Кэша и TTL нет: поле `lastUpdated` есть в модели и колонке, но логики устаревания в коде нет; отсутствующие
-профили запрашиваются каждый раз, когда их нет в локальной таблице.
+Профили хранятся в PostgreSQL (`message-storage`); `lastUpdated` — дата последней актуализации. Профиль
+считается устаревшим через месяц: при входящем сообщении `message-storage` перезапрашивает его из VK,
+обновляет изменившиеся поля и сохраняет прежние значения полей, которых VK больше не отдаёт
+(`FetchUserProfileCommandImpl`). Отсутствующий профиль запрашивается сразу.
 
 ## Точки входа
 
@@ -77,5 +79,8 @@ id: запрос уходит с `-id`, ответ возвращается ка
 - Запросы к VK API и нормализация групп к отрицательному id не покрыты тестом
   (`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt`).
 - REST `/api/profiles/*` не покрыт ни одним HTTP-тестом.
-- Сохранение профилей (`FetchUserProfileCommandImpl`, `SaveUserProfilePort`) не покрыто тестом.
-- `lastUpdated` не имеет логики устаревания — кэша нет; в документации это не должно называться кэшем.
+- Сохранение профилей jOOQ-репозиториями (`SaveUserProfilePort`/`SaveGroupProfilePort`) не покрыто тестом:
+  `FetchUserProfileCommandImplTest` проверяет слияние на fake-портах, `ProfileStorageIntegrationTest` — чтение
+  сохранённых строк.
+- Логика устаревания профилей живёт в `message-storage`; здесь проверены только in-process порты, а не
+  актуализация по `lastUpdated`.
