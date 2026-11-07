@@ -19,17 +19,13 @@ import java.util.stream.Stream
 class GenerateGreetingTextCommandTest {
 
     @Test
-    fun `the ai request carries the date, enum ordered holidays and sorted names`() {
+    fun `a holiday request carries the holiday title and no people`() {
         val port = FakeGenerateGreetingTextPort(
             response = FakeGreetingPortProvider.createGenerateGreetingTextResponse(
                 text = FakeVoProvider.createMessageText("generated greeting"),
             ),
         )
-        val plan = GreetingPlan(
-            peerId = FakeVoProvider.createPeerId(2_000_000_001),
-            holidays = listOf(Holiday.PROGRAMMER_DAY, Holiday.NEW_YEAR),
-            birthdays = listOf("Анна Смирнова", "Ёлкин Иван"),
-        )
+        val plan = FakeGreetingProvider.createHolidayGreetingPlan(holiday = Holiday.NEW_YEAR)
 
         val response = GenerateGreetingTextCommandImpl(port).execute(
             FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, plan),
@@ -37,26 +33,43 @@ class GenerateGreetingTextCommandTest {
 
         val request = port.executeCalls.single()
         assertEquals(DATE, request.date)
-        assertEquals(listOf(Holiday.NEW_YEAR.title, Holiday.PROGRAMMER_DAY.title), request.holidays)
-        assertEquals(listOf("Ёлкин Иван", "Анна Смирнова"), request.people)
+        assertEquals(Holiday.NEW_YEAR.title, request.occasion)
+        assertTrue(request.people.isEmpty())
         assertEquals("generated greeting", response.text.value)
+    }
+
+    @Test
+    fun `a birthday request carries the occasion and the sorted names`() {
+        val port = FakeGenerateGreetingTextPort(
+            response = FakeGreetingPortProvider.createGenerateGreetingTextResponse(
+                text = FakeVoProvider.createMessageText("generated greeting"),
+            ),
+        )
+        val plan = FakeGreetingProvider.createBirthdayGreetingPlan(
+            people = listOf("Анна Смирнова", "Ёлкин Иван"),
+        )
+
+        GenerateGreetingTextCommandImpl(port).execute(
+            FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, plan),
+        )
+
+        val request = port.executeCalls.single()
+        assertEquals(DATE, request.date)
+        assertEquals("День рождения", request.occasion)
+        assertEquals(listOf("Ёлкин Иван", "Анна Смирнова"), request.people)
     }
 
     @Test
     fun `an ai failure falls back to the template and warns`() {
         val port = FakeGenerateGreetingTextPort(failure = IllegalStateException("llm is down"))
-        val plan = GreetingPlan(
-            peerId = FakeVoProvider.createPeerId(2_000_000_001),
-            holidays = listOf(Holiday.NEW_YEAR),
-            birthdays = listOf("Иван Петров"),
-        )
+        val plan = FakeGreetingProvider.createHolidayGreetingPlan(holiday = Holiday.NEW_YEAR)
 
         SystemLoggerCapture(GenerateGreetingTextCommandImpl::class.java.name).use { capture ->
             val response = GenerateGreetingTextCommandImpl(port).execute(
                 FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, plan),
             )
 
-            assertEquals("С Новым годом! С днём рождения, Иван Петров!", response.text.value)
+            assertEquals("С Новым годом!", response.text.value)
             assertTrue(capture.messages(Level.WARNING).isNotEmpty())
         }
     }
@@ -69,48 +82,41 @@ class GenerateGreetingTextCommandTest {
                 text = FakeVoProvider.createMessageText(text),
             ),
         )
-        val plan = GreetingPlan(
-            peerId = FakeVoProvider.createPeerId(2_000_000_001),
-            holidays = listOf(Holiday.PROGRAMMER_DAY),
-            birthdays = emptyList(),
-        )
+        val plan = FakeGreetingProvider.createBirthdayGreetingPlan(people = listOf("Иван Петров"))
 
         SystemLoggerCapture(GenerateGreetingTextCommandImpl::class.java.name).use { capture ->
             val response = GenerateGreetingTextCommandImpl(port).execute(
                 FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, plan),
             )
 
-            assertEquals("С Днём программиста!", response.text.value)
+            assertEquals("С днём рождения, Иван Петров!", response.text.value)
             assertTrue(capture.messages(Level.WARNING).any { it.contains("blank") })
         }
     }
 
     @ParameterizedTest
     @MethodSource("templateCases")
-    fun `the template renders every event combination in enum order`(case: TemplateCase) {
+    fun `the template renders every plan kind and the request carries its occasion`(case: TemplateCase) {
         val port = FakeGenerateGreetingTextPort(
             response = FakeGreetingPortProvider.createGenerateGreetingTextResponse(
                 text = FakeVoProvider.createMessageText("   "),
             ),
         )
-        val plan = GreetingPlan(
-            peerId = FakeVoProvider.createPeerId(2_000_000_001),
-            holidays = case.holidays,
-            birthdays = case.birthdays,
-        )
 
         val response = GenerateGreetingTextCommandImpl(port).execute(
-            FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, plan),
+            FakeGreetingProvider.createGenerateGreetingTextCommandRequest(DATE, case.plan),
         )
 
         assertEquals(case.expected, response.text.value)
-        assertEquals(case.holidays.sortedBy { it.ordinal }.map { it.title }, port.executeCalls.single().holidays)
+        assertEquals(case.expectedOccasion, port.executeCalls.single().occasion)
+        assertEquals(case.expectedPeople, port.executeCalls.single().people)
     }
 
     data class TemplateCase(
-        val holidays: List<Holiday>,
-        val birthdays: List<String>,
+        val plan: GreetingPlan,
         val expected: String,
+        val expectedOccasion: String,
+        val expectedPeople: List<String>,
     )
 
     companion object {
@@ -121,22 +127,25 @@ class GenerateGreetingTextCommandTest {
 
         @JvmStatic
         fun templateCases(): Stream<TemplateCase> = Stream.of(
-            TemplateCase(listOf(Holiday.NEW_YEAR), emptyList(), "С Новым годом!"),
-            TemplateCase(listOf(Holiday.PROGRAMMER_DAY), emptyList(), "С Днём программиста!"),
             TemplateCase(
-                emptyList(),
-                listOf("Ёлкин Иван", "Анна Смирнова"),
-                "С днём рождения, Ёлкин Иван, Анна Смирнова!",
+                plan = FakeGreetingProvider.createHolidayGreetingPlan(holiday = Holiday.NEW_YEAR),
+                expected = "С Новым годом!",
+                expectedOccasion = Holiday.NEW_YEAR.title,
+                expectedPeople = emptyList(),
             ),
             TemplateCase(
-                listOf(Holiday.PROGRAMMER_DAY, Holiday.NEW_YEAR),
-                emptyList(),
-                "С Новым годом! С Днём программиста!",
+                plan = FakeGreetingProvider.createHolidayGreetingPlan(holiday = Holiday.PROGRAMMER_DAY),
+                expected = "С Днём программиста!",
+                expectedOccasion = Holiday.PROGRAMMER_DAY.title,
+                expectedPeople = emptyList(),
             ),
             TemplateCase(
-                listOf(Holiday.NEW_YEAR),
-                listOf("Иван Петров"),
-                "С Новым годом! С днём рождения, Иван Петров!",
+                plan = FakeGreetingProvider.createBirthdayGreetingPlan(
+                    people = listOf("Ёлкин Иван", "Анна Смирнова"),
+                ),
+                expected = "С днём рождения, Ёлкин Иван, Анна Смирнова!",
+                expectedOccasion = "День рождения",
+                expectedPeople = listOf("Ёлкин Иван", "Анна Смирнова"),
             ),
         )
     }

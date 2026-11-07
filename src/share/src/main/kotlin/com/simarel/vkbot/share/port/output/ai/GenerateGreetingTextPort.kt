@@ -13,7 +13,7 @@ interface GenerateGreetingTextPort :
         > {
     data class Request(
         val date: LocalDate,
-        val holidays: List<String>,
+        val occasion: String,
         val people: List<String>,
     ) : OutputPortRequest
     data class Response(val text: MessageText) : OutputPortResponse

@@ -23,30 +23,43 @@ open class RunDailyGreetingsUsecase(
         var sent = 0
         var failed = 0
 
-        plans.forEach { plan ->
-            try {
-                val text = generateGreetingText.execute(
-                    GenerateGreetingTextCommand.Request(request.date, plan),
-                ).text
-                val claimed = claimDailyGreeting.execute(
-                    ClaimDailyGreetingPort.Request(request.date, plan.peerId),
-                ).claimed
-                if (!claimed) {
-                    logger.log(Level.INFO, "Greeting is already claimed: peerId=${plan.peerId.value}")
-                    return@forEach
-                }
-                sendGreetingMessage.execute(SendGreetingMessagePort.Request(plan.peerId, text))
-                sent++
+        plans.groupBy { it.peerId }.forEach { (peerId, peerPlans) ->
+            val claimed = try {
+                claimDailyGreeting.execute(ClaimDailyGreetingPort.Request(request.date, peerId)).claimed
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 throw e
             } catch (e: Exception) {
-                failed++
+                failed += peerPlans.size
                 logger.log(
                     Level.ERROR,
-                    "Greeting failed for peerId=${plan.peerId.value} (${e.javaClass.name})",
+                    "Greeting claim failed for peerId=${peerId.value} (${e.javaClass.name})",
                     e,
                 )
+                return@forEach
+            }
+            if (!claimed) {
+                logger.log(Level.INFO, "Greeting is already claimed: peerId=${peerId.value}")
+                return@forEach
+            }
+            peerPlans.forEach { plan ->
+                try {
+                    val text = generateGreetingText.execute(
+                        GenerateGreetingTextCommand.Request(request.date, plan),
+                    ).text
+                    sendGreetingMessage.execute(SendGreetingMessagePort.Request(peerId, text))
+                    sent++
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw e
+                } catch (e: Exception) {
+                    failed++
+                    logger.log(
+                        Level.ERROR,
+                        "Greeting failed for peerId=${peerId.value} (${e.javaClass.name})",
+                        e,
+                    )
+                }
             }
         }
 

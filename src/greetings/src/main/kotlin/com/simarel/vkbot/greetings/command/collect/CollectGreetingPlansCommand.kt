@@ -34,17 +34,34 @@ open class CollectGreetingPlansCommandImpl(
     private val logger = System.getLogger(CollectGreetingPlansCommandImpl::class.java.name)
 
     override fun execute(request: CollectGreetingPlansCommand.Request): CollectGreetingPlansCommand.Response {
-        val holidays = Holidays.forDate(request.date)
-        val holidaysByPeer = mutableMapOf<PeerId, MutableSet<Holiday>>()
-        val birthdaysByPeer = mutableMapOf<PeerId, MutableSet<String>>()
+        val holidays = Holidays.forDate(request.date).sortedBy { it.ordinal }
+        val holidaysByPeer = holidaysByPeer(holidays)
+        val birthdaysByPeer = birthdaysByPeer(request.date)
 
-        if (holidays.isNotEmpty()) {
-            findGroupChatPeerIds.execute(FindGroupChatPeerIdsPort.Request).peerIds.forEach { peerId ->
-                holidaysByPeer.getOrPut(peerId) { mutableSetOf() }.addAll(holidays)
+        val plans = (holidaysByPeer.keys + birthdaysByPeer.keys)
+            .sortedBy { it.value }
+            .flatMap { peerId ->
+                val holidayGreetings = holidaysByPeer[peerId].orEmpty()
+                    .map { holiday -> GreetingPlan.HolidayGreeting(peerId, holiday) }
+                val birthdayGreeting = birthdaysByPeer[peerId]
+                    ?.let { names -> GreetingPlan.BirthdayGreeting(peerId, names.sorted()) }
+                holidayGreetings + listOfNotNull(birthdayGreeting)
             }
-        }
 
-        BirthdayDates.monthDaysFor(request.date).forEach { monthDay ->
+        return CollectGreetingPlansCommand.Response(plans)
+    }
+
+    private fun holidaysByPeer(holidays: List<Holiday>): Map<PeerId, List<Holiday>> {
+        if (holidays.isEmpty()) {
+            return emptyMap()
+        }
+        return findGroupChatPeerIds.execute(FindGroupChatPeerIdsPort.Request).peerIds
+            .associateWith { holidays }
+    }
+
+    private fun birthdaysByPeer(date: LocalDate): Map<PeerId, Set<String>> {
+        val birthdaysByPeer = mutableMapOf<PeerId, MutableSet<String>>()
+        BirthdayDates.monthDaysFor(date).forEach { monthDay ->
             findUserProfilesByBirthDate.execute(
                 FindUserProfilesByBirthDatePort.Request(day = monthDay.dayOfMonth, month = monthDay.monthValue),
             ).profiles.forEach { profile ->
@@ -59,17 +76,6 @@ open class CollectGreetingPlansCommandImpl(
                 }
             }
         }
-
-        val plans = (holidaysByPeer.keys + birthdaysByPeer.keys)
-            .map { peerId ->
-                GreetingPlan(
-                    peerId = peerId,
-                    holidays = holidaysByPeer[peerId].orEmpty().sortedBy { it.ordinal },
-                    birthdays = birthdaysByPeer[peerId].orEmpty().sorted(),
-                )
-            }
-            .sortedBy { it.peerId.value }
-
-        return CollectGreetingPlansCommand.Response(plans)
+        return birthdaysByPeer
     }
 }

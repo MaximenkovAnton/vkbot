@@ -26,9 +26,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `find messages before forwards request and returns messages`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findMessagesBefore(
+                request: PersistenceDataRequest.FindMessagesBefore,
+            ): PersistenceDataResponse.Messages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage))
+            }
+        }
         val adapter = FindStoredMessagesBeforeInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -45,9 +50,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `find messages between forwards request and returns messages`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findMessagesBetween(
+                request: PersistenceDataRequest.FindMessagesBetween,
+            ): PersistenceDataResponse.Messages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage))
+            }
+        }
         val adapter = FindStoredMessagesBetweenInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -75,9 +85,14 @@ class PersistenceDataInProcessAdapterTest {
             shortSummary = "short",
             fullSummary = "full",
         )
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createOptionalSummaryResponse(summary),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findLastSummary(
+                request: PersistenceDataRequest.FindLastSummary,
+            ): PersistenceDataResponse.OptionalSummary {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createOptionalSummaryResponse(summary)
+            }
+        }
         val adapter = FindLastStoredSummaryInProcessAdapter(port)
 
         val response = adapter.execute(FakePersistencePortProvider.createFindLastSummaryRequest(peerId = 1))
@@ -88,9 +103,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `has stored pending summary returns status`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createPendingStatusResponse(hasPending = true),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun hasPendingSummary(
+                request: PersistenceDataRequest.HasPendingSummary,
+            ): PersistenceDataResponse.PendingStatus {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createPendingStatusResponse(hasPending = true)
+            }
+        }
         val adapter = HasStoredPendingSummaryInProcessAdapter(port)
 
         val response = adapter.execute(FakePersistencePortProvider.createHasPendingSummaryRequest(peerId = 1))
@@ -102,9 +122,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `create stored pending summary returns id`() {
         val summaryId = UUID.randomUUID()
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createCreatedSummaryIdResponse(summaryId),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun createPendingSummary(
+                request: PersistenceDataRequest.CreatePendingSummary,
+            ): PersistenceDataResponse.CreatedSummaryId {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createCreatedSummaryIdResponse(summaryId)
+            }
+        }
         val adapter = CreateStoredPendingSummaryInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -122,7 +147,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `save stored completed summary forwards summaries`() {
         val summaryId = UUID.randomUUID()
-        val port = RecordingPersistenceDataInputPort(PersistenceDataResponseProvider.createEmptyResponse())
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun saveCompletedSummary(
+                request: PersistenceDataRequest.SaveCompletedSummary,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
         val adapter = SaveStoredCompletedSummaryInProcessAdapter(port)
 
         adapter.execute(
@@ -138,7 +170,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `mark stored summary failed forwards id`() {
         val summaryId = UUID.randomUUID()
-        val port = RecordingPersistenceDataInputPort(PersistenceDataResponseProvider.createEmptyResponse())
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun markSummaryAsFailed(
+                request: PersistenceDataRequest.MarkSummaryAsFailed,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
         val adapter = MarkStoredSummaryFailedInProcessAdapter(port)
 
         adapter.execute(FakePersistencePortProvider.createMarkSummaryFailedRequest(summaryId))
@@ -152,9 +191,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `find stored user profiles by ids maps ids and returns profiles`() {
         val profile = FakeModelProvider.createVkUserProfile(id = 5, firstName = "Ivan", lastName = "Petrov")
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createUserProfilesResponse(listOf(profile)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserProfilesByIds(
+                request: PersistenceDataRequest.FindUserProfilesByIds,
+            ): PersistenceDataResponse.UserProfiles {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserProfilesResponse(listOf(profile))
+            }
+        }
         val adapter = FindStoredUserProfilesByIdsInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -173,9 +217,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `find stored group profiles by ids maps ids and returns profiles`() {
         val profile = FakeModelProvider.createVkGroupProfile(id = 7, name = "Group")
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createGroupProfilesResponse(listOf(profile)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findGroupProfilesByIds(
+                request: PersistenceDataRequest.FindGroupProfilesByIds,
+            ): PersistenceDataResponse.GroupProfiles {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createGroupProfilesResponse(listOf(profile))
+            }
+        }
         val adapter = FindStoredGroupProfilesByIdsInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -191,9 +240,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `find long poll ts returns ts`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createLongPollTsResponse(ts = "ts-1"),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findLongPollTs(
+                request: PersistenceDataRequest.FindLongPollTs,
+            ): PersistenceDataResponse.LongPollTs {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createLongPollTsResponse(ts = "ts-1")
+            }
+        }
         val adapter = FindLongPollTsInProcessAdapter(port)
 
         val response = adapter.execute(LongPollTsPortProvider.createFindLongPollTsRequest())
@@ -204,7 +258,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `save long poll ts forwards ts`() {
-        val port = RecordingPersistenceDataInputPort(PersistenceDataResponseProvider.createEmptyResponse())
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun saveLongPollTs(
+                request: PersistenceDataRequest.SaveLongPollTs,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
         val adapter = SaveLongPollTsInProcessAdapter(port)
 
         adapter.execute(LongPollTsPortProvider.createSaveLongPollTsRequest(ts = "ts-2"))
@@ -218,9 +279,14 @@ class PersistenceDataInProcessAdapterTest {
     @Test
     fun `find user profiles by birth date forwards day and month and returns profiles`() {
         val profile = FakeModelProvider.createVkUserProfile(id = 5, firstName = "Ivan", lastName = "Petrov")
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createUserProfilesResponse(listOf(profile)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserProfilesByBirthDate(
+                request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+            ): PersistenceDataResponse.UserProfiles {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserProfilesResponse(listOf(profile))
+            }
+        }
         val adapter = FindUserProfilesByBirthDateInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -236,9 +302,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `find user chat peer ids maps the user id and returns peer ids`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001, 1_234_567)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserChatPeerIds(
+                request: PersistenceDataRequest.FindUserChatPeerIds,
+            ): PersistenceDataResponse.PeerIds {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001, 1_234_567))
+            }
+        }
         val adapter = FindUserChatPeerIdsInProcessAdapter(port)
 
         val response = adapter.execute(
@@ -254,9 +325,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `find group chat peer ids returns group chat peer ids`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001)),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findGroupChatPeerIds(
+                request: PersistenceDataRequest.FindGroupChatPeerIds,
+            ): PersistenceDataResponse.PeerIds {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001))
+            }
+        }
         val adapter = FindGroupChatPeerIdsInProcessAdapter(port)
 
         val response = adapter.execute(FakeGreetingPortProvider.createFindGroupChatPeerIdsRequest())
@@ -267,9 +343,14 @@ class PersistenceDataInProcessAdapterTest {
 
     @Test
     fun `claim daily greeting forwards date and peer id and returns claimed`() {
-        val port = RecordingPersistenceDataInputPort(
-            PersistenceDataResponseProvider.createClaimedResponse(claimed = true),
-        )
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun claimDailyGreeting(
+                request: PersistenceDataRequest.ClaimDailyGreeting,
+            ): PersistenceDataResponse.Claimed {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createClaimedResponse(claimed = true)
+            }
+        }
         val adapter = ClaimDailyGreetingInProcessAdapter(port)
 
         val response = adapter.execute(FakeGreetingPortProvider.createClaimDailyGreetingRequest())
@@ -284,14 +365,69 @@ class PersistenceDataInProcessAdapterTest {
         assertEquals(true, response.claimed)
     }
 
-    private class RecordingPersistenceDataInputPort(
-        private val response: PersistenceDataResponse,
-    ) : PersistenceDataInputPort {
+    private open class RecordingPersistenceDataInputPort : PersistenceDataInputPort {
         val requests = mutableListOf<PersistenceDataRequest>()
 
-        override fun execute(request: PersistenceDataRequest): PersistenceDataResponse {
-            requests.add(request)
-            return response
-        }
+        override fun findMessagesBefore(
+            request: PersistenceDataRequest.FindMessagesBefore,
+        ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun findMessagesBetween(
+            request: PersistenceDataRequest.FindMessagesBetween,
+        ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun findLastSummary(
+            request: PersistenceDataRequest.FindLastSummary,
+        ): PersistenceDataResponse.OptionalSummary = unsupported()
+
+        override fun hasPendingSummary(
+            request: PersistenceDataRequest.HasPendingSummary,
+        ): PersistenceDataResponse.PendingStatus = unsupported()
+
+        override fun createPendingSummary(
+            request: PersistenceDataRequest.CreatePendingSummary,
+        ): PersistenceDataResponse.CreatedSummaryId = unsupported()
+
+        override fun saveCompletedSummary(
+            request: PersistenceDataRequest.SaveCompletedSummary,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun markSummaryAsFailed(
+            request: PersistenceDataRequest.MarkSummaryAsFailed,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun findUserProfilesByIds(
+            request: PersistenceDataRequest.FindUserProfilesByIds,
+        ): PersistenceDataResponse.UserProfiles = unsupported()
+
+        override fun findGroupProfilesByIds(
+            request: PersistenceDataRequest.FindGroupProfilesByIds,
+        ): PersistenceDataResponse.GroupProfiles = unsupported()
+
+        override fun findLongPollTs(
+            request: PersistenceDataRequest.FindLongPollTs,
+        ): PersistenceDataResponse.LongPollTs = unsupported()
+
+        override fun saveLongPollTs(
+            request: PersistenceDataRequest.SaveLongPollTs,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun findUserProfilesByBirthDate(
+            request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+        ): PersistenceDataResponse.UserProfiles = unsupported()
+
+        override fun findUserChatPeerIds(
+            request: PersistenceDataRequest.FindUserChatPeerIds,
+        ): PersistenceDataResponse.PeerIds = unsupported()
+
+        override fun findGroupChatPeerIds(
+            request: PersistenceDataRequest.FindGroupChatPeerIds,
+        ): PersistenceDataResponse.PeerIds = unsupported()
+
+        override fun claimDailyGreeting(
+            request: PersistenceDataRequest.ClaimDailyGreeting,
+        ): PersistenceDataResponse.Claimed = unsupported()
+
+        private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }
 }

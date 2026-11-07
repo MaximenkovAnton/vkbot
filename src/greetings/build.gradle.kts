@@ -20,6 +20,7 @@ dependencies {
 
     implementation("jakarta.enterprise:jakarta.enterprise.cdi-api")
     implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-scheduler")
     implementation("io.opentelemetry:opentelemetry-api")
 
     implementation(kotlin("stdlib-jdk8"))

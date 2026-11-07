@@ -135,26 +135,29 @@ class DailyGreetingsIntegrationTest {
     }
 
     @Test
-    fun `holiday and birthday on the same date produce one message with both events`() {
+    fun `holiday and birthday on the same date produce two messages`() {
         seedProfile(401, "Анна", "Иванова", "01.01.1990")
         seedMessage(fromId = 401, peerId = GROUP_CHAT_ONE)
+        stubChatReply("С Новым годом!", matchingJsonPath(USER_PROMPT, notContaining("Анна Иванова")))
         stubChatReply(
-            "С Новым годом и днём рождения, Анна Иванова!",
-            matchingJsonPath(USER_PROMPT, containing("Новый год")),
+            "С днём рождения, Анна Иванова!",
             matchingJsonPath(USER_PROMPT, containing("Анна Иванова")),
         )
 
         val response = runFor(LocalDate.parse("2026-01-01"))
 
-        assertEquals(1, response.planned)
-        assertEquals(1, response.sent)
-        val sent = sentMessages().single()
-        assertEquals(GROUP_CHAT_ONE, sent.peerId)
-        assertTrue(sent.text.contains("Новым годом"))
-        assertTrue(sent.text.contains("Анна Иванова"))
-        val prompt = chatPrompts().single()
-        assertTrue(prompt.contains("Новый год"))
-        assertTrue(prompt.contains("Анна Иванова"))
+        assertEquals(2, response.planned)
+        assertEquals(2, response.sent)
+        assertEquals(0, response.failed)
+        val sent = sentMessages()
+        assertEquals(2, sent.size)
+        assertTrue(sent.all { it.peerId == GROUP_CHAT_ONE })
+        assertTrue(sent.any { it.text == "С Новым годом!" })
+        assertTrue(sent.any { it.text == "С днём рождения, Анна Иванова!" })
+        val prompts = chatPrompts()
+        assertEquals(2, prompts.size)
+        assertTrue(prompts.any { it.contains("Новый год") && !it.contains("Анна Иванова") })
+        assertTrue(prompts.any { it.contains("День рождения") && it.contains("Анна Иванова") })
     }
 
     @Test

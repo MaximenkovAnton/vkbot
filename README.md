@@ -12,7 +12,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
 - AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
-- Daily greetings at 00:00 (New Year, Programmer Day, birthdays) with AI text, template fallback and at-most-once claim
+- Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 0004)
 - OpenTelemetry traces/metrics/logs
 - Dockerfiles for JVM, legacy-jar, native and native-micro images
@@ -45,7 +45,7 @@ src/
 ├── processor/              # "does this message need an AI answer?"
 ├── ai/                     # AI answer, summarization, OCR command, Vane tools
 ├── vk-facade/              # VK API output, profile endpoints, in-process vk ports
-├── greetings/              # daily 00:00 greeting run: holidays, birthdays, orchestration, span
+├── greetings/              # cron-scheduled greeting run: holidays, birthdays, orchestration, span
 ├── infrastructure/         # RabbitMQ dispatcher, retry/DLQ, logging decorators
 ├── docker/                 # Dockerfile.jvm | legacy-jar | native | native-micro
 └── testing/
@@ -86,8 +86,8 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
 | `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
-| `GREETINGS_ENABLED` | no | Enables the daily 00:00 greeting run (default `true`; `false` keeps the runner from starting) |
-| `GREETINGS_TIMEZONE` | no | Time zone of the 00:00 schedule (default `Europe/Minsk`) |
+| `GREETINGS_CRON` | no | Cron of the greeting run (default `0 0 0 * * ?`, i.e. 00:00 in `GREETINGS_TIMEZONE`); `off`/`disabled` disables the schedule |
+| `GREETINGS_TIMEZONE` | no | Time zone of the greeting schedule (default `Europe/Minsk`) |
 
 Every key, its default and its consumer: `docs/development/configuration.md`.
 
@@ -148,8 +148,8 @@ VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles
 Summary flow:
   persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API
 
-Greetings flow (timer, not an event):
-  timer 00:00 → greetings → persistence (plans + claim) → ai (text) → vk-facade (plain send) → VK API
+Greetings flow (scheduler, not an event):
+  greetings.cron → greetings → persistence (plans + claim per chat) → ai (text) → vk-facade (plain send) → VK API
 ```
 
 Events run on RabbitMQ with a five-step retry ladder and a final DLQ (`application-queues.yml`); synchronous
@@ -165,7 +165,7 @@ calls inside the deployable go through `share` ports (ADR 0004). Details: `docs/
 ```
 
 Fake Objects (not mocks) live in `src/testing/test-fixtures` and module-local `testFixtures`; the coverage
-threshold is `0.40` (measured `0.5643`, ratchet target `0.60`). Philosophy and examples:
+threshold is `0.40` (measured `0.5687`, ratchet target `0.60`). Philosophy and examples:
 `docs/development/testing.md`.
 
 ## Observability

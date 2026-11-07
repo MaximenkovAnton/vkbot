@@ -24,7 +24,7 @@
 `share`, `receiver`, `persistence`, `processor`, `ai`, `vk-facade`, `infrastructure`, `app`, `greetings`,
 `testing:test-common`, `testing:test-fixtures`, `testing:arch-tests` (`settings.gradle.kts:22-33`).
 
-Разрешённый граф production-зависимостей (allowlist в `GradleDependenciesTest`):
+Разрешённый граф production-зависимостей (allowlist в `GradleDependenciesTest.kt:35-68`):
 
 ```
 share            -> (никого)
@@ -61,10 +61,10 @@ test, и не создаёт деплоев на фичу — деплой од�
 | L3 | `usecase`/`command` не знают адаптеров и транспорта | нет `adapter.*`, `io.quarkus`, `org.jooq`, `com.fasterxml`, `jakarta.ws.rs`, `jakarta.json`, `dev.langchain4j`, `io.smallrye` (`:75-94`); DI-аннотации `jakarta.inject`/`jakarta.enterprise`/`jakarta.transaction`/`org.eclipse.microprofile.config.inject` разрешены |
 | L4 | входной адаптер зовёт только порт | `..adapter.input..` не зависит от `command`, `usecase`, `adapter.output` (`:96-105`) |
 | L5 | выходной адаптер не ходит во входной и в usecase | `..adapter.output..` не зависит от `adapter.input`, `usecase` (`:107-116`) |
-| L6 | `share` — ядро | `share` не зависит от пакетов других модулей (`ModuleDependenciesTest`) |
+| L6 | `share` — ядро | `share` не зависит от пакетов других модулей (`ModuleDependenciesTest.kt:49-60`) |
 
-Плюс модульные правила: каждый бизнес-модуль зависит только от `share` (`ModuleDependenciesTest`)
-и build-граф соответствует allowlist (`GradleDependenciesTest`).
+Плюс модульные правила: каждый бизнес-модуль зависит только от `share` (`ModuleDependenciesTest.kt:62-137`)
+и build-граф соответствует allowlist (`GradleDependenciesTest.kt:85-115`).
 
 ### Composition root
 

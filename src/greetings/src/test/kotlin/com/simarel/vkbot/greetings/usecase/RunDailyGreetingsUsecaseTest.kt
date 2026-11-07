@@ -20,14 +20,10 @@ import java.util.logging.Level
 class RunDailyGreetingsUsecaseTest {
 
     @Test
-    fun `one plan with a holiday and a birthday is sent as one message`() {
+    fun `one plan is sent as one message`() {
         val peerId = FakeVoProvider.createPeerId(2_000_000_001)
         val send = FakeSendGreetingMessage()
-        val plan = GreetingPlan(
-            peerId = peerId,
-            holidays = listOf(Holiday.NEW_YEAR),
-            birthdays = listOf("Иван Петров"),
-        )
+        val plan = FakeGreetingProvider.createBirthdayGreetingPlan(peerId = peerId, people = listOf("Иван Петров"))
 
         val response = usecase(plans = listOf(plan), send = send)
             .execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))
@@ -41,12 +37,37 @@ class RunDailyGreetingsUsecaseTest {
     }
 
     @Test
+    fun `two holiday plans for one peer are two messages with a single claim`() {
+        val peerId = FakeVoProvider.createPeerId(2_000_000_001)
+        val claim = FakeClaimDailyGreeting()
+        val send = FakeSendGreetingMessage()
+
+        val response = usecase(
+            plans = listOf(
+                FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId, holiday = Holiday.NEW_YEAR),
+                FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId, holiday = Holiday.PROGRAMMER_DAY),
+            ),
+            claim = claim,
+            send = send,
+        ).execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))
+
+        assertEquals(2, response.planned)
+        assertEquals(2, response.sent)
+        assertEquals(0, response.failed)
+        assertEquals(2, send.executeCalls.size)
+        assertTrue(send.executeCalls.all { it.peerId == peerId })
+        val claimCall = claim.executeCalls.single()
+        assertEquals(DATE, claimCall.date)
+        assertEquals(peerId, claimCall.peerId)
+    }
+
+    @Test
     fun `a repeated run of the same date sends nothing twice`() {
         val peerId = FakeVoProvider.createPeerId(2_000_000_001)
         val claim = FakeClaimDailyGreeting()
         val send = FakeSendGreetingMessage()
         val usecase = usecase(
-            plans = listOf(GreetingPlan(peerId, listOf(Holiday.NEW_YEAR), emptyList())),
+            plans = listOf(FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId)),
             claim = claim,
             send = send,
         )
@@ -63,7 +84,7 @@ class RunDailyGreetingsUsecaseTest {
     }
 
     @Test
-    fun `a claimed first plan does not block the second`() {
+    fun `a claimed peer does not block the next peer`() {
         val firstPeer = FakeVoProvider.createPeerId(2_000_000_001)
         val secondPeer = FakeVoProvider.createPeerId(2_000_000_002)
         val claim = FakeClaimDailyGreeting(DATE to firstPeer)
@@ -71,8 +92,8 @@ class RunDailyGreetingsUsecaseTest {
 
         val response = usecase(
             plans = listOf(
-                GreetingPlan(firstPeer, listOf(Holiday.NEW_YEAR), emptyList()),
-                GreetingPlan(secondPeer, listOf(Holiday.NEW_YEAR), emptyList()),
+                FakeGreetingProvider.createHolidayGreetingPlan(peerId = firstPeer),
+                FakeGreetingProvider.createHolidayGreetingPlan(peerId = secondPeer),
             ),
             claim = claim,
             send = send,
@@ -85,17 +106,16 @@ class RunDailyGreetingsUsecaseTest {
     }
 
     @Test
-    fun `a send failure is isolated and counted`() {
-        val firstPeer = FakeVoProvider.createPeerId(2_000_000_001)
-        val secondPeer = FakeVoProvider.createPeerId(2_000_000_002)
+    fun `a send failure is isolated to one message of the peer`() {
+        val peerId = FakeVoProvider.createPeerId(2_000_000_001)
         val send = FakeSendGreetingMessage()
-        send.failures[firstPeer] = IllegalStateException("vk is down")
+        send.failuresByAttempt[FIRST_ATTEMPT] = IllegalStateException("vk is down")
 
         SystemLoggerCapture(RunDailyGreetingsUsecase::class.java.name).use { capture ->
             val response = usecase(
                 plans = listOf(
-                    GreetingPlan(firstPeer, listOf(Holiday.NEW_YEAR), emptyList()),
-                    GreetingPlan(secondPeer, listOf(Holiday.NEW_YEAR), emptyList()),
+                    FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId, holiday = Holiday.NEW_YEAR),
+                    FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId, holiday = Holiday.PROGRAMMER_DAY),
                 ),
                 send = send,
             ).execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))
@@ -103,18 +123,18 @@ class RunDailyGreetingsUsecaseTest {
             assertEquals(2, response.planned)
             assertEquals(1, response.sent)
             assertEquals(1, response.failed)
-            assertEquals(secondPeer, send.executeCalls.last().peerId)
-            assertEquals(1, send.executeCalls.count { it.peerId == firstPeer })
+            assertEquals(2, send.executeCalls.size)
+            assertTrue(send.executeCalls.all { it.peerId == peerId })
             assertTrue(
                 capture.messages(Level.SEVERE).any {
-                    it.contains(firstPeer.value.toString()) && it.contains("IllegalStateException")
+                    it.contains(peerId.value.toString()) && it.contains("IllegalStateException")
                 },
             )
         }
     }
 
     @Test
-    fun `a claim failure is isolated and counted`() {
+    fun `a claim failure counts every message of the peer as failed`() {
         val firstPeer = FakeVoProvider.createPeerId(2_000_000_001)
         val secondPeer = FakeVoProvider.createPeerId(2_000_000_002)
         val claim = FakeClaimDailyGreeting()
@@ -124,15 +144,23 @@ class RunDailyGreetingsUsecaseTest {
         SystemLoggerCapture(RunDailyGreetingsUsecase::class.java.name).use { capture ->
             val response = usecase(
                 plans = listOf(
-                    GreetingPlan(firstPeer, listOf(Holiday.NEW_YEAR), emptyList()),
-                    GreetingPlan(secondPeer, listOf(Holiday.NEW_YEAR), emptyList()),
+                    FakeGreetingProvider.createHolidayGreetingPlan(
+                        peerId = firstPeer,
+                        holiday = Holiday.NEW_YEAR,
+                    ),
+                    FakeGreetingProvider.createHolidayGreetingPlan(
+                        peerId = firstPeer,
+                        holiday = Holiday.PROGRAMMER_DAY,
+                    ),
+                    FakeGreetingProvider.createHolidayGreetingPlan(peerId = secondPeer),
                 ),
                 claim = claim,
                 send = send,
             ).execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))
 
+            assertEquals(3, response.planned)
             assertEquals(1, response.sent)
-            assertEquals(1, response.failed)
+            assertEquals(2, response.failed)
             assertEquals(secondPeer, send.executeCalls.single().peerId)
             assertTrue(
                 capture.messages(Level.SEVERE).any {
@@ -150,7 +178,7 @@ class RunDailyGreetingsUsecaseTest {
 
         try {
             assertThrows<InterruptedException> {
-                usecase(plans = listOf(GreetingPlan(peerId, listOf(Holiday.NEW_YEAR), emptyList())), send = send)
+                usecase(plans = listOf(FakeGreetingProvider.createHolidayGreetingPlan(peerId = peerId)), send = send)
                     .execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))
             }
             assertTrue(Thread.currentThread().isInterrupted)
@@ -189,5 +217,6 @@ class RunDailyGreetingsUsecaseTest {
     private companion object {
         val DATE: LocalDate = LocalDate.parse("2026-01-01")
         const val GREETING_TEXT = "generated greeting"
+        const val FIRST_ATTEMPT = 1
     }
 }

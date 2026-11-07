@@ -28,39 +28,46 @@ open class GenerateGreetingTextCommandImpl(
 
     @Suppress("TooGenericExceptionCaught")
     override fun execute(request: GenerateGreetingTextCommand.Request): GenerateGreetingTextCommand.Response {
-        val holidays = request.plan.holidays.sortedBy { it.ordinal }
-        val birthdays = request.plan.birthdays.sorted()
         val text = try {
-            generateGreetingText.execute(
-                GenerateGreetingTextPort.Request(
-                    date = request.date,
-                    holidays = holidays.map { it.title },
-                    people = birthdays,
-                ),
-            ).text
+            generateGreetingText.execute(aiRequest(request.date, request.plan)).text
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Greeting text generation failed, using the template", e)
-            return GenerateGreetingTextCommand.Response(MessageText.of(template(holidays, birthdays)))
+            return GenerateGreetingTextCommand.Response(MessageText.of(template(request.plan)))
         }
         if (text.value.isBlank()) {
             logger.log(Level.WARNING, "Greeting text is blank, using the template")
-            return GenerateGreetingTextCommand.Response(MessageText.of(template(holidays, birthdays)))
+            return GenerateGreetingTextCommand.Response(MessageText.of(template(request.plan)))
         }
         return GenerateGreetingTextCommand.Response(text)
     }
 
-    private fun template(holidays: List<Holiday>, birthdays: List<String>): String {
-        val holidayText = holidays.map { holiday ->
-            when (holiday) {
-                Holiday.NEW_YEAR -> "С Новым годом!"
-                Holiday.PROGRAMMER_DAY -> "С Днём программиста!"
-            }
-        }
-        val birthdayText = if (birthdays.isNotEmpty()) {
-            listOf("С днём рождения, ${birthdays.joinToString(", ")}!")
-        } else {
-            emptyList()
-        }
-        return (holidayText + birthdayText).joinToString(" ")
+    private fun aiRequest(date: LocalDate, plan: GreetingPlan): GenerateGreetingTextPort.Request = when (plan) {
+        is GreetingPlan.HolidayGreeting -> GenerateGreetingTextPort.Request(
+            date = date,
+            occasion = plan.holiday.title,
+            people = emptyList(),
+        )
+        is GreetingPlan.BirthdayGreeting -> GenerateGreetingTextPort.Request(
+            date = date,
+            occasion = BIRTHDAY_OCCASION,
+            people = plan.people.sorted(),
+        )
+    }
+
+    private fun template(plan: GreetingPlan): String = when (plan) {
+        is GreetingPlan.HolidayGreeting -> holidayTemplate(plan.holiday)
+        is GreetingPlan.BirthdayGreeting -> "С днём рождения, ${plan.people.sorted().joinToString(", ")}!"
+    }
+
+    private fun holidayTemplate(holiday: Holiday): String = when (holiday) {
+        Holiday.NEW_YEAR -> "С Новым годом!"
+        Holiday.PROGRAMMER_DAY -> "С Днём программиста!"
+    }
+
+    private companion object {
+        const val BIRTHDAY_OCCASION = "День рождения"
     }
 }

@@ -4,13 +4,50 @@ import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
-import com.simarel.vkbot.share.port.input.InputPort
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
 import java.time.LocalDate
 import java.util.UUID
 
-interface PersistenceDataInputPort : InputPort<PersistenceDataRequest, PersistenceDataResponse>
+interface PersistenceDataInputPort {
+    fun findMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages
+
+    fun findMessagesBetween(request: PersistenceDataRequest.FindMessagesBetween): PersistenceDataResponse.Messages
+
+    fun findLastSummary(request: PersistenceDataRequest.FindLastSummary): PersistenceDataResponse.OptionalSummary
+
+    fun hasPendingSummary(request: PersistenceDataRequest.HasPendingSummary): PersistenceDataResponse.PendingStatus
+
+    fun createPendingSummary(
+        request: PersistenceDataRequest.CreatePendingSummary,
+    ): PersistenceDataResponse.CreatedSummaryId
+
+    fun saveCompletedSummary(request: PersistenceDataRequest.SaveCompletedSummary): PersistenceDataResponse.Empty
+
+    fun markSummaryAsFailed(request: PersistenceDataRequest.MarkSummaryAsFailed): PersistenceDataResponse.Empty
+
+    fun findUserProfilesByIds(
+        request: PersistenceDataRequest.FindUserProfilesByIds,
+    ): PersistenceDataResponse.UserProfiles
+
+    fun findGroupProfilesByIds(
+        request: PersistenceDataRequest.FindGroupProfilesByIds,
+    ): PersistenceDataResponse.GroupProfiles
+
+    fun findLongPollTs(request: PersistenceDataRequest.FindLongPollTs): PersistenceDataResponse.LongPollTs
+
+    fun saveLongPollTs(request: PersistenceDataRequest.SaveLongPollTs): PersistenceDataResponse.Empty
+
+    fun findUserProfilesByBirthDate(
+        request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+    ): PersistenceDataResponse.UserProfiles
+
+    fun findUserChatPeerIds(request: PersistenceDataRequest.FindUserChatPeerIds): PersistenceDataResponse.PeerIds
+
+    fun findGroupChatPeerIds(request: PersistenceDataRequest.FindGroupChatPeerIds): PersistenceDataResponse.PeerIds
+
+    fun claimDailyGreeting(request: PersistenceDataRequest.ClaimDailyGreeting): PersistenceDataResponse.Claimed
+}
 
 sealed interface PersistenceDataRequest : InputPortRequest {
     data class FindMessagesBefore(

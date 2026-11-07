@@ -2,7 +2,6 @@ package com.simarel.vkbot.persistence.adapter.input.inprocess
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
-import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.share.domain.vo.LongPollTs
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
@@ -27,14 +26,14 @@ class FindStoredMessagesBeforeInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindStoredMessagesBeforePort {
     override fun execute(request: FindStoredMessagesBeforePort.Request): FindStoredMessagesBeforePort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findMessagesBefore(
             PersistenceDataRequest.FindMessagesBefore(
                 request.peerId,
                 request.beforeConversationMessageId,
                 request.limit,
             ),
         )
-        return FindStoredMessagesBeforePort.Response((response as PersistenceDataResponse.Messages).messages)
+        return FindStoredMessagesBeforePort.Response(response.messages)
     }
 }
 
@@ -43,7 +42,7 @@ class FindStoredMessagesBetweenInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindStoredMessagesBetweenPort {
     override fun execute(request: FindStoredMessagesBetweenPort.Request): FindStoredMessagesBetweenPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findMessagesBetween(
             PersistenceDataRequest.FindMessagesBetween(
                 request.peerId,
                 request.firstMessageId,
@@ -51,7 +50,7 @@ class FindStoredMessagesBetweenInProcessAdapter(
                 request.limit,
             ),
         )
-        return FindStoredMessagesBetweenPort.Response((response as PersistenceDataResponse.Messages).messages)
+        return FindStoredMessagesBetweenPort.Response(response.messages)
     }
 }
 
@@ -60,10 +59,10 @@ class FindLastStoredSummaryInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindLastStoredSummaryPort {
     override fun execute(request: FindLastStoredSummaryPort.Request): FindLastStoredSummaryPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findLastSummary(
             PersistenceDataRequest.FindLastSummary(request.peerId),
         )
-        return FindLastStoredSummaryPort.Response((response as PersistenceDataResponse.OptionalSummary).summary)
+        return FindLastStoredSummaryPort.Response(response.summary)
     }
 }
 
@@ -72,10 +71,10 @@ class HasStoredPendingSummaryInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : HasStoredPendingSummaryPort {
     override fun execute(request: HasStoredPendingSummaryPort.Request): HasStoredPendingSummaryPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.hasPendingSummary(
             PersistenceDataRequest.HasPendingSummary(request.peerId),
         )
-        return HasStoredPendingSummaryPort.Response((response as PersistenceDataResponse.PendingStatus).hasPending)
+        return HasStoredPendingSummaryPort.Response(response.hasPending)
     }
 }
 
@@ -84,16 +83,14 @@ class CreateStoredPendingSummaryInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : CreateStoredPendingSummaryPort {
     override fun execute(request: CreateStoredPendingSummaryPort.Request): CreateStoredPendingSummaryPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.createPendingSummary(
             PersistenceDataRequest.CreatePendingSummary(
                 request.peerId,
                 request.firstMessageId,
                 request.lastMessageId,
             ),
         )
-        return CreateStoredPendingSummaryPort.Response(
-            (response as PersistenceDataResponse.CreatedSummaryId).id,
-        )
+        return CreateStoredPendingSummaryPort.Response(response.id)
     }
 }
 
@@ -102,7 +99,7 @@ class SaveStoredCompletedSummaryInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : SaveStoredCompletedSummaryPort {
     override fun execute(request: SaveStoredCompletedSummaryPort.Request): SaveStoredCompletedSummaryPort.Response {
-        persistenceDataInputPort.execute(
+        persistenceDataInputPort.saveCompletedSummary(
             PersistenceDataRequest.SaveCompletedSummary(
                 request.summaryId,
                 request.shortSummary,
@@ -118,7 +115,7 @@ class MarkStoredSummaryFailedInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : MarkStoredSummaryFailedPort {
     override fun execute(request: MarkStoredSummaryFailedPort.Request): MarkStoredSummaryFailedPort.Response {
-        persistenceDataInputPort.execute(
+        persistenceDataInputPort.markSummaryAsFailed(
             PersistenceDataRequest.MarkSummaryAsFailed(request.summaryId),
         )
         return MarkStoredSummaryFailedPort.Response()
@@ -130,10 +127,10 @@ class FindStoredUserProfilesByIdsInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindStoredUserProfilesByIdsPort {
     override fun execute(request: FindStoredUserProfilesByIdsPort.Request): FindStoredUserProfilesByIdsPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findUserProfilesByIds(
             PersistenceDataRequest.FindUserProfilesByIds(request.ids.map { it.value }),
         )
-        return FindStoredUserProfilesByIdsPort.Response((response as PersistenceDataResponse.UserProfiles).profiles)
+        return FindStoredUserProfilesByIdsPort.Response(response.profiles)
     }
 }
 
@@ -144,10 +141,10 @@ class FindStoredGroupProfilesByIdsInProcessAdapter(
     override fun execute(
         request: FindStoredGroupProfilesByIdsPort.Request,
     ): FindStoredGroupProfilesByIdsPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findGroupProfilesByIds(
             PersistenceDataRequest.FindGroupProfilesByIds(request.ids.map { it.value }),
         )
-        return FindStoredGroupProfilesByIdsPort.Response((response as PersistenceDataResponse.GroupProfiles).profiles)
+        return FindStoredGroupProfilesByIdsPort.Response(response.profiles)
     }
 }
 
@@ -156,9 +153,8 @@ class FindLongPollTsInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindLongPollTsPort {
     override fun execute(request: FindLongPollTsPort.Request): FindLongPollTsPort.Response {
-        val response = persistenceDataInputPort.execute(PersistenceDataRequest.FindLongPollTs)
-        val ts = (response as PersistenceDataResponse.LongPollTs).ts
-        return FindLongPollTsPort.Response(ts?.let { LongPollTs(it) })
+        val response = persistenceDataInputPort.findLongPollTs(PersistenceDataRequest.FindLongPollTs)
+        return FindLongPollTsPort.Response(response.ts?.let { LongPollTs(it) })
     }
 }
 
@@ -167,7 +163,7 @@ class SaveLongPollTsInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : SaveLongPollTsPort {
     override fun execute(request: SaveLongPollTsPort.Request): SaveLongPollTsPort.Response {
-        persistenceDataInputPort.execute(PersistenceDataRequest.SaveLongPollTs(request.ts.value))
+        persistenceDataInputPort.saveLongPollTs(PersistenceDataRequest.SaveLongPollTs(request.ts.value))
         return SaveLongPollTsPort.Response
     }
 }
@@ -179,10 +175,10 @@ class FindUserProfilesByBirthDateInProcessAdapter(
     override fun execute(
         request: FindUserProfilesByBirthDatePort.Request,
     ): FindUserProfilesByBirthDatePort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findUserProfilesByBirthDate(
             PersistenceDataRequest.FindUserProfilesByBirthDate(request.day, request.month),
         )
-        return FindUserProfilesByBirthDatePort.Response((response as PersistenceDataResponse.UserProfiles).profiles)
+        return FindUserProfilesByBirthDatePort.Response(response.profiles)
     }
 }
 
@@ -191,10 +187,10 @@ class FindUserChatPeerIdsInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindUserChatPeerIdsPort {
     override fun execute(request: FindUserChatPeerIdsPort.Request): FindUserChatPeerIdsPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findUserChatPeerIds(
             PersistenceDataRequest.FindUserChatPeerIds(request.userId.value),
         )
-        val peerIds = (response as PersistenceDataResponse.PeerIds).peerIds.map { PeerId.of(it) }.toSet()
+        val peerIds = response.peerIds.map { PeerId.of(it) }.toSet()
         return FindUserChatPeerIdsPort.Response(peerIds)
     }
 }
@@ -204,8 +200,8 @@ class FindGroupChatPeerIdsInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : FindGroupChatPeerIdsPort {
     override fun execute(request: FindGroupChatPeerIdsPort.Request): FindGroupChatPeerIdsPort.Response {
-        val response = persistenceDataInputPort.execute(PersistenceDataRequest.FindGroupChatPeerIds)
-        val peerIds = (response as PersistenceDataResponse.PeerIds).peerIds.map { PeerId.of(it) }.toSet()
+        val response = persistenceDataInputPort.findGroupChatPeerIds(PersistenceDataRequest.FindGroupChatPeerIds)
+        val peerIds = response.peerIds.map { PeerId.of(it) }.toSet()
         return FindGroupChatPeerIdsPort.Response(peerIds)
     }
 }
@@ -215,9 +211,9 @@ class ClaimDailyGreetingInProcessAdapter(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : ClaimDailyGreetingPort {
     override fun execute(request: ClaimDailyGreetingPort.Request): ClaimDailyGreetingPort.Response {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.claimDailyGreeting(
             PersistenceDataRequest.ClaimDailyGreeting(request.date, request.peerId.value),
         )
-        return ClaimDailyGreetingPort.Response((response as PersistenceDataResponse.Claimed).claimed)
+        return ClaimDailyGreetingPort.Response(response.claimed)
     }
 }

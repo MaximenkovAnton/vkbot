@@ -4,6 +4,6 @@
       enabled: false
     liquibase:
       enabled: false
-  greetings.enabled: false
+  greetings.cron: disabled
 summary:
   enabled-chats: 1,2,3

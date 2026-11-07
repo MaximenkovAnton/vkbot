@@ -14,15 +14,15 @@ interface GreetingAiService {
     @UserMessage(
         """
         Дата: {date}
-        Праздники: {holidays}
-        Именинники: {people}
+        Повод: {occasion}
+        Кого поздравляем: {people}
 
         Напиши одно короткое поздравление по-русски: 1–3 предложения, без markdown и списков.
     """,
     )
     fun generateGreeting(
         @V("date") date: String,
-        @V("holidays") holidays: String,
+        @V("occasion") occasion: String,
         @V("people") people: String,
     ): String
 }

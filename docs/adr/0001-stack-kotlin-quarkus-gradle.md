@@ -21,7 +21,7 @@
 | LangChain4j | 1.8.4 (`quarkus-langchain4j-openai`) | `gradle.properties:8`; `src/app/build.gradle.kts:40` |
 | Хранилище | PostgreSQL + Liquibase, jOOQ 3.19.10 | `src/persistence/build.gradle.kts:41,47,55` |
 | Брокер | RabbitMQ (`quarkus-messaging-rabbitmq`) | `src/infrastructure/build.gradle.kts:18-20` |
-| Тесты | JUnit 5, ArchUnit 1.3.0, WireMock 3.9.1, Awaitility 4.2.0 | `src/testing/arch-tests/build.gradle.kts:11`, `src/app/build.gradle.kts:46-57` |
+| Тесты | JUnit 5, ArchUnit 1.3.0, WireMock 3.9.1, Awaitility 4.2.0 | `src/testing/arch-tests/build.gradle.kts:11`, `src/app/build.gradle.kts:46-59` |
 | Линт / формат | detekt 1.23.8, ktlint Gradle plugin 13.1.0 | `gradle.properties:9-10`, `build.gradle.kts:5-6` |
 | Покрытие | JaCoCo 0.8.14 (плагин Gradle) | отчёт `build/reports/jacoco/coverageReport/html/index.html` («Created with JaCoCo 0.8.14») |
 

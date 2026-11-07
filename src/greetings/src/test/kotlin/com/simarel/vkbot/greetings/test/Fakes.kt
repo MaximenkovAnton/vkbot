@@ -1,6 +1,5 @@
 package com.simarel.vkbot.greetings.test
 
-import com.simarel.vkbot.greetings.adapter.input.schedule.DailyGreetingRunner
 import com.simarel.vkbot.greetings.command.collect.CollectGreetingPlansCommand
 import com.simarel.vkbot.greetings.command.text.GenerateGreetingTextCommand
 import com.simarel.vkbot.greetings.domain.GreetingPlan
@@ -17,12 +16,8 @@ import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDa
 import com.simarel.vkbot.share.port.output.vk.SendGreetingMessagePort
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
-import io.opentelemetry.api.trace.Tracer
 import java.time.LocalDate
-import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.CountDownLatch
 
 class FakeFindGroupChatPeerIds(
     var peerIds: Set<PeerId> = emptySet(),
@@ -120,9 +115,11 @@ class FakeCollectGreetingPlansCommand(
 class FakeSendGreetingMessage : SendGreetingMessagePort {
     val executeCalls = ConcurrentLinkedQueue<SendGreetingMessagePort.Request>()
     val failures = mutableMapOf<PeerId, Exception>()
+    val failuresByAttempt = mutableMapOf<Int, Exception>()
 
     override fun execute(request: SendGreetingMessagePort.Request): SendGreetingMessagePort.Response {
         executeCalls += request
+        failuresByAttempt[executeCalls.size]?.let { throw it }
         failures[request.peerId]?.let { throw it }
         return FakeGreetingPortProvider.createSendGreetingMessageResponse()
     }
@@ -140,37 +137,5 @@ class FakeRunDailyGreetingsInputPort(
     override fun execute(request: RunDailyGreetingsInputPort.Request): RunDailyGreetingsInputPort.Response {
         executeCalls += request
         return handler(request)
-    }
-}
-
-class FakeClockRunner(
-    var clock: ZonedDateTime,
-    input: RunDailyGreetingsInputPort,
-    tracer: Tracer,
-    private val pauseDurations: List<Long> = emptyList(),
-    private val autoAdvance: Boolean = true,
-    enabled: Boolean = true,
-) : DailyGreetingRunner(input, tracer, enabled, ZONE.id) {
-    val pauses = mutableListOf<Long>()
-    val enteredWait = CountDownLatch(1)
-    private val idle = CountDownLatch(1)
-
-    override fun now(): ZonedDateTime = clock
-
-    override fun pauseNanos(nanos: Long) {
-        pauses += nanos
-        val planned = pauseDurations.getOrNull(pauses.size - 1)
-        when {
-            planned != null -> clock = clock.plusNanos(planned)
-            autoAdvance -> clock = clock.plusNanos(nanos)
-            else -> {
-                enteredWait.countDown()
-                idle.await()
-            }
-        }
-    }
-
-    private companion object {
-        val ZONE: ZoneId = ZoneId.of("Europe/Minsk")
     }
 }

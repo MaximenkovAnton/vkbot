@@ -14,8 +14,9 @@ test ! -e build/quarkus-app                          # второго ранне
 ```
 
 `./gradlew build` собирает все 12 модулей, прогоняет тесты, detekt, ktlintCheck и порог покрытия и
-собирает Quarkus-артефакт (`:src:app:quarkusBuild` входит в `build`). Проверено в этом проходе:
-`BUILD SUCCESSFUL in 2m 4s`, 180 задач, артефакт на месте, корневого `build/quarkus-app` нет.
+собирает Quarkus-артефакт (`:src:app:quarkusBuild` входит в `build`). Проверено в этом проходе на
+замороженном дереве: `./gradlew build` → `BUILD SUCCESSFUL in 1m 43s`, 180 задач (включая `capabilitiesCheck`),
+артефакт на месте, корневого `build/quarkus-app` нет.
 
 Структура `quarkus-app`: `app/`, `lib/`, `quarkus/`, `quarkus-run.jar`, `quarkus-app-dependencies.txt`.
 
@@ -78,12 +79,12 @@ docker run -p 8080:8080 \
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `AI_GREETING_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
-`GREETINGS_ENABLED` (дефолт `true`; `false` выключает ежедневный прогон поздравлений),
+`GREETINGS_CRON` (дефолт `0 0 0 * * ?`, то есть 00:00; `off`/`disabled` выключает расписание),
 `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
 
-`GREETINGS_ENABLED=true` по умолчанию: первый прогон после деплоя — живой, в ближайшие 00:00 зоны
+`GREETINGS_CRON=0 0 0 * * ?` по умолчанию: первый прогон после деплоя — живой, в ближайшие 00:00 зоны
 `GREETINGS_TIMEZONE`. Гасят его at-most-once (`greeting_log`), один прогон в сутки и отсутствие
-ручного триггера; на время приёмки выставляйте `GREETINGS_ENABLED=false`.
+ручного триггера; на время приёмки выставляйте `GREETINGS_CRON=off` (или `disabled`).
 
 `VK_SECRET` и `VK_CONFIRMATION_CODE` из контракта деплоя удалены: Callback-эндпоинта нет, приём идёт
 опросом Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
@@ -165,7 +166,7 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   **200 UP** и годятся в readiness-пробу Kubernetes. Шесть retry/DLQ-каналов (`retry-5s-queue` …
   `retry-1h-queue`, `dlq-final-queue`) объявлены ради TTL/DLX и downstream-консьюмера не имеют, поэтому
   исключены из проверки SmallRye Reactive Messaging ключом `quarkus.messaging.health.<channel>.enabled:
-  false` (`application.yml:73-86`); иначе она помечает их `[KO]` (`SRMSG00208: has no downstreams`) и health
+  false` (`application.yml:77-90`); иначе она помечает их `[KO]` (`SRMSG00208: has no downstreams`) и health
   отдаёт 503 DOWN. Под проверкой остаётся `all-events-queue` — единственный канал с консьюмером
   (`EventDispatcher.dispatch`). Health не связан с приёмом событий: опрос Bots Long Poll идёт своим циклом
   и от HTTP-проб не зависит.

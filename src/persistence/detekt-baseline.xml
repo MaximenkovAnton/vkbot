@@ -2,8 +2,8 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:PersistenceDataUsecase.kt$PersistenceDataUsecase$override fun execute(request: PersistenceDataRequest): PersistenceDataResponse</ID>
     <ID>LongParameterList:PersistenceDataUsecase.kt$PersistenceDataUsecase$( private val findMessagesBeforePort: FindMessagesBeforePort, private val findMessagesBetweenPort: FindMessagesBetweenPort, private val findLastSummaryByPeerIdPort: FindLastSummaryByPeerIdPort, private val hasPendingSummaryPort: HasPendingSummaryPort, private val insertSummaryPort: InsertSummaryPort, private val updateSummaryStatusAndSummariesPort: UpdateSummaryStatusAndSummariesPort, private val updateSummaryStatusPort: UpdateSummaryStatusPort, private val findSummaryByIdPort: FindSummaryByIdPort, private val findUserProfilesByIdsPort: FindUserProfilesByIdsPort, private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort, private val findLongPollTsPort: FindLongPollTsPort, private val saveLongPollTsPort: SaveLongPollTsPort, private val findUserProfilesByBirthDatePort: FindUserProfilesByBirthDatePort, private val findUserChatPeerIdsPort: FindUserChatPeerIdsPort, private val findGroupChatPeerIdsPort: FindGroupChatPeerIdsPort, private val claimDailyGreetingPort: ClaimDailyGreetingPort, private val publishEventCommand: PublishEventCommand, )</ID>
+    <ID>TooManyFunctions:PersistenceDataInputPort.kt$PersistenceDataInputPort</ID>
     <ID>MaxLineLength:FilterExistingGroupIdsAdapter.kt$FilterExistingGroupIdsAdapter$override</ID>
     <ID>MaxLineLength:FilterExistingGroupIdsPort.kt$FilterExistingGroupIdsPort$interface</ID>
     <ID>MaxLineLength:FilterExistingUserIdsAdapter.kt$FilterExistingUserIdsAdapter$override</ID>

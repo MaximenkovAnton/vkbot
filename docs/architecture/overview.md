@@ -42,10 +42,10 @@ VK Bot — **гексагональный монолит в одном депл�
 ```
 Вход:
   Bots Long Poll (groups.getLongPollServer, a_check) -> receiver/adapter/input/vk/LongPollRunner.kt
-  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-127
+  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-126
   GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkFacadeController.kt:14-32
-  RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-84
-  Таймер 00:00 (greetings.timezone) -> greetings/adapter/input/schedule/DailyGreetingRunner.kt
+  RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-85
+  Расписание greetings.cron (Quarkus @Scheduled, зона greetings.timezone) -> greetings/adapter/input/schedule/DailyGreetingRunner.kt
 
 Выход:
   RabbitMQ events-exchange   -> infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33
@@ -98,9 +98,9 @@ persistence/PersistenceDataUsecase.saveCompletedSummary
 SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
     MessageSendUsecase с forward-блоком → VK API messages.send
 
-Таймер 00:00 ──> greetings/DailyGreetingRunner
-    RunDailyGreetingsUsecase: план (in-process persistence) → текст (in-process ai + шаблон)
-    → claim (in-process persistence) → плоская отправка (in-process vk-facade) → VK API messages.send
+Срабатывание greetings.cron ──> greetings/DailyGreetingRunner
+    RunDailyGreetingsUsecase: план по чатам (in-process persistence) → claim на чат (in-process persistence)
+    → на каждый план текст (in-process ai + шаблон) → плоская отправка (in-process vk-facade) → VK API messages.send
 ```
 
 Подробности шагов, payload'ов и отказоустойчивости — [data-flow.md](data-flow.md).
@@ -119,7 +119,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `FetchUserProfileCommand`, `GenerateAnswerCommand`, `GenerateSummaryCommand`, `ProcessSummaryCommand`,
   `RecognizeImagesCommand` (реализована, ни к одному use case не подключена), `SendVkMessageCommand`,
   `GetProfileCommand`, `VaneSearchCommand`, `CollectGreetingPlansCommand`, `GenerateGreetingTextCommand`.
-- **Адаптеры**: входные — `LongPollRunner` (опрос VK), `DailyGreetingRunner` (таймер 00:00),
+- **Адаптеры**: входные — `LongPollRunner` (опрос VK), `DailyGreetingRunner` (cron-расписание Quarkus),
   REST-контроллеры, `@Incoming`-процессоры, in-process адаптеры; выходные — jOOQ-репозитории,
   VK REST client, LangChain4j AI-сервисы, Vane client, Jackson-сериализация.
 - **Инфраструктура**: `EventDispatcher` (маршрутизация по routing key = имя события, retry, DLQ),

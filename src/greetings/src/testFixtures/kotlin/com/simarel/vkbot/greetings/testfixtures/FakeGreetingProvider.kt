@@ -14,11 +14,15 @@ private val DEFAULT_DATE: LocalDate = LocalDate.parse("2027-01-01")
 
 object FakeGreetingProvider {
 
-    fun createGreetingPlan(
+    fun createHolidayGreetingPlan(
         peerId: PeerId = PeerId.of(DEFAULT_GROUP_CHAT_ID),
-        holidays: List<Holiday> = listOf(Holiday.NEW_YEAR),
-        birthdays: List<String> = listOf("Иван Петров"),
-    ) = GreetingPlan(peerId = peerId, holidays = holidays, birthdays = birthdays)
+        holiday: Holiday = Holiday.NEW_YEAR,
+    ) = GreetingPlan.HolidayGreeting(peerId = peerId, holiday = holiday)
+
+    fun createBirthdayGreetingPlan(
+        peerId: PeerId = PeerId.of(DEFAULT_GROUP_CHAT_ID),
+        people: List<String> = listOf("Иван Петров"),
+    ) = GreetingPlan.BirthdayGreeting(peerId = peerId, people = people)
 
     fun createRunDailyGreetingsRequest(
         date: LocalDate = DEFAULT_DATE,
@@ -35,12 +39,12 @@ object FakeGreetingProvider {
     ) = CollectGreetingPlansCommand.Request(date = date)
 
     fun createCollectGreetingPlansResponse(
-        plans: List<GreetingPlan> = listOf(createGreetingPlan()),
+        plans: List<GreetingPlan> = listOf(createHolidayGreetingPlan()),
     ) = CollectGreetingPlansCommand.Response(plans = plans)
 
     fun createGenerateGreetingTextCommandRequest(
         date: LocalDate = DEFAULT_DATE,
-        plan: GreetingPlan = createGreetingPlan(),
+        plan: GreetingPlan = createHolidayGreetingPlan(),
     ) = GenerateGreetingTextCommand.Request(date = date, plan = plan)
 
     fun createGenerateGreetingTextCommandResponse(

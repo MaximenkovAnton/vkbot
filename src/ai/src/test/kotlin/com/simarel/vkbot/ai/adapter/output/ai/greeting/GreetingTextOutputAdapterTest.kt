@@ -13,19 +13,19 @@ class GreetingTextOutputAdapterTest {
 
     @ParameterizedTest
     @MethodSource("formattingCases")
-    fun `execute formats the iso date and the event lists for the ai service`(case: FormattingCase) {
+    fun `execute formats the iso date, the occasion and the people for the ai service`(case: FormattingCase) {
         val aiService = RecordingGreetingAiService()
 
         GreetingTextOutputAdapter(aiService).execute(
             FakeGreetingPortProvider.createGenerateGreetingTextRequest(
                 date = case.date,
-                holidays = case.holidays,
+                occasion = case.occasion,
                 people = case.people,
             ),
         )
 
         assertEquals(case.expectedDate, aiService.dates.single())
-        assertEquals(case.expectedHolidays, aiService.holidays.single())
+        assertEquals(case.occasion, aiService.occasions.single())
         assertEquals(case.expectedPeople, aiService.people.single())
     }
 
@@ -43,12 +43,12 @@ class GreetingTextOutputAdapterTest {
         private val text: String = "model greeting",
     ) : GreetingAiService {
         val dates = ConcurrentLinkedQueue<String>()
-        val holidays = ConcurrentLinkedQueue<String>()
+        val occasions = ConcurrentLinkedQueue<String>()
         val people = ConcurrentLinkedQueue<String>()
 
-        override fun generateGreeting(date: String, holidays: String, people: String): String {
+        override fun generateGreeting(date: String, occasion: String, people: String): String {
             dates.add(date)
-            this.holidays.add(holidays)
+            occasions.add(occasion)
             this.people.add(people)
             return text
         }
@@ -56,10 +56,9 @@ class GreetingTextOutputAdapterTest {
 
     data class FormattingCase(
         val date: LocalDate,
-        val holidays: List<String>,
+        val occasion: String,
         val people: List<String>,
         val expectedDate: String,
-        val expectedHolidays: String,
         val expectedPeople: String,
     )
 
@@ -68,35 +67,24 @@ class GreetingTextOutputAdapterTest {
         fun formattingCases(): Stream<FormattingCase> = Stream.of(
             FormattingCase(
                 date = LocalDate.parse("2026-09-13"),
-                holidays = listOf("День программиста"),
-                people = listOf("Иван Петров", "Анна Смирнова"),
-                expectedDate = "2026-09-13",
-                expectedHolidays = "День программиста",
-                expectedPeople = "Иван Петров, Анна Смирнова",
-            ),
-            FormattingCase(
-                date = LocalDate.parse("2027-01-01"),
-                holidays = listOf("Новый год"),
+                occasion = "День программиста",
                 people = emptyList(),
-                expectedDate = "2027-01-01",
-                expectedHolidays = "Новый год",
-                expectedPeople = "нет",
+                expectedDate = "2026-09-13",
+                expectedPeople = "все",
             ),
             FormattingCase(
                 date = LocalDate.parse("2027-05-09"),
-                holidays = emptyList(),
+                occasion = "День рождения",
                 people = listOf("Иван Петров"),
                 expectedDate = "2027-05-09",
-                expectedHolidays = "нет",
                 expectedPeople = "Иван Петров",
             ),
             FormattingCase(
                 date = LocalDate.parse("2027-12-31"),
-                holidays = emptyList(),
-                people = emptyList(),
+                occasion = "День рождения",
+                people = listOf("Ёлкин Иван", "Анна Смирнова"),
                 expectedDate = "2027-12-31",
-                expectedHolidays = "нет",
-                expectedPeople = "нет",
+                expectedPeople = "Ёлкин Иван, Анна Смирнова",
             ),
         )
     }

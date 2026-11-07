@@ -76,7 +76,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   позиции Long Poll (`long_poll_position`); публичный REST запросов; in-process реализация share-портов
   persistence; подтягивание профилей VK.
 - **Публичный API:**
-  - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-127`, контракт —
+  - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-126`, контракт —
     `PersistenceService.kt:18-79` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:81-90`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
   - in-process: `PersistenceDataInProcessAdapter.kt` — 15 классов-адаптеров share-портов
@@ -158,19 +158,21 @@ Test-scope рёбра (не входят в production-граф, разреше�
   `disable_mentions`, `dont_parse_links`).
 - **Сборка:** `share`, REST/REST client, fault-tolerance, RabbitMQ (`src/vk-facade/build.gradle.kts:13-23`).
 
-## `greetings` — поздравления по расписанию 00:00
+## `greetings` — поздравления по cron-расписанию
 
-- **Ответственность:** ежедневный прогон поздравлений в 00:00 своей зоны (по умолчанию `Europe/Minsk`);
-  правила праздников и дней рождения; одно сообщение на чат; at-most-once через claim; текст ИИ с
-  шаблоном-фолбэком; спан `greetings.daily-run`. Запускается таймером, событий RabbitMQ и HTTP-входов нет.
+- **Ответственность:** прогон поздравлений по cron-расписанию Quarkus (`greetings.cron`, по умолчанию
+  00:00) в зоне `greetings.timezone` (по умолчанию `Europe/Minsk`); правила праздников и дней рождения;
+  отдельное сообщение на каждый праздник и одно на всех именинников чата; at-most-once через claim на чат;
+  текст ИИ с шаблоном-фолбэком; спан `greetings.daily-run`. Событий RabbitMQ и HTTP-входов нет.
 - **Публичный API:** `port/input/RunDailyGreetingsInputPort.kt` (`Request(date)` → `Response(planned, sent,
-  failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Observes StartupEvent`/`ShutdownEvent`,
-  виртуальный поток, ключи `greetings.enabled`/`greetings.timezone`).
-- **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → generate → claim → send; ошибка одного
-  чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt` (групповые чаты + профили по
-  дате рождения, слияние и дедупликация имён), `command/text/GenerateGreetingTextCommand.kt` (ИИ +
-  детерминированный шаблон), `domain/{Holidays,BirthdayDates,NameFormatter,NextRun,GreetingPlan,Holiday}.kt`.
-- **Сборка:** `share`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
+  failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled` с `cron = "{greetings.cron}"`,
+  `timeZone = "{greetings.timezone}"`, ключи `greetings.cron`/`greetings.timezone`).
+- **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → claim на чат → generate → send по
+  планам; ошибка одного сообщения/чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt`
+  (групповые чаты + профили по дате рождения, один план на праздник и один на именинников чата),
+  `command/text/GenerateGreetingTextCommand.kt` (ИИ + детерминированный шаблон),
+  `domain/{Holidays,BirthdayDates,NameFormatter,GreetingPlan,Holiday}.kt`.
+- **Сборка:** `share`, `quarkus-scheduler`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
   (`src/greetings/build.gradle.kts`).
 
 ## `infrastructure` — брокер и декораторы
@@ -178,11 +180,11 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Ответственность:** диспетчер RabbitMQ, retry-лестница и финальный DLQ, публикация событий, logging
   декораторы, Jackson-конфигурация.
 - **Публичный API:**
-  - MQ-вход: `@Incoming("all-events-queue")` — `EventDispatcher.kt:63-84`;
+  - MQ-вход: `@Incoming("all-events-queue")` — `EventDispatcher.kt:63-85`;
   - реализация `PublishEventOutputPort` — `PublishEventOutputAdapter.kt:15-33` (JSON + routing key = `Event.name`);
   - CDI-декораторы: `CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`.
 - **Ключевые классы:** `EventDispatcher` (карта `Event.name → EventProcessor`, `@RunOnVirtualThread`,
-  retry по заголовку `x-retry-count`, `:90-111`), `DlqConfig.kt:6-16` (`dlq.levels[]`),
+  retry по заголовку `x-retry-count`, `:91-113`), `DlqConfig.kt:6-16` (`dlq.levels[]`),
   `MapperConfig.kt:9-18` (Kotlin-модуль Jackson).
 - **Сборка:** `share`, Quarkus arc/jackson/messaging-rabbitmq/logging-json, SmallRye RabbitMQ
   (`src/infrastructure/build.gradle.kts:13-26`).
@@ -193,13 +195,13 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Публичный API:** `@QuarkusMain` — `app/Application.kt:6-12`; конфиги
   `src/app/src/main/resources/{application.yml,application-queues.yml}`.
 - **Сборка:** все 7 бизнес-модулей + share (`src/app/build.gradle.kts:16-23`), deployable-расширения
-  (`:25-36`).
+  (`:26-37`).
 
 ## `testing/test-fixtures`, `testing/test-common`, `testing/arch-tests`
 
 - **`test-fixtures`** — общие fake-объекты и провайдеры данных:
   `testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`, `.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`,
-  `.../command/vkFacade/FakePublishEventCommand.kt:8-16`, `.../domain/FakeVoProvider.kt:14-62`.
+  `.../command/vkFacade/FakePublishEventCommand.kt:8-16`, `.../domain/FakeVoProvider.kt:18-69`.
   Модуль зависит от `share` и `vk-facade`, но подключается только в test-конфигурациях.
 - **`test-common`** — общий тестовый `application.yaml` (`vk.*`, `vane.url`, DevServices off).
 - **`arch-tests`** — `ModuleDependenciesTest` (модуль видит только share), `LayerDependenciesTest` (L1–L5),
@@ -220,13 +222,13 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
 | `MESSAGE_REQUIRE_ANSWER` | processor (`MessageReceivedUsecaseInput.kt:35-42`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
 | `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
-| `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:132-144`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
+| `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:195-207`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
 
 ### In-process порты
 
 | Порт (`share`) | Реализация | Потребитель |
 |---|---|---|
-| 9 `port/output/persistence/*` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-144` | `ai` (`GenerateSummaryCommandImpl.kt:7-12`, `ConversationContextRestAdapter.kt:22-26`) |
+| `port/output/persistence/*` (сообщения, саммари, профили) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`GenerateSummaryCommandImpl.kt:7-12`, `ConversationContextRestAdapter.kt:22-26`) |
 | `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
 | `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |

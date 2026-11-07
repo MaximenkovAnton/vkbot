@@ -6,7 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.enterprise.context.control.ActivateRequestContext
 import java.time.format.DateTimeFormatter
 
-private const val NO_EVENTS = "нет"
+private const val EVERYONE = "все"
 
 @ApplicationScoped
 class GreetingTextOutputAdapter(
@@ -17,11 +17,11 @@ class GreetingTextOutputAdapter(
     override fun execute(request: GenerateGreetingTextPort.Request): GenerateGreetingTextPort.Response {
         val text = greetingAiService.generateGreeting(
             date = request.date.format(DateTimeFormatter.ISO_LOCAL_DATE),
-            holidays = formatEvents(request.holidays),
-            people = formatEvents(request.people),
+            occasion = request.occasion,
+            people = formatPeople(request.people),
         )
         return GenerateGreetingTextPort.Response(MessageText.of(text))
     }
 
-    private fun formatEvents(events: List<String>): String = events.joinToString(", ").ifEmpty { NO_EVENTS }
+    private fun formatPeople(people: List<String>): String = people.joinToString(", ").ifEmpty { EVERYONE }
 }

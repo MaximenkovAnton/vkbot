@@ -23,15 +23,19 @@ import kotlin.test.assertFailsWith
 class CollectGreetingPlansCommandTest {
 
     @Test
-    fun `holidays are planned for every group chat`() {
+    fun `holidays are planned once per group chat`() {
         val first = FakeVoProvider.createPeerId(2_000_000_001)
         val second = FakeVoProvider.createPeerId(2_000_000_002)
 
-        val response = command(groupPeerIds = setOf(first, second))
+        val response = command(groupPeerIds = setOf(second, first))
             .execute(FakeGreetingProvider.createCollectGreetingPlansRequest(NEW_YEAR))
 
         assertEquals(listOf(first, second), response.plans.map { it.peerId })
-        assertTrue(response.plans.all { it.holidays == listOf(Holiday.NEW_YEAR) && it.birthdays.isEmpty() })
+        assertTrue(
+            response.plans.all { plan ->
+                plan is GreetingPlan.HolidayGreeting && plan.holiday == Holiday.NEW_YEAR
+            },
+        )
     }
 
     @Test
@@ -52,11 +56,15 @@ class CollectGreetingPlansCommandTest {
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(PLAIN_DAY))
 
         assertEquals(listOf(personalChat, groupChat), response.plans.map { it.peerId })
-        assertTrue(response.plans.all { it.holidays.isEmpty() && it.birthdays == listOf("Иван Петров") })
+        assertTrue(
+            response.plans.all { plan ->
+                plan is GreetingPlan.BirthdayGreeting && plan.people == listOf("Иван Петров")
+            },
+        )
     }
 
     @Test
-    fun `a holiday and a birthday are merged into one plan per chat`() {
+    fun `a holiday and a birthday on the same date are two plans with the birthday last`() {
         val groupChat = FakeVoProvider.createPeerId(2_000_000_001)
         val user = FakeVoProvider.createFromId(101)
         val profile = FakeModelProvider.createVkUserProfile(
@@ -72,10 +80,13 @@ class CollectGreetingPlansCommandTest {
             profileResponses = listOf(listOf(profile)),
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(PROGRAMMER_DAY))
 
-        val plan = response.plans.single()
-        assertEquals(groupChat, plan.peerId)
-        assertEquals(listOf(Holiday.PROGRAMMER_DAY), plan.holidays)
-        assertEquals(listOf("Иван Петров"), plan.birthdays)
+        assertEquals(2, response.plans.size)
+        val holidayPlan = response.plans[0]
+        assertEquals(groupChat, holidayPlan.peerId)
+        assertEquals(Holiday.PROGRAMMER_DAY, (holidayPlan as GreetingPlan.HolidayGreeting).holiday)
+        val birthdayPlan = response.plans[1]
+        assertEquals(groupChat, birthdayPlan.peerId)
+        assertEquals(listOf("Иван Петров"), (birthdayPlan as GreetingPlan.BirthdayGreeting).people)
     }
 
     @Test
@@ -128,7 +139,10 @@ class CollectGreetingPlansCommandTest {
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(LocalDate.parse("2025-03-01")))
 
         assertEquals(listOf(1 to 3, 29 to 2), profiles.executeCalls.map { it.day to it.month })
-        assertEquals(listOf("Ёлкин Иван", "Анна Смирнова"), response.plans.single().birthdays)
+        assertEquals(
+            listOf("Ёлкин Иван", "Анна Смирнова"),
+            (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+        )
     }
 
     @Test
@@ -161,7 +175,10 @@ class CollectGreetingPlansCommandTest {
             profileResponses = listOf(listOf(secondProfile, firstProfile)),
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(PLAIN_DAY))
 
-        assertEquals(listOf("Ёлкин Иван", "Анна Смирнова"), response.plans.single().birthdays)
+        assertEquals(
+            listOf("Ёлкин Иван", "Анна Смирнова"),
+            (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+        )
     }
 
     @Test
@@ -187,15 +204,15 @@ class CollectGreetingPlansCommandTest {
             profileResponses = listOf(listOf(firstProfile, secondProfile)),
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(PLAIN_DAY))
 
-        assertEquals(listOf("Иван Петров"), response.plans.single().birthdays)
+        assertEquals(listOf("Иван Петров"), (response.plans.single() as GreetingPlan.BirthdayGreeting).people)
     }
 
     @Test
-    fun `an empty plan is rejected`() {
+    fun `a birthday plan without people is rejected`() {
         val peerId = FakeVoProvider.createPeerId(2_000_000_001)
 
         assertFailsWith<IllegalArgumentException> {
-            GreetingPlan(peerId = peerId, holidays = emptyList(), birthdays = emptyList())
+            GreetingPlan.BirthdayGreeting(peerId = peerId, people = emptyList())
         }
     }
 

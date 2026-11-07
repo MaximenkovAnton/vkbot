@@ -17,7 +17,7 @@
 | `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
 | `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:35-42` (processor) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
 | `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
-| `SUMMARY_READY` | `PersistenceDataUsecase.kt:132-144` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
+| `SUMMARY_READY` | `PersistenceDataUsecase.kt:195-207` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
 конкретный тип в processor'е; payload'ы событий лежат в `share`, поэтому дрейф формата ловится компиляцией.
@@ -56,11 +56,11 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 ## 2. Event routing (RabbitMQ)
 
 - Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
-  `application.yml:88-97`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
-- `EventDispatcher.dispatch` (`EventDispatcher.kt:63-84`) читает `routingKey`, находит
+  `application.yml:92-101`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+- `EventDispatcher.dispatch` (`EventDispatcher.kt:63-85`) читает `routingKey`, находит
   `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
-- Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:86-88`).
-- Исключение обработки → `handleRetry` (`:90-111`): сообщение уходит в очередь уровня
+- Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:87-89`).
+- Исключение обработки → `handleRetry` (`:91-113`): сообщение уходит в очередь уровня
   `x-retry-count`, заголовок увеличивается; уровни/TTL — `application-queues.yml:1-32`:
   `retry-5s` (5 с) → `retry-30s` (30 с) → `retry-1m` → `retry-15m` → `retry-1h` → `dlq-final` (без TTL).
   Все retry-очереди возвращают сообщение в `all-events` через `x-dead-letter-exchange`.
@@ -150,7 +150,7 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
   LLM (`SummarizationAiAdapter` — 3 попытки, `SummarizationAiAdapter.kt:18-41`), сохраняет completed;
   при исключении помечает failed и пробрасывает дальше (`:59-62`).
 - Сохранение completed идёт через `SaveStoredCompletedSummaryPort` → in-process адаптер →
-  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:115-146`), который и
+  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:178-209`), который и
   публикует `SUMMARY_READY` с текстом «📋 Суммаризация обсуждения…».
 - `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
@@ -158,43 +158,53 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 ## 8. Поздравления по расписанию (greetings)
 
 ```
-00:00 Europe/Minsk → DailyGreetingRunner (виртуальный поток, StartupEvent/ShutdownEvent)
+greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezone
+  → DailyGreetingRunner (@Scheduled Quarkus)
   → RunDailyGreetingsUsecase
   → CollectGreetingPlansCommand: групповые чаты (peer_id > 2e9) + профили по (day, month) + чаты from_id
-  → GenerateGreetingTextCommand → GenerateGreetingTextPort (ИИ; детерминированный шаблон при отказе)
-  → ClaimDailyGreetingPort: INSERT … ON CONFLICT DO NOTHING в greeting_log
+      → один HolidayGreeting на праздник + один BirthdayGreeting на всех именинников чата
+  → ClaimDailyGreetingPort: один INSERT … ON CONFLICT DO NOTHING на (date, peer) до отправки
+  → на каждый план: GenerateGreetingTextCommand → GenerateGreetingTextPort (ИИ; шаблон при отказе)
   → SendGreetingMessagePort → PlainMessageSendUsecase → VK API messages.send
 ```
 
-- **Расписание.** Цель — ближайшая полночь строго после `now` (`NextRun.after`) в зоне
-  `greetings.timezone` (дефолт `Europe/Minsk`); задержка пересчитывается в цикле ожидания, поэтому ранний
-  wake не теряет и не дублирует дату. Старт после 00:00 ждёт следующие сутки (catch-up нет); при
-  `greetings.enabled: false` поток не запускается.
-- **События.** Прогон запускается таймером, а не событием VK: новых значений `Event`, сообщений RabbitMQ и
-  HTTP-входов нет.
+- **Расписание.** `DailyGreetingRunner` — тонкий `@ApplicationScoped`-бин с
+  `@Scheduled(cron = "{greetings.cron}", timeZone = "{greetings.timezone}")`; ключ `greetings.cron`
+  (дефолт `0 0 0 * * ?`, то есть 00:00, env `GREETINGS_CRON`), `off`/`disabled` выключает расписание;
+  зона `greetings.timezone` (дефолт `Europe/Minsk`, env `GREETINGS_TIMEZONE`). Отдельного виртуального
+  потока и расчёта ближайшей полуночи нет; пропущенное срабатывание не догоняется (catch-up нет).
+- **События.** Прогон запускается планировщиком, а не событием VK: новых значений `Event`, сообщений
+  RabbitMQ и HTTP-входов нет.
 - **План.** Праздники — 1 января и 256-й день года (все групповые чаты с перепиской); именинники — профили
   из `vk_user_profiles.birth_date` на `(day, month)` даты, каждый в чаты из `messages.from_id` (включая
-  личные переписки). На 1 марта невисокосного года запрашиваются и `(1, 3)`, и `(29, 2)`; события одного
-  чата сливаются в один `GreetingPlan`.
-- **Текст.** `GenerateGreetingTextCommand` зовёт `GenerateGreetingTextPort` (`ai`, system-промпт
-  `aiGreetingSystemprompt`); при исключении или пустом ответе возвращается шаблон «праздники в порядке
-  enum + `С днём рождения, …!`» и пишется WARN.
-- **At-most-once.** Claim-строка `greeting_log` (PK `(greeting_date, peer_id)`) пишется до отправки:
-  повторный прогон даты получает `claimed = false` и не отправляет, два экземпляра проигрывают конфликт.
-  Цена — ошибка отправки сжигает чат на день (известное ограничение, ADR 0009).
-- **Изоляция.** Ошибка claim/отправки одного чата → ERROR-лог с `peerId`, учёт в `failed`, остальные чаты
-  продолжаются; `InterruptedException` (Shutdown) пробрасывается и завершает прогон.
-- **Отправка.** Плоская ветка `vk-facade`: `forwardedMessages = null`, `random_id` от текста и peer;
-  forward/reply-путь (`MessageSendUsecase`) не используется.
+  личные переписки). На 1 марта невисокосного года запрашиваются и `(1, 3)`, и `(29, 2)`. План чата —
+  один `GreetingPlan.HolidayGreeting` на каждый праздник и один `GreetingPlan.BirthdayGreeting` на всех
+  именинников чата с отсортированными именами.
+- **Текст.** `GenerateGreetingTextCommand` зовёт `GenerateGreetingTextPort` с запросом
+  `Request(date, occasion, people)` (`ai`, system-промпт `aiGreetingSystemprompt`): для праздника
+  `occasion = Holiday.title` и пустой `people` («все»), для именинников — `occasion = День рождения` и
+  отсортированные имена. При любом другом исключении или пустом ответе возвращается шаблон («С Новым годом!»,
+  «С Днём программиста!», `С днём рождения, …!`) и пишется WARN; `InterruptedException`
+  пробрасывается с сохранённым флагом и шаблоном не подменяется.
+- **At-most-once.** Claim-строка `greeting_log` (PK `(greeting_date, peer_id)`) пишется один раз на чат до
+  отправки всех его сообщений: повторный прогон даты получает `claimed = false` и не отправляет, два
+  экземпляра проигрывают конфликт. Цена — ошибка отправки не повторяется, оставшиеся сообщения чата
+  теряются до следующих суток (известное ограничение, ADR 0009).
+- **Изоляция.** Ошибка claim → ERROR-лог с `peerId`, все сообщения чата учитываются в `failed`, остальные
+  чаты продолжаются; ошибка отправки одного сообщения учитывается в `failed`, но следующие сообщения и
+  чаты продолжаются; `InterruptedException` (остановка приложения) пробрасывается с сохранённым флагом.
+- **Отправка.** Плоская ветка `vk-facade`: один `SendGreetingMessagePort.Request` на план,
+  `forwardedMessages = null`, `random_id` от текста и peer; forward/reply-путь (`MessageSendUsecase`) не
+  используется.
 
 ## Отказоустойчивость и границы
 
 | Механизм | Где | Что гарантирует |
 |---|---|---|
-| At-least-once доставка | RabbitMQ + ack после `process` (`EventDispatcher.kt:76-82`) | сообщение не теряется при падении обработчика; возможны повторы |
+| At-least-once доставка | RabbitMQ + ack после `process` (`EventDispatcher.kt:77-83`) | сообщение не теряется при падении обработчика; возможны повторы |
 | Позиция `ts` после публикации | `LongPollRunner` | сбой между публикацией и сохранением даёт дубликат, но не потерю обновления |
 | Паузы опроса | `LongPollRunner` | 5 с при сбое публикации, нарастающая до 60 с при сетевых ошибках и 5xx; цикл не падает |
-| Retry-лестница | `EventDispatcher.kt:90-111`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
+| Retry-лестница | `EventDispatcher.kt:91-113`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
 | DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
 | Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
 | Изоляция профилей | `FetchUserProfileCommandImpl.kt:63-95` | сбой VK при получении профилей не отменяет сохранение сообщения |
@@ -223,14 +233,14 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
   `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
 - **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
   (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
-- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:189-194`),
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:193-198`),
   аннотаций нет; защита VK API — только retry-лестница брокера.
 
 ## Observability
 
 - OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml`);
   экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
-- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:184-187`).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:188-191`).
 - Собственный трейс есть только у `daily-greetings`: спан `greetings.daily-run` в
   `DailyGreetingRunner.kt` с атрибутами `date`/`planned`/`sent`/`failed` и статусом `OK`/`ERROR`; метрик,
   MDC и трейсов другого кода нет. Остальное — конфигурация расширений и logging-декораторы

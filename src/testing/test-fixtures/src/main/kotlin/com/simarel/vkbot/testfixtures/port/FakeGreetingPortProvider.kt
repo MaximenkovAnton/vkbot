@@ -54,9 +54,9 @@ object FakeGreetingPortProvider {
 
     fun createGenerateGreetingTextRequest(
         date: LocalDate = GREETING_DATE,
-        holidays: List<String> = listOf("День программиста"),
-        people: List<String> = listOf("Иван Петров"),
-    ) = GenerateGreetingTextPort.Request(date = date, holidays = holidays, people = people)
+        occasion: String = "День программиста",
+        people: List<String> = emptyList(),
+    ) = GenerateGreetingTextPort.Request(date = date, occasion = occasion, people = people)
 
     fun createGenerateGreetingTextResponse(
         text: MessageText = MessageText.of(GREETING_TEXT),
