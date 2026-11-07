@@ -161,13 +161,14 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 
 ## Health и наблюдаемость
 
-- Health-эндпоинты: `/q/health`, `/q/health/ready`, `/q/health/live` (`quarkus-smallrye-health`).
-  **Сейчас они отдают 503 DOWN:** семь incoming-каналов (`retry-5s-queue` … `retry-1h-queue`,
-  `dlq-final-queue`, `summary-ready-queue`) объявлены без downstream-консьюмера, и проверка SmallRye
-  Reactive Messaging помечает их `[KO]` (`SRMSG00208: has no downstreams`). Это не гейт деплоя, но
-  readiness-проба Kubernetes не пройдёт; чтобы health стал зелёным, эти каналы нужно исключить из
-  проверок или дать им консьюмера — отдельная задача. Health не связан с приёмом событий: опрос Bots Long
-  Poll идёт своим циклом и от HTTP-проб не зависит.
+- Health-эндпоинты: `/q/health`, `/q/health/ready`, `/q/health/live` (`quarkus-smallrye-health`) отдают
+  **200 UP** и годятся в readiness-пробу Kubernetes. Шесть retry/DLQ-каналов (`retry-5s-queue` …
+  `retry-1h-queue`, `dlq-final-queue`) объявлены ради TTL/DLX и downstream-консьюмера не имеют, поэтому
+  исключены из проверки SmallRye Reactive Messaging ключом `quarkus.messaging.health.<channel>.enabled:
+  false` (`application.yml:73-86`); иначе она помечает их `[KO]` (`SRMSG00208: has no downstreams`) и health
+  отдаёт 503 DOWN. Под проверкой остаётся `all-events-queue` — единственный канал с консьюмером
+  (`EventDispatcher.dispatch`). Health не связан с приёмом событий: опрос Bots Long Poll идёт своим циклом
+  и от HTTP-проб не зависит.
 - OpenTelemetry: экспорт логов/метрик/трейсов по OTLP (по умолчанию `http://localhost:4317`);
   эндпоинт коллектора задаётся стандартными ключами OTel. Prometheus-scrape и `/metrics` отсутствуют.
 - Логи — JSON-формат (`quarkus-logging-json`) в собранном деплое.

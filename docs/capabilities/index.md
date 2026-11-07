@@ -43,6 +43,5 @@ VK-бот — один деплой (`:src:app`), который принима�
 | `/q/health`, `/q/health/ready`, `/q/health/live` | даёт расширение `quarkus-smallrye-health` (`src/app/build.gradle.kts`), в дереве нет кода, который её реализует; точка входа — конфигурация платформы, не поведение продукта |
 | OpenTelemetry и observation брокера | конфигурация расширений в `src/app/src/main/resources/application.yml`; собственный спан есть только у `daily-greetings` (`greetings.daily-run`), метрик и трейсов другого кода нет |
 | logging-декораторы `Command`/`Port` | сквозная инфраструктура без пользовательского поведения: `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/CommandLoggingDecorator.kt` |
-| канал `summary-ready-queue` | объявлен в `src/app/src/main/resources/application.yml`, но `@Incoming("summary-ready-queue")` в коде нет — мёртвая конфигурация, описана в `docs/development/configuration.md` |
 | `@QuarkusMain`-запуск | `src/app/src/main/kotlin/com/simarel/vkbot/app/Application.kt:6-12` — деплой, а не возможность продукта |
 | тестовые модули `test-fixtures`, `test-common`, `arch-tests` | инфраструктура тестов, не поведение продукта |

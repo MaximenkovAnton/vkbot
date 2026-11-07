@@ -80,21 +80,20 @@ Long Poll API с событием `message_new` и отключить Callback A
 `rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем `application.yml` их нет,
 это делает деплой.
 
-Очереди (`mp.messaging.*`, `application.yml`):
+Очереди (`mp.messaging.*`, `application.yml:88-182`):
 
 | Канал | Тип | Exchange / queue | Особенности |
 |---|---|---|---|
 | `all-events-queue` | incoming | `all-events` / `queue` | DLX `retry-5s-exchange` |
 | `retry-5s-queue` … `retry-1h-queue` | incoming | `retry-*` / `retry-*` | TTL 5s/30s/1m/15m/1h, DLX обратно в `all-events` |
 | `dlq-final-queue` | incoming | `dlq-final` | без TTL, ручной разбор |
-| `summary-ready-queue` | incoming | `all-events` / `summary-ready` | DLX `retry-5s-exchange`; **в коде нет `@Incoming` для этого канала** |
 | `events-exchange` | outgoing | `all-events` | публикация событий, routing key = имя события |
 | `retry-*-out`, `dlq-final-out` | outgoing | соответствующие exchange | перекладывание при retry |
 
 `dlq.levels[]` (`application-queues.yml:1-32`) связывает уровень retry с очередью и TTL; читается
 `infrastructure/config/DlqConfig.kt:6-16` и используется `EventDispatcher.kt:25-26,90-111`.
 
-`smallrye.messaging.observation.enabled: true` (`application.yml`) включает наблюдаемость брокера.
+`smallrye.messaging.observation.enabled: true` (`application.yml:184-187`) включает наблюдаемость брокера.
 
 ## REST-клиенты и LLM
 
@@ -140,9 +139,8 @@ Long Poll использует тот же `configKey = "vk"` для `groups.get
 
 | Ключ | Почему мёртвый |
 |---|---|
-| `circuit-breaker.vk-profile` (`application.yml`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
+| `circuit-breaker.vk-profile` (`application.yml:189-194`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
 | `summary.system-prompt` | не читается, см. выше |
-| `summary-ready-queue` | канал объявлен, `@Incoming("summary-ready-queue")` в коде нет |
 
 ## Профили и тестовая конфигурация
 
@@ -163,12 +161,15 @@ Long Poll использует тот же `configKey = "vk"` для `groups.get
 
 ## Health
 
-Расширение `quarkus-smallrye-health` подключено (`src/app/build.gradle.kts:37`), отдельных ключей нет —
+Расширение `quarkus-smallrye-health` подключено (`src/app/build.gradle.kts:37`), кастомных эндпоинтов нет —
 действуют умолчания Quarkus: `/q/health`, `/q/health/ready`, `/q/health/live`. Путей `/health` и `/metrics` нет.
-Эндпоинты сейчас отдают **503 DOWN**: семь incoming-каналов (`retry-*-queue`, `dlq-final-queue`,
-`summary-ready-queue`) не имеют downstream-консьюмера и попадают в messaging-проверку как `[KO]`
-(`SRMSG00208`). Health не входит в гейты; вывод и условие починки — `deployment.md`, раздел
-«Health и наблюдаемость».
+Messaging-проверка SmallRye Reactive Messaging исключает шесть retry/DLQ-каналов ключом
+`quarkus.messaging.health.<channel>.enabled: false` (`retry-5s-queue`, `retry-30s-queue`, `retry-1m-queue`,
+`retry-15m-queue`, `retry-1h-queue`, `dlq-final-queue`; `application.yml:73-86`): они объявлены ради TTL/DLX
+и downstream-консьюмера не имеют, без исключения проверка помечает их `[KO]` (`SRMSG00208: has no
+downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` остаётся под проверкой — у него есть консьюмер
+`EventDispatcher.dispatch`. `HealthTest` проверяет 200 UP на всех трёх эндпоинтах; подробности —
+`deployment.md`, раздел «Health и наблюдаемость».
 
 ## jOOQ codegen (выключен)
 
