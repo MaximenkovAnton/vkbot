@@ -24,12 +24,13 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в проходе `daily-greetings` на замороженном дереве: `./gradlew build` →
-`BUILD SUCCESSFUL in 1m 43s`, 180 задач (включая `capabilitiesCheck`);
-**243 теста, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app — 28 (6 классов, в т.ч.
-`AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10, `HealthTest` — 3), ai — 66 (15 классов),
-receiver — 22, share — 8, vk-facade — 16 (9 классов), persistence — 32 (2 класса), infrastructure — 2,
-processor — 2, greetings — 45 (7 классов), arch-tests — 22 (5 классов).
+Проверено в проходе `profile-actualization` на дереве этой задачи: `./gradlew build` →
+`BUILD SUCCESSFUL in 2m 19s`, 180 задач (включая `capabilitiesCheck`, `coverageVerification`,
+`:src:app:quarkusBuild`); **251 тест, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям:
+app — 30 (7 классов, в т.ч. `AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10,
+`ProfileStorageIntegrationTest` — 2, `HealthTest` — 3), ai — 66 (15 классов), receiver — 22, share — 8,
+vk-facade — 16 (9 классов), persistence — 38 (3 класса), infrastructure — 2, processor — 2, greetings — 45
+(7 классов), arch-tests — 22 (5 классов).
 
 `./gradlew capabilitiesCheck` запускает `scripts/check-capabilities.sh` через bash; тот же скрипт
 выполняется в CI-джобе `docs`.
@@ -43,10 +44,10 @@ processor — 2, greetings — 45 (7 классов), arch-tests — 22 (5 кл�
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `HealthTest` (3 теста — 200 UP на `/q/health`, `/q/health/ready`, `/q/health/live`), `integration/VkLongPollIntegrationTest` (5 тестов — приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 тестов — поздравления: план по чатам, ИИ, claim, отправка), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile` |
+| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `HealthTest` (3 теста — 200 UP на `/q/health`, `/q/health/ready`, `/q/health/live`), `integration/VkLongPollIntegrationTest` (5 тестов — приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 тестов — поздравления: план по чатам, ИИ, claim, отправка), `integration/ProfileStorageIntegrationTest` (2 теста — профили из PostgreSQL и отрицательный id группы), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
 | `ai` | 66 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (4) |
 | `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
-| `persistence` | `PersistenceDataInProcessAdapterTest` (15 тестов — маппинг всех in-process портов), `BirthDateMatcherTest` (17 — разбор `birth_date`) |
+| `persistence` | `PersistenceDataInProcessAdapterTest` (15 тестов — маппинг всех in-process портов), `BirthDateMatcherTest` (17 — разбор `birth_date`), `command/fetchuserprofile/FetchUserProfileCommandImplTest` (6 — актуализация устаревших профилей и слияние полей) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
 | `vk-facade` | `VkProfileInProcessAdapterTest` (2), `SendGreetingMessageInProcessAdapterTest` (1), `VkSendMessageOutputAdapterTest` (2), `PublishEventCommandImplTest` (1), `SendVkMessageCommandImplTest` (1), `MessageSendUsecaseTest` (1), `PlainMessageSendUsecaseTest` (2 — плоская отправка), `RandomIdTest` (5 — детерминированный `random_id`), `SummaryReadyEventProcessorTest` (1) |
 | `greetings` | `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (8), `usecase/RunDailyGreetingsUsecaseTest` (8), `adapter/input/schedule/DailyGreetingRunnerTest` (4) |
@@ -109,7 +110,7 @@ src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 └── vkFacade/FakeVkFacadeProvider.kt
 
 src/persistence/src/testFixtures/kotlin/com/simarel/vkbot/persistence/testfixtures/  # PersistenceDataRequestProvider,
-  # PersistenceDataResponseProvider
+  # PersistenceDataResponseProvider, ProfileActualizationPortProvider
 src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/   # FakeMessageMapper,
   # FakePublishVkEventCommand, FakePublishVkEventCommandProvider, FakeVkUpdateInputPortProvider,
   # FakeLongPollPortProvider, port/{FakeGetLongPollServerPort, FakeCheckLongPollPort,

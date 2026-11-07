@@ -63,6 +63,7 @@ object FakeModelProvider {
         screenName: String? = "ivan_petrov",
         birthDate: String? = "01.01.1990",
         city: String? = "Moscow",
+        lastUpdated: OffsetDateTime = FIXED_DATE,
     ) = VkUserProfile(
         id = FakeVoProvider.createFromId(id),
         firstName = firstName,
@@ -70,18 +71,19 @@ object FakeModelProvider {
         screenName = screenName,
         birthDate = birthDate,
         city = city,
-        lastUpdated = FIXED_DATE,
+        lastUpdated = lastUpdated,
     )
 
     fun createVkGroupProfile(
         id: Long? = null,
         name: String? = "Test Group",
         screenName: String? = "testgroup",
+        lastUpdated: OffsetDateTime = FIXED_DATE,
     ) = VkGroupProfile(
         id = FakeVoProvider.createFromId(id),
         name = name,
         screenName = screenName,
-        lastUpdated = FIXED_DATE,
+        lastUpdated = lastUpdated,
     )
 
     fun createResponseMessage(

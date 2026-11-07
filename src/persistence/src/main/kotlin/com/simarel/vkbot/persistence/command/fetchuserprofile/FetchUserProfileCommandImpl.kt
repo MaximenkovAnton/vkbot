@@ -1,20 +1,23 @@
 package com.simarel.vkbot.persistence.command.fetchuserprofile
 
-import com.simarel.vkbot.persistence.port.output.persistence.FilterExistingGroupIdsPort
-import com.simarel.vkbot.persistence.port.output.persistence.FilterExistingUserIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveUserProfilePort
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.model.VkGroupProfile
+import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.vk.GetGroupProfilesBatchPort
 import com.simarel.vkbot.share.port.output.vk.GetUserProfilesBatchPort
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
+import java.time.OffsetDateTime
 
 @ApplicationScoped
 open class FetchUserProfileCommandImpl(
-    private val userProfileRepositoryPort: FilterExistingUserIdsPort,
-    private val groupProfileRepositoryPort: FilterExistingGroupIdsPort,
+    private val findUserProfilesByIdsPort: FindUserProfilesByIdsPort,
+    private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort,
     private val saveGroupProfilePort: SaveGroupProfilePort,
     private val saveUserProfilePort: SaveUserProfilePort,
     private val getUserProfilesBatchPort: GetUserProfilesBatchPort,
@@ -26,31 +29,30 @@ open class FetchUserProfileCommandImpl(
     @Transactional
     override fun execute(request: FetchUserProfileRequest): FetchUserProfileResponse {
         val allFromIds = collectAllFromIds(request.message)
+        val userIds = allFromIds.filter { it.isHuman() }
+        val groupIds = allFromIds.filter { it.isGroup() }
 
-        val (potentialUserIds, potentialGroupIds) = allFromIds.partition { it.isHuman() || it.isGroupChat() }
-            .let { (users, groups) ->
-                users.filter { it.isHuman() } to groups.filter { it.isGroup() }
-            }
+        val existingUsers = findUserProfilesByIdsPort.execute(
+            FindUserProfilesByIdsPort.FindUserProfilesByIdsRequest(userIds),
+        ).profiles.associateBy(VkUserProfile::id)
+        val existingGroups = findGroupProfilesByIdsPort.execute(
+            FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest(groupIds),
+        ).profiles.associateBy(VkGroupProfile::id)
 
-        val existingUserIds = userProfileRepositoryPort.execute(
-            FilterExistingUserIdsPort.FilterExistingUserIdsRequest(potentialUserIds),
-        ).existingIds
-        val missingUserIds = potentialUserIds - existingUserIds
+        val actualizedAt = OffsetDateTime.now()
+        val staleBefore = actualizedAt.minusMonths(ACTUALIZATION_PERIOD_MONTHS)
+        val usersToActualize = userIds.filter { shouldActualize(existingUsers[it]?.lastUpdated, staleBefore) }
+        val groupsToActualize = groupIds.filter { shouldActualize(existingGroups[it]?.lastUpdated, staleBefore) }
 
-        val existingGroupIds = groupProfileRepositoryPort.execute(
-            FilterExistingGroupIdsPort.FilterExistingGroupIdsRequest(potentialGroupIds),
-        ).existingIds
-        val missingGroupIds = potentialGroupIds - existingGroupIds
-
-        if (missingUserIds.isEmpty() && missingGroupIds.isEmpty()) {
+        if (usersToActualize.isEmpty() && groupsToActualize.isEmpty()) {
             return FetchUserProfileResponse(success = true)
         }
 
-        if (missingUserIds.isNotEmpty()) {
-            fetchAndSaveUserProfiles(missingUserIds)
+        if (usersToActualize.isNotEmpty()) {
+            actualizeUserProfiles(usersToActualize, existingUsers, actualizedAt)
         }
-        if (missingGroupIds.isNotEmpty()) {
-            fetchAndSaveGroupProfiles(missingGroupIds)
+        if (groupsToActualize.isNotEmpty()) {
+            actualizeGroupProfiles(groupsToActualize, existingGroups, actualizedAt)
         }
 
         return FetchUserProfileResponse(success = true)
@@ -60,15 +62,25 @@ open class FetchUserProfileCommandImpl(
         messages.flatMap { it.forwardedMessages }.takeIf { it.isNotEmpty() }
     }.flatMap { it.asSequence().map(Message::fromId) }.toSet()
 
+    private fun shouldActualize(lastUpdated: OffsetDateTime?, staleBefore: OffsetDateTime): Boolean {
+        if (lastUpdated == null) {
+            return true
+        }
+        return lastUpdated.isBefore(staleBefore)
+    }
+
     @Suppress("TooGenericExceptionCaught")
-    private fun fetchAndSaveUserProfiles(userIds: List<FromId>) {
+    private fun actualizeUserProfiles(
+        userIds: List<FromId>,
+        existingProfiles: Map<FromId, VkUserProfile>,
+        actualizedAt: OffsetDateTime,
+    ) {
         try {
-            val response = getUserProfilesBatchPort.execute(
-                GetUserProfilesBatchPort.Request(userIds),
-            )
-            response.profiles.forEach { profile ->
-                saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(profile))
-                logger.log(System.Logger.Level.DEBUG, "Saved user profile for id: ${profile.id.value}")
+            val response = getUserProfilesBatchPort.execute(GetUserProfilesBatchPort.Request(userIds))
+            response.profiles.forEach { fetched ->
+                val merged = mergeUserProfile(existingProfiles[fetched.id], fetched, actualizedAt)
+                saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(merged))
+                logger.log(System.Logger.Level.DEBUG, "Actualized user profile for id: ${merged.id.value}")
             }
         } catch (e: Exception) {
             logger.log(
@@ -79,14 +91,17 @@ open class FetchUserProfileCommandImpl(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun fetchAndSaveGroupProfiles(groupIds: List<FromId>) {
+    private fun actualizeGroupProfiles(
+        groupIds: List<FromId>,
+        existingProfiles: Map<FromId, VkGroupProfile>,
+        actualizedAt: OffsetDateTime,
+    ) {
         try {
-            val response = getGroupProfilesBatchPort.execute(
-                GetGroupProfilesBatchPort.Request(groupIds),
-            )
-            response.profiles.forEach { profile ->
-                saveGroupProfilePort.execute(SaveGroupProfilePort.SaveGroupProfileRequest(profile))
-                logger.log(System.Logger.Level.DEBUG, "Saved group profile for id: ${profile.id.value}")
+            val response = getGroupProfilesBatchPort.execute(GetGroupProfilesBatchPort.Request(groupIds))
+            response.profiles.forEach { fetched ->
+                val merged = mergeGroupProfile(existingProfiles[fetched.id], fetched, actualizedAt)
+                saveGroupProfilePort.execute(SaveGroupProfilePort.SaveGroupProfileRequest(merged))
+                logger.log(System.Logger.Level.DEBUG, "Actualized group profile for id: ${merged.id.value}")
             }
         } catch (e: Exception) {
             logger.log(
@@ -94,5 +109,34 @@ open class FetchUserProfileCommandImpl(
                 "Failed to fetch/save group profiles for ids: ${groupIds.map { it.value }}, error: ${e.message}",
             )
         }
+    }
+
+    private fun mergeUserProfile(
+        existing: VkUserProfile?,
+        fetched: VkUserProfile,
+        actualizedAt: OffsetDateTime,
+    ): VkUserProfile = VkUserProfile(
+        id = fetched.id,
+        firstName = fetched.firstName ?: existing?.firstName,
+        lastName = fetched.lastName ?: existing?.lastName,
+        screenName = fetched.screenName ?: existing?.screenName,
+        birthDate = fetched.birthDate ?: existing?.birthDate,
+        city = fetched.city ?: existing?.city,
+        lastUpdated = actualizedAt,
+    )
+
+    private fun mergeGroupProfile(
+        existing: VkGroupProfile?,
+        fetched: VkGroupProfile,
+        actualizedAt: OffsetDateTime,
+    ): VkGroupProfile = VkGroupProfile(
+        id = fetched.id,
+        name = fetched.name ?: existing?.name,
+        screenName = fetched.screenName ?: existing?.screenName,
+        lastUpdated = actualizedAt,
+    )
+
+    private companion object {
+        const val ACTUALIZATION_PERIOD_MONTHS = 1L
     }
 }

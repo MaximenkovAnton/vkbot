@@ -6,6 +6,7 @@ import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
+import org.jooq.Record
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 
@@ -16,9 +17,6 @@ open class JooqVkGroupProfileRepository {
     lateinit var dsl: DSLContext
 
     open fun persist(profile: VkGroupProfile) {
-        // Группы хранятся в БД с положительным ID
-        val positiveId = profile.id.value
-
         dsl.insertInto(VkGroupProfiles.TABLE)
             .columns(
                 VkGroupProfiles.ID,
@@ -28,7 +26,7 @@ open class JooqVkGroupProfileRepository {
                 VkGroupProfiles.CREATED_AT,
             )
             .values(
-                positiveId,
+                profile.id.value,
                 profile.name,
                 profile.screenName,
                 Timestamp.from(profile.lastUpdated.toInstant()),
@@ -47,40 +45,17 @@ open class JooqVkGroupProfileRepository {
             return emptyList()
         }
 
-        // FromId для групп < 0, но в БД хранятся > 0
-        val positiveIds = ids.map { -it }
-
         return dsl.select()
             .from(VkGroupProfiles.TABLE)
-            .where(VkGroupProfiles.ID.`in`(positiveIds))
+            .where(VkGroupProfiles.ID.`in`(ids))
             .fetch()
-            .map { record ->
-                val lastUpdated = record.get(VkGroupProfiles.LAST_UPDATED, OffsetDateTime::class.java)
-                    ?: OffsetDateTime.now()
-
-                VkGroupProfile(
-                    // Конвертируем положительный ID в отрицательный
-                    id = FromId.of(-record.get(VkGroupProfiles.ID, Long::class.java)),
-                    name = record.get(VkGroupProfiles.NAME, String::class.java),
-                    screenName = record.get(VkGroupProfiles.SCREEN_NAME, String::class.java),
-                    lastUpdated = lastUpdated,
-                )
-            }
+            .map { it.toVkGroupProfile() }
     }
 
-    open fun filterExistingIds(ids: Collection<Long>): Set<Long> {
-        if (ids.isEmpty()) {
-            return emptySet()
-        }
-
-        // FromId для групп < 0, но в БД хранятся > 0
-        val positiveIds = ids.map { -it }
-
-        return dsl.select(VkGroupProfiles.ID)
-            .from(VkGroupProfiles.TABLE)
-            .where(VkGroupProfiles.ID.`in`(positiveIds))
-            .fetch()
-            .map { -it.get(VkGroupProfiles.ID, Long::class.java) }
-            .toSet()
-    }
+    private fun Record.toVkGroupProfile(): VkGroupProfile = VkGroupProfile(
+        id = FromId.of(get(VkGroupProfiles.ID, Long::class.java)),
+        name = get(VkGroupProfiles.NAME, String::class.java),
+        screenName = get(VkGroupProfiles.SCREEN_NAME, String::class.java),
+        lastUpdated = get(VkGroupProfiles.LAST_UPDATED, OffsetDateTime::class.java),
+    )
 }

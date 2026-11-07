@@ -83,19 +83,6 @@ open class JooqVkUserProfileRepository {
             }
     }
 
-    open fun filterExistingIds(ids: Collection<Long>): Set<Long> {
-        if (ids.isEmpty()) {
-            return emptySet()
-        }
-
-        return dsl.select(VkUserProfiles.ID)
-            .from(VkUserProfiles.TABLE)
-            .where(VkUserProfiles.ID.`in`(ids))
-            .fetch()
-            .map { it.get(VkUserProfiles.ID, Long::class.java) }
-            .toSet()
-    }
-
     private fun Record.toVkUserProfile(): VkUserProfile = VkUserProfile(
         id = FromId.of(get(VkUserProfiles.ID, Long::class.java)),
         firstName = get(VkUserProfiles.FIRST_NAME, String::class.java),
