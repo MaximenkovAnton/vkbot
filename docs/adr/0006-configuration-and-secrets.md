@@ -15,7 +15,7 @@ system-промпты), а документация обещала env `DATABASE
 ## Решение
 
 Единственный production-конфиг — `src/app/src/main/resources/application.yml` плюс подключаемый
-`application-queues.yml` (`application.yml:21-22`, `quarkus.config.locations`). Копии из `src/infrastructure`
+`application-queues.yml` (`application.yml`, `quarkus.config.locations`). Копии из `src/infrastructure`
 удалены; уникальные ключи перенесены в app-конфиг.
 
 ### Ключи, которые читает код
@@ -24,7 +24,7 @@ system-промпты), а документация обещала env `DATABASE
 |---|---|---|
 | `vk.group.id` | `${VK_GROUP_ID}` | `VkLongPollOutputAdapter` (`groups.getLongPollServer`, ADR 0008) |
 | `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | `LongPollRunner` (старт опроса Bots Long Poll, ADR 0008) |
-| `vk.api.token` | `${VK_API_TOKEN}` | `application.yml:52` (заголовок `Authorization` для VK) |
+| `vk.api.token` | `${VK_API_TOKEN}` | `application.yml` (заголовок `Authorization` для VK) |
 | `vk.api.version` | `5.199` | `VkClient.kt:13`, `VkLongPollOutputAdapter.kt:99` (`v=` в каждом запросе VK) |
 | `vk.bot.id` | `${VK_BOT_ID}` | `IsRequireAnswerCommand.kt:17` |
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | `IsRequireAnswerCommand.kt:19` |
@@ -36,21 +36,21 @@ system-промпты), а документация обещала env `DATABASE
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | `ProcessSummaryCommandImpl.kt:22` |
 | `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | `VkClient` (`configKey = "vk"`, `VkClient.kt:12`) |
 | `quarkus.rest-client.vane.url` | `${VANE_URL}` | `VaneSearchClient` (`configKey = "vane"`, `VaneSearchClient.kt:11`) |
-| `quarkus.rest-client.vane.connect-timeout` / `read-timeout` | `30000` / `120000` | тот же клиент (`application.yml:56-57`) |
+| `quarkus.rest-client.vane.connect-timeout` / `read-timeout` | `30000` / `120000` | тот же клиент (`application.yml`) |
 | `quarkus.datasource.*` | `db-kind: postgresql`, DevServices, pool 2/2/20 | Agroal/jOOQ |
-| `quarkus.liquibase.*` | `migrate-at-start: true`, `db/changelog/db.changelog-master.yaml` | миграции (`application.yml:34-36`) |
+| `quarkus.liquibase.*` | `migrate-at-start: true`, `db/changelog/db.changelog-master.yaml` | миграции (`application.yml`) |
 | `quarkus.otel.logs/metrics/traces.enabled` | `true` | OpenTelemetry |
-| `mp.messaging.*` | очереди/обменники/retry | `application.yml:74-175` + `application-queues.yml:1-32` |
+| `mp.messaging.*` | очереди/обменники/retry | `application.yml` + `application-queues.yml:1-32` |
 | `dlq.levels[]` | `retry-count`, `queue-name`, `ttl-ms`, `exchange-name` | `DlqConfig.kt:6-16`, `EventDispatcher.kt:25-26` |
-| `smallrye.messaging.observation.enabled` | `true` | `application.yml:177-180` |
-| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг; OpenAI-совместимый провайдер: `openai.base-url` / `openai.api-key` / `openai.max-retries` / `openai.chat-model.model-name` (ADR 0007) | `application.yml:61-72` |
+| `smallrye.messaging.observation.enabled` | `true` | `application.yml` |
+| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг; OpenAI-совместимый провайдер: `openai.base-url` / `openai.api-key` / `openai.max-retries` / `openai.chat-model.model-name` (ADR 0007) | `application.yml` |
 
 Ключей `vk.secret`/`vk.confirmation-code` больше нет: Callback-эндпоинт удалён в ADR 0008, а вход событий VK
 идёт исходящим опросом Bots Long Poll через `vk.group.id` и `vk.longpoll.enabled`.
 
 ### Dev/test и prod
 
-- DevServices (PostgreSQL, RabbitMQ, LGTM) включены в `application.yml:25-28,58-60` и в тестовых
+- DevServices (PostgreSQL, RabbitMQ, LGTM) включены в `application.yml` и в тестовых
   профилях; production задаётся env. LLM больше не поднимается DevServices: это внешний
   OpenAI-совместимый endpoint (ADR 0007). Обязательные env для prod: `VK_GROUP_ID`,
   `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`,
@@ -76,12 +76,12 @@ system-промпты), а документация обещала env `DATABASE
 
 - Один файл конфигурации на деплой; второй копии нет.
 - Формально объявленный, но не связанный с кодом долг: блок `circuit-breaker.vk-profile`
-  (`application.yml:182-187`) и ключ `summary.system-prompt` (`application.yml:19`) никем не читаются.
+  (`application.yml`) и ключ `summary.system-prompt` (`application.yml`) никем не читаются.
   Это зафиксировано как долг; удаление или подключение — отдельная задача.
 - Наблюдаемость: OTel включён, Prometheus-endpoint **не** обещается (в сборке нет
   `quarkus-micrometer-registry-prometheus`).
 - Health-эндпоинты — стандартные Quarkus `/q/health`, `/q/health/ready`, `/q/health/live`
-  (расширение `quarkus-smallrye-health`, `src/app/build.gradle.kts:36`); `/health` из старого README не существует.
+  (расширение `quarkus-smallrye-health`, `src/app/build.gradle.kts:37`); `/health` из старого README не существует.
 
 ## Отклонённые альтернативы
 

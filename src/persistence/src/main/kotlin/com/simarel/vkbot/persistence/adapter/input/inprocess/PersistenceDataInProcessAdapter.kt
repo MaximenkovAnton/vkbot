@@ -4,13 +4,18 @@ import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.share.domain.vo.LongPollTs
+import com.simarel.vkbot.share.domain.vo.PeerId
+import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
 import com.simarel.vkbot.share.port.output.persistence.SaveLongPollTsPort
@@ -164,5 +169,55 @@ class SaveLongPollTsInProcessAdapter(
     override fun execute(request: SaveLongPollTsPort.Request): SaveLongPollTsPort.Response {
         persistenceDataInputPort.execute(PersistenceDataRequest.SaveLongPollTs(request.ts.value))
         return SaveLongPollTsPort.Response
+    }
+}
+
+@ApplicationScoped
+class FindUserProfilesByBirthDateInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindUserProfilesByBirthDatePort {
+    override fun execute(
+        request: FindUserProfilesByBirthDatePort.Request,
+    ): FindUserProfilesByBirthDatePort.Response {
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindUserProfilesByBirthDate(request.day, request.month),
+        )
+        return FindUserProfilesByBirthDatePort.Response((response as PersistenceDataResponse.UserProfiles).profiles)
+    }
+}
+
+@ApplicationScoped
+class FindUserChatPeerIdsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindUserChatPeerIdsPort {
+    override fun execute(request: FindUserChatPeerIdsPort.Request): FindUserChatPeerIdsPort.Response {
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.FindUserChatPeerIds(request.userId.value),
+        )
+        val peerIds = (response as PersistenceDataResponse.PeerIds).peerIds.map { PeerId.of(it) }.toSet()
+        return FindUserChatPeerIdsPort.Response(peerIds)
+    }
+}
+
+@ApplicationScoped
+class FindGroupChatPeerIdsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindGroupChatPeerIdsPort {
+    override fun execute(request: FindGroupChatPeerIdsPort.Request): FindGroupChatPeerIdsPort.Response {
+        val response = persistenceDataInputPort.execute(PersistenceDataRequest.FindGroupChatPeerIds)
+        val peerIds = (response as PersistenceDataResponse.PeerIds).peerIds.map { PeerId.of(it) }.toSet()
+        return FindGroupChatPeerIdsPort.Response(peerIds)
+    }
+}
+
+@ApplicationScoped
+class ClaimDailyGreetingInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : ClaimDailyGreetingPort {
+    override fun execute(request: ClaimDailyGreetingPort.Request): ClaimDailyGreetingPort.Response {
+        val response = persistenceDataInputPort.execute(
+            PersistenceDataRequest.ClaimDailyGreeting(request.date, request.peerId.value),
+        )
+        return ClaimDailyGreetingPort.Response((response as PersistenceDataResponse.Claimed).claimed)
     }
 }

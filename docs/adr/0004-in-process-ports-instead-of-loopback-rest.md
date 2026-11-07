@@ -59,7 +59,7 @@ REST-эндпоинты остаются публичным API модулей �
 - `CircuitBreaker` для VK API **не применён**: расширение `quarkus-smallrye-fault-tolerance` объявлено
   (`src/vk-facade/build.gradle.kts:21`), пакет называется `adapter/output/vk/circuitbreaker`, но ни одной
   аннотации `@CircuitBreaker`/`@Retry` в коде нет, а блок `circuit-breaker.vk-profile` в
-  `src/app/src/main/resources/application.yml:182-187` никем не читается. Это заявленный долг, а не
+  `src/app/src/main/resources/application.yml` никем не читается. Это заявленный долг, а не
   работающий механизм.
 
 ## Отклонённые альтернативы

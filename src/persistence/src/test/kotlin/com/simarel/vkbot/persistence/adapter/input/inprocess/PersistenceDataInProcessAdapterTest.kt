@@ -8,9 +8,11 @@ import com.simarel.vkbot.persistence.testfixtures.PersistenceDataRequestProvider
 import com.simarel.vkbot.persistence.testfixtures.PersistenceDataResponseProvider
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
+import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
 import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 import java.util.UUID
 
 class PersistenceDataInProcessAdapterTest {
@@ -211,6 +213,75 @@ class PersistenceDataInProcessAdapterTest {
             PersistenceDataRequestProvider.createSaveLongPollTsRequest(ts = "ts-2"),
             port.requests.single(),
         )
+    }
+
+    @Test
+    fun `find user profiles by birth date forwards day and month and returns profiles`() {
+        val profile = FakeModelProvider.createVkUserProfile(id = 5, firstName = "Ivan", lastName = "Petrov")
+        val port = RecordingPersistenceDataInputPort(
+            PersistenceDataResponseProvider.createUserProfilesResponse(listOf(profile)),
+        )
+        val adapter = FindUserProfilesByBirthDateInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakeGreetingPortProvider.createFindUserProfilesByBirthDateRequest(day = 12, month = 9),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserProfilesByBirthDateRequest(day = 12, month = 9),
+            port.requests.single(),
+        )
+        assertEquals(listOf(profile), response.profiles)
+    }
+
+    @Test
+    fun `find user chat peer ids maps the user id and returns peer ids`() {
+        val port = RecordingPersistenceDataInputPort(
+            PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001, 1_234_567)),
+        )
+        val adapter = FindUserChatPeerIdsInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakeGreetingPortProvider.createFindUserChatPeerIdsRequest(FakeVoProvider.createFromId(7)),
+        )
+
+        assertEquals(PersistenceDataRequestProvider.createFindUserChatPeerIdsRequest(7), port.requests.single())
+        assertEquals(
+            setOf(FakeVoProvider.createPeerId(2_000_000_001), FakeVoProvider.createPeerId(1_234_567)),
+            response.peerIds,
+        )
+    }
+
+    @Test
+    fun `find group chat peer ids returns group chat peer ids`() {
+        val port = RecordingPersistenceDataInputPort(
+            PersistenceDataResponseProvider.createPeerIdsResponse(setOf(2_000_000_001)),
+        )
+        val adapter = FindGroupChatPeerIdsInProcessAdapter(port)
+
+        val response = adapter.execute(FakeGreetingPortProvider.createFindGroupChatPeerIdsRequest())
+
+        assertEquals(PersistenceDataRequestProvider.createFindGroupChatPeerIdsRequest(), port.requests.single())
+        assertEquals(setOf(FakeVoProvider.createPeerId(2_000_000_001)), response.peerIds)
+    }
+
+    @Test
+    fun `claim daily greeting forwards date and peer id and returns claimed`() {
+        val port = RecordingPersistenceDataInputPort(
+            PersistenceDataResponseProvider.createClaimedResponse(claimed = true),
+        )
+        val adapter = ClaimDailyGreetingInProcessAdapter(port)
+
+        val response = adapter.execute(FakeGreetingPortProvider.createClaimDailyGreetingRequest())
+
+        assertEquals(
+            PersistenceDataRequestProvider.createClaimDailyGreetingRequest(
+                date = LocalDate.parse("2026-09-13"),
+                peerId = 2_000_000_001,
+            ),
+            port.requests.single(),
+        )
+        assertEquals(true, response.claimed)
     }
 
     private class RecordingPersistenceDataInputPort(

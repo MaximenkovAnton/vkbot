@@ -38,4 +38,12 @@ object PersistenceDataResponseProvider {
     fun createLongPollTsResponse(
         ts: String? = null,
     ) = PersistenceDataResponse.LongPollTs(ts = ts)
+
+    fun createPeerIdsResponse(
+        peerIds: Set<Long> = setOf(2_000_000_001),
+    ) = PersistenceDataResponse.PeerIds(peerIds = peerIds)
+
+    fun createClaimedResponse(
+        claimed: Boolean = true,
+    ) = PersistenceDataResponse.Claimed(claimed = claimed)
 }

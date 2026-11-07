@@ -12,8 +12,10 @@
 ./gradlew :src:ai:test --tests "*GenerateAnswerUsecaseTest*"  # один класс ai (в своём модуле)
 ./gradlew :src:processor:test --tests "*MessageReceivedUsecaseInputTest*"  # один класс (в своём модуле)
 ./gradlew :src:receiver:test --tests "*LongPollRunnerTest*"  # цикл Long Poll на fake-портах (без Docker)
+./gradlew :src:greetings:test                   # юнит-тесты поздравлений: расписание, правила, оркестрация, спан
 ./gradlew :src:app:test --tests "*AiIntegrationTest*"  # Quarkus-проводка ai (нужен Docker)
-./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (18 тестов)
+./gradlew :src:app:test --tests "*DailyGreetingsIntegrationTest*"  # поздравления на WireMock + PostgreSQL (нужен Docker)
+./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (22 теста)
 ./gradlew coverageReport                        # агрегированный HTML+XML отчёт
 ./gradlew coverageVerification                  # порог покрытия (входит в ./gradlew build)
 ```
@@ -22,13 +24,18 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено в проходе Bots Long Poll: `./gradlew build -x capabilitiesCheck` → `BUILD SUCCESSFUL in 1m 44s`,
-**147 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app — 15 (в т.ч.
-`AiIntegrationTest` — 8), ai — 62, receiver — 22, share — 8, vk-facade — 7, persistence — 11,
-infrastructure — 2, processor — 2, arch-tests — 18.
+Проверено в проходе `daily-greetings`: `./gradlew build` → `BUILD SUCCESSFUL in 1m 51s`, 180 задач,
+**252 теста, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app — 25 (в т.ч.
+`AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10), ai — 67 (15 классов), receiver — 22,
+share — 8, vk-facade — 16, persistence — 32 (2 класса), infrastructure — 2, processor — 2, greetings — 56
+(8 классов), arch-tests — 22.
+
+`./gradlew capabilitiesCheck` запускает `scripts/check-capabilities.sh` через POSIX-bash: на Windows задача
+ищет `bash.exe` Git for Windows, а при нестандартной установке путь задаётся `-PcapabilitiesBash=<path>` или
+`CAPABILITIES_BASH`; если кандидатов нет, задача падает с их перечнем, а не пропускает проверку.
 
 `src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt`
-в этом проходе выполняется (2 теста, 14 классов в `:src:ai`) — прежнее «класс не обнаруживается» из более
+выполняется (2 теста) — прежнее «класс не обнаруживается» из более
 раннего прохода не воспроизводится; если снова пропадёт из отчёта, проверять `--rerun-tasks` и кэш
 `build/test-results`.
 
@@ -36,15 +43,16 @@ infrastructure — 2, processor — 2, arch-tests — 18.
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `integration/VkLongPollIntegrationTest` (приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile` |
-| `ai` | 13 классов, 60 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2) |
+| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `integration/VkLongPollIntegrationTest` (приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 тестов — поздравления: план по чатам, ИИ, claim, отправка), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile` |
+| `ai` | 15 классов, 67 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (5) |
 | `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
-| `persistence` | `PersistenceDataInProcessAdapterTest` (11 тестов — маппинг всех in-process портов) |
+| `persistence` | `PersistenceDataInProcessAdapterTest` (15 тестов — маппинг всех in-process портов), `BirthDateMatcherTest` (17 — разбор `birth_date`) |
 | `processor` | `MessageReceivedUsecaseInputTest` |
-| `vk-facade` | `VkProfileInProcessAdapterTest`, `VkSendMessageOutputAdapterTest`, `PublishEventCommandImplTest`, `SendVkMessageCommandImplTest`, `MessageSendUsecaseTest` |
+| `vk-facade` | `VkProfileInProcessAdapterTest` (2), `SendGreetingMessageInProcessAdapterTest` (1), `VkSendMessageOutputAdapterTest` (2), `PublishEventCommandImplTest` (1), `SendVkMessageCommandImplTest` (1), `MessageSendUsecaseTest` (1), `PlainMessageSendUsecaseTest` (2 — плоская отправка), `RandomIdTest` (5 — детерминированный `random_id`), `SummaryReadyEventProcessorTest` (1) |
+| `greetings` | 8 классов, 56 тестов: `domain/NextRunTest` (6), `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (9), `usecase/RunDailyGreetingsUsecaseTest` (7), `adapter/input/schedule/DailyGreetingRunnerTest` (9) |
 | `share` | `MessageTextTest`, `ConversationMessageIdTest` |
 | `infrastructure` | `CommandLoggingDecoratorTest` |
-| `testing/arch-tests` | `ModuleDependenciesTest` (7), `LayerDependenciesTest` (5), `GradleDependenciesTest` (3), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1) |
+| `testing/arch-tests` | `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1) |
 
 Тестовые ресурсы: `src/app/src/test/resources/application.yaml` (базовый профиль `@QuarkusTest`),
 `application-integration-test.yaml` (профиль `integration-test`), `application.yml` (`%test`-настройки),
@@ -94,6 +102,7 @@ src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/
 │   └── FakeVoProvider.kt
 ├── objectProvider/ObjectMapperProvider.kt
 ├── port/
+│   ├── FakeGreetingPortProvider.kt
 │   ├── FakePersistencePortProvider.kt
 │   ├── FakeProfilePortProvider.kt
 │   └── output/vk/FakeVkSendMessageOutputProvider.kt
@@ -109,6 +118,9 @@ src/processor/src/testFixtures/kotlin/com/simarel/vkbot/processor/testfixtures/ 
   # FakeMessageNewInputPortProvider, FakeMessageReceivedInputPort
 src/ai/src/testFixtures/kotlin/com/simarel/vkbot/ai/testfixtures/   # FakeAnswerProvider, FakeSummaryProvider,
   # FakeVaneProvider, FakeConversationContextPortProvider
+src/greetings/src/testFixtures/kotlin/com/simarel/vkbot/greetings/testfixtures/  # FakeGreetingProvider
+src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/test/  # Fakes.kt (fake-порты, stateful claim, fake-часы),
+  # SystemLoggerCapture.kt (JUL-handler для WARN/ERROR)
 ```
 
 Модульные `testFixtures` подключаются только в test-конфигурациях — это проверяет
@@ -124,7 +136,7 @@ src/ai/src/testFixtures/kotlin/com/simarel/vkbot/ai/testfixtures/   # FakeAnswer
    - DTO под `**/adapter/output/**/dto/**`;
    - request/response под `**/port/**` и `**/command/**`, включая вложенные типы контрактов.
 2. Данные берутся из фабрики `*Provider`: общие типы (`share`, `vk-facade`) — в `:src:testing:test-fixtures`,
-   типы модуля — в его `<module>/src/testFixtures` (`ai`, `persistence`, `receiver`, `processor`). Фабрика —
+   типы модуля — в его `<module>/src/testFixtures` (`ai`, `persistence`, `receiver`, `processor`, `greetings`). Фабрика —
    единственное место, где эти типы создаются напрямую.
 3. У каждого параметра фабричного метода `create*` есть реалистичный дефолт; тест передаёт только поля,
    от которых зависит проверка.
@@ -150,6 +162,13 @@ src/ai/src/testFixtures/kotlin/com/simarel/vkbot/ai/testfixtures/   # FakeAnswer
   `createHasPendingSummaryRequest`, `createCreatePendingSummaryRequest`, `createSaveCompletedSummaryRequest`,
   `createMarkSummaryFailedRequest`, `createFindUserProfilesByIdsRequest`,
   `createFindGroupProfilesByIdsRequest`).
+- `port/FakeGreetingPortProvider.kt` — request/response-фабрики шести `share`-портов поздравлений
+  (`createFindUserProfilesByBirthDateRequest`, `createFindUserChatPeerIdsRequest`,
+  `createFindGroupChatPeerIdsRequest`, `createClaimDailyGreetingRequest`, `createGenerateGreetingTextRequest`,
+  `createSendGreetingMessageRequest` и соответствующие response).
+- `src/greetings/src/testFixtures/.../testfixtures/FakeGreetingProvider.kt` — контракты модуля
+  `daily-greetings`: `createGreetingPlan`, `createRunDailyGreetingsRequest/Response`,
+  `createCollectGreetingPlansRequest/Response`, `createGenerateGreetingTextCommandRequest/Response`.
 - `vkFacade/FakeVkFacadeProvider.kt` — `createVkError`, `createVkResponseDto`, `createVkProfileRequest`,
   `createVkProfileResponse`, `createVkSendMessageInputRequest`.
 - `command/FakeCommandProvider.kt` — `createRequest`, `createResponse`.
@@ -238,6 +257,16 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 проброс отказа модели, маппинг ответа Vane и `IllegalStateException` при отсутствии
 провайдера с chat- и embedding-моделью.
 
+`DailyGreetingsIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`) —
+10 тестов реальной проводки `daily-greetings`: PostgreSQL (DevServices) с профилями и сообщениями,
+засиженными через `JooqVkUserProfileRepository`/`JooqMessageRepository`, LLM (`/v1/chat/completions`) и VK API
+(`/method/messages.send`) под WireMock, прогон вызывается напрямую через `RunDailyGreetingsInputPort` — ручного
+REST-триггера нет. Покрыты: дни рождения в групповом чате и в личной переписке, Новый год только в групповых
+чатах, 256-й день для невисокосного и високосного года, одно сообщение на праздник и именинника, at-most-once
+`greeting_log` при последовательном и конкурентном повторе, шаблон при 500 от ИИ, тишина в день без событий,
+29.02 → 1 марта невисокосного года. Отправка проверяется по телу `messages.send`: `peer_id`, текст,
+`random_id` и отсутствие forward.
+
 `WireMockTestResource` подменяет HTTP-границу трёх клиентов: VK API (`quarkus.rest-client.vk.url`), Vane
 (`quarkus.rest-client.vane.url`) и LLM (`quarkus.langchain4j.openai.base-url`, `WireMockTestResource.kt:24-34`).
 Этого достаточно и для Long Poll: `groups.getLongPollServer` идёт в `/method`, а `a_check` — на `server` из
@@ -253,7 +282,7 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 |---|---|
 | `ModuleDependenciesTest` | каждый бизнес-модуль зависит только от `share`; `share` — ни от кого |
 | `LayerDependenciesTest` | L1 `domain`, L2 `port`, L3 `usecase`/`command`, L4 входные адаптеры, L5 выходные адаптеры |
-| `GradleDependenciesTest` | найдено 12 build-файлов; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
+| `GradleDependenciesTest` | найдено 13 build-файлов; обязательные рёбра `:src:app`/`:src:testing:arch-tests` → `:src:greetings` и membership в `coverageModules`; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
 | `TestDataFactoriesTest` | сторож правила тестовых данных: прямое создание в тестах и дефолты параметров фабрик (см. «Сторож правила») |
 | `DetektExcludesPathTest` | глобы `excludes` из `detekt-config.yml` не матчат main-исходники даже при чек-ауте в каталоге с именем `test` |
 
@@ -263,11 +292,11 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 
 ## Покрытие
 
-- Агрегат по 8 модулям (`ai, app, infrastructure, persistence, processor, receiver, share, vk-facade`),
-  `src/testing/*` исключён (`build.gradle.kts:22-31`).
-- Измерено: **line ratio 0.5043** (1057 покрытых из 2096 строк), instruction 0.5041, branch 0.4089;
-  `coverageMin = 0.40`, `measuredLineCoverage = 0.5043` (`build.gradle.kts:19-20`).
-- Порог включён в `check` → `build` (`build.gradle.kts:130-133`) и в CI-джоб `coverage`.
+- Агрегат по 9 модулям (`ai, app, greetings, infrastructure, persistence, processor, receiver, share,
+  vk-facade`), `src/testing/*` исключён (`build.gradle.kts:22-32`).
+- Измерено: **line ratio 0.5727** (1501 покрытая из 2621 строк), instruction 0.5758, branch 0.5026;
+  `coverageMin = 0.40`, `measuredLineCoverage = 0.5643` (`build.gradle.kts:19-20`).
+- Порог включён в `check` → `build` (`build.gradle.kts:156-159`) и в CI-джоб `coverage`.
 - Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), следующий целевой
   порог 0.60 — отдельная задача с новыми тестами (ADR 0005). Покрытие меряется по бизнес-коду, а не по glue.
 - Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.50,
@@ -280,4 +309,4 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
   проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
   plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`
-  (`build.gradle.kts:69-72`) — новый модуль без тестов не упадёт, но и не будет проверен.
+  (`build.gradle.kts:70-73`) — новый модуль без тестов не упадёт, но и не будет проверен.

@@ -18,6 +18,7 @@ VK-бот — один деплой (`:src:app`), который принима�
 | `journey-answer` — «Диалог с ботом»: участник пишет боту, бот отвечает в чате | `vk-long-poll` → `message-storage` → `answer-decision` → `ai-answer` → `vk-message-send`; транспорт событий — `event-dispatch`, имена участников даёт `vk-profiles`, веб-поиск внутри ответа — `ai-tools-vane` |
 | `journey-summary` — «Итог обсуждения»: бот подводит итог переписки и присылает его с forward-блоком | `message-storage` → `conversation-summary` → `vk-message-send`; транспорт событий — `event-dispatch` |
 | `journey-stored-data` — «Сохранённые данные по запросу»: внешний клиент читает переписку, саммари и профили | `message-storage` (REST `/persistence/*`) |
+| `journey-greetings` — «Поздравления по календарю»: в 00:00 бот поздравляет чаты с праздниками и днями рождения | `daily-greetings`: `message-storage` (чаты, профили, claim) → `ai-answer` (текст) → `vk-message-send` (плоская отправка); запускается таймером, без события RabbitMQ |
 
 ## Возможности
 
@@ -32,6 +33,7 @@ VK-бот — один деплой (`:src:app`), который принима�
 | [`vk-profiles`](vk-profiles.md) | получает профили пользователей и групп из VK API, отдаёт их по REST и in-process портам | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkFacadeController.kt:14-32`, `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` |
 | [`event-dispatch`](event-dispatch.md) | доставляет события через RabbitMQ: routing key = имя события, retry-лестница 5s→1h, финальный DLQ | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:63-111`, `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` |
 | [`ai-tools-vane`](ai-tools-vane.md) | даёт LLM три инструмента веб-поиска через Vane: `search_web`, `search_academic`, `search_discussions` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt:10-32`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25` |
+| [`daily-greetings`](daily-greetings.md) | раз в сутки в 00:00 собирает праздники и дни рождения и шлёт одно поздравление в чат; текст от ИИ, фолбэк — шаблон; at-most-once через `greeting_log` | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt`, `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/usecase/RunDailyGreetingsUsecase.kt` |
 
 ## Не отображено в карте и почему
 
@@ -39,7 +41,7 @@ VK-бот — один деплой (`:src:app`), который принима�
 |---|---|
 | OCR: `RecognizeImagesCommand`, `RecognizeImagesCommandImpl`, `ImageRecognitionOutputAdapter`, `OcrAiService` | кода достаточно (`src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/ocr/RecognizeImagesCommandImpl.kt:8-27`), но команду не вызывает ни один use case и у неё нет входного адаптера — недостижимая возможность, а не продуктовая |
 | `/q/health`, `/q/health/ready`, `/q/health/live` | даёт расширение `quarkus-smallrye-health` (`src/app/build.gradle.kts`), в дереве нет кода, который её реализует; точка входа — конфигурация платформы, не поведение продукта |
-| OpenTelemetry и observation брокера | только конфигурация расширений в `src/app/src/main/resources/application.yml`, собственного кода с трейсами/метриками нет |
+| OpenTelemetry и observation брокера | конфигурация расширений в `src/app/src/main/resources/application.yml`; собственный спан есть только у `daily-greetings` (`greetings.daily-run`), метрик и трейсов другого кода нет |
 | logging-декораторы `Command`/`Port` | сквозная инфраструктура без пользовательского поведения: `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/CommandLoggingDecorator.kt` |
 | канал `summary-ready-queue` | объявлен в `src/app/src/main/resources/application.yml`, но `@Incoming("summary-ready-queue")` в коде нет — мёртвая конфигурация, описана в `docs/development/configuration.md` |
 | `@QuarkusMain`-запуск | `src/app/src/main/kotlin/com/simarel/vkbot/app/Application.kt:6-12` — деплой, а не возможность продукта |

@@ -13,9 +13,9 @@ test -f src/app/build/quarkus-app/quarkus-run.jar   # smoke, входит в CI 
 test ! -e build/quarkus-app                          # второго раннера нет
 ```
 
-`./gradlew build` собирает все 11 модулей, прогоняет тесты, detekt, ktlintCheck и порог покрытия и
+`./gradlew build` собирает все 12 модулей, прогоняет тесты, detekt, ktlintCheck и порог покрытия и
 собирает Quarkus-артефакт (`:src:app:quarkusBuild` входит в `build`). Проверено в этом проходе:
-`BUILD SUCCESSFUL in 2m 4s`, 168 задач, артефакт на месте, корневого `build/quarkus-app` нет.
+`BUILD SUCCESSFUL in 2m 4s`, 180 задач, артефакт на месте, корневого `build/quarkus-app` нет.
 
 Структура `quarkus-app`: `app/`, `lib/`, `quarkus/`, `quarkus-run.jar`, `quarkus-app-dependencies.txt`.
 
@@ -68,7 +68,7 @@ docker run -p 8080:8080 \
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
 | `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — vLLM) |
-| `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари и OCR |
+| `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари, OCR и поздравления |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
@@ -77,7 +77,13 @@ docker run -p 8080:8080 \
 `VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
-`SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`.
+`AI_GREETING_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
+`GREETINGS_ENABLED` (дефолт `true`; `false` выключает ежедневный прогон поздравлений),
+`GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
+
+`GREETINGS_ENABLED=true` по умолчанию: первый прогон после деплоя — живой, в ближайшие 00:00 зоны
+`GREETINGS_TIMEZONE`. Гасят его at-most-once (`greeting_log`), один прогон в сутки и отсутствие
+ручного триггера; на время приёмки выставляйте `GREETINGS_ENABLED=false`.
 
 `VK_SECRET` и `VK_CONFIRMATION_CODE` из контракта деплоя удалены: Callback-эндпоинта нет, приём идёт
 опросом Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
@@ -144,10 +150,10 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 - Схема принадлежит `:src:persistence`; master-чейнджлог
   `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml` включает changesets
   `001-create-messages-table`, `002-create-user-profiles-table`, `003-create-group-profiles-table`,
-  `004-create-summaries-table`, `005-create-long-poll-position-table`.
+  `004-create-summaries-table`, `005-create-long-poll-position-table`, `006-create-greeting-log-table`.
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
-  `application.yml:34-36`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
-- Правило: **применённый changeset не редактируется**; следующий номер — `006`.
+  `application.yml`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
+- Правило: **применённый changeset не редактируется**; следующий номер — `007`.
 - Rollback-команд Liquibase в проекте нет: откат приложения — предыдущий образ, схема обязана быть
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - Порядок деплоя: сначала применить совместимую миграцию (новый образ при старте), затем переключить
@@ -191,7 +197,7 @@ DevServices поднимают PostgreSQL и RabbitMQ (нужен Docker); LLM �
 `AI_BASE_URL` (DevServices его больше не поднимают). В dev доступны dev-UI и hot reload. Публичного
 HTTP-входа у приложения нет: `/vk/callback` отвечает 404, события приходят опросом Bots Long Poll —
 приложение само обращается к VK (`VK_GROUP_ID` и `VK_API_TOKEN`). `SUMMARY_ENABLED_CHATS` опционален: без
-него (или с пустым значением) приложение стартует с выключенной саммаризацией (`application.yml:16`); в
+него (или с пустым значением) приложение стартует с выключенной саммаризацией (`application.yml`); в
 тестовых профилях задан `1,2,3`.
 
 ## Что не проверено в этом проходе

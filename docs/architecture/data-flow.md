@@ -56,7 +56,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 ## 2. Event routing (RabbitMQ)
 
 - Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
-  `application.yml:74-83`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+  `application.yml`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
 - `EventDispatcher.dispatch` (`EventDispatcher.kt:63-84`) читает `routingKey`, находит
   `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
 - Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:86-88`).
@@ -155,6 +155,38 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 - `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
 
+## 8. Поздравления по расписанию (greetings)
+
+```
+00:00 Europe/Minsk → DailyGreetingRunner (виртуальный поток, StartupEvent/ShutdownEvent)
+  → RunDailyGreetingsUsecase
+  → CollectGreetingPlansCommand: групповые чаты (peer_id > 2e9) + профили по (day, month) + чаты from_id
+  → GenerateGreetingTextCommand → GenerateGreetingTextPort (ИИ; детерминированный шаблон при отказе)
+  → ClaimDailyGreetingPort: INSERT … ON CONFLICT DO NOTHING в greeting_log
+  → SendGreetingMessagePort → PlainMessageSendUsecase → VK API messages.send
+```
+
+- **Расписание.** Цель — ближайшая полночь строго после `now` (`NextRun.after`) в зоне
+  `greetings.timezone` (дефолт `Europe/Minsk`); задержка пересчитывается в цикле ожидания, поэтому ранний
+  wake не теряет и не дублирует дату. Старт после 00:00 ждёт следующие сутки (catch-up нет); при
+  `greetings.enabled: false` поток не запускается.
+- **События.** Прогон запускается таймером, а не событием VK: новых значений `Event`, сообщений RabbitMQ и
+  HTTP-входов нет.
+- **План.** Праздники — 1 января и 256-й день года (все групповые чаты с перепиской); именинники — профили
+  из `vk_user_profiles.birth_date` на `(day, month)` даты, каждый в чаты из `messages.from_id` (включая
+  личные переписки). На 1 марта невисокосного года запрашиваются и `(1, 3)`, и `(29, 2)`; события одного
+  чата сливаются в один `GreetingPlan`.
+- **Текст.** `GenerateGreetingTextCommand` зовёт `GenerateGreetingTextPort` (`ai`, system-промпт
+  `aiGreetingSystemprompt`); при исключении или пустом ответе возвращается шаблон «праздники в порядке
+  enum + `С днём рождения, …!`» и пишется WARN.
+- **At-most-once.** Claim-строка `greeting_log` (PK `(greeting_date, peer_id)`) пишется до отправки:
+  повторный прогон даты получает `claimed = false` и не отправляет, два экземпляра проигрывают конфликт.
+  Цена — ошибка отправки сжигает чат на день (известное ограничение, ADR 0009).
+- **Изоляция.** Ошибка claim/отправки одного чата → ERROR-лог с `peerId`, учёт в `failed`, остальные чаты
+  продолжаются; `InterruptedException` (Shutdown) пробрасывается и завершает прогон.
+- **Отправка.** Плоская ветка `vk-facade`: `forwardedMessages = null`, `random_id` от текста и peer;
+  forward/reply-путь (`MessageSendUsecase`) не используется.
+
 ## Отказоустойчивость и границы
 
 | Механизм | Где | Что гарантирует |
@@ -191,16 +223,18 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
   `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
 - **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
   (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
-- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:182-187`),
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml`),
   аннотаций нет; защита VK API — только retry-лестница брокера.
 
 ## Observability
 
-- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml:37-44`);
+- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml`);
   экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
-- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:177-180`).
-- Собственного кода с `Tracer`, MDC или `MeterRegistry` в проекте нет — только конфигурация расширений и
-  logging-декораторы (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml`).
+- Собственный трейс есть только у `daily-greetings`: спан `greetings.daily-run` в
+  `DailyGreetingRunner.kt` с атрибутами `date`/`planned`/`sent`/`failed` и статусом `OK`/`ERROR`; метрик,
+  MDC и трейсов другого кода нет. Остальное — конфигурация расширений и logging-декораторы
+  (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
 
 ## Как добавить шаг в поток
 

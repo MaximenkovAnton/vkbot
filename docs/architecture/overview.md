@@ -45,6 +45,7 @@ VK Bot — **гексагональный монолит в одном депл�
   GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-127
   GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkFacadeController.kt:14-32
   RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-84
+  Таймер 00:00 (greetings.timezone) -> greetings/adapter/input/schedule/DailyGreetingRunner.kt
 
 Выход:
   RabbitMQ events-exchange   -> infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33
@@ -57,6 +58,9 @@ VK Bot — **гексагональный монолит в одном депл�
 In-process (без HTTP):
   ai -> persistence          -> share/port/output/persistence/*  <-  PersistenceDataInProcessAdapter.kt
   persistence -> vk-facade   -> share/port/output/vk/*           <-  VkProfileInProcessAdapter.kt
+  greetings -> persistence   -> share/port/output/persistence/*  <-  PersistenceDataInProcessAdapter.kt
+  greetings -> ai            -> share/port/output/ai/GenerateGreetingTextPort.kt <- GreetingTextOutputAdapter.kt
+  greetings -> vk-facade     -> share/port/output/vk/SendGreetingMessagePort.kt  <- SendGreetingMessageInProcessAdapter.kt
 ```
 
 ## Основной поток
@@ -93,6 +97,10 @@ persistence/PersistenceDataUsecase.saveCompletedSummary
 
 SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
     MessageSendUsecase с forward-блоком → VK API messages.send
+
+Таймер 00:00 ──> greetings/DailyGreetingRunner
+    RunDailyGreetingsUsecase: план (in-process persistence) → текст (in-process ai + шаблон)
+    → claim (in-process persistence) → плоская отправка (in-process vk-facade) → VK API messages.send
 ```
 
 Подробности шагов, payload'ов и отказоустойчивости — [data-flow.md](data-flow.md).
@@ -106,14 +114,14 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `Command<REQ,RESP>`; `EventProcessor` — единый вход консьюмера.
 - **Use case'ы**: `ReceiveMessageUsecase`, `SaveMessageUsecase`, `PersistenceDataUsecase`,
   `MessageReceivedUsecaseInput`, `GenerateAnswerUsecase`, `ProcessSummaryUsecase`, `GenerateSummaryUsecase`,
-  `MessageSendUsecase`, `VkProfileUsecase`.
+  `MessageSendUsecase`, `PlainMessageSendUsecase`, `VkProfileUsecase`, `RunDailyGreetingsUsecase`.
 - **Команды**: `PublishVkEventCommand`, `PublishEventCommand`, `IsRequireAnswerCommand`,
   `FetchUserProfileCommand`, `GenerateAnswerCommand`, `GenerateSummaryCommand`, `ProcessSummaryCommand`,
   `RecognizeImagesCommand` (реализована, ни к одному use case не подключена), `SendVkMessageCommand`,
-  `GetProfileCommand`, `VaneSearchCommand`.
-- **Адаптеры**: входные — `LongPollRunner` (опрос VK), REST-контроллеры, `@Incoming`-процессоры,
-  in-process адаптеры; выходные — jOOQ-репозитории, VK REST client, LangChain4j AI-сервисы, Vane client,
-  Jackson-сериализация.
+  `GetProfileCommand`, `VaneSearchCommand`, `CollectGreetingPlansCommand`, `GenerateGreetingTextCommand`.
+- **Адаптеры**: входные — `LongPollRunner` (опрос VK), `DailyGreetingRunner` (таймер 00:00),
+  REST-контроллеры, `@Incoming`-процессоры, in-process адаптеры; выходные — jOOQ-репозитории,
+  VK REST client, LangChain4j AI-сервисы, Vane client, Jackson-сериализация.
 - **Инфраструктура**: `EventDispatcher` (маршрутизация по routing key = имя события, retry, DLQ),
   `PublishEventOutputAdapter`, logging-декораторы, `DlqConfig`, `MapperConfig`.
 

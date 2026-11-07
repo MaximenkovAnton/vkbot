@@ -7,6 +7,7 @@ import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.port.input.InputPort
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
+import java.time.LocalDate
 import java.util.UUID
 
 interface PersistenceDataInputPort : InputPort<PersistenceDataRequest, PersistenceDataResponse>
@@ -44,6 +45,10 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class FindGroupProfilesByIds(val ids: List<Long>) : PersistenceDataRequest
     data object FindLongPollTs : PersistenceDataRequest
     data class SaveLongPollTs(val ts: String) : PersistenceDataRequest
+    data class FindUserProfilesByBirthDate(val day: Int, val month: Int) : PersistenceDataRequest
+    data class FindUserChatPeerIds(val userId: Long) : PersistenceDataRequest
+    data object FindGroupChatPeerIds : PersistenceDataRequest
+    data class ClaimDailyGreeting(val date: LocalDate, val peerId: Long) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -55,4 +60,6 @@ sealed interface PersistenceDataResponse : InputPortResponse {
     data class UserProfiles(val profiles: List<VkUserProfile>) : PersistenceDataResponse
     data class GroupProfiles(val profiles: List<VkGroupProfile>) : PersistenceDataResponse
     data class LongPollTs(val ts: String?) : PersistenceDataResponse
+    data class PeerIds(val peerIds: Set<Long>) : PersistenceDataResponse
+    data class Claimed(val claimed: Boolean) : PersistenceDataResponse
 }

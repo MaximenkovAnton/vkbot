@@ -64,4 +64,22 @@ open class JooqMessageRepository {
             }
         }
     }
+
+    open fun findPeerIdsByFromId(fromId: Long): Set<Long> = dsl.selectDistinct(Messages.PEER_ID)
+        .from(Messages.TABLE)
+        .where(Messages.FROM_ID.eq(fromId))
+        .fetch()
+        .map { it.get(Messages.PEER_ID, Long::class.java) }
+        .toSet()
+
+    open fun findGroupPeerIds(): Set<Long> = dsl.selectDistinct(Messages.PEER_ID)
+        .from(Messages.TABLE)
+        .where(Messages.PEER_ID.gt(GROUP_CHAT_PEER_ID_START))
+        .fetch()
+        .map { it.get(Messages.PEER_ID, Long::class.java) }
+        .toSet()
+
+    companion object {
+        private const val GROUP_CHAT_PEER_ID_START = 2_000_000_000L
+    }
 }

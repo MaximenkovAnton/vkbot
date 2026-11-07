@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-greeting-log-table
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: greeting_log
+            columns:
+              - column:
+                  name: greeting_date
+                  type: DATE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            tableName: greeting_log
+            columnNames: greeting_date, peer_id
+            constraintName: pk_greeting_log

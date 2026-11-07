@@ -24,12 +24,13 @@
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
 | `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-127` |
 | контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:18-90` |
-| 11 in-process адаптеров `share`-портов чтения/записи саммари и позиции `ts` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-168` |
-| реализация 11 операций и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
+| 15 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека и claim поздравления | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
+| реализация 15 операций и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
 | запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:12-55` |
 | jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-64`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:19-66`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
+| claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
 | профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:26-95` |
 
 ## Данные, которыми владеет
@@ -39,29 +40,36 @@
 - `messages` — сообщение, `forwarded_messages` как `JSONB`, индексы по `from_id`, `peer_id`, `date`;
 - `vk_user_profiles` — профиль пользователя, индекс по `last_updated`;
 - `vk_group_profiles` — профиль группы (id хранится отрицательным), индекс по `last_updated`;
-- `summaries` — `PENDING`/`COMPLETED`/`FAILED`, диапазон сообщений, short/full, индексы по `peer_id`.
+- `summaries` — `PENDING`/`COMPLETED`/`FAILED`, диапазон сообщений, short/full, индексы по `peer_id`;
+- `greeting_log` — одна строка на `(greeting_date, peer_id)` (PK), признак «поздравление за этот день уже
+  отправлено»; пишется модулем `daily-greetings` через `ClaimDailyGreetingPort`, схема — здесь.
 
 Миграции: `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml`,
 `src/persistence/src/main/resources/db/changelog/changes/001-create-messages-table.yaml`,
 `.../002-create-user-profiles-table.yaml`, `.../003-create-group-profiles-table.yaml`,
-`.../004-create-summaries-table.yaml`. Смысл данных делят другие возможности: профили — `vk-profiles`,
-саммари — `conversation-summary`, а схема остаётся здесь (см. таблицу ниже).
+`.../004-create-summaries-table.yaml`, `.../005-create-long-poll-position-table.yaml`,
+`.../006-create-greeting-log-table.yaml`. Смысл данных делят другие возможности: профили — `vk-profiles`,
+саммари — `conversation-summary`, поздравления — `daily-greetings`; схема остаётся здесь (см. таблицу ниже).
 
 ## Journey
 
 - `journey-answer`, шаг 2: сохранение входящего сообщения и профилей.
 - `journey-summary`, шаг 1: хранилище сообщений и записей саммари.
 - `journey-stored-data`: REST `/persistence/*` — единственный публичный читающий API деплоя.
+- `journey-greetings`: чтение групповых чатов и чатов именинника, профили по `(day, month)` и claim
+  `greeting_log` — шаги 1 и 3 этого пути.
 
 ## Общие данные и контракты
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| таблица `messages` | `ai-answer` (контекст ответа), `conversation-summary` (выборка для саммари) | `message-storage` |
+| таблица `messages` | `ai-answer` (контекст ответа), `conversation-summary` (выборка для саммари), `daily-greetings` (чаты, где писал именинник) | `message-storage` |
 | читающая модель `StoredMessage` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt`) | `ai-answer`, `conversation-summary` | `message-storage` |
-| таблицы `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary` (читают имена) | `message-storage` — схема, jOOQ, Liquibase |
+| таблица `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary`, `daily-greetings` (профили по дате рождения) | `message-storage` — схема, jOOQ, Liquibase |
 | таблица `summaries` и статусы | `conversation-summary` (создаёт pending, завершает, помечает failed) | `message-storage` — схема, jOOQ, Liquibase |
-| `PersistenceDataInputPort` | REST-контроллер и 9 in-process адаптеров | `message-storage` |
+| `PersistenceDataInputPort` | REST-контроллер и 15 in-process адаптеров | `message-storage` |
+| таблица `greeting_log` и семантика claim | `daily-greetings` (вызывает `ClaimDailyGreetingPort`) | `message-storage` — схема, jOOQ, Liquibase |
+| `vk_user_profiles.birth_date` | `daily-greetings` читает через `FindUserProfilesByBirthDatePort`; заполняет `vk-profiles` | `message-storage` — схема |
 | события `MESSAGE_RECEIVED`, `SUMMARY_REQUESTED`, `SUMMARY_READY` | `answer-decision`/`ai-answer` (`MESSAGE_RECEIVED`), `conversation-summary` (`SUMMARY_REQUESTED`, `SUMMARY_READY`) | `message-storage` — единственный публикатор этих трёх |
 
 ## Зависит от

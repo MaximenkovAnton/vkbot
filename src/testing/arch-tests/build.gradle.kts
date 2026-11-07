@@ -12,6 +12,7 @@ dependencies {
 
     implementation(project(":src:ai"))
     implementation(project(":src:app"))
+    implementation(project(":src:greetings"))
     implementation(project(":src:share"))
     implementation(project(":src:infrastructure"))
     implementation(project(":src:vk-facade"))

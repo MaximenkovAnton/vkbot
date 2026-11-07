@@ -6,9 +6,10 @@
 ## Что делает
 
 Отдаёт профили пользователей и групп: батчем по списку id из VK API (`users.get`, `groups.getById`) через
-публичный REST и через in-process порты `share`, которыми пользуется `message-storage` при сохранении
-сообщения. Группы нормализуются к отрицательному id: запрос уходит с `-id`, ответ возвращается как `-id`
-(`VkGetGroupProfilesBatchAdapter`). Ошибка VK — `VkApiException`.
+публичный REST и через in-process порты `share`, которыми пользуются `message-storage` при сохранении
+сообщения и `daily-greetings` при чтении профилей по дате рождения. Группы нормализуются к отрицательному
+id: запрос уходит с `-id`, ответ возвращается как `-id` (`VkGetGroupProfilesBatchAdapter`). Ошибка VK —
+`VkApiException`.
 
 Кэша и TTL нет: поле `lastUpdated` есть в модели и колонке, но логики устаревания в коде нет; отсутствующие
 профили запрашиваются каждый раз, когда их нет в локальной таблице.
@@ -39,13 +40,15 @@
 
 - `journey-answer` — поддержка: имена участников в контексте ответа.
 - `journey-summary` — поддержка: имена авторов в тексте саммари.
+- `journey-greetings` — поддержка: имя именинника из `VkUserProfile` (поля профиля рендерит
+  `daily-greetings`).
 - Отдельный внешний вход: REST `/api/profiles/*` для клиентов, которым нужны профили без ответа бота.
 
 ## Общие данные и контракты
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| `VkUserProfile`, `VkGroupProfile` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`, `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена) | `vk-profiles` |
+| `VkUserProfile`, `VkGroupProfile` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`, `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена), `daily-greetings` (имя именинника) | `vk-profiles` |
 | `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` | `message-storage` (`FetchUserProfileCommandImpl`) | `vk-profiles` |
 | таблицы `vk_user_profiles`/`vk_group_profiles` | `message-storage` пишет их своими портами | `message-storage` |
 | `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 0006) |

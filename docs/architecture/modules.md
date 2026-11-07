@@ -1,14 +1,14 @@
 # Модульная структура
 
-11 Gradle-модулей (`settings.gradle.kts:22-32`), один деплой — `:src:app`
+12 Gradle-модулей (`settings.gradle.kts:22-33`), один деплой — `:src:app`
 ([ADR 0002](../adr/0002-single-deployable-app-module.md)). Модули — горизонтальные бизнес-модули вокруг
-общего ядра `share`; фичи (приём событий VK, ответ, саммари, профили) — вертикали внутри них. Компилятор делает
+общего ядра `share`; фичи (приём событий VK, ответ, саммари, профили, поздравления) — вертикали внутри них. Компилятор делает
 неправильный импорт ошибкой сборки, а ArchUnit-тесты проверяют правила слоёв
 ([ADR 0003](../adr/0003-module-boundaries-and-layer-rules.md)).
 
 ## Разрешённый граф зависимостей
 
-Production-зависимости (`GradleDependenciesTest.kt:35-65`):
+Production-зависимости (`GradleDependenciesTest`):
 
 ```
 share            -> (никого)
@@ -18,7 +18,8 @@ ai               -> share
 persistence      -> share
 vk-facade        -> share
 infrastructure   -> share
-app              -> ai, share, infrastructure, persistence, vk-facade, processor, receiver
+greetings        -> share
+app              -> ai, greetings, share, infrastructure, persistence, vk-facade, processor, receiver
 testing/test-fixtures -> share, vk-facade
 testing/test-common   -> (никого)
 testing/arch-tests    -> все бизнес-модули + app
@@ -40,9 +41,10 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
     `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
     `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
-  - исходящие порты: 9 `persistence`-портов для сообщений и саммари, 2 — для позиции Long Poll
-    (`FindLongPollTsPort`, `SaveLongPollTsPort`) и 2 vk (`share/port/output/vk/`) — каждый
-    `OutputPort<REQ,RESP>` с одной операцией;
+  - исходящие порты: 13 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
+    поздравления), 2 — для позиции Long Poll (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai
+    (`GenerateGreetingTextPort`) и 3 vk (`share/port/output/vk/`, включая `SendGreetingMessagePort`) —
+    каждый `OutputPort<REQ,RESP>` с одной операцией;
   - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt`.
 - **Зависимости:** нет проектных (только библиотеки: Jakarta CDI, Quarkus core/arc, RabbitMQ messaging,
   Jackson, REST client — `src/share/build.gradle.kts:16-33`).
@@ -77,17 +79,20 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-127`, контракт —
     `PersistenceService.kt:18-79` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:81-90`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
-  - in-process: `PersistenceDataInProcessAdapter.kt` — 11 классов-адаптеров share-портов
-    (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`), делегируют в `PersistenceDataInputPort`;
+  - in-process: `PersistenceDataInProcessAdapter.kt` — 15 классов-адаптеров share-портов
+    (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
+    `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`), делегируют в
+    `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
-  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (11 операций; публикует `SUMMARY_READY` при
+  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (15 операций; публикует `SUMMARY_READY` при
   сохранении завершённого саммари, `:132-144`), `FetchUserProfileCommandImpl.kt:15-96` (сначала локальные
   профили, недостающие — через in-process vk-порты), `JooqConfig.kt:11-20`,
   jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
-  `JooqLongPollPositionRepository` — одна строка `long_poll_position`), таблицы `.../jooq/Tables.kt:6-64`,
-  changeset `005-create-long-poll-position-table`, порты `persistence/port/output/persistence/` и
-  `ForwardedMessagesSerializationPort.kt:8-16`.
+  `JooqLongPollPositionRepository` — одна строка `long_poll_position`, и `JooqGreetingLogRepository` —
+  claim `greeting_log`), таблицы `.../jooq/Tables.kt`, changesets
+  `005-create-long-poll-position-table`/`006-create-greeting-log-table`, порты
+  `persistence/port/output/persistence/` и `ForwardedMessagesSerializationPort.kt:8-16`.
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
@@ -105,12 +110,14 @@ Test-scope рёбра (не входят в production-граф, разреше�
 
 ## `ai` — ответы, саммаризация, OCR, Vane
 
-- **Ответственность:** генерация AI-ответа, саммаризация переписки, OCR-команда, веб-инструменты Vane;
-  потребление `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`, публикация `ANSWER_MESSAGE`.
+- **Ответственность:** генерация AI-ответа, саммаризация переписки, текст поздравлений, OCR-команда,
+  веб-инструменты Vane; потребление `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`, публикация
+  `ANSWER_MESSAGE`; in-process `GenerateGreetingTextPort` для `greetings`.
 - **Публичный API:**
   - MQ-входы: `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28`;
   - входы use case: `port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt`,
-    `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`.
+    `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`;
+  - in-process: `adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` — `GenerateGreetingTextPort`.
 - **Ключевые классы:**
   - ответ: `GenerateAnswerUsecase.kt:16-41` → `GenerateAnswerCommand.kt:14-48` (контекст через
     `ConversationContextOutputPort` + LLM через `GenerateAnswerOutputPort`); контекст —
@@ -123,27 +130,48 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `VaneSearchCommand` → `VaneSearchOutputAdapter.kt:10-72` (выбор провайдера) →
     `VaneSearchClient.kt:11-25` (`/api/search`, `/api/providers`);
   - OCR: `RecognizeImagesCommandImpl.kt:8-27`, `ImageRecognitionOutputAdapter.kt:12-38`, `OcrAiService.kt:9-46`;
+  - поздравления: `GreetingAiService.kt` (`@RegisterAiService`, `@SystemMessage("{config:aiGreetingSystemprompt}")`)
+    + `GreetingTextOutputAdapter.kt` (`GenerateGreetingTextPort`, формат даты и списков);
   - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
 - **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
   провайдер (`quarkus-langchain4j-openai`, ADR 0007) (`src/ai/build.gradle.kts:14-46`).
 
 ## `vk-facade` — выход в VK API и профили
 
-- **Ответственность:** отправка сообщений в VK, получение профилей, публичный REST профилей, in-process
-  реализация share-портов vk; потребление `ANSWER_MESSAGE`/`SUMMARY_READY`.
+- **Ответственность:** отправка сообщений в VK (forward-ветка и плоская ветка), получение профилей,
+  публичный REST профилей, in-process реализация share-портов vk; потребление `ANSWER_MESSAGE`/
+  `SUMMARY_READY`.
 - **Публичный API:**
   - REST: `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` — `VkFacadeController.kt:14-32`;
   - MQ-входы: `SendMessageEventProcessor.kt:12-22` (`ANSWER_MESSAGE`),
     `SummaryReadyEventProcessor.kt:18-57` (`SUMMARY_READY`, формирует forward-блок);
   - in-process: `VkProfileInProcessAdapter.kt:8-36` — 2 адаптера `GetUserProfilesBatchPort`/
-    `GetGroupProfilesBatchPort` через `VkProfileInputPort`;
-  - входы: `port/input/vk/{VkSendMessageInputPort,VkProfileInputPort}.kt`.
+    `GetGroupProfilesBatchPort` через `VkProfileInputPort`; `SendGreetingMessageInProcessAdapter.kt` —
+    `SendGreetingMessagePort` через `VkSendPlainMessageInputPort`;
+  - входы: `port/input/vk/{VkSendMessageInputPort,VkSendPlainMessageInputPort,VkProfileInputPort}.kt`.
 - **Ключевые классы:** `MessageSendUsecase.kt:15-44` (peer_id/message/forward/random_id),
+  `PlainMessageSendUsecase.kt` (плоская отправка: `forwardedMessages = null`, `random_id` от текста и peer),
+  `RandomId.kt` (две формулы: ответ — текст+peer+дата, плоская — текст+peer),
   `VkProfileUsecase.kt:9-21`, `SendVkMessageCommandImpl.kt:8-19`, `VkSendMessageOutputAdapter.kt:12-29`
   (ошибка VK → `VkException`), `GetProfileAdapter.kt:12-73` (VK `users.get`/`groups.getById`; группы
   хранятся с отрицательным id), `VkClient.kt:12-39` (`configKey = "vk"`, `v=${vk.api.version}`,
   `disable_mentions`, `dont_parse_links`).
 - **Сборка:** `share`, REST/REST client, fault-tolerance, RabbitMQ (`src/vk-facade/build.gradle.kts:13-23`).
+
+## `greetings` — поздравления по расписанию 00:00
+
+- **Ответственность:** ежедневный прогон поздравлений в 00:00 своей зоны (по умолчанию `Europe/Minsk`);
+  правила праздников и дней рождения; одно сообщение на чат; at-most-once через claim; текст ИИ с
+  шаблоном-фолбэком; спан `greetings.daily-run`. Запускается таймером, событий RabbitMQ и HTTP-входов нет.
+- **Публичный API:** `port/input/RunDailyGreetingsInputPort.kt` (`Request(date)` → `Response(planned, sent,
+  failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Observes StartupEvent`/`ShutdownEvent`,
+  виртуальный поток, ключи `greetings.enabled`/`greetings.timezone`).
+- **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → generate → claim → send; ошибка одного
+  чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt` (групповые чаты + профили по
+  дате рождения, слияние и дедупликация имён), `command/text/GenerateGreetingTextCommand.kt` (ИИ +
+  детерминированный шаблон), `domain/{Holidays,BirthdayDates,NameFormatter,NextRun,GreetingPlan,Holiday}.kt`.
+- **Сборка:** `share`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
+  (`src/greetings/build.gradle.kts`).
 
 ## `infrastructure` — брокер и декораторы
 
@@ -164,7 +192,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Ответственность:** единственный Quarkus-деплой, runtime-конфигурация, интеграционные тесты.
 - **Публичный API:** `@QuarkusMain` — `app/Application.kt:6-12`; конфиги
   `src/app/src/main/resources/{application.yml,application-queues.yml}`.
-- **Сборка:** все 6 бизнес-модулей + share (`src/app/build.gradle.kts:16-22`), deployable-расширения
+- **Сборка:** все 7 бизнес-модулей + share (`src/app/build.gradle.kts:16-23`), deployable-расширения
   (`:25-36`).
 
 ## `testing/test-fixtures`, `testing/test-common`, `testing/arch-tests`
@@ -175,7 +203,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   Модуль зависит от `share` и `vk-facade`, но подключается только в test-конфигурациях.
 - **`test-common`** — общий тестовый `application.yaml` (`vk.*`, `vane.url`, DevServices off).
 - **`arch-tests`** — `ModuleDependenciesTest` (модуль видит только share), `LayerDependenciesTest` (L1–L5),
-  `GradleDependenciesTest` (allowlist, 12 build-файлов, testing-модули только в тестах). Подключает все
+  `GradleDependenciesTest` (allowlist, 13 build-файлов, testing-модули только в тестах). Подключает все
   модули + `app` и передаёт тесту корень репозитория (`systemProperty("project.root", rootDir.absolutePath)`).
 
 ## Межмодульное взаимодействие
@@ -200,7 +228,10 @@ Test-scope рёбра (не входят в production-граф, разреше�
 |---|---|---|
 | 9 `port/output/persistence/*` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-144` | `ai` (`GenerateSummaryCommandImpl.kt:7-12`, `ConversationContextRestAdapter.kt:22-26`) |
 | `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
+| `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |
+| `GenerateGreetingTextPort` | `ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` | `greetings` (`GenerateGreetingTextCommand`) |
+| `SendGreetingMessagePort` | `vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt` | `greetings` (`RunDailyGreetingsUsecase`) |
 
 Проводка валидируется ArC на этапе сборки деплоя и полным интеграционным тестом
 (`VkLongPollIntegrationTest.kt`).

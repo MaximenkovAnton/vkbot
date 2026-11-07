@@ -6,12 +6,16 @@ import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastSummaryByPeerIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
@@ -47,6 +51,10 @@ open class PersistenceDataUsecase(
     private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort,
     private val findLongPollTsPort: FindLongPollTsPort,
     private val saveLongPollTsPort: SaveLongPollTsPort,
+    private val findUserProfilesByBirthDatePort: FindUserProfilesByBirthDatePort,
+    private val findUserChatPeerIdsPort: FindUserChatPeerIdsPort,
+    private val findGroupChatPeerIdsPort: FindGroupChatPeerIdsPort,
+    private val claimDailyGreetingPort: ClaimDailyGreetingPort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -67,6 +75,10 @@ open class PersistenceDataUsecase(
             saveLongPollTsPort.execute(SaveLongPollTsPort.SaveLongPollTsRequest(request.ts))
             PersistenceDataResponse.Empty
         }
+        is PersistenceDataRequest.FindUserProfilesByBirthDate -> handleFindUserProfilesByBirthDate(request)
+        is PersistenceDataRequest.FindUserChatPeerIds -> handleFindUserChatPeerIds(request)
+        is PersistenceDataRequest.FindGroupChatPeerIds -> handleFindGroupChatPeerIds()
+        is PersistenceDataRequest.ClaimDailyGreeting -> handleClaimDailyGreeting(request)
     }
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
@@ -184,6 +196,38 @@ open class PersistenceDataUsecase(
             FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest(request.ids.map { FromId.of(it) }),
         ).profiles
         return PersistenceDataResponse.GroupProfiles(profiles)
+    }
+
+    private fun handleFindUserProfilesByBirthDate(
+        request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+    ): PersistenceDataResponse.UserProfiles {
+        val profiles = findUserProfilesByBirthDatePort.execute(
+            FindUserProfilesByBirthDatePort.FindUserProfilesByBirthDateRequest(request.day, request.month),
+        ).profiles
+        return PersistenceDataResponse.UserProfiles(profiles)
+    }
+
+    private fun handleFindUserChatPeerIds(
+        request: PersistenceDataRequest.FindUserChatPeerIds,
+    ): PersistenceDataResponse.PeerIds {
+        val peerIds = findUserChatPeerIdsPort.execute(
+            FindUserChatPeerIdsPort.FindUserChatPeerIdsRequest(FromId.of(request.userId)),
+        ).peerIds
+        return PersistenceDataResponse.PeerIds(peerIds.map { it.value }.toSet())
+    }
+
+    private fun handleFindGroupChatPeerIds(): PersistenceDataResponse.PeerIds {
+        val peerIds = findGroupChatPeerIdsPort.execute(FindGroupChatPeerIdsPort.FindGroupChatPeerIdsRequest).peerIds
+        return PersistenceDataResponse.PeerIds(peerIds.map { it.value }.toSet())
+    }
+
+    private fun handleClaimDailyGreeting(
+        request: PersistenceDataRequest.ClaimDailyGreeting,
+    ): PersistenceDataResponse.Claimed {
+        val claimed = claimDailyGreetingPort.execute(
+            ClaimDailyGreetingPort.ClaimDailyGreetingRequest(request.date, PeerId.of(request.peerId)),
+        ).claimed
+        return PersistenceDataResponse.Claimed(claimed)
     }
 
     companion object {

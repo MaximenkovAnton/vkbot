@@ -21,6 +21,7 @@ rootProject.name = "vkbot"
 
 include("src:ai")
 include("src:app")
+include("src:greetings")
 include("src:infrastructure")
 include("src:persistence")
 include("src:processor")

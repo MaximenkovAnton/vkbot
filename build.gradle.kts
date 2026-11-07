@@ -16,12 +16,13 @@ repositories {
     mavenLocal()
 }
 
-val measuredLineCoverage = 0.5043
+val measuredLineCoverage = 0.5643
 val coverageMin = 0.40
 
 val coverageModules = listOf(
     "src:ai",
     "src:app",
+    "src:greetings",
     "src:infrastructure",
     "src:persistence",
     "src:processor",
@@ -124,7 +125,32 @@ val coverageVerification = tasks.register<org.gradle.testing.jacoco.tasks.Jacoco
 val capabilitiesCheck = tasks.register<Exec>("capabilitiesCheck") {
     group = "verification"
     description = "Fails when docs/capabilities references a path, a test or an ADR id that no longer exists."
-    commandLine("bash", "scripts/check-capabilities.sh")
+    doFirst {
+        commandLine(resolveCapabilitiesBash(project), "scripts/check-capabilities.sh")
+    }
+}
+
+fun resolveCapabilitiesBash(project: Project): String {
+    val override = project.providers.gradleProperty("capabilitiesBash")
+        .orElse(project.providers.environmentVariable("CAPABILITIES_BASH"))
+        .orNull
+    if (override != null) {
+        return override
+    }
+    if (!System.getProperty("os.name").lowercase().contains("windows")) {
+        return "bash"
+    }
+    val candidates = listOfNotNull(
+        "C:\\Program Files\\Git\\bin\\bash.exe",
+        "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+        "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+        System.getenv("LOCALAPPDATA")?.let { "$it\\Programs\\Git\\bin\\bash.exe" },
+    )
+    return candidates.firstOrNull { java.io.File(it).isFile }
+        ?: throw org.gradle.api.GradleException(
+            "No POSIX bash found for capabilitiesCheck. Tried: $candidates. " +
+                "Set -PcapabilitiesBash=<path> or CAPABILITIES_BASH.",
+        )
 }
 
 tasks.named("check") {
