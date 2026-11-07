@@ -26,12 +26,13 @@
 |---|---|---|
 | [0001](adr/0001-stack-kotlin-quarkus-gradle.md) | Kotlin 2.3.0 + Gradle 9.3.0 + Quarkus 3.34.2 + JDK 21; один источник версии Quarkus | accepted |
 | [0002](adr/0002-single-deployable-app-module.md) | Один деплой `:src:app`; корень — агрегатор | accepted |
-| [0003](adr/0003-module-boundaries-and-layer-rules.md) | 11 модулей, правила слоёв L1–L6, CDI как composition root | accepted |
+| [0003](adr/0003-module-boundaries-and-layer-rules.md) | 12 модулей, правила слоёв L1–L6, CDI как composition root | accepted |
 | [0004](adr/0004-in-process-ports-instead-of-loopback-rest.md) | In-process порты вместо loopback-REST; события — RabbitMQ | accepted |
 | [0005](adr/0005-quality-gates-and-ci.md) | detekt/ktlint/JaCoCo-порог/ArchUnit и пять джобов CI | accepted |
 | [0006](adr/0006-configuration-and-secrets.md) | Один конфиг в `:src:app`, env для секретов; дубли конфига и loopback-ключи удалены, оставшиеся мёртвые ключи — долг | accepted |
 | [0007](adr/0007-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API (`quarkus-langchain4j-openai`), env `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY` | accepted |
 | [0008](adr/0008-bots-long-poll-transport.md) | Приём событий VK — Bots Long Poll (`groups.getLongPollServer` + `a_check`), позиция `ts` в PostgreSQL; Callback, `vk.secret`/`vk.confirmation-code` удалены | accepted |
+| [0009](adr/0009-daily-greetings.md) | Ежедневные поздравления по cron-расписанию Quarkus (`greetings.cron`/`greetings.timezone`), отдельное сообщение на праздник и одно на именинников чата, at-most-once через `greeting_log`, шаблон-фолбэк, известные ограничения | accepted |
 
 ## Продуктовая карта
 

@@ -19,12 +19,12 @@
 
 ## Решение
 
-### 11 модулей
+### 12 модулей
 
-`share`, `receiver`, `persistence`, `processor`, `ai`, `vk-facade`, `infrastructure`, `app`,
-`testing:test-common`, `testing:test-fixtures`, `testing:arch-tests` (`settings.gradle.kts:22-32`).
+`share`, `receiver`, `persistence`, `processor`, `ai`, `vk-facade`, `infrastructure`, `app`, `greetings`,
+`testing:test-common`, `testing:test-fixtures`, `testing:arch-tests` (`settings.gradle.kts:22-33`).
 
-Разрешённый граф production-зависимостей (allowlist в `GradleDependenciesTest.kt:35-65`):
+Разрешённый граф production-зависимостей (allowlist в `GradleDependenciesTest.kt:35-68`):
 
 ```
 share            -> (никого)
@@ -34,7 +34,8 @@ ai               -> share
 persistence      -> share
 vk-facade        -> share
 infrastructure   -> share
-app              -> все 6 бизнес-модулей + share
+greetings        -> share
+app              -> все 7 бизнес-модулей + share
 testing/test-fixtures -> share, vk-facade          (только тесты)
 testing/test-common   -> (никого)
 testing/arch-tests    -> все модули + app          (только тесты)
@@ -60,10 +61,10 @@ test, и не создаёт деплоев на фичу — деплой од�
 | L3 | `usecase`/`command` не знают адаптеров и транспорта | нет `adapter.*`, `io.quarkus`, `org.jooq`, `com.fasterxml`, `jakarta.ws.rs`, `jakarta.json`, `dev.langchain4j`, `io.smallrye` (`:75-94`); DI-аннотации `jakarta.inject`/`jakarta.enterprise`/`jakarta.transaction`/`org.eclipse.microprofile.config.inject` разрешены |
 | L4 | входной адаптер зовёт только порт | `..adapter.input..` не зависит от `command`, `usecase`, `adapter.output` (`:96-105`) |
 | L5 | выходной адаптер не ходит во входной и в usecase | `..adapter.output..` не зависит от `adapter.input`, `usecase` (`:107-116`) |
-| L6 | `share` — ядро | `share` не зависит от пакетов других модулей (`ModuleDependenciesTest.kt:47-58`) |
+| L6 | `share` — ядро | `share` не зависит от пакетов других модулей (`ModuleDependenciesTest.kt:49-60`) |
 
-Плюс модульные правила: каждый бизнес-модуль зависит только от `share` (`ModuleDependenciesTest.kt:60-124`)
-и build-граф соответствует allowlist (`GradleDependenciesTest.kt:82-112`).
+Плюс модульные правила: каждый бизнес-модуль зависит только от `share` (`ModuleDependenciesTest.kt:62-137`)
+и build-граф соответствует allowlist (`GradleDependenciesTest.kt:85-115`).
 
 ### Composition root
 
@@ -90,7 +91,7 @@ test, и не создаёт деплоев на фичу — деплой од�
 
 | Альтернатива | Почему нет |
 |---|---|
-| Семь layer-модулей (`domain`, `port.in`, …) | 11 модулей уже дают компиляторную границу для фич; layer-модули дали бы 40+ build-файлов ради того же эффекта |
+| Семь layer-модулей (`domain`, `port.in`, …) | 12 модулей уже дают компиляторную границу для фич; layer-модули дали бы 40+ build-файлов ради того же эффекта |
 | Модуль или деплой на фичу | Нет требования независимого деплоя/масштабирования; один деплой (ADR 0002) |
 | Явные `@Produces` на каждый порт | Десятки файлов без функциональной выгоды; правило «бизнес-слой видит только порты» уже выполняется |
 | Оставить `domain` с jOOQ и `Log` в use case | L1/L3 валятся, и каркас снова становится архитектурой |

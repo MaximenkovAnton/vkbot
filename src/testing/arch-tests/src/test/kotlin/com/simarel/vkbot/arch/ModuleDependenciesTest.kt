@@ -22,6 +22,7 @@ class ModuleDependenciesTest {
         private const val PERSISTENCE_PKG = "com.simarel.vkbot.persistence.."
         private const val AI_PKG = "com.simarel.vkbot.ai.."
         private const val APP_PKG = "com.simarel.vkbot.app.."
+        private const val GREETINGS_PKG = "com.simarel.vkbot.greetings.."
 
         private val ALL_MODULES = listOf(
             INFRASTRUCTURE_PKG,
@@ -31,6 +32,7 @@ class ModuleDependenciesTest {
             PERSISTENCE_PKG,
             AI_PKG,
             APP_PKG,
+            GREETINGS_PKG,
         )
 
         fun modulesWithoutShare() = ALL_MODULES - SHARE_PKG
@@ -121,5 +123,27 @@ class ModuleDependenciesTest {
             .dependOnClassesThat()
             .resideInAnyPackage(*modulesWithoutShareAnd(PERSISTENCE_PKG).toTypedArray())
             .check(importedClasses)
+    }
+
+    @Test
+    fun `greetings module should only depend on share`() {
+        noClasses()
+            .that()
+            .resideInAPackage(GREETINGS_PKG)
+            .should()
+            .dependOnClassesThat()
+            .resideInAnyPackage(*modulesWithoutShareAnd(GREETINGS_PKG).toTypedArray())
+            .check(importedClasses)
+    }
+
+    @Test
+    fun `greetings package is imported`() {
+        val greetingsClasses = importedClasses.filter { it.packageName.startsWith("com.simarel.vkbot.greetings") }
+
+        if (greetingsClasses.isEmpty()) {
+            throw AssertionError(
+                "No classes from com.simarel.vkbot.greetings were imported; the module rules would be vacuous",
+            )
+        }
     }
 }

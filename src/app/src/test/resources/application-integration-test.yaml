@@ -12,6 +12,8 @@ vk:
 summary:
   enabled-chats: 1,2,3
 
+greetings.cron: disabled
+
 mp:
   messaging:
     incoming:

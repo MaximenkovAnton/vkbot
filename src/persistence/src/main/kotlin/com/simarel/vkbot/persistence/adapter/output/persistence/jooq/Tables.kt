@@ -61,4 +61,12 @@ object Tables {
         val ID = DSL.field("id")
         val TS = DSL.field("ts")
     }
+
+    object GreetingLog {
+        val TABLE = DSL.table("greeting_log")
+
+        val GREETING_DATE = DSL.field("greeting_date", SQLDataType.DATE)
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val CREATED_AT = DSL.field("created_at")
+    }
 }

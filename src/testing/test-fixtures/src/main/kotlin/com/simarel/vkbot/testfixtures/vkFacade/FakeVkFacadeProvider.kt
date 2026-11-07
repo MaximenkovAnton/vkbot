@@ -3,12 +3,16 @@ package com.simarel.vkbot.testfixtures.vkFacade
 import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
+import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkError
 import com.simarel.vkbot.vkFacade.adapter.output.vk.dto.VkResponseDto
 import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
 import com.simarel.vkbot.vkFacade.port.input.vk.VkProfileInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
+import com.simarel.vkbot.vkFacade.port.input.vk.VkSendPlainMessageInputPort
 
 object FakeVkFacadeProvider {
 
@@ -41,5 +45,13 @@ object FakeVkFacadeProvider {
     ) = VkSendMessageInputRequest(
         responseMessage = responseMessage ?: FakeModelProvider.createResponseMessage(),
         forwardedMessages = forwardedMessages,
+    )
+
+    fun createVkSendPlainMessageInputRequest(
+        peerId: PeerId? = null,
+        messageText: MessageText? = null,
+    ) = VkSendPlainMessageInputPort.Request(
+        peerId = peerId ?: FakeVoProvider.createPeerId(),
+        messageText = messageText ?: FakeVoProvider.createMessageText(),
     )
 }

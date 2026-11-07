@@ -15,11 +15,11 @@ HTTP-граница отвечала на `/api/chat`, документация 
 ## Решение
 
 - Провайдер — `quarkus-langchain4j-openai` (та же версия из `gradle.properties:8`) в обоих модулях,
-  объявляющих расширение: `src/ai/build.gradle.kts:41` и `src/app/build.gradle.kts:39`. Второго
+  объявляющих расширение: `src/ai/build.gradle.kts:41` и `src/app/build.gradle.kts:40`. Второго
   провайдера и ветвлений по провайдеру в коде нет: домен и use case провайдера не знают (ADR 0003).
 - Код знает только «OpenAI-совместимый API», поэтому vLLM подключён как есть: `base-url` — корень
   OpenAI API вместе с `/v1`, расширение дописывает `/chat/completions`.
-- Контракт деплоя — env-ключи без вендорной привязки (`src/app/src/main/resources/application.yml:61-72`):
+- Контракт деплоя — env-ключи без вендорной привязки (`src/app/src/main/resources/application.yml:65-76`):
   `AI_BASE_URL` и `AI_CHAT_MODEL` обязательны (дефолт-URL не добавляется — ADR 0006: отказ на старте
   лучше запроса в неизвестный хост), `AI_API_KEY` опционален с дефолтом `dummy`: vLLM без `--api-key`
   его игнорирует, а при включённой на сервере авторизации ключ передаётся тем же env.

@@ -12,15 +12,16 @@
   `adapter/input/*` и `adapter/output/*` в каждом модуле.
 - **Форма:** `fun interface OutputPort<REQ, RESP>` с единственным `execute`; каждый порт — одна операция
   (`FindStoredMessagesBeforePort`, `SaveMessagePort`, …), а не «репозиторий на десять методов».
-  Входной порт — `fun interface InputPort<REQ, RESP>` (`ReceiveMessageInputPort.kt:10-15`).
+  Входной порт — `fun interface InputPort<REQ, RESP>` (`ReceiveMessageInputPort.kt:9-13`).
 - **Сила, которую снимает:** Dependency Inversion — внешний мир зависит от контракта, а не наоборот.
-  Направление проверяют L1–L5 (`LayerDependenciesTest.kt:51-116`) и L6 (`ModuleDependenciesTest.kt:47-58`).
+  Направление проверяют L1–L5 (`LayerDependenciesTest.kt:51-116`) и L6 (`ModuleDependenciesTest.kt:49-60`).
 
 ## In-process Adapter (вместо loopback-REST)
 
 - **Проблема:** синхронный вызов между модулями одного деплоя не должен платить за HTTP-раундтрип, дубль
   контракта и сетевые таймауты ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)).
-- **Где:** `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-144` (9 адаптеров) и
+- **Где:** `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (адаптеры всех
+  `share`-портов persistence: сообщения, саммари, профили, позиция Long Poll, чаты и claim поздравлений) и
   `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` (2 адаптера). Потребители видят только
   `share`-порты: `ConversationContextRestAdapter.kt:22-26`, `GenerateSummaryCommandImpl.kt:7-12`,
   `FetchUserProfileCommandImpl.kt:20-21`.
@@ -44,17 +45,18 @@
 - **Где:** `share/command/Command.kt:3-8`; реализации — `GenerateAnswerCommand.kt:14-48`,
   `SendVkMessageCommandImpl.kt:8-19`, `IsRequireAnswerCommand.kt:10-34`, `PublishEventCommandImpl.kt:10-22`,
   `FetchUserProfileCommand.kt`, `GenerateSummaryCommand`, `ProcessSummaryCommand`, `RecognizeImagesCommand`,
-  `VaneSearchCommand`, `PublishVkEventCommand`, `GetProfileCommand`.
+  `VaneSearchCommand`, `PublishVkEventCommand`, `GetProfileCommand`, `CollectGreetingPlansCommand`,
+  `GenerateGreetingTextCommand`.
 - **Сила:** единый вход `execute(request)` — можно навесить декоратор, переиспользовать в use case,
   протестировать без каркаса.
 
 ## UseCase (реализация входящего порта)
 
 - **Проблема:** сценарий координирует несколько команд и портов; он не должен жить в контроллере.
-- **Где:** `ReceiveMessageUsecase.kt:10-33`, `SaveMessageUsecase.kt:22-68`,
-  `PersistenceDataUsecase.kt:34-207`, `MessageReceivedUsecaseInput.kt:15-45`,
+- **Где:** `ReceiveMessageUsecase.kt:10-21`, `SaveMessageUsecase.kt:22-68`,
+  `PersistenceDataUsecase.kt:41-302`, `MessageReceivedUsecaseInput.kt:15-45`,
   `GenerateAnswerUsecase.kt:16-41`, `ProcessSummaryUsecase.kt:10-20`, `GenerateSummaryUsecase.kt:10-24`,
-  `MessageSendUsecase.kt:15-44`, `VkProfileUsecase.kt:9-21`.
+  `MessageSendUsecase.kt:15-44`, `VkProfileUsecase.kt:9-21`, `RunDailyGreetingsUsecase.kt`.
 - **Сила:** Information Expert — координация у того, кто владеет сценарием; адаптеры только маппят.
 
 ## Decorator (CDI `@Decorator`)
@@ -104,7 +106,7 @@
 
 - **Проблема:** приём событий VK не должен ждать AI, а AI и запись в БД не должны быть в его таймауте.
 - **Где:** публикация — `PublishEventOutputAdapter.kt:15-33` (routing key = `Event.name`), потребление —
-  `EventDispatcher.kt:63-84` (карта `Event.name → EventProcessor`), `@Incoming("all-events-queue")`.
+  `EventDispatcher.kt:63-85` (карта `Event.name → EventProcessor`), `@Incoming("all-events-queue")`.
   События — `Event.kt:3-10`; payload'ы — `share/domain/event/`.
 - **Сила:** развязка по времени (Protected Variations от недоступности AI/БД). Fan-out не заявляется:
   диспетчер держит по одному процессору на событие — новый обработчик добавляется новым событием/очередью.
@@ -112,7 +114,7 @@
 ## Retry with backoff (лестница) + Dead Letter
 
 - **Проблема:** временный отказ (VK API, LLM, БД) не должен терять сообщение и не должен крутиться вечно.
-- **Где:** `EventDispatcher.kt:76-82` ловит исключение обработки, `:90-111` перекладывает сообщение в
+- **Где:** `EventDispatcher.kt:77-83` ловит исключение обработки, `:91-113` перекладывает сообщение в
   очередь следующего уровня по заголовку `x-retry-count`; уровни и TTL —
   `src/app/src/main/resources/application-queues.yml:1-32` (5s → 30s → 1m → 15m → 1h → `dlq-final`),
   `DlqConfig.kt:6-16` связывает YAML с кодом.
@@ -124,7 +126,7 @@
   с коллекцией.
 - **Где:** jOOQ-репозитории `persistence/adapter/output/persistence/jooq/Jooq{Message,Summary,VkUserProfile,VkGroupProfile}Repository.kt`
   и порты-адаптеры `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
-  таблицы — `jooq/Tables.kt:6-64` (ручные константы, кодогенерация выключена).
+  таблицы — `jooq/Tables.kt:6-72` (ручные константы, кодогенерация выключена).
 - **Сила:** Dependency Inversion — бизнес-слой видит порт, а не DSLContext; замена хранилища — новый адаптер.
 
 ## Singleton / Dependency Injection (Quarkus CDI)
@@ -139,7 +141,7 @@
 | Паттерн | Почему нет |
 |---|---|
 | Event Sourcing / CQRS | События не сохраняются, event store отсутствует; чтение и запись — одни и те же модели |
-| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:189-194`) никем не читается |
+| Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:193-198`) никем не читается |
 | Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 0007; выбор модели — конфиг, а не рантайм-стратегия |
 | Chain of Responsibility | Валидация не выстроена в цепочку; правила решения — один `when` в `IsRequireAnswerCommand.kt:22-33` |
 | Observer / fan-out | Один процессор на событие; множество подписчиков не поддерживается картой диспетчера |

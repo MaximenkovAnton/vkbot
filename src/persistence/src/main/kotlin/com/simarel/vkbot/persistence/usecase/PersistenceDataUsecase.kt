@@ -6,12 +6,16 @@ import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastSummaryByPeerIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
@@ -47,27 +51,75 @@ open class PersistenceDataUsecase(
     private val findGroupProfilesByIdsPort: FindGroupProfilesByIdsPort,
     private val findLongPollTsPort: FindLongPollTsPort,
     private val saveLongPollTsPort: SaveLongPollTsPort,
+    private val findUserProfilesByBirthDatePort: FindUserProfilesByBirthDatePort,
+    private val findUserChatPeerIdsPort: FindUserChatPeerIdsPort,
+    private val findGroupChatPeerIdsPort: FindGroupChatPeerIdsPort,
+    private val claimDailyGreetingPort: ClaimDailyGreetingPort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
-    override fun execute(request: PersistenceDataRequest): PersistenceDataResponse = when (request) {
-        is PersistenceDataRequest.FindMessagesBefore -> handleFindMessagesBefore(request)
-        is PersistenceDataRequest.FindMessagesBetween -> handleFindMessagesBetween(request)
-        is PersistenceDataRequest.FindLastSummary -> handleFindLastSummary(request)
-        is PersistenceDataRequest.HasPendingSummary -> handleHasPendingSummary(request)
-        is PersistenceDataRequest.CreatePendingSummary -> handleCreatePendingSummary(request)
-        is PersistenceDataRequest.SaveCompletedSummary -> handleSaveCompletedSummary(request)
-        is PersistenceDataRequest.MarkSummaryAsFailed -> handleMarkSummaryAsFailed(request)
-        is PersistenceDataRequest.FindUserProfilesByIds -> handleFindUserProfilesByIds(request)
-        is PersistenceDataRequest.FindGroupProfilesByIds -> handleFindGroupProfilesByIds(request)
-        is PersistenceDataRequest.FindLongPollTs -> PersistenceDataResponse.LongPollTs(
-            findLongPollTsPort.execute(FindLongPollTsPort.FindLongPollTsRequest).ts,
-        )
-        is PersistenceDataRequest.SaveLongPollTs -> {
-            saveLongPollTsPort.execute(SaveLongPollTsPort.SaveLongPollTsRequest(request.ts))
-            PersistenceDataResponse.Empty
-        }
+    override fun findMessagesBefore(
+        request: PersistenceDataRequest.FindMessagesBefore,
+    ): PersistenceDataResponse.Messages = handleFindMessagesBefore(request)
+
+    override fun findMessagesBetween(
+        request: PersistenceDataRequest.FindMessagesBetween,
+    ): PersistenceDataResponse.Messages = handleFindMessagesBetween(request)
+
+    override fun findLastSummary(
+        request: PersistenceDataRequest.FindLastSummary,
+    ): PersistenceDataResponse.OptionalSummary = handleFindLastSummary(request)
+
+    override fun hasPendingSummary(
+        request: PersistenceDataRequest.HasPendingSummary,
+    ): PersistenceDataResponse.PendingStatus = handleHasPendingSummary(request)
+
+    override fun createPendingSummary(
+        request: PersistenceDataRequest.CreatePendingSummary,
+    ): PersistenceDataResponse.CreatedSummaryId = handleCreatePendingSummary(request)
+
+    override fun saveCompletedSummary(
+        request: PersistenceDataRequest.SaveCompletedSummary,
+    ): PersistenceDataResponse.Empty = handleSaveCompletedSummary(request)
+
+    override fun markSummaryAsFailed(
+        request: PersistenceDataRequest.MarkSummaryAsFailed,
+    ): PersistenceDataResponse.Empty = handleMarkSummaryAsFailed(request)
+
+    override fun findUserProfilesByIds(
+        request: PersistenceDataRequest.FindUserProfilesByIds,
+    ): PersistenceDataResponse.UserProfiles = handleFindUserProfilesByIds(request)
+
+    override fun findGroupProfilesByIds(
+        request: PersistenceDataRequest.FindGroupProfilesByIds,
+    ): PersistenceDataResponse.GroupProfiles = handleFindGroupProfilesByIds(request)
+
+    override fun findLongPollTs(
+        request: PersistenceDataRequest.FindLongPollTs,
+    ): PersistenceDataResponse.LongPollTs = PersistenceDataResponse.LongPollTs(
+        findLongPollTsPort.execute(FindLongPollTsPort.FindLongPollTsRequest).ts,
+    )
+
+    override fun saveLongPollTs(request: PersistenceDataRequest.SaveLongPollTs): PersistenceDataResponse.Empty {
+        saveLongPollTsPort.execute(SaveLongPollTsPort.SaveLongPollTsRequest(request.ts))
+        return PersistenceDataResponse.Empty
     }
+
+    override fun findUserProfilesByBirthDate(
+        request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+    ): PersistenceDataResponse.UserProfiles = handleFindUserProfilesByBirthDate(request)
+
+    override fun findUserChatPeerIds(
+        request: PersistenceDataRequest.FindUserChatPeerIds,
+    ): PersistenceDataResponse.PeerIds = handleFindUserChatPeerIds(request)
+
+    override fun findGroupChatPeerIds(
+        request: PersistenceDataRequest.FindGroupChatPeerIds,
+    ): PersistenceDataResponse.PeerIds = handleFindGroupChatPeerIds()
+
+    override fun claimDailyGreeting(
+        request: PersistenceDataRequest.ClaimDailyGreeting,
+    ): PersistenceDataResponse.Claimed = handleClaimDailyGreeting(request)
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
         val messages = findMessagesBeforePort.execute(
@@ -184,6 +236,38 @@ open class PersistenceDataUsecase(
             FindGroupProfilesByIdsPort.FindGroupProfilesByIdsRequest(request.ids.map { FromId.of(it) }),
         ).profiles
         return PersistenceDataResponse.GroupProfiles(profiles)
+    }
+
+    private fun handleFindUserProfilesByBirthDate(
+        request: PersistenceDataRequest.FindUserProfilesByBirthDate,
+    ): PersistenceDataResponse.UserProfiles {
+        val profiles = findUserProfilesByBirthDatePort.execute(
+            FindUserProfilesByBirthDatePort.FindUserProfilesByBirthDateRequest(request.day, request.month),
+        ).profiles
+        return PersistenceDataResponse.UserProfiles(profiles)
+    }
+
+    private fun handleFindUserChatPeerIds(
+        request: PersistenceDataRequest.FindUserChatPeerIds,
+    ): PersistenceDataResponse.PeerIds {
+        val peerIds = findUserChatPeerIdsPort.execute(
+            FindUserChatPeerIdsPort.FindUserChatPeerIdsRequest(FromId.of(request.userId)),
+        ).peerIds
+        return PersistenceDataResponse.PeerIds(peerIds.map { it.value }.toSet())
+    }
+
+    private fun handleFindGroupChatPeerIds(): PersistenceDataResponse.PeerIds {
+        val peerIds = findGroupChatPeerIdsPort.execute(FindGroupChatPeerIdsPort.FindGroupChatPeerIdsRequest).peerIds
+        return PersistenceDataResponse.PeerIds(peerIds.map { it.value }.toSet())
+    }
+
+    private fun handleClaimDailyGreeting(
+        request: PersistenceDataRequest.ClaimDailyGreeting,
+    ): PersistenceDataResponse.Claimed {
+        val claimed = claimDailyGreetingPort.execute(
+            ClaimDailyGreetingPort.ClaimDailyGreetingRequest(request.date, PeerId.of(request.peerId)),
+        ).claimed
+        return PersistenceDataResponse.Claimed(claimed)
     }
 
     companion object {

@@ -22,7 +22,7 @@ in-process:
 
 | Порт (`share`) | Реализация | Делегирует в |
 |---|---|---|
-| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:17-144` (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-контроллера |
+| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:24-149` (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-контроллера |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` (2 класса) | `VkProfileInputPort` |
 
 Потребители держат только `share`-порты:
@@ -35,14 +35,14 @@ in-process:
 портов `ai/port/output/persistence/*` и `quarkus.rest-client.persistence`/`vk-facade` из конфига.
 
 REST-эндпоинты остаются публичным API модулей и единственной копией контракта:
-`persistence/adapter/input/rest/PersistenceService.kt:18-79` + `PersistenceDataController.kt:21-127`;
+`persistence/adapter/input/rest/PersistenceService.kt:18-79` + `PersistenceDataController.kt:21-126`;
 `vkFacade/adapter/input/rest/VkFacadeController.kt:14-32`. Контроллер и in-process адаптер — два входных
 адаптера к одному `port.input` (Information Expert: логика в use case, адаптеры только маппят).
 
 Асинхронный поток остаётся на RabbitMQ: приём событий VK не должен ждать AI. Публикация —
 `infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` (Jackson-строка + routing key = имя
-события), потребление — `infrastructure/mq/adapter/input/EventDispatcher.kt:63-84` с retry-лестницей
-(`:90-111`). Payload'ы событий — тоже контракт и переехали в `share`:
+события), потребление — `infrastructure/mq/adapter/input/EventDispatcher.kt:63-85` с retry-лестницей
+(`:91-113`). Payload'ы событий — тоже контракт и переехали в `share`:
 `share/domain/event/SummaryRequestedPayload.kt:3-6`, `share/domain/event/SummaryReadyPayload.kt:3-8`.
 
 Версионирования схемы событий нет и не требуется: производитель и потребитель в одном деплое, меняются одним
@@ -59,7 +59,7 @@ REST-эндпоинты остаются публичным API модулей �
 - `CircuitBreaker` для VK API **не применён**: расширение `quarkus-smallrye-fault-tolerance` объявлено
   (`src/vk-facade/build.gradle.kts:21`), пакет называется `adapter/output/vk/circuitbreaker`, но ни одной
   аннотации `@CircuitBreaker`/`@Retry` в коде нет, а блок `circuit-breaker.vk-profile` в
-  `src/app/src/main/resources/application.yml:182-187` никем не читается. Это заявленный долг, а не
+  `src/app/src/main/resources/application.yml:193-198` никем не читается. Это заявленный долг, а не
   работающий механизм.
 
 ## Отклонённые альтернативы

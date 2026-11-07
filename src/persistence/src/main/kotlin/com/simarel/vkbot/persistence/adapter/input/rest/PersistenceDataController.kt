@@ -2,7 +2,6 @@ package com.simarel.vkbot.persistence.adapter.input.rest
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
-import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
@@ -32,10 +31,10 @@ class PersistenceDataController(
         @QueryParam("beforeConversationMessageId") beforeConversationMessageId: Long,
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findMessagesBefore(
             PersistenceDataRequest.FindMessagesBefore(peerId, beforeConversationMessageId, limit),
         )
-        return (response as PersistenceDataResponse.Messages).messages
+        return response.messages
     }
 
     @GET
@@ -47,30 +46,30 @@ class PersistenceDataController(
         @QueryParam("lastMessageId") lastMessageId: Long,
         @QueryParam("limit") limit: Int,
     ): List<StoredMessage> {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findMessagesBetween(
             PersistenceDataRequest.FindMessagesBetween(peerId, firstMessageId, lastMessageId, limit),
         )
-        return (response as PersistenceDataResponse.Messages).messages
+        return response.messages
     }
 
     @GET
     @Path("/summaries/last")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findLastSummary(@QueryParam("peerId") peerId: Long): Summary? {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findLastSummary(
             PersistenceDataRequest.FindLastSummary(peerId),
         )
-        return (response as PersistenceDataResponse.OptionalSummary).summary
+        return response.summary
     }
 
     @GET
     @Path("/summaries/has-pending")
     @Produces(MediaType.APPLICATION_JSON)
     override fun hasPendingSummary(@QueryParam("peerId") peerId: Long): Boolean {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.hasPendingSummary(
             PersistenceDataRequest.HasPendingSummary(peerId),
         )
-        return (response as PersistenceDataResponse.PendingStatus).hasPending
+        return response.hasPending
     }
 
     @POST
@@ -78,10 +77,10 @@ class PersistenceDataController(
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     override fun createPendingSummary(request: CreatePendingSummaryRequest): UUID {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.createPendingSummary(
             PersistenceDataRequest.CreatePendingSummary(request.peerId, request.firstMessageId, request.lastMessageId),
         )
-        return (response as PersistenceDataResponse.CreatedSummaryId).id
+        return response.id
     }
 
     @POST
@@ -91,7 +90,7 @@ class PersistenceDataController(
         @PathParam("id") id: UUID,
         request: CompleteSummaryRequest,
     ) {
-        persistenceDataInputPort.execute(
+        persistenceDataInputPort.saveCompletedSummary(
             PersistenceDataRequest.SaveCompletedSummary(id, request.shortSummary, request.fullSummary),
         )
     }
@@ -100,7 +99,7 @@ class PersistenceDataController(
     @Path("/summaries/{id}/fail")
     @Consumes(MediaType.APPLICATION_JSON)
     override fun markSummaryAsFailed(@PathParam("id") id: UUID) {
-        persistenceDataInputPort.execute(
+        persistenceDataInputPort.markSummaryAsFailed(
             PersistenceDataRequest.MarkSummaryAsFailed(id),
         )
     }
@@ -109,19 +108,19 @@ class PersistenceDataController(
     @Path("/profiles/users")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findUserProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkUserProfile> {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findUserProfilesByIds(
             PersistenceDataRequest.FindUserProfilesByIds(ids),
         )
-        return (response as PersistenceDataResponse.UserProfiles).profiles
+        return response.profiles
     }
 
     @GET
     @Path("/profiles/groups")
     @Produces(MediaType.APPLICATION_JSON)
     override fun findGroupProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkGroupProfile> {
-        val response = persistenceDataInputPort.execute(
+        val response = persistenceDataInputPort.findGroupProfilesByIds(
             PersistenceDataRequest.FindGroupProfilesByIds(ids),
         )
-        return (response as PersistenceDataResponse.GroupProfiles).profiles
+        return response.profiles
     }
 }

@@ -1,6 +1,7 @@
 package com.simarel.vkbot.persistence.testfixtures
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
+import java.time.LocalDate
 import java.util.UUID
 
 object PersistenceDataRequestProvider {
@@ -68,4 +69,20 @@ object PersistenceDataRequestProvider {
     fun createSaveLongPollTsRequest(
         ts: String = "ts-1",
     ) = PersistenceDataRequest.SaveLongPollTs(ts = ts)
+
+    fun createFindUserProfilesByBirthDateRequest(
+        day: Int = 12,
+        month: Int = 9,
+    ) = PersistenceDataRequest.FindUserProfilesByBirthDate(day = day, month = month)
+
+    fun createFindUserChatPeerIdsRequest(
+        userId: Long = 1_234_567,
+    ) = PersistenceDataRequest.FindUserChatPeerIds(userId = userId)
+
+    fun createFindGroupChatPeerIdsRequest() = PersistenceDataRequest.FindGroupChatPeerIds
+
+    fun createClaimDailyGreetingRequest(
+        date: LocalDate = LocalDate.parse("2026-09-13"),
+        peerId: Long = 2_000_000_001,
+    ) = PersistenceDataRequest.ClaimDailyGreeting(date = date, peerId = peerId)
 }

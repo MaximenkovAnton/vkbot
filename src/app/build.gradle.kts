@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":src:vk-facade"))
     implementation(project(":src:processor"))
     implementation(project(":src:receiver"))
+    implementation(project(":src:greetings"))
 
     // Quarkus dependencies
     implementation("io.quarkus:quarkus-arc")
@@ -46,6 +47,7 @@ dependencies {
     testImplementation("io.rest-assured:rest-assured")
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":src:ai")))
+    testImplementation(testFixtures(project(":src:greetings")))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:test-common"))
 

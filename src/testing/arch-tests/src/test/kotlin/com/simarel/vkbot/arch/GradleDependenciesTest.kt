@@ -35,6 +35,7 @@ class GradleDependenciesTest {
     private val allowedProductionDependencies = mapOf(
         ":" to emptySet(),
         ":src:share" to emptySet(),
+        ":src:greetings" to setOf(":src:share"),
         ":src:receiver" to setOf(":src:share"),
         ":src:processor" to setOf(":src:share"),
         ":src:ai" to setOf(":src:share"),
@@ -43,6 +44,7 @@ class GradleDependenciesTest {
         ":src:infrastructure" to setOf(":src:share"),
         ":src:app" to setOf(
             ":src:ai",
+            ":src:greetings",
             ":src:share",
             ":src:infrastructure",
             ":src:persistence",
@@ -54,6 +56,7 @@ class GradleDependenciesTest {
         ":src:testing:test-fixtures" to setOf(":src:share", ":src:vk-facade"),
         ":src:testing:arch-tests" to setOf(
             ":src:ai",
+            ":src:greetings",
             ":src:share",
             ":src:infrastructure",
             ":src:vk-facade",
@@ -71,9 +74,9 @@ class GradleDependenciesTest {
         if (buildFiles.isEmpty()) {
             throw AssertionError("No build.gradle.kts files found under ${projectRoot.absolutePath}")
         }
-        if (buildFiles.size != 12) {
+        if (buildFiles.size != 13) {
             throw AssertionError(
-                "Expected 12 build.gradle.kts files (root + 11 modules), found ${buildFiles.size}: " +
+                "Expected 13 build.gradle.kts files (root + 12 modules), found ${buildFiles.size}: " +
                     buildFiles.map { it.toProjectPath() }.sorted(),
             )
         }
@@ -128,6 +131,35 @@ class GradleDependenciesTest {
                 testOnlyConfigurations.forEach { appendLine("  - $it") }
             }
             throw AssertionError(message)
+        }
+    }
+
+    @Test
+    fun `required project dependencies are declared`() {
+        val required = mapOf(
+            "src/app/build.gradle.kts" to ":src:greetings",
+            "src/testing/arch-tests/build.gradle.kts" to ":src:greetings",
+        )
+        val violations = required.mapNotNull { (path, dependency) ->
+            val content = projectRoot.resolve(path).readText()
+            if (content.contains("implementation(project(\"$dependency\"))")) {
+                null
+            } else {
+                "$path does not declare implementation(project(\"$dependency\"))"
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            throw AssertionError("Required project dependencies are missing:\n  " + violations.joinToString("\n  "))
+        }
+    }
+
+    @Test
+    fun `coverage modules contain the greetings module`() {
+        val content = projectRoot.resolve("build.gradle.kts").readText()
+
+        if (!content.contains("\"src:greetings\"")) {
+            throw AssertionError("root build.gradle.kts coverageModules does not contain src:greetings")
         }
     }
 

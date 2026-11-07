@@ -18,8 +18,8 @@
 
 | Точка входа | Где в коде |
 |---|---|
-| `@Incoming("all-events-queue")`, маршрутизация по routing key | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:63-88` |
-| retry-лестница и финальный DLQ | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:90-111` |
+| `@Incoming("all-events-queue")`, маршрутизация по routing key | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:63-85` |
+| retry-лестница и финальный DLQ | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:91-113` |
 | конфигурация уровней retry из `dlq.levels[]` | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/DlqConfig.kt:6-16` |
 | публикация: JSON payload + routing key = имя события | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` |
 | реализация `PublishEventCommand` для всех модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/publishEvent/PublishEventCommandImpl.kt:11-21` |
@@ -71,7 +71,7 @@
 ## Пробелы приёмки
 
 - Retry-лестница, DLQ и заголовок `x-retry-count` не покрыты ни одним тестом
-  (`src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:90-111`).
+  (`src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:91-113`).
 - Routing key = `Event.name` на публикации не проверен: тест команды смотрит только на переданный event.
 - Неизвестный routing key (лог + ack) не проверен.
 - At-least-once без идемпотентности: повторная доставка `MESSAGE_NEW` создаст дубль сообщения; outbox нет —
