@@ -1,5 +1,6 @@
 package com.simarel.vkbot.ai.adapter.output.ai.summarization
 
+import com.simarel.vkbot.ai.domain.exception.SummaryGenerationException
 import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
 import com.simarel.vkbot.ai.port.output.summary.SummarizationRequest
 import com.simarel.vkbot.ai.port.output.summary.SummarizationResponse
@@ -37,7 +38,9 @@ class SummarizationAiAdapter(
         }
 
         Log.errorf(lastException, "Failed to generate summary after %d attempts", MAX_RETRIES)
-        throw lastException
-            ?: IllegalStateException("Failed to generate summary after $MAX_RETRIES attempts")
+        throw SummaryGenerationException(
+            "Failed to generate summary after $MAX_RETRIES attempts",
+            lastException,
+        )
     }
 }

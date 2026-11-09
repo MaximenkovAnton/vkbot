@@ -35,6 +35,7 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 12 Gradle mo
 - Flow is fixed: `adapter input → port input → usecase → command → port output → adapter output`. A business module imports only `share`; `:src:app` imports all. ArchUnit fails the build on a wrong import — fix the import, never the rule.
 - One operation per port (`fun interface OutputPort<REQ, RESP>`), commands as `Command<REQ, RESP>`, consumers as `EventProcessor`. `@Tool` sits on an adapter class, never on a command.
 - Cross-module synchronous calls go through in-process `share` ports; never a loopback HTTP call, never another module's use case.
+- Exceptions are one hierarchy: production code throws only `VkBotAppException` and its subclasses; validation errors chain `ValidationException → <ValueObject>ValidationException → <check>Exception`; `require`/`requireNotNull` are banned in `src/*/src/main` by `ExceptionHandlingTest` (ADR 0011).
 - Tests use fakes, never mocks, and build data through `*Provider` factories with a default for every parameter — a direct `Type(...)` in a test fails `TestDataFactoriesTest`.
 - Write no comments unless neighbouring code documents itself that way; the decision belongs in the ADR or the plan.
 

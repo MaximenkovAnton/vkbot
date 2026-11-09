@@ -98,8 +98,8 @@ in-process порт `message-storage`, который публикует `SUMMAR
   и групп. Test:
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImplTest.kt`.
 - **AC-conversation-summary-5** — КОГДА LLM-саммаризация падает, СИСТЕМА ДОЛЖНА повторить попытку до 3 раз и
-  после третьей пробросить последнее исключение (успех на 2-й попытке не пробрасывает и не зовёт LLM в третий
-  раз). Test:
+  после третьей бросить `SummaryGenerationException` (`VkBotAppException`, статус `EXTERNAL_FAILURE`) с
+  последней ошибкой в `cause` (успех на 2-й попытке не пробрасывает и не зовёт LLM в третий раз). Test:
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapterTest.kt`.
 - **AC-conversation-summary-6** — КОГДА приходит JSON-payload `SUMMARY_REQUESTED`, СИСТЕМА ДОЛЖНА разобрать
   `peerId` и `conversationMessageId`, передать их в `ProcessSummaryInputPort` и назвать событие

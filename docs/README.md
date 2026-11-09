@@ -34,6 +34,7 @@
 | [0008](adr/0008-bots-long-poll-transport.md) | Приём событий VK — Bots Long Poll (`groups.getLongPollServer` + `a_check`), позиция `ts` в PostgreSQL; Callback, `vk.secret`/`vk.confirmation-code` удалены | accepted |
 | [0009](adr/0009-daily-greetings.md) | Ежедневные поздравления по cron-расписанию Quarkus (`greetings.cron`/`greetings.timezone`), отдельное сообщение на праздник и одно на именинников чата, at-most-once через `greeting_log`, шаблон-фолбэк, известные ограничения | accepted |
 | [0010](adr/0010-decision-model-langchain4j.md) | Клиент decision-модели — библиотечный `DecisionModel` из `quarkus-langchain4j-ollama`, System One API `POST /v1/systemone`, нормализация и типизированный разбор; второй LangChain4j-провайдер только для decision, без вызова из runtime | accepted |
+| [0011](adr/0011-exception-hierarchy.md) | Единая иерархия исключений: в production-коде бросаются только `VkBotAppException` и наследники, валидация строится цепочкой от value object к конкретной проверке, `require`/`requireNotNull` запрещены архитектурными тестами | accepted |
 
 ## Продуктовая карта
 

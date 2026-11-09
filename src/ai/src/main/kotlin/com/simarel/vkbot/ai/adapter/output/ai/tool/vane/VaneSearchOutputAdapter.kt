@@ -1,5 +1,6 @@
 package com.simarel.vkbot.ai.adapter.output.ai.tool.vane
 
+import com.simarel.vkbot.ai.adapter.output.ai.tool.vane.exception.VaneProviderNotConfiguredException
 import com.simarel.vkbot.ai.port.output.vane.VaneSearchOutputPort
 import com.simarel.vkbot.ai.port.output.vane.VaneSearchRequest
 import com.simarel.vkbot.ai.port.output.vane.VaneSearchResponse
@@ -15,7 +16,7 @@ class VaneSearchOutputAdapter(
     override fun execute(request: VaneSearchRequest): VaneSearchResponse {
         val providers = getAvailableProviders()
         val provider = providers.firstOrNull()
-            ?: throw IllegalStateException("No providers configured in Vane")
+            ?: throw VaneProviderNotConfiguredException()
 
         val vaneRequest = VaneSearchRequest(
             chatModel = VaneModelConfig(providerId = provider.id, key = provider.chatModels.first().key),

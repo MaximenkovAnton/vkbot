@@ -10,6 +10,8 @@ import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.simarel.vkbot.ai.adapter.output.ai.tool.vane.VaneProvidersResponse
+import com.simarel.vkbot.ai.adapter.output.ai.tool.vane.exception.VaneProviderNotConfiguredException
+import com.simarel.vkbot.ai.domain.exception.SummaryGenerationException
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPort
 import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPortRequest
 import com.simarel.vkbot.ai.port.output.ocr.ImageRecognitionOutputPort
@@ -102,7 +104,7 @@ class AiIntegrationTest {
                 .willReturn(aResponse().withStatus(500).withBody("model is down")),
         )
 
-        assertThrows(RuntimeException::class.java) {
+        assertThrows(SummaryGenerationException::class.java) {
             summarizationOutputPort.execute(FakeSummaryProvider.createSummarizationRequest())
         }
         wireMock.verify(
@@ -147,7 +149,7 @@ class AiIntegrationTest {
             ),
         )
 
-        val exception = assertThrows(IllegalStateException::class.java) {
+        val exception = assertThrows(VaneProviderNotConfiguredException::class.java) {
             vaneSearchOutputPort.execute(FakeVaneProvider.createVanePortSearchRequest())
         }
 

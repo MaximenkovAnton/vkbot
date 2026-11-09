@@ -45,7 +45,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
     поздравления), 2 — для позиции Long Poll (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai
     (`GenerateGreetingTextPort`) и 3 vk (`share/port/output/vk/`, включая `SendGreetingMessagePort`) —
     каждый `OutputPort<REQ,RESP>` с одной операцией;
-  - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt`.
+  - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt` — единая
+    иерархия: `ValidationException` наследует `VkBotAppException`, доменная ошибка добавляет класс на
+    value object и лист на конкретную проверку ([ADR 0011](../adr/0011-exception-hierarchy.md)).
 - **Зависимости:** нет проектных (только библиотеки: Jakarta CDI, Quarkus core/arc, RabbitMQ messaging,
   Jackson, REST client — `src/share/build.gradle.kts:16-33`).
 

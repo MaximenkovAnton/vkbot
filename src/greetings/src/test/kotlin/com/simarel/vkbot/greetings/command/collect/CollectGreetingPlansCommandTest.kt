@@ -1,5 +1,6 @@
 package com.simarel.vkbot.greetings.command.collect
 
+import com.simarel.vkbot.greetings.domain.BirthdayGreetingPeopleEmptyValidationException
 import com.simarel.vkbot.greetings.domain.GreetingPlan
 import com.simarel.vkbot.greetings.domain.Holiday
 import com.simarel.vkbot.greetings.test.FakeFindGroupChatPeerIds
@@ -211,7 +212,7 @@ class CollectGreetingPlansCommandTest {
     fun `a birthday plan without people is rejected`() {
         val peerId = FakeVoProvider.createPeerId(2_000_000_001)
 
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<BirthdayGreetingPeopleEmptyValidationException> {
             GreetingPlan.BirthdayGreeting(peerId = peerId, people = emptyList())
         }
     }
