@@ -134,8 +134,12 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58`. `jakarta.json.JsonObject` не покидает входной
   адаптер.
 - **Value objects** валидируют и нормализуют значения (`MessageText.of`, `PeerId.of`, `FromId.of`).
-- **Ошибки** — иерархия `VkBotAppException` со статусом (`share/domain/exception/`); HTTP-маппинг в
-  деплое остался только у REST-контроллеров `persistence` и `vk-facade`.
+- **Ошибки** — единственная иерархия `VkBotAppException` со статусом (`share/domain/exception/`): в
+  production-коде бросаются только её наследники; `ValidationException` — база доменной валидации
+  (`ValidationException → <ValueObject>ValidationException → <проверка>Exception`), а `require` и
+  `requireNotNull` запрещены архитектурным тестом
+  (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`, [ADR 0011](../adr/0011-exception-hierarchy.md));
+  HTTP-маппинг в деплое остался только у REST-контроллеров `persistence` и `vk-facade`.
 
 ## Что здесь не реализовано
 

@@ -1,5 +1,6 @@
 package com.simarel.vkbot.greetings.domain
 
+import com.simarel.vkbot.share.domain.exception.ValidationException
 import com.simarel.vkbot.share.domain.vo.PeerId
 
 sealed interface GreetingPlan {
@@ -15,9 +16,14 @@ sealed interface GreetingPlan {
         val people: List<String>,
     ) : GreetingPlan {
         init {
-            require(people.isNotEmpty()) {
-                "Birthday greeting must contain at least one person"
-            }
+            if (people.isEmpty()) throw BirthdayGreetingPeopleEmptyValidationException()
         }
     }
 }
+
+open class BirthdayGreetingValidationException(message: String) : ValidationException(message)
+
+class BirthdayGreetingPeopleEmptyValidationException :
+    BirthdayGreetingValidationException(
+        "Birthday greeting must contain at least one person",
+    )

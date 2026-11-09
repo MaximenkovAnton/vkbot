@@ -4,6 +4,7 @@ import com.simarel.vkbot.processor.domain.decision.DecisionAnalysis
 import com.simarel.vkbot.processor.domain.decision.MessageClass
 import com.simarel.vkbot.processor.domain.decision.MessageTextNormalizer
 import com.simarel.vkbot.processor.domain.exception.DecisionModelException
+import com.simarel.vkbot.processor.domain.exception.DecisionModelResponseException
 import com.simarel.vkbot.processor.port.output.decision.AnalyzeMessageOutputPort
 import com.simarel.vkbot.processor.port.output.decision.AnalyzeMessageRequest
 import com.simarel.vkbot.processor.port.output.decision.AnalyzeMessageResponse
@@ -70,10 +71,7 @@ open class DecisionModelOutputAdapter(
 
         val probabilities = classAnswer.probabilities()
         if (probabilities.keys != CLASS_CRITERIA.keys) {
-            throw DecisionModelException(
-                INVALID_RESPONSE_MESSAGE,
-                IllegalArgumentException("unexpected class probabilities"),
-            )
+            throw DecisionModelResponseException("$INVALID_RESPONSE_MESSAGE: unexpected class probabilities")
         }
 
         return AnalyzeMessageResponse(
@@ -96,9 +94,6 @@ open class DecisionModelOutputAdapter(
         SPAM_CLASS -> MessageClass.SPAM
         COMMAND_CLASS -> MessageClass.COMMAND
         HAM_CLASS -> MessageClass.HAM
-        else -> throw DecisionModelException(
-            INVALID_RESPONSE_MESSAGE,
-            IllegalArgumentException("unknown message class"),
-        )
+        else -> throw DecisionModelResponseException("$INVALID_RESPONSE_MESSAGE: unknown message class")
     }
 }

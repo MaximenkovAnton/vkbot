@@ -1,5 +1,6 @@
 package com.simarel.vkbot.vkFacade.domain
 
+import com.simarel.vkbot.share.domain.exception.ValidationException
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import java.nio.ByteBuffer
@@ -8,7 +9,7 @@ import java.security.MessageDigest
 @JvmInline
 value class RandomId private constructor(val value: Int) {
     init {
-        require(value != 0)
+        if (value == 0) throw RandomIdZeroValidationException()
     }
 
     companion object {
@@ -25,3 +26,7 @@ value class RandomId private constructor(val value: Int) {
         ).getInt()
     }
 }
+
+open class RandomIdValidationException(message: String) : ValidationException(message)
+
+class RandomIdZeroValidationException : RandomIdValidationException("RandomId must not be zero")

@@ -2,6 +2,7 @@ package com.simarel.vkbot.processor.adapter.output.decision
 
 import com.simarel.vkbot.processor.domain.decision.MessageClass
 import com.simarel.vkbot.processor.domain.exception.DecisionModelException
+import com.simarel.vkbot.processor.domain.exception.DecisionModelResponseException
 import com.simarel.vkbot.processor.port.output.decision.AnalyzeMessageResponse
 import com.simarel.vkbot.processor.testfixtures.adapter.output.decision.FakeDecisionModel
 import com.simarel.vkbot.processor.testfixtures.decision.FakeDecisionProvider
@@ -214,10 +215,9 @@ class DecisionModelOutputAdapterTest {
             )
         }
 
-        val exception = assertThrows(DecisionModelException::class.java) { execute(fake, CLEAN_TEXT) }
+        val exception = assertThrows(DecisionModelResponseException::class.java) { execute(fake, CLEAN_TEXT) }
 
-        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
-        assertEquals(IllegalArgumentException::class.java, exception.cause?.javaClass)
+        assertEquals("$INVALID_RESPONSE_MESSAGE: unexpected class probabilities", exception.message)
     }
 
     private fun execute(

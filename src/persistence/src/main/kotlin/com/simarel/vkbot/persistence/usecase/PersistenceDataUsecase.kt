@@ -3,6 +3,7 @@ package com.simarel.vkbot.persistence.usecase
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
+import com.simarel.vkbot.persistence.domain.exception.SummaryNotFoundException
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
@@ -179,7 +180,7 @@ open class PersistenceDataUsecase(
         val existingSummary = findSummaryByIdPort.execute(
             FindSummaryByIdPort.FindSummaryByIdRequest(request.id),
         ).summary
-            ?: throw IllegalArgumentException("Summary not found: ${request.id}")
+            ?: throw SummaryNotFoundException(request.id)
 
         val completedSummary = SummaryEntity().apply {
             id = request.id

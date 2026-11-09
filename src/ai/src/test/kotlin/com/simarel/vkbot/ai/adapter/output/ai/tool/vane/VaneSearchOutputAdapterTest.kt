@@ -1,5 +1,6 @@
 package com.simarel.vkbot.ai.adapter.output.ai.tool.vane
 
+import com.simarel.vkbot.ai.adapter.output.ai.tool.vane.exception.VaneProviderNotConfiguredException
 import com.simarel.vkbot.ai.testfixtures.FakeVaneProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -138,7 +139,7 @@ class VaneSearchOutputAdapterTest {
             providersResponse = FakeVaneProvider.createVaneProvidersResponse(providers = providers),
         )
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertThrows(VaneProviderNotConfiguredException::class.java) {
             VaneSearchOutputAdapter(client).execute(FakeVaneProvider.createVanePortSearchRequest())
         }
 

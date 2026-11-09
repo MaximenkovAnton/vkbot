@@ -1,5 +1,6 @@
 package com.simarel.vkbot.ai.adapter.output.ai.summarization
 
+import com.simarel.vkbot.ai.domain.exception.SummaryGenerationException
 import com.simarel.vkbot.ai.testfixtures.FakeSummaryProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -49,11 +50,11 @@ class SummarizationAiAdapterTest {
         )
         val service = RecordingSummarizationAiService(failures.map { failure -> { throw failure } })
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertThrows(SummaryGenerationException::class.java) {
             adapter(service).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
         }
 
-        assertSame(failures.last(), thrown)
+        assertSame(failures.last(), thrown.cause)
         assertEquals(3, service.calls.size)
     }
 

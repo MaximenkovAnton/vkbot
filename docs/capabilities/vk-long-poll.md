@@ -98,8 +98,8 @@ WARN), `2` — новая сессия с тем же `ts`, `3` — новая �
   Long Poll — дойти до `messages.send` с `peer_id` исходного сообщения. Test:
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`.
 - **AC-vk-long-poll-6** — КОГДА `groups.getLongPollServer` вернул `error` вместо `response`, СИСТЕМА ДОЛЖНА
-  бросить исключение с кодом, подкодом и сообщением VK — отказ доступа попадает в лог, а не теряется в
-  `IllegalStateException`. Test:
+  бросить `VkLongPollServerException` (`VkBotAppException`, статус `EXTERNAL_FAILURE`) с кодом, подкодом
+  и сообщением VK, чтобы отказ доступа попадал в лог, а не терялся в общей ошибке. Test:
   `src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapterTest.kt`.
 
 ## Пробелы приёмки

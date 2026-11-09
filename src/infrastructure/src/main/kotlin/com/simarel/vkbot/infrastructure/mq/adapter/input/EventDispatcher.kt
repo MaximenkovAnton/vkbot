@@ -1,6 +1,7 @@
 package com.simarel.vkbot.infrastructure.mq.adapter.input
 
 import com.simarel.vkbot.infrastructure.config.DlqConfig
+import com.simarel.vkbot.infrastructure.mq.adapter.input.exception.MessageEmitterNotConfiguredException
 import com.simarel.vkbot.share.port.input.EventProcessor
 import io.quarkus.arc.All
 import io.quarkus.logging.Log
@@ -98,7 +99,7 @@ class EventDispatcher(
             ?: levelConfigByRetryCount.values.maxByOrNull { it.retryCount() }!!
 
         val emitter = emittersByQueueName[levelConfig.queueName()]
-            ?: throw IllegalStateException("No emitter configured for queue: ${levelConfig.queueName()}")
+            ?: throw MessageEmitterNotConfiguredException(levelConfig.queueName())
 
         val payload = message.payload
         val newMetadata = OutgoingRabbitMQMetadata.builder()

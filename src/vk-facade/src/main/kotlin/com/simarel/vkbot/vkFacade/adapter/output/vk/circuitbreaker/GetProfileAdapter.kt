@@ -1,5 +1,7 @@
 package com.simarel.vkbot.vkFacade.adapter.output.vk.circuitbreaker
 
+import com.simarel.vkbot.share.domain.exception.ExceptionStatus
+import com.simarel.vkbot.share.domain.exception.VkBotAppException
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.vkFacade.adapter.output.vk.VkClient
@@ -70,4 +72,6 @@ class VkGetGroupProfilesBatchAdapter(
     }
 }
 
-class VkApiException(message: String) : RuntimeException(message)
+class VkApiException(message: String) : VkBotAppException(message) {
+    override fun status(): ExceptionStatus = ExceptionStatus.EXTERNAL_FAILURE
+}

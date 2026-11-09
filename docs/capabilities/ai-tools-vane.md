@@ -62,7 +62,8 @@
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommandImplTest.kt`.
 - **AC-ai-tools-vane-2** — КОГДА выполняется `VaneSearchOutputAdapter`, СИСТЕМА ДОЛЖНА выбрать первый
   провайдер, у которого есть и chat-, и embedding-модель, отправить поиск с его ключами, смапить `message` и
-  `sources` (content/title/url); при отсутствии подходящего провайдера — бросить `IllegalStateException`.
+  `sources` (content/title/url); при отсутствии подходящего провайдера — бросить
+  `VaneProviderNotConfiguredException` (`VkBotAppException`, статус `EXTERNAL_FAILURE`).
   Test: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest.kt`.
 - **AC-ai-tools-vane-3** — КОГДА вызывается любой `@Tool`-метод, СИСТЕМА ДОЛЖНА делегировать в
   `VaneSearchCommand` с соответствующим типом запроса и вернуть его `result`. Test:
