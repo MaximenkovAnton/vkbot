@@ -96,17 +96,27 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
-## `processor` — решение об ответе
+## `processor` — решение об ответе и клиент decision-модели
 
 - **Ответственность:** по `MESSAGE_RECEIVED` решить, нужен ли AI-ответ, и опубликовать
-  `MESSAGE_REQUIRE_ANSWER`.
+  `MESSAGE_REQUIRE_ANSWER`. В модуле также лежит заготовка клиента decision-модели, пока недостижимая
+  из runtime.
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
 - **Ключевые классы:** `MessageReceivedUsecaseInput.kt:15-45` (координация),
   `IsRequireAnswerCommand.kt:10-34` (правила: не человек → нет; личный чат → да; `!`/`\` → нет;
   упоминание бота или forward от бота → да). В коде есть TODO-комментарий о будущем контексте (RAG) —
   это не реализовано.
-- **Сборка:** `share`; `testImplementation` infrastructure для декораторов (`src/processor/build.gradle.kts:13`).
+- **Decision-клиент:** порт `processor/port/output/decision/AnalyzeMessageOutputPort.kt`
+  (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
+  `processor/adapter/output/decision/DecisionModelOutputAdapter.kt` над библиотечным
+  `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `DecisionAnalysis` и
+  `MessageTextNormalizer` (`processor/domain/decision/`), отказ — `DecisionModelException`
+  (`EXTERNAL_FAILURE`). Порт не вызывает ни один use case, входного адаптера нет — клиент недостижим из
+  runtime ([ADR 0010](../adr/0010-decision-model-langchain4j.md)).
+- **Сборка:** `share`; внешняя зависимость `quarkus-langchain4j-ollama` для decision-модели (как у `ai` —
+  `quarkus-langchain4j-openai`); `testImplementation` infrastructure для декораторов
+  (`src/processor/build.gradle.kts:13`). Project-рёбра при этом не меняются.
 
 ## `ai` — ответы, саммаризация, OCR, Vane
 

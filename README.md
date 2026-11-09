@@ -22,12 +22,12 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 
 | Component | Technology |
 |---|---|
-| Framework | Quarkus 3.34.2 |
+| Framework | Quarkus 3.40.1.1 |
 | Language / runtime | Kotlin 2.3.0 on JDK 21 |
 | Build | Gradle 9.3.0 (Kotlin DSL wrapper) |
 | Database | PostgreSQL + Liquibase + jOOQ 3.19.10 |
 | Message broker | RabbitMQ (SmallRye Reactive Messaging) |
-| AI | LangChain4j 1.8.4 (`quarkus-langchain4j-openai`) |
+| AI | LangChain4j 1.23.0 (`quarkus-langchain4j-openai` 1.15.0) |
 | Observability | OpenTelemetry (OTLP), Micrometer |
 | Testing | JUnit 5, RestAssured, WireMock, ArchUnit |
 | Lint / format / coverage | detekt, ktlint, JaCoCo |

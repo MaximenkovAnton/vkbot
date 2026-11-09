@@ -74,6 +74,15 @@ quarkus:
       max-retries: 2
       chat-model:
         model-name: ${AI_CHAT_MODEL}
+    chat-model:
+      provider: openai
+    decision-model:
+      provider: ollama
+    ollama:
+      base-url: ${DECISION_URL}
+      timeout: 5s
+      decision-model:
+        model-id: decision
   messaging:
     health:
       retry-5s-queue:

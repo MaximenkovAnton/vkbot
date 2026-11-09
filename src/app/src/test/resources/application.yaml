@@ -31,6 +31,10 @@ quarkus:
       api-key: test-key
       chat-model:
         model-name: test-model
+    ollama:
+      base-url: http://localhost:8089
+      decision-model:
+        model-id: test-decision
   rest-client:
     vane:
       url: http://localhost:8075

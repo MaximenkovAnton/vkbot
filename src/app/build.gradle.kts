@@ -38,6 +38,7 @@ dependencies {
 
     // LangChain4j (via ai module)
     implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-openai:$quarkusLangChain4jVersion")
+    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
 
     // Kotlin
     implementation(kotlin("stdlib-jdk8"))
@@ -48,6 +49,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":src:ai")))
     testImplementation(testFixtures(project(":src:greetings")))
+    testImplementation(testFixtures(project(":src:processor")))
     testImplementation(testFixtures(project(":src:testing:test-fixtures")))
     testImplementation(project(":src:testing:test-common"))
 
