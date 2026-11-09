@@ -10,6 +10,9 @@ class FakeDecisionModel : DecisionModel {
     var calls = 0
     var response: DecisionResponse? = null
     var failure: RuntimeException? = null
+    var validateResponse: Boolean = true
+
+    override fun decide(request: DecisionRequest): DecisionResponse = if (validateResponse) super.decide(request) else doDecide(request)
 
     override fun doDecide(request: DecisionRequest): DecisionResponse {
         calls++

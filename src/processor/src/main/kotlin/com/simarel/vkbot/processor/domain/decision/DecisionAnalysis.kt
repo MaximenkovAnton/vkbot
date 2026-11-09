@@ -9,6 +9,7 @@ data class DecisionAnalysis(
     val classConfidence: Double?,
     val classProbabilities: Map<MessageClass, Double>,
     val spamProbability: Double,
+    val intent: MessageIntent,
 ) {
     init {
         if (spamProbability !in PROBABILITY_RANGE) {

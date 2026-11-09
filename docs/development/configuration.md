@@ -114,6 +114,8 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.langchain4j.ollama.base-url` | `${DECISION_URL}` | голый корень System One-сервера (без `/v1`, без `/v1/systemone`); `DECISION_URL` обязателен, дефолта нет; расширение дописывает `v1/systemone` |
 | `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
 | `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
+| `decision.spam-threshold` | `${DECISION_SPAM_THRESHOLD:0.9}` | порог спама: `spamProbability >= threshold` даёт спам-уведомление; читает `IsSpamCommandImpl` |
+| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-этапа: `false` выключает вызов decision-модели и спам-ответ; читает `MessageReceivedUsecaseInput` |
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
@@ -124,9 +126,15 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 `src/app/src/test/resources/application-integration-test.yaml:89-97`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
 (`base-url` = `baseUrl()/v1`).
 
-Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md)) — второй LangChain4j-провайдер:
+Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
+[ADR 0012](../adr/0012-decision-runtime-spam-policy.md)) — второй LangChain4j-провайдер:
 `decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
-`model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен.
+`model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен. Клиент вызывается
+из runtime в `MessageReceivedUsecaseInput`: для сообщения человека в групповом чате при
+`decision.spam-reply.enabled = true` он задаёт три вопроса (`spam`, `class`, `intent`), а при
+`spamProbability >= decision.spam-threshold` бот отвечает обычным сообщением-уведомлением. Недоступность
+decision-сервера в runtime даёт fail-open: WARNING без текста сообщения и без throwable (только `peerId`
+и класс исключения), сообщение обрабатывается как раньше, исключение в брокер не уходит.
 Провайдерские ключи `quarkus.langchain4j.ollama.log-requests/log-responses` **не добавлены**.
 Decision-логи **включены** наследованием глобального `true`: у ollama-конфига дефолт
 `@WithDefault("${quarkus.langchain4j.log-requests}")`/`...log-responses`, а рекордер читает
@@ -136,11 +144,10 @@ Decision-логи **включены** наследованием глобаль
 (провайдерские `log-requests: false` + `log-responses: false`). `cause.message` (тело HTTP-ошибки) не
 логировать выше DEBUG. В тестах заданы dummy `base-url: http://localhost:8089` и
 `model-id: test-decision`, а `WireMockTestResource` подменяет `base-url` на `baseUrl()`.
-`DECISION_URL` объявлен обязательным без дефолта, но `fail-fast на старте не enforced` — принятый
-named gap AC-5: decision-бин расширения создаётся лениво, а клиент в этой задаче не вызывается из
-runtime, поэтому старт без переменной проходит. Деплой выставляет переменную вручную, первый деплой
-проверяет позитивную половину (переменная задана → ключ резолвится); наблюдение M-1 — `impl.md`
-board-task `decision-integration`.
+`DECISION_URL` — обязательное значение контракта деплоя; поведение старта без переменной этой задачей
+**не проверялось**, поэтому здесь не утверждается, что старт без неё проходит (named gap ADR 0010).
+Деплой выставляет переменную вручную, первый деплой проверяет позитивную половину (переменная задана →
+ключ резолвится); наблюдение M-1 — `impl.md` board-task `decision-integration`.
 
 Long Poll использует тот же `configKey = "vk"` для `groups.getLongPollServer`, а `a_check` уходит на
 динамический `server` из ответа через `RestClientBuilder.baseUri`. Таймаут чтения клиента — 60 с: при

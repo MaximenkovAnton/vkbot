@@ -77,6 +77,9 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `VK_BOT_ID` | yes | Bot user id used by the answer-decision rule |
 | `VK_LONGPOLL_ENABLED` | no | Enables Bots Long Poll polling at startup (default `true`) |
 | `VANE_URL` | yes | Base URL of the Vane search API |
+| `DECISION_URL` | yes | Root of the System One decision server (no `/v1`, no `/v1/systemone`) |
+| `DECISION_SPAM_THRESHOLD` | no | Spam probability threshold for the notice (default `0.9`) |
+| `DECISION_SPAM_REPLY_ENABLED` | no | Spam-reply kill-switch; `false` disables the decision call and the spam notice (default `true`) |
 | `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
 | `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries, OCR and greetings |
 | `AI_API_KEY` | no | LLM API key (default `dummy`; needed only when the server enables authorization) |
@@ -142,8 +145,14 @@ runs independently of HTTP health probes. See `docs/development/deployment.md`.
 
 ```
 VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles)
-            → MESSAGE_RECEIVED → processor → MESSAGE_REQUIRE_ANSWER
-            → ai → ANSWER_MESSAGE → vk-facade → VK API
+            → MESSAGE_RECEIVED → processor
+            → processor: human in a group chat, decision spamProbability ≥ DECISION_SPAM_THRESHOLD
+              → ANSWER_MESSAGE (spam notice) → vk-facade → VK API
+            → otherwise: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
+```
+
+The processor also computes the message intent (`help`/`news`/`general`) as a third decision-model
+question; intent routing (`/help`, «что нового») is a later change and does not affect the answer yet.
 
 Summary flow:
   persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API
