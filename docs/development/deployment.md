@@ -40,6 +40,7 @@ docker build -f src/docker/Dockerfile.jvm -t vkbot:jvm .
 docker run -p 8080:8080 \
   -e VK_GROUP_ID=... -e VK_API_TOKEN=... -e VK_BOT_ID=... \
   -e VANE_URL=... -e AI_BASE_URL=... -e AI_CHAT_MODEL=... -e SUMMARY_ENABLED_CHATS=1,2,3 \
+  -e DECISION_URL=... \
   -e QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://db:5432/vkbot \
   -e QUARKUS_DATASOURCE_USERNAME=... -e QUARKUS_DATASOURCE_PASSWORD=... \
   -e RABBITMQ_HOST=rabbitmq \
@@ -74,6 +75,14 @@ docker run -p 8080:8080 \
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
 
+`DECISION_URL` — обязательное значение контракта деплоя, но не условие старта: объявлен обязательным без
+дефолта, однако `fail-fast на старте не enforced` — принятый named gap AC-5 (решением об ответе
+decision-клиент пока не вызывается, поэтому старт без переменной проходит):
+
+| Переменная | Назначение |
+|---|---|
+| `DECISION_URL` | голый корень System One-сервера (без `/v1` и без `/v1/systemone`) |
+
 Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
 `VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
@@ -91,6 +100,11 @@ docker run -p 8080:8080 \
 
 Замечания:
 
+- `DECISION_URL` — новое обязательное значение контракта деплоя: `quarkus.langchain4j.ollama.base-url:
+  ${DECISION_URL}` (голый корень System One-сервера, без `/v1`). Порядок раскатки — **сначала env,
+  затем образ**; старый образ переменную не читает. Переменную выставляет деплой **вручную**; первый
+  деплой проверяет позитивную половину (`DECISION_URL` задан → ключ резолвится), на отказ старта
+  рассчитывать нельзя ([ADR 0010](../adr/0010-decision-model-langchain4j.md)).
 - В `application.yml` prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
   `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в `application.yml` есть, но читают env:
   `AI_BASE_URL` — это корень OpenAI API вместе с `/v1` (расширение дописывает `/chat/completions`),
@@ -158,7 +172,9 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 - Rollback-команд Liquibase в проекте нет: откат приложения — предыдущий образ, схема обязана быть
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - Порядок деплоя: сначала применить совместимую миграцию (новый образ при старте), затем переключить
-  трафик; при откате — вернуть предыдущий образ (схема остаётся).
+  трафик; при откате — вернуть предыдущий образ (схема остаётся). Для decision-клиента данных и миграций
+  нет: откат — предыдущий образ, `DECISION_URL` можно убрать (старый образ его не читает), повторная
+  раскатка — тем же порядком «env → образ».
 
 ## Health и наблюдаемость
 

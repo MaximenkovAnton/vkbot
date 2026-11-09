@@ -109,6 +109,11 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.langchain4j.openai.api-key` | `${AI_API_KEY:dummy}` | ключ авторизации; дефолт `dummy` vLLM без `--api-key` игнорирует |
 | `quarkus.langchain4j.openai.max-retries` | `2` | повторы после первой попытки — три попытки провайдера на вызов |
 | `quarkus.langchain4j.openai.chat-model.model-name` | `${AI_CHAT_MODEL}` | имя chat-модели для ответа, саммаризации и OCR |
+| `quarkus.langchain4j.chat-model.provider` | `openai` | build-time выбор провайдера chat-модели; с двумя LangChain4j-расширениями обязателен, иначе сборка падает на ambiguity |
+| `quarkus.langchain4j.decision-model.provider` | `ollama` | build-time выбор провайдера decision-модели; второй обязательный ключ выбора |
+| `quarkus.langchain4j.ollama.base-url` | `${DECISION_URL}` | голый корень System One-сервера (без `/v1`, без `/v1/systemone`); `DECISION_URL` обязателен, дефолта нет; расширение дописывает `v1/systemone` |
+| `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
+| `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
@@ -118,6 +123,24 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 поднимают. В тестах те же ключи заданы в `src/app/src/test/resources/application.yaml:26-33` и
 `src/app/src/test/resources/application-integration-test.yaml:89-97`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
 (`base-url` = `baseUrl()/v1`).
+
+Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md)) — второй LangChain4j-провайдер:
+`decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
+`model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен.
+Провайдерские ключи `quarkus.langchain4j.ollama.log-requests/log-responses` **не добавлены**.
+Decision-логи **включены** наследованием глобального `true`: у ollama-конфига дефолт
+`@WithDefault("${quarkus.langchain4j.log-requests}")`/`...log-responses`, а рекордер читает
+`firstOrDefault(false, decision-model.*, ollama.*)`; поэтому нормализованный текст и ответ модели
+логируются на INFO и **экспортируются по OTLP** (`quarkus.otel.logs.enabled: true` — PII покидает
+процесс) — **PII, принятый риск** (решение Q1=B). Выключение — отдельное решение
+(провайдерские `log-requests: false` + `log-responses: false`). `cause.message` (тело HTTP-ошибки) не
+логировать выше DEBUG. В тестах заданы dummy `base-url: http://localhost:8089` и
+`model-id: test-decision`, а `WireMockTestResource` подменяет `base-url` на `baseUrl()`.
+`DECISION_URL` объявлен обязательным без дефолта, но `fail-fast на старте не enforced` — принятый
+named gap AC-5: decision-бин расширения создаётся лениво, а клиент в этой задаче не вызывается из
+runtime, поэтому старт без переменной проходит. Деплой выставляет переменную вручную, первый деплой
+проверяет позитивную половину (переменная задана → ключ резолвится); наблюдение M-1 — `impl.md`
+board-task `decision-integration`.
 
 Long Poll использует тот же `configKey = "vk"` для `groups.getLongPollServer`, а `a_check` уходит на
 динамический `server` из ответа через `RestClientBuilder.baseUri`. Таймаут чтения клиента — 60 с: при

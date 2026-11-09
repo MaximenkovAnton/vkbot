@@ -30,6 +30,7 @@ class WireMockTestResource : QuarkusTestResourceLifecycleManager {
             "quarkus.rest-client.vane.url" to server!!.baseUrl(),
             "quarkus.langchain4j.openai.base-url" to "${server!!.baseUrl()}/v1",
             "quarkus.langchain4j.openai.api-key" to "test-key",
+            "quarkus.langchain4j.ollama.base-url" to server!!.baseUrl(),
         )
     }
 

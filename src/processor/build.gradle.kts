@@ -9,8 +9,13 @@ repositories {
     mavenLocal()
 }
 
+val quarkusLangChain4jVersion: String by project
+
 dependencies {
     implementation(project(":src:share"))
+    implementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
+
+    testFixturesImplementation("io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:$quarkusLangChain4jVersion")
 
     // Test fixtures need access to share module classes and shared test-fixtures
     testFixturesImplementation(project(":src:share"))
