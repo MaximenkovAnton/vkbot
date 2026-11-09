@@ -99,24 +99,26 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
-## `processor` — решение об ответе и клиент decision-модели
+## `processor` — решение об ответе, спам-уведомление и клиент decision-модели
 
-- **Ответственность:** по `MESSAGE_RECEIVED` решить, нужен ли AI-ответ, и опубликовать
-  `MESSAGE_REQUIRE_ANSWER`. В модуле также лежит заготовка клиента decision-модели, пока недостижимая
-  из runtime.
+- **Ответственность:** по `MESSAGE_RECEIVED` вызвать decision-модель для применимого сообщения (человек
+  в групповом чате), при спаме опубликовать `ANSWER_MESSAGE` и остановить обработку, иначе решить, нужен
+  ли AI-ответ, и опубликовать `MESSAGE_REQUIRE_ANSWER`. Клиент decision-модели вызывается из runtime
+  ([ADR 0012](../adr/0012-decision-runtime-spam-policy.md)).
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
-- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:15-45` (координация),
-  `IsRequireAnswerCommand.kt:10-34` (правила: не человек → нет; личный чат → да; `!`/`\` → нет;
-  упоминание бота или forward от бота → да). В коде есть TODO-комментарий о будущем контексте (RAG) —
-  это не реализовано.
+- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:35-79` (спам-этап, fail-open, координация и
+  публикация `ANSWER_MESSAGE`/`MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
+  `spamProbability >= decision.spam-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не человек →
+  нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да). В коде есть
+  TODO-комментарий о будущем контексте (RAG) — это не реализовано.
 - **Decision-клиент:** порт `processor/port/output/decision/AnalyzeMessageOutputPort.kt`
   (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
   `processor/adapter/output/decision/DecisionModelOutputAdapter.kt` над библиотечным
-  `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `DecisionAnalysis` и
-  `MessageTextNormalizer` (`processor/domain/decision/`), отказ — `DecisionModelException`
-  (`EXTERNAL_FAILURE`). Порт не вызывает ни один use case, входного адаптера нет — клиент недостижим из
-  runtime ([ADR 0010](../adr/0010-decision-model-langchain4j.md)).
+  `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `MessageIntent`,
+  `DecisionAnalysis` и `MessageTextNormalizer` (`processor/domain/decision/`), отказ —
+  `DecisionModelException` (`EXTERNAL_FAILURE`). Один `decide` задаёт три вопроса — `spam`, `class`,
+  `intent`; адаптер маппит `intent` в `MessageIntent`. Маршрутизация интентов — следующая задача.
 - **Сборка:** `share`; внешняя зависимость `quarkus-langchain4j-ollama` для decision-модели (как у `ai` —
   `quarkus-langchain4j-openai`); `testImplementation` infrastructure для декораторов
   (`src/processor/build.gradle.kts:13`). Project-рёбра при этом не меняются.
@@ -233,8 +235,8 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `MESSAGE_NEW` | receiver (`PublishVkEventCommandImpl.kt:15-23`) | persistence (`MessageNewEventProcessor.kt:12-22`) |
 | `MESSAGE_RECEIVED` | persistence (`SaveMessageUsecase.kt:33-38`) | processor (`MessageReceivedEventProcessor.kt:12-22`) |
 | `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
-| `MESSAGE_REQUIRE_ANSWER` | processor (`MessageReceivedUsecaseInput.kt:35-42`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
-| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
+| `MESSAGE_REQUIRE_ANSWER` | processor (`MessageReceivedUsecaseInput.kt:66-79`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
+| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`), processor — спам-ветка (`MessageReceivedUsecaseInput.kt:46-60`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
 | `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:195-207`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
 
 ### In-process порты

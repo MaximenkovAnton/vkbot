@@ -1,6 +1,7 @@
 package com.simarel.vkbot.processor.adapter.output.decision
 
 import com.simarel.vkbot.processor.domain.decision.MessageClass
+import com.simarel.vkbot.processor.domain.decision.MessageIntent
 import com.simarel.vkbot.processor.domain.exception.DecisionModelException
 import com.simarel.vkbot.processor.domain.exception.DecisionModelResponseException
 import com.simarel.vkbot.processor.port.output.decision.AnalyzeMessageResponse
@@ -29,8 +30,10 @@ private const val CALL_FAILED_MESSAGE = "Decision model call failed"
 private const val INVALID_RESPONSE_MESSAGE = "Decision model response is invalid"
 private const val SPAM_QUESTION = "spam"
 private const val CLASS_QUESTION = "class"
+private const val INTENT_QUESTION = "intent"
 private const val SPAM_TEXT = "Это спам, реклама, накрутка или мошенничество?"
 private const val CLASS_TEXT = "Определи тип сообщения в чате с ботом."
+private const val INTENT_TEXT = "Определи, что просит автор сообщения."
 private const val CLEAN_TEXT = "Купи п0дпис4ик0в и лайки дешев0, накрутка ВК"
 private const val DOUBLE_SPACED_INPUT =
     "К  а  з  и  н  о     о  н  л  а  й  н  ,     б  о  н  у  с     5  0  0  %     н  а     " +
@@ -43,12 +46,20 @@ private val CLASS_CRITERIA = mapOf(
         "Просьба к боту выполнить действие: /start, /help, погода, напомни, переведи, включи, статистика",
     "ham" to "Обычное общение между людьми, без рекламы и без обращения к боту",
 )
+private val INTENT_CRITERIA = mapOf(
+    "help" to "Просит справку: /help, /помощь, «что ты умеешь», «какие есть команды»",
+    "news" to
+        "Спрашивает, что нового или что происходило в чате: «что нового», «что писали», " +
+        "«о чём говорили», «что было вчера», «что нового за последние 3 дня»",
+    "general" to "Всё остальное: обычный вопрос, сообщение или просьба не из списка",
+)
 private val DEFAULT_PROBABILITIES = mapOf("spam" to 0.959, "command" to 0.009, "ham" to 0.032)
+private val INTENT_PROBABILITIES = mapOf("help" to 0.05, "news" to 0.05, "general" to 0.9)
 
 class DecisionModelOutputAdapterTest {
 
     @Test
-    fun `execute builds normalized input and exactly two questions`() {
+    fun `execute builds normalized input and exactly three questions in order`() {
         val fake = FakeDecisionModel().apply { response = validResponse() }
 
         execute(fake, DOUBLE_SPACED_INPUT)
@@ -56,11 +67,14 @@ class DecisionModelOutputAdapterTest {
         assertEquals(1, fake.calls)
         val request = fake.requests.single()
         assertEquals(DOUBLE_SPACED_FIRST_PASS, (request.input() as TextInput).text())
-        assertEquals(setOf(SPAM_QUESTION, CLASS_QUESTION), request.questions().keys)
+        assertEquals(listOf(SPAM_QUESTION, CLASS_QUESTION, INTENT_QUESTION), request.questions().keys.toList())
         assertEquals(SPAM_TEXT, (request.questions().getValue(SPAM_QUESTION) as YesNoQuestion).text())
         val classQuestion = request.questions().getValue(CLASS_QUESTION) as ChoiceQuestion
         assertEquals(CLASS_TEXT, classQuestion.text())
         assertEquals(CLASS_CRITERIA, classQuestion.options())
+        val intentQuestion = request.questions().getValue(INTENT_QUESTION) as ChoiceQuestion
+        assertEquals(INTENT_TEXT, intentQuestion.text())
+        assertEquals(INTENT_CRITERIA, intentQuestion.options())
     }
 
     @ParameterizedTest
@@ -73,6 +87,7 @@ class DecisionModelOutputAdapterTest {
         assertEquals(expectedClass, analysis.messageClass)
         assertEquals(0.959, analysis.classConfidence ?: Double.NaN)
         assertEquals(0.908, analysis.spamProbability)
+        assertEquals(MessageIntent.GENERAL, analysis.intent)
         assertEquals(
             mapOf(
                 MessageClass.SPAM to 0.959,
@@ -81,6 +96,17 @@ class DecisionModelOutputAdapterTest {
             ),
             analysis.classProbabilities,
         )
+    }
+
+    @ParameterizedTest
+    @CsvSource("help, HELP", "news, NEWS", "general, GENERAL")
+    fun `execute maps the intent answer to the message intent`(
+        choice: String,
+        expectedIntent: MessageIntent,
+    ) {
+        val fake = FakeDecisionModel().apply { response = validResponse(intentChoice = choice) }
+
+        assertEquals(expectedIntent, execute(fake, CLEAN_TEXT).analysis.intent)
     }
 
     @Test
@@ -101,6 +127,7 @@ class DecisionModelOutputAdapterTest {
         assertNull(analysis.classConfidence)
         assertEquals(emptyMap<MessageClass, Double>(), analysis.classProbabilities)
         assertEquals(0.0, analysis.spamProbability)
+        assertEquals(MessageIntent.GENERAL, analysis.intent)
     }
 
     @Test
@@ -112,6 +139,7 @@ class DecisionModelOutputAdapterTest {
         assertEquals(0, fake.calls)
         assertEquals(MessageClass.HAM, analysis.messageClass)
         assertEquals(emptyMap<MessageClass, Double>(), analysis.classProbabilities)
+        assertEquals(MessageIntent.GENERAL, analysis.intent)
     }
 
     @Test
@@ -143,6 +171,7 @@ class DecisionModelOutputAdapterTest {
             response = DecisionResponse.builder()
                 .answer(SPAM_QUESTION, YesNoAnswer.from(0.908))
                 .answer(CLASS_QUESTION, RefusalAnswer.of())
+                .answer(INTENT_QUESTION, intentAnswer("general"))
                 .build()
         }
 
@@ -158,6 +187,7 @@ class DecisionModelOutputAdapterTest {
             response = DecisionResponse.builder()
                 .answer(SPAM_QUESTION, RefusalAnswer.of())
                 .answer(CLASS_QUESTION, choiceAnswer("spam", DEFAULT_PROBABILITIES, 0.959))
+                .answer(INTENT_QUESTION, intentAnswer("general"))
                 .build()
         }
 
@@ -165,6 +195,81 @@ class DecisionModelOutputAdapterTest {
 
         assertEquals(CALL_FAILED_MESSAGE, exception.message)
         assertEquals(ContentFilteredException::class.java, exception.cause?.javaClass)
+    }
+
+    @Test
+    fun `execute wraps a refusal on the intent question`() {
+        val fake = FakeDecisionModel().apply {
+            response = DecisionResponse.builder()
+                .answer(SPAM_QUESTION, YesNoAnswer.from(0.908))
+                .answer(CLASS_QUESTION, choiceAnswer("spam", DEFAULT_PROBABILITIES, 0.959))
+                .answer(INTENT_QUESTION, RefusalAnswer.of())
+                .build()
+        }
+
+        val exception = assertThrows(DecisionModelException::class.java) { execute(fake, CLEAN_TEXT) }
+
+        assertEquals(CALL_FAILED_MESSAGE, exception.message)
+        assertEquals(ContentFilteredException::class.java, exception.cause?.javaClass)
+    }
+
+    @Test
+    fun `execute wraps a missing intent answer`() {
+        val exception = assertThrows(DecisionModelException::class.java) {
+            execute(
+                FakeDecisionModel().apply {
+                    response = DecisionResponse.builder()
+                        .answer(SPAM_QUESTION, YesNoAnswer.from(0.908))
+                        .answer(CLASS_QUESTION, choiceAnswer("spam", DEFAULT_PROBABILITIES, 0.959))
+                        .build()
+                },
+                CLEAN_TEXT,
+            )
+        }
+
+        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
+        assertEquals(InvalidDecisionResponseException::class.java, exception.cause?.javaClass)
+    }
+
+    @Test
+    fun `execute wraps a wrong intent answer type`() {
+        val exception = assertThrows(DecisionModelException::class.java) {
+            execute(
+                FakeDecisionModel().apply {
+                    response = DecisionResponse.builder()
+                        .answer(SPAM_QUESTION, YesNoAnswer.from(0.908))
+                        .answer(CLASS_QUESTION, choiceAnswer("spam", DEFAULT_PROBABILITIES, 0.959))
+                        .answer(INTENT_QUESTION, YesNoAnswer.from(0.5))
+                        .build()
+                },
+                CLEAN_TEXT,
+            )
+        }
+
+        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
+        assertEquals(InvalidDecisionResponseException::class.java, exception.cause?.javaClass)
+    }
+
+    @Test
+    fun `execute wraps an unknown intent value rejected by the library`() {
+        val fake = FakeDecisionModel().apply { response = validResponse(intentChoice = "other") }
+
+        val exception = assertThrows(DecisionModelException::class.java) { execute(fake, CLEAN_TEXT) }
+
+        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
+        assertEquals(InvalidDecisionResponseException::class.java, exception.cause?.javaClass)
+    }
+
+    @Test
+    fun `execute wraps an unknown intent probability`() {
+        val fake = FakeDecisionModel().apply {
+            response = validResponse(intentProbabilities = INTENT_PROBABILITIES + ("other" to 0.01))
+        }
+
+        val exception = assertThrows(DecisionModelException::class.java) { execute(fake, CLEAN_TEXT) }
+
+        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
+        assertEquals(InvalidDecisionResponseException::class.java, exception.cause?.javaClass)
     }
 
     @Test
@@ -220,6 +325,20 @@ class DecisionModelOutputAdapterTest {
         assertEquals("$INVALID_RESPONSE_MESSAGE: unexpected class probabilities", exception.message)
     }
 
+    @Test
+    fun `execute rejects an intent value outside the known vocabulary`() {
+        val fake = FakeDecisionModel().apply {
+            validateResponse = false
+            response = validResponse(intentChoice = "other")
+        }
+
+        val exception = assertThrows(DecisionModelException::class.java) { execute(fake, CLEAN_TEXT) }
+
+        assertEquals(INVALID_RESPONSE_MESSAGE, exception.message)
+        assertEquals(DecisionModelResponseException::class.java, exception.cause?.javaClass)
+        assertEquals("$INVALID_RESPONSE_MESSAGE: unknown message intent", exception.cause?.message)
+    }
+
     private fun execute(
         fake: FakeDecisionModel,
         text: String,
@@ -231,9 +350,18 @@ class DecisionModelOutputAdapterTest {
         choice: String = "spam",
         classProbabilities: Map<String, Double> = DEFAULT_PROBABILITIES,
         confidence: Double? = 0.959,
+        intentChoice: String = "general",
+        intentProbabilities: Map<String, Double> = INTENT_PROBABILITIES,
     ): DecisionResponse = DecisionResponse.builder()
         .answer(SPAM_QUESTION, YesNoAnswer.from(0.908))
         .answer(CLASS_QUESTION, choiceAnswer(choice, classProbabilities, confidence))
+        .answer(INTENT_QUESTION, choiceAnswer(intentChoice, intentProbabilities, 0.9))
+        .build()
+
+    private fun intentAnswer(choice: String): ChoiceAnswer = ChoiceAnswer.builder()
+        .value(choice)
+        .probabilities(INTENT_PROBABILITIES)
+        .confidence(0.9)
         .build()
 
     private fun choiceAnswer(

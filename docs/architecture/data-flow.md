@@ -15,8 +15,8 @@
 | `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
 | `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
 | `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
-| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:35-42` (processor) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:66-79` (processor) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); процессор — спам-ветка (`MessageReceivedUsecaseInput.kt:46-60`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
 | `SUMMARY_READY` | `PersistenceDataUsecase.kt:195-207` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
@@ -84,10 +84,27 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
 4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
 
-## 4. Решение «нужен ли ответ» (processor)
+## 4. Спам-проверка и решение «нужен ли ответ» (processor)
 
 `MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
-(`MessageReceivedUsecaseInput.kt:21-44`) → `IsRequireAnswerCommand` (`IsRequireAnswerCommand.kt:22-33`):
+(`MessageReceivedUsecaseInput.kt:35-79`).
+
+Сначала — спам-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате (`peerId.isGroupChat()`)
+при `decision.spam-reply.enabled = true` use case вызывает decision-модель один раз через
+`AnalyzeMessageOutputPort` (адаптер `DecisionModelOutputAdapter`, ADR 0010/0012):
+
+- `spamProbability >= decision.spam-threshold` → публикуется ровно один `ANSWER_MESSAGE` с
+  `ResponseMessage` и текстом `Сработал автодетект спама. Вероятность спама: N%.`
+  (`N = round(spamProbability * 100)`), обработка останавливается: `MESSAGE_REQUIRE_ANSWER` и другие
+  события не публикуются. В групповом чате `vk-facade` добавит forward-блок исходного сообщения;
+  `ai-answer` пропускается.
+- отказ decision-модели (`RuntimeException`) — fail-open: WARNING без текста сообщения и без throwable
+  (только `peerId` и класс исключения), исключение не уходит в брокер, обработка продолжается по
+  правилам ниже. `InterruptedException` восстанавливает флаг прерывания и пробрасывается.
+- при `decision.spam-reply.enabled = false` модель не вызывается, текст в System One не уходит.
+
+Если спам не сработал (или проверка неприменима), работает `IsRequireAnswerCommand`
+(`IsRequireAnswerCommand.kt:22-33`):
 
 | Условие | Ответ |
 |---|---|
@@ -98,7 +115,9 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 | последнее пересланное сообщение — от бота (`fromId == vk.bot.id`) | нужен |
 | иначе | не нужен |
 
-Если ответ нужен — публикуется `MESSAGE_REQUIRE_ANSWER`, иначе поток завершается.
+Если ответ нужен — публикуется `MESSAGE_REQUIRE_ANSWER`, иначе поток завершается. Третий вопрос
+decision-модели (`intent` = `help`/`news`/`general`) вычисляется в том же единственном вызове и попадает
+в `DecisionAnalysis.intent`, но не маршрутизируется: справка и «что нового» — следующая задача.
 
 ## 5. Генерация ответа (ai)
 

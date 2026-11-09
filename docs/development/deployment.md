@@ -75,9 +75,10 @@ docker run -p 8080:8080 \
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
 
-`DECISION_URL` — обязательное значение контракта деплоя, но не условие старта: объявлен обязательным без
-дефолта, однако `fail-fast на старте не enforced` — принятый named gap AC-5 (решением об ответе
-decision-клиент пока не вызывается, поэтому старт без переменной проходит):
+`DECISION_URL` — обязательное значение контракта деплоя и новый поток данных в runtime: decision-модель
+вызывается из `MessageReceivedUsecaseInput` для сообщения человека в групповом чате. Поведение старта без
+переменной этой задачей **не проверялось** (named gap ADR 0010), поэтому здесь не утверждается, что
+старт без неё проходит:
 
 | Переменная | Назначение |
 |---|---|
@@ -89,7 +90,9 @@ decision-клиент пока не вызывается, поэтому ста�
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `AI_GREETING_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
 `GREETINGS_CRON` (дефолт `0 0 0 * * ?`, то есть 00:00; `off`/`disabled` выключает расписание),
-`GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
+`GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`),
+`DECISION_SPAM_THRESHOLD` (дефолт `0.9` — порог спама),
+`DECISION_SPAM_REPLY_ENABLED` (дефолт `true`; `false` — kill-switch спам-этапа без отката образа).
 
 `GREETINGS_CRON=0 0 0 * * ?` по умолчанию: первый прогон после деплоя — живой, в ближайшие 00:00 зоны
 `GREETINGS_TIMEZONE`. Гасят его at-most-once (`greeting_log`), один прогон в сутки и отсутствие
@@ -100,11 +103,16 @@ decision-клиент пока не вызывается, поэтому ста�
 
 Замечания:
 
-- `DECISION_URL` — новое обязательное значение контракта деплоя: `quarkus.langchain4j.ollama.base-url:
-  ${DECISION_URL}` (голый корень System One-сервера, без `/v1`). Порядок раскатки — **сначала env,
-  затем образ**; старый образ переменную не читает. Переменную выставляет деплой **вручную**; первый
-  деплой проверяет позитивную половину (`DECISION_URL` задан → ключ резолвится), на отказ старта
-  рассчитывать нельзя ([ADR 0010](../adr/0010-decision-model-langchain4j.md)).
+- `DECISION_URL` — обязательное значение контракта деплоя: `quarkus.langchain4j.ollama.base-url:
+  ${DECISION_URL}` (голый корень System One-сервера, без `/v1`). Порядок раскатки — **сначала env и
+  decision-сервер с третьим вопросом `intent`, затем образ**; старый образ переменную не читает.
+  Decision-сервер должен принимать и отвечать на вопросы `spam`, `class`, `intent`; если он старый,
+  каждый применимый вызов уходит в fail-open: WARNING без PII (только `peerId` и класс исключения),
+  спам-детект и `intent` недоступны, ответы работают как раньше. Переменную выставляет деплой
+  **вручную**; поведение старта без переменной этой задачей не проверялось, на отказ старта
+  рассчитывать нельзя ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
+  [ADR 0012](../adr/0012-decision-runtime-spam-policy.md)). Операционный откат спам-этапа без отката
+  образа — `DECISION_SPAM_REPLY_ENABLED=false`.
 - В `application.yml` prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
   `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в `application.yml` есть, но читают env:
   `AI_BASE_URL` — это корень OpenAI API вместе с `/v1` (расширение дописывает `/chat/completions`),

@@ -21,6 +21,10 @@ summary:
   threshold: ${SUMMARY_THRESHOLD:100}
   batch-size: ${SUMMARY_BATCH_SIZE:100}
   system-prompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. Create a concise summary of the conversation. Provide both a detailed summary (full_summary) and a brief summary (short_summary) highlighting key topics and decisions.}
+decision:
+  spam-threshold: ${DECISION_SPAM_THRESHOLD:0.9}
+  spam-reply:
+    enabled: ${DECISION_SPAM_REPLY_ENABLED:true}
 quarkus:
   config:
     locations: application-queues.yml
