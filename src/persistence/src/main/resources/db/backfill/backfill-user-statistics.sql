@@ -1,0 +1,11 @@
+SET LOCAL lock_timeout = '2s';
+LOCK TABLE user_statistics, user_chat_statistics, user_hour_statistics IN ACCESS EXCLUSIVE MODE;
+DELETE FROM user_statistics;
+DELETE FROM user_chat_statistics;
+DELETE FROM user_hour_statistics;
+INSERT INTO user_statistics (user_id, message_count, total_length, first_message_at, last_message_at, updated_at) SELECT from_id, count(*), sum(length(message_text)), min(date), max(date), now() FROM messages GROUP BY from_id;
+INSERT INTO user_chat_statistics (user_id, peer_id, message_count, total_length, last_message_at) SELECT from_id, peer_id, count(*), sum(length(message_text)), max(date) FROM messages GROUP BY from_id, peer_id;
+INSERT INTO user_hour_statistics (user_id, utc_date, utc_hour, message_count) SELECT from_id, (date AT TIME ZONE 'UTC')::date, extract(hour FROM date AT TIME ZONE 'UTC')::smallint, count(*) FROM messages GROUP BY from_id, (date AT TIME ZONE 'UTC')::date, extract(hour FROM date AT TIME ZONE 'UTC')::smallint;
+ANALYZE user_statistics;
+ANALYZE user_chat_statistics;
+ANALYZE user_hour_statistics;

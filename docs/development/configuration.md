@@ -61,10 +61,12 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона, в которой считаются гистограммы активности по часу и дню недели (`GET /persistence/statistics/users/{id}`); невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt` |
+| `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона, в которую конвертируются UTC-бакеты `user_hour_statistics` при чтении гистограмм активности по часу и дню недели (`GET /persistence/statistics/users/{id}`); невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt` |
 
-Зона влияет только на чтение: агрегаты не хранятся, поэтому смена `STATISTICS_TIMEZONE` пересчитывает
-бакеты при следующем запросе ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
+Агрегаты статистики хранятся в UTC (`user_hour_statistics.utc_date`/`utc_hour`): зона влияет только на
+конвертацию выбранного бакета при чтении, поэтому смена `STATISTICS_TIMEZONE` меняет бакеты следующего
+запроса без пересборки агрегатов
+([ADR 2026-11-10-user-statistics-materialization](../adr/2026-11-10-user-statistics-materialization.md)).
 
 ## База данных и миграции
 

@@ -27,7 +27,7 @@ object Tables {
         val SCREEN_NAME = DSL.field("screen_name")
         val BIRTH_DATE = DSL.field("birth_date")
         val CITY = DSL.field("city")
-        val PROFILE_DATA = DSL.field("profile_data", SQLDataType.JSONB)
+        val PROFILE_DETAILS = DSL.field("profile_details", SQLDataType.JSONB)
         val LAST_UPDATED = DSL.field("last_updated")
         val CREATED_AT = DSL.field("created_at")
     }
@@ -70,6 +70,36 @@ object Tables {
 
         val ID = DSL.field("id")
         val TS = DSL.field("ts")
+    }
+
+    object UserStatisticsTable {
+        val TABLE = DSL.table("user_statistics")
+
+        val USER_ID = DSL.field("user_id", SQLDataType.BIGINT)
+        val MESSAGE_COUNT = DSL.field("message_count", SQLDataType.BIGINT)
+        val TOTAL_LENGTH = DSL.field("total_length", SQLDataType.BIGINT)
+        val FIRST_MESSAGE_AT = DSL.field("first_message_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val LAST_MESSAGE_AT = DSL.field("last_message_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val UPDATED_AT = DSL.field("updated_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object UserChatStatisticsTable {
+        val TABLE = DSL.table("user_chat_statistics")
+
+        val USER_ID = DSL.field("user_id", SQLDataType.BIGINT)
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val MESSAGE_COUNT = DSL.field("message_count", SQLDataType.BIGINT)
+        val TOTAL_LENGTH = DSL.field("total_length", SQLDataType.BIGINT)
+        val LAST_MESSAGE_AT = DSL.field("last_message_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object UserHourStatisticsTable {
+        val TABLE = DSL.table("user_hour_statistics")
+
+        val USER_ID = DSL.field("user_id", SQLDataType.BIGINT)
+        val UTC_DATE = DSL.field("utc_date", SQLDataType.LOCALDATE)
+        val UTC_HOUR = DSL.field("utc_hour", SQLDataType.SMALLINT)
+        val MESSAGE_COUNT = DSL.field("message_count", SQLDataType.BIGINT)
     }
 
     object GreetingLog {

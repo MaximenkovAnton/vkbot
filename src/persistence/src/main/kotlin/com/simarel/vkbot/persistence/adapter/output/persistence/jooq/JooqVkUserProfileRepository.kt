@@ -38,7 +38,7 @@ open class JooqVkUserProfileRepository {
                 VkUserProfiles.SCREEN_NAME,
                 VkUserProfiles.BIRTH_DATE,
                 VkUserProfiles.CITY,
-                VkUserProfiles.PROFILE_DATA,
+                VkUserProfiles.PROFILE_DETAILS,
                 VkUserProfiles.LAST_UPDATED,
                 VkUserProfiles.CREATED_AT,
             )
@@ -49,7 +49,7 @@ open class JooqVkUserProfileRepository {
                 profile.screenName,
                 profile.birthDate,
                 profile.city,
-                JSONB.valueOf(objectMapper.writeValueAsString(profile.profileData)),
+                JSONB.valueOf(objectMapper.writeValueAsString(profile.details)),
                 Timestamp.from(profile.lastUpdated.toInstant()),
                 Timestamp.from(OffsetDateTime.now().toInstant()),
             )
@@ -60,7 +60,7 @@ open class JooqVkUserProfileRepository {
             .set(VkUserProfiles.SCREEN_NAME, profile.screenName)
             .set(VkUserProfiles.BIRTH_DATE, profile.birthDate)
             .set(VkUserProfiles.CITY, profile.city)
-            .set(VkUserProfiles.PROFILE_DATA, JSONB.valueOf(objectMapper.writeValueAsString(profile.profileData)))
+            .set(VkUserProfiles.PROFILE_DETAILS, JSONB.valueOf(objectMapper.writeValueAsString(profile.details)))
             .set(VkUserProfiles.LAST_UPDATED, Timestamp.from(profile.lastUpdated.toInstant()))
             .execute()
 
@@ -141,7 +141,7 @@ open class JooqVkUserProfileRepository {
         birthDate = get(VkUserProfiles.BIRTH_DATE, String::class.java),
         city = get(VkUserProfiles.CITY, String::class.java),
         lastUpdated = get(VkUserProfiles.LAST_UPDATED, OffsetDateTime::class.java),
-        profileData = get(VkUserProfiles.PROFILE_DATA, String::class.java)
+        details = get(VkUserProfiles.PROFILE_DETAILS, String::class.java)
             ?.let { json -> objectMapper.readValue(json, object : TypeReference<Map<String, Any?>>() {}) }
             ?: emptyMap(),
     )

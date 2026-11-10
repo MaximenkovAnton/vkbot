@@ -8,16 +8,22 @@
 Владеет схемой PostgreSQL и всей записью/чтением данных бота:
 
 - по событию `MESSAGE_NEW` подтягивает профили авторов сообщения и forward'ов: отсутствующие и устаревшие
-  (`last_updated` старше месяца) запрашивает через in-process порты `vk-profiles`, изменившиеся поля
-  обновляет, а поля, которых VK больше не отдаёт, оставляет прежними; перед обновлением пишет старые
-  значения изменившихся полей в `vk_user_profile_history` (JSONB-diff); сохраняет сообщение вместе с
+  (`last_updated` старше месяца) запрашивает через in-process порты `vk-profiles`, изменившиеся
+  typed-поля и человеческие ключи `details` обновляет, а поля, которых VK больше не отдаёт, оставляет
+  прежними; перед обновлением пишет старые значения изменившихся typed-полей и `details` в
+  `vk_user_profile_history` (JSONB-diff); сохраняет сообщение вместе с
   пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
 - по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили; ведёт
   записи саммари по lifecycle (`PENDING` → `COMPLETED`/`FAILED`);
 - при сохранении завершённого саммари публикует `SUMMARY_READY`;
-- по запросу считает статистику автора из `messages` (число сообщений, суммарная и средняя длина, разбивка
-  по чатам, гистограммы по часу и ISO-дню недели в зоне `statistics.timezone`) и отдаёт историю профиля
-  ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
+- при сохранении сообщения материализует статистику автора в той же транзакции: три upsert'а в
+  `user_statistics` → `user_chat_statistics` → `user_hour_statistics` (+1 к `message_count`, +длина в
+  code points к `total_length`, `first_message_at=LEAST`, `last_message_at=GREATEST`, UTC-бакет
+  `(utc_date, utc_hour)`); по запросу читает только эти агрегаты, конвертируя UTC-бакет в
+  `statistics.timezone` (число сообщений, суммарная и средняя длина, разбивка по чатам, гистограммы по
+  часу и ISO-дню недели), и отдаёт историю профиля
+  ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md),
+  [ADR 2026-11-10-user-statistics-materialization](../adr/2026-11-10-user-statistics-materialization.md)).
 
 Профиль, который VK не вернул по запросу, не перезаписывается: сохранённые данные остаются, а строка
 остаётся устаревшей и будет перезапрошена при следующем сообщении.
@@ -39,6 +45,8 @@
 | запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:75-149` |
 | jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-82`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
 | история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:17-124` |
+| материализация статистики при сохранении сообщения: порт, адаптер и jOOQ-writer | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsWriterRepository.kt` |
+| changeset 009 и ручной backfill-скрипт | `src/persistence/src/main/resources/db/changelog/changes/009-create-user-statistics-tables.yaml`, `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
 | claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
 | профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:18-153` |
@@ -48,21 +56,37 @@
 Схема и миграции — единственный владелец (другие модули данных в БД не видят):
 
 - `messages` — сообщение, `forwarded_messages` как `JSONB`, индексы по `from_id`, `peer_id`, `date`;
-- `vk_user_profiles` — профиль пользователя, `profile_data JSONB` — полный ответ VK без фото/аватарки,
+- `vk_user_profiles` — профиль пользователя, `profile_details JSONB` — человеческие значения полей VK
+  (русские подписи кодов, title вместо объектов, без VK-id/пустых строк/волатильных полей),
   `last_updated` — дата последней актуализации, индекс по ней;
-- `vk_user_profile_history` — JSONB-diff `{field: {old, new}}` по изменившимся полям одной актуализации,
+- `vk_user_profile_history` — JSONB-diff `{field: {old, new}}` по изменившимся typed-колонкам и ключам
+  `details` одной актуализации (старые строки удалены changeset 008);
   `changed_at`, индекс `(profile_id, changed_at)`; строка появляется только при реальном изменении;
 - `vk_group_profiles` — профиль группы, id хранится отрицательным (как в домене), `last_updated` — дата
   последней актуализации, индекс по ней;
 - `summaries` — `PENDING`/`COMPLETED`/`FAILED`, диапазон сообщений, short/full, индексы по `peer_id`;
 - `greeting_log` — одна строка на `(greeting_date, peer_id)` (PK), признак «поздравление за этот день уже
-  отправлено»; пишется модулем `daily-greetings` через `ClaimDailyGreetingPort`, схема — здесь.
+  отправлено»; пишется модулем `daily-greetings` через `ClaimDailyGreetingPort`, схема — здесь;
+- `user_statistics` — материализованные итоги автора: `message_count`, `total_length` (code points),
+  `first_message_at`, `last_message_at`, `updated_at`; одна строка на автора (PK `user_id`);
+- `user_chat_statistics` — автор×чат: `message_count`, `total_length`, `last_message_at`;
+  PK `(user_id, peer_id)`;
+- `user_hour_statistics` — автор×UTC-дата×UTC-час: `message_count`; PK `(user_id, utc_date, utc_hour)`,
+  CHECK `chk_user_hour_statistics_utc_hour` (`utc_hour BETWEEN 0 AND 23`); ретенции нет.
 
 Миграции: `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml`,
 `src/persistence/src/main/resources/db/changelog/changes/001-create-messages-table.yaml`,
 `.../002-create-user-profiles-table.yaml`, `.../003-create-group-profiles-table.yaml`,
 `.../004-create-summaries-table.yaml`, `.../005-create-long-poll-position-table.yaml`,
-`.../006-create-greeting-log-table.yaml`. Смысл данных делят другие возможности: профили — `vk-profiles`,
+`.../006-create-greeting-log-table.yaml`, `.../007-add-user-profile-data-and-history.yaml`,
+`.../008-replace-profile-data-with-human-details.yaml` (три changeSet'а: `add profile_details` → all-rows
+`delete` истории с `lock_timeout` → `dropColumn` старой колонки),
+`.../009-create-user-statistics-tables.yaml` (только DDL: три `createTable` + один `sql` с
+`ALTER TABLE ... CHECK (utc_hour BETWEEN 0 AND 23)`). Переигровка накопленных `messages` в агрегаты —
+отдельный ручной ops-скрипт `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`
+(не миграция и не рантайм-бин: в файле нет `BEGIN`/`COMMIT`, запускается под `psql --single-transaction
+-v ON_ERROR_STOP=1`, требует остановленного писателя, берёт `ACCESS EXCLUSIVE` + `lock_timeout` и делает
+`ANALYZE`). Смысл данных делят другие возможности: профили — `vk-profiles`,
 саммари — `conversation-summary`, поздравления — `daily-greetings`; схема остаётся здесь (см. таблицу ниже).
 
 ## Journey
@@ -99,6 +123,8 @@
 - ADR 2026-10-28-module-boundaries-and-layer-rules — модуль `persistence` видит только `share`, слои внутри модуля.
 - ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — читающие и пишущие контракты для других модулей — in-process порты `share`, не loopback-REST.
 - ADR 2026-10-28-configuration-and-secrets — datasource и Liquibase-конфигурация в `:src:app`.
+- ADR 2026-11-10-vk-profile-human-details — `profile_details` вместо сырого снимка, typed + человеческий diff истории, changeset 008.
+- ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики автора: три таблицы, upsert в транзакции сообщения, ручной backfill-скрипт, конвертация UTC-бакетов на чтении.
 
 ## Acceptance criteria
 
@@ -117,26 +143,58 @@
 - **AC-message-storage-4** — КОГДА профиль группы сохранён с отрицательным id, СИСТЕМА ДОЛЖНА находить его
   по тому же id и отдавать вместе с датой последней актуализации. Test:
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileStorageIntegrationTest.kt`.
-- **AC-message-storage-5** — КОГДА при актуализации профиля изменились поля, СИСТЕМА ДОЛЖНА записать в
-  `vk_user_profile_history` только изменившиеся поля со старыми и новыми значениями; без изменений строки
-  нет. Test:
-  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImplTest.kt:155-208`,
-  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/ProfileDataMergerTest.kt:30-87`.
-- **AC-message-storage-6** — КОГДА запрошена статистика автора, СИСТЕМА ДОЛЖНА посчитать число сообщений,
-  суммарную и среднюю длину, разбивку по чатам и гистограммы по часу/дню недели в `statistics.timezone`
-  из `messages`. Test:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileHistoryAndStatisticsIntegrationTest.kt:74-112`.
+- **AC-message-storage-5** — КОГДА при актуализации профиля изменились typed-поля или ключи `details`,
+  СИСТЕМА ДОЛЖНА записать в `vk_user_profile_history` только изменившиеся ключи со старыми и новыми
+  человеческими значениями (typed-ключ `birth_date`, не `bdate`); без изменений строки нет. Test:
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImplTest.kt`,
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/ProfileFieldsMergerTest.kt`.
+- **AC-message-storage-6** — КОГДА запрошена статистика автора, СИСТЕМА ДОЛЖНА отдавать число сообщений,
+  суммарную и среднюю длину, разбивку по чатам и гистограммы по часу/ISO-дню недели только из трёх
+  агрегатных таблиц (`user_statistics`, `user_chat_statistics`, `user_hour_statistics`), конвертируя
+  UTC-бакет в `statistics.timezone` на чтении; КОГДА у автора есть строки `messages`, но агрегатов нет,
+  СИСТЕМА ДОЛЖНА отдавать нули. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserStatisticsMaterializationIntegrationTest.kt`.
+- **AC-message-storage-7** — КОГДА профиль сохранён jOOQ и прочитан обратно, СИСТЕМА ДОЛЖНА писать/читать
+  JSONB `vk_user_profiles.profile_details` и не иметь колонки сырого снимка; changeset 008 объявляет
+  `add profile_details` → all-rows `delete` истории с `lock_timeout` → `dropColumn` старой колонки. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileHistoryAndStatisticsIntegrationTest.kt`,
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/migration/ProfileMigrationChangesetTest.kt`,
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileMigrationIntegrationTest.kt`.
+- **AC-message-storage-8** — КОГДА `SaveMessageUsecase` сохраняет сообщение, СИСТЕМА ДОЛЖНА в той же
+  транзакции обновить агрегаты в фиксированном порядке `user_statistics` → `user_chat_statistics` →
+  `user_hour_statistics` (+1 к `message_count`, +длина в code points к `total_length`,
+  `first_message_at=LEAST`, `last_message_at=GREATEST`, UTC-бакет `(utc_date, utc_hour)`), так что сбой
+  записи статистики откатывает и сообщение. Test:
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt`,
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserStatisticsMaterializationIntegrationTest.kt`.
+- **AC-message-storage-9** — КОГДА SQL-скрипт переигровки `backfill-user-statistics.sql` запускается
+  вручную на БД с непустыми `messages` и пустыми агрегатами, СИСТЕМА ДОЛЖНА заполнить все три таблицы
+  ровно по `messages`; КОГДА он запускается повторно, числа не меняются; КОГДА есть чужой писатель или
+  скрипт падает в середине, СИСТЕМА ДОЛЖНА не изменить ни одной строки (fail fast по `lock_timeout`,
+  полный откат транзакции вызывающего). Test:
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/backfill/BackfillScriptContractTest.kt`,
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserStatisticsMaterializationIntegrationTest.kt`.
 
 ## Пробелы приёмки
 
-- Сохранение в PostgreSQL (`SaveMessageUsecase` + jOOQ) не покрыто ни одним тестом: интеграционный тест
-  доходит до `messages.send`, но не проверяет строки в БД, поэтому пустая история не валит тест.
+- Сохранение сообщения в `messages` проверяется косвенно: `UserStatisticsMaterializationIntegrationTest`
+  сеет сообщения production-путём и сверяет агрегаты и `count(messages)`, отдельного теста
+  `JooqMessageRepository.persist` нет.
 - REST `/persistence/*` не покрыт ни одним HTTP-тестом; новые `/profiles/users/{id}/history` и
   `/statistics/users/{id}` проверены на уровне репозитория/БД, не HTTP.
-- `profile_data` у профилей, сохранённых до ADR 2026-11-10-vk-profile-history-and-statistics, пуст до первой актуализации; история за это окно
-  пишется только по типизированным полям.
-- Статистика сканирует `messages` автора без фильтра периода; материализованные агрегаты — условие
-  апгрейда, не текущее требование.
+- `profile_details` у старых профилей пуст до первой актуализации (backfill нет); при пустом прежнем
+  снимке история пишется только по типизированным полям; текстовые поля VK нельзя очистить.
+- Старые строки истории удалены changeset 008 без переноса; откат образа после 008 — только с
+  восстановлением БД из бэкапа.
+- Статистика материализована; дрейф возникает в окне отката образа и при ручной чистке `messages`:
+  сообщения этого окна в агрегаты не попадут, согласованность восстанавливает ручной запуск
+  `backfill-user-statistics.sql` (остановка писателя, `ACCESS EXCLUSIVE` + `lock_timeout`, `ANALYZE`);
+  автоматического заполнения и рантайм-бина нет.
+- У `messages` нет уникального ключа, поэтому повторная доставка `MESSAGE_NEW` создаёт дубль сообщения и
+  дубль в агрегатах; дедупликации нет.
+- Ретенции нет: `user_hour_statistics` растёт ≤ 24 строк на автора в сутки, `user_chat_statistics` —
+  ≤ числа чатов автора; удаление строк `messages` агрегаты не пересчитывает (статистика от журнала не
+  зависит).
 - Публикация `SUMMARY_READY` при сохранении завершённого саммари не покрыта тестом —
   `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:255-268`.
 - Запись профилей jOOQ-репозиториями не покрыта тестом: `ProfileStorageIntegrationTest` проверяет чтение

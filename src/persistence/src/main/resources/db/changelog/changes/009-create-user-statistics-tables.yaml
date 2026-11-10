@@ -1,0 +1,106 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-create-user-statistics-tables
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: user_statistics
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: message_count
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_length
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_message_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: last_message_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: user_chat_statistics
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: message_count
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_length
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_message_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: user_hour_statistics
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: utc_date
+                  type: DATE
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: utc_hour
+                  type: SMALLINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: message_count
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+
+        - sql:
+            sql: ALTER TABLE user_hour_statistics ADD CONSTRAINT chk_user_hour_statistics_utc_hour CHECK (utc_hour BETWEEN 0 AND 23)

@@ -35,7 +35,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   которыми пользуются остальные модули. Никакой реализации и никаких адаптеров — слоя `adapter` здесь нет.
 - **Публичный API:**
   - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile}.kt`
-    (`VkUserProfile.profileData: Map<String, Any?>` — полный ответ VK без фото, ADR 2026-11-10-vk-profile-history-and-statistics);
+    (`VkUserProfile.details: Map<String, Any?>` — человеческие значения полей VK без id и фото, ADR 2026-11-10-vk-profile-human-details);
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
   - события: `share/domain/Event.kt:3-11` (7 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
@@ -77,7 +77,8 @@ Test-scope рёбра (не входят в production-граф, разреше�
 ## `persistence` — хранение и запросы
 
 - **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари,
-  истории изменений профиля и позиции Long Poll (`long_poll_position`); публичный REST запросов
+  истории изменений профиля, материализованной статистики автора и позиции Long Poll
+  (`long_poll_position`); публичный REST запросов
   (включая историю профиля и статистику автора); in-process реализация share-портов persistence;
   подтягивание профилей VK.
 - **Публичный API:**
@@ -91,20 +92,27 @@ Test-scope рёбра (не входят в production-граф, разреше�
     сводки «что нового» — `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`,
     `FindStoredSummariesInPeriodPort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
-- **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
-  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (20 операций, включая три чтения для сводки «что
+- **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → три upsert'а статистики →
+  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (20 операций, включая три чтения для сводки «что
   нового», историю профиля и статистику автора; публикует `SUMMARY_READY` при сохранении завершённого
   саммари), `FetchUserProfileCommandImpl.kt:18-153` (читает сохранённые профили; отсутствующие и
-  устаревшие старше месяца обновляет через in-process vk-порты, поля и снимок сливает с сохранёнными,
-  diff пишет в историю), `domain/profile/ProfileDataMerger.kt` (слияние и diff снимка без Jackson),
+  устаревшие старше месяца обновляет через in-process vk-порты, typed-поля и `details` сливает с
+  сохранёнными, diff пишет в историю), `domain/profile/ProfileFieldsMerger.kt` (слияние `details` и diff
+  typed-полей и `details` без Jackson),
   `StatisticsConfig.kt` (`statistics.timezone`), `JooqConfig.kt:11-20`,
+  `port/output/persistence/UpdateUserStatisticsPort.kt` + `adapter/output/persistence/UpdateUserStatisticsAdapter.kt`
+  (`@Transactional`) + `JooqUserStatisticsWriterRepository` — материализация агрегатов в транзакции
+  сообщения в порядке итоги → чаты → часы,
   jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
   `JooqLongPollPositionRepository` — одна строка `long_poll_position`, и `JooqGreetingLogRepository` —
   claim `greeting_log`; `JooqMessageRepository`/`JooqSummaryRepository` читают последнее сообщение
   автора, диапазон дат и саммари периода для сводки «что нового»; `JooqVkUserProfileRepository` хранит
-  `profile_data` и историю, `JooqUserStatisticsRepository` агрегирует `messages`), таблицы
+  `profile_details` и историю, `JooqUserStatisticsRepository` читает агрегаты `user_statistics`/
+  `user_chat_statistics`/`user_hour_statistics`), таблицы
   `.../jooq/Tables.kt`, changesets `005-create-long-poll-position-table`/
-  `006-create-greeting-log-table`/`007-add-user-profile-data-and-history`, порты
+  `006-create-greeting-log-table`/`007-add-user-profile-data-and-history`/
+  `008-replace-profile-data-with-human-details`/`009-create-user-statistics-tables`, ручной backfill-скрипт
+  `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`, порты
   `persistence/port/output/persistence/` и `ForwardedMessagesSerializationPort.kt:8-16`.
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.

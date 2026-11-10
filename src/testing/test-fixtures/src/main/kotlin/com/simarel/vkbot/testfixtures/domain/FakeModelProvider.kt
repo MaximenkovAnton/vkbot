@@ -65,7 +65,7 @@ object FakeModelProvider {
         birthDate: String? = "01.01.1990",
         city: String? = "Moscow",
         lastUpdated: OffsetDateTime = FIXED_DATE,
-        profileData: Map<String, Any?> = emptyMap(),
+        details: Map<String, Any?> = emptyMap(),
     ) = VkUserProfile(
         id = FakeVoProvider.createFromId(id),
         firstName = firstName,
@@ -74,7 +74,7 @@ object FakeModelProvider {
         birthDate = birthDate,
         city = city,
         lastUpdated = lastUpdated,
-        profileData = profileData,
+        details = details,
     )
 
     fun createVkGroupProfile(
