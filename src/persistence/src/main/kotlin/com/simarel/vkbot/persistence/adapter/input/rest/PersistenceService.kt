@@ -1,11 +1,14 @@
 package com.simarel.vkbot.persistence.adapter.input.rest
 
+import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
+import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.Consumes
+import jakarta.ws.rs.DefaultValue
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.Path
@@ -17,6 +20,7 @@ import java.util.UUID
 
 @Path("/persistence")
 @ApplicationScoped
+@Suppress("TooManyFunctions")
 interface PersistenceService {
 
     @GET
@@ -76,6 +80,20 @@ interface PersistenceService {
     @Path("/profiles/groups")
     @Produces(MediaType.APPLICATION_JSON)
     fun findGroupProfilesByIds(@QueryParam("ids") ids: List<Long>): List<VkGroupProfile>
+
+    @GET
+    @Path("/profiles/users/{id}/history")
+    @Produces(MediaType.APPLICATION_JSON)
+    fun findUserProfileHistory(
+        @PathParam("id") id: Long,
+        @QueryParam("limit") @DefaultValue("50") limit: Int,
+        @QueryParam("offset") @DefaultValue("0") offset: Int,
+    ): List<ProfileHistoryEntry>
+
+    @GET
+    @Path("/statistics/users/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    fun findUserStatistics(@PathParam("id") id: Long): UserStatistics
 }
 
 data class CreatePendingSummaryRequest(

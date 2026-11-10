@@ -78,12 +78,27 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
    `VkProfileInProcessAdapter` → VK API `users.get`/`groups.getById`), сливает с сохранёнными (значение из
-   VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`. Ошибка получения
-   профилей не валит сохранение: логируется WARNING (`:67-107`).
+   VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`; разницу снимков
+   (`ProfileDataMerger.diff`) пишет в `vk_user_profile_history` (JSONB `{field: {old, new}}`, только
+   изменившиеся поля). Полный ответ VK без фото лежит в `vk_user_profiles.profile_data`
+   ([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)). Ошибка получения профилей не валит
+   сохранение: логируется WARNING.
 2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
    с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
 4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
+
+### Чтение истории профиля и статистики автора
+
+`GET /persistence/profiles/users/{id}/history` (`PersistenceDataController.kt:140-153`) →
+`PersistenceDataUsecase.findUserProfileHistory` → `FindUserProfileHistoryPort` →
+`JooqVkUserProfileRepository.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
+
+`GET /persistence/statistics/users/{id}` (`PersistenceDataController.kt:155-163`) →
+`PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `JooqUserStatisticsRepository`:
+`count`, `sum(length(message_text))`, `min/max(date)`, разбивка по `peer_id` и гистограммы
+`extract(hour|isodow from date at time zone {statistics.timezone})` по `messages.from_id`. Агрегаты не
+хранятся — единственный источник истины `messages`, двойной записи нет.
 
 ## 4. Спам- и jailbreak-проверки, решение «нужен ли ответ» и маршрутизация интентов (processor)
 

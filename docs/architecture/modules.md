@@ -34,14 +34,15 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Ответственность:** доменные модели, value objects, события, базовые контракты и исходящие порты,
   которыми пользуются остальные модули. Никакой реализации и никаких адаптеров — слоя `adapter` здесь нет.
 - **Публичный API:**
-  - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile}.kt`;
+  - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile}.kt`
+    (`VkUserProfile.profileData: Map<String, Any?>` — полный ответ VK без фото, ADR 2026-11-10);
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
   - события: `share/domain/Event.kt:3-11` (7 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
   - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
     `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
     `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
-  - исходящие порты: 16 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
+  - исходящие порты: 18 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
     поздравления, три read-only порта сводки «что нового»), 2 — для позиции Long Poll
     (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai (`GenerateGreetingTextPort`) и 3 vk
     (`share/port/output/vk/`, включая `SendGreetingMessagePort`) — каждый `OutputPort<REQ,RESP>` с одной
@@ -75,12 +76,14 @@ Test-scope рёбра (не входят в production-граф, разреше�
 
 ## `persistence` — хранение и запросы
 
-- **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари и
-  позиции Long Poll (`long_poll_position`); публичный REST запросов; in-process реализация share-портов
-  persistence; подтягивание профилей VK.
+- **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари,
+  истории изменений профиля и позиции Long Poll (`long_poll_position`); публичный REST запросов
+  (включая историю профиля и статистику автора); in-process реализация share-портов persistence;
+  подтягивание профилей VK.
 - **Публичный API:**
-  - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-126`, контракт —
-    `PersistenceService.kt:18-79` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:81-90`);
+  - REST: `POST/GET /persistence/*`, включая `GET /persistence/profiles/users/{id}/history` и
+    `GET /persistence/statistics/users/{id}` — `PersistenceDataController.kt:21-166`, контракт —
+    `PersistenceService.kt:18-92` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:94-103`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
   - in-process: `PersistenceDataInProcessAdapter.kt` — 18 классов-адаптеров share-портов
     (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
@@ -89,16 +92,19 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `FindStoredSummariesInPeriodPort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
-  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (18 операций, включая три чтения для сводки «что
-  нового»; публикует `SUMMARY_READY` при сохранении завершённого саммари, `:238-269`),
-  `FetchUserProfileCommandImpl.kt:18-58` (читает сохранённые
-  профили; отсутствующие и устаревшие старше месяца обновляет через in-process vk-порты, поля сливает с
-  сохранёнными), `JooqConfig.kt:11-20`,
+  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (20 операций, включая три чтения для сводки «что
+  нового», историю профиля и статистику автора; публикует `SUMMARY_READY` при сохранении завершённого
+  саммари), `FetchUserProfileCommandImpl.kt:18-150` (читает сохранённые профили; отсутствующие и
+  устаревшие старше месяца обновляет через in-process vk-порты, поля и снимок сливает с сохранёнными,
+  diff пишет в историю), `domain/profile/ProfileDataMerger.kt` (слияние и diff снимка без Jackson),
+  `StatisticsConfig.kt` (`statistics.timezone`), `JooqConfig.kt:11-20`,
   jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
   `JooqLongPollPositionRepository` — одна строка `long_poll_position`, и `JooqGreetingLogRepository` —
   claim `greeting_log`; `JooqMessageRepository`/`JooqSummaryRepository` читают последнее сообщение
-  автора, диапазон дат и саммари периода для сводки «что нового»), таблицы `.../jooq/Tables.kt`,
-  changesets `005-create-long-poll-position-table`/`006-create-greeting-log-table`, порты
+  автора, диапазон дат и саммари периода для сводки «что нового»; `JooqVkUserProfileRepository` хранит
+  `profile_data` и историю, `JooqUserStatisticsRepository` агрегирует `messages`), таблицы
+  `.../jooq/Tables.kt`, changesets `005-create-long-poll-position-table`/
+  `006-create-greeting-log-table`/`007-add-user-profile-data-and-history`, порты
   `persistence/port/output/persistence/` и `ForwardedMessagesSerializationPort.kt:8-16`.
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
@@ -197,8 +203,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
   `PlainMessageSendUsecase.kt` (плоская отправка: `forwardedMessages = null`, `random_id` от текста и peer),
   `RandomId.kt` (две формулы: ответ — текст+peer+дата, плоская — текст+peer),
   `VkProfileUsecase.kt:9-21`, `SendVkMessageCommandImpl.kt:8-19`, `VkSendMessageOutputAdapter.kt:12-29`
-  (ошибка VK → `VkException`), `GetProfileAdapter.kt:12-73` (VK `users.get`/`groups.getById`; группы
-  хранятся с отрицательным id), `VkClient.kt:12-39` (`configKey = "vk"`, `v=${vk.api.version}`,
+  (ошибка VK → `VkException`), `GetProfileAdapter.kt:12-77` (VK `users.get` со всеми полями пользователя,
+  кроме фото/аватарки, и `groups.getById`; группы хранятся с отрицательным id),
+  `VkClient.kt:12-39` (`configKey = "vk"`, `v=${vk.api.version}`,
   `disable_mentions`, `dont_parse_links`).
 - **Сборка:** `share`, REST/REST client, fault-tolerance, RabbitMQ (`src/vk-facade/build.gradle.kts:13-23`).
 

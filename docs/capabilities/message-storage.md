@@ -9,11 +9,15 @@
 
 - по событию `MESSAGE_NEW` подтягивает профили авторов сообщения и forward'ов: отсутствующие и устаревшие
   (`last_updated` старше месяца) запрашивает через in-process порты `vk-profiles`, изменившиеся поля
-  обновляет, а поля, которых VK больше не отдаёт, оставляет прежними; сохраняет сообщение вместе с
+  обновляет, а поля, которых VK больше не отдаёт, оставляет прежними; перед обновлением пишет старые
+  значения изменившихся полей в `vk_user_profile_history` (JSONB-diff); сохраняет сообщение вместе с
   пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
 - по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили; ведёт
   записи саммари по lifecycle (`PENDING` → `COMPLETED`/`FAILED`);
-- при сохранении завершённого саммари публикует `SUMMARY_READY`.
+- при сохранении завершённого саммари публикует `SUMMARY_READY`;
+- по запросу считает статистику автора из `messages` (число сообщений, суммарная и средняя длина, разбивка
+  по чатам, гистограммы по часу и ISO-дню недели в зоне `statistics.timezone`) и отдаёт историю профиля
+  ([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)).
 
 Профиль, который VK не вернул по запросу, не перезаписывается: сохранённые данные остаются, а строка
 остаётся устаревшей и будет перезапрошена при следующем сообщении.
@@ -27,13 +31,14 @@
 |---|---|
 | `MESSAGE_NEW` из `all-events-queue` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt:12-22` |
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
-| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-126` |
+| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-166` |
 | контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:18-90` |
 | 18 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления и трёх read-only чтений сводки «что нового» | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
 | реализация 18 операций (включая три чтения сводки «что нового»: последнее сообщение автора, сообщения диапазона дат, саммари периода) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
 | запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:65-135` |
-| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-72`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt` |
+| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-90`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
+| история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:23-140`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:1-120` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
 | claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
 | профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:26-95` |
@@ -43,7 +48,10 @@
 Схема и миграции — единственный владелец (другие модули данных в БД не видят):
 
 - `messages` — сообщение, `forwarded_messages` как `JSONB`, индексы по `from_id`, `peer_id`, `date`;
-- `vk_user_profiles` — профиль пользователя, `last_updated` — дата последней актуализации, индекс по ней;
+- `vk_user_profiles` — профиль пользователя, `profile_data JSONB` — полный ответ VK без фото/аватарки,
+  `last_updated` — дата последней актуализации, индекс по ней;
+- `vk_user_profile_history` — JSONB-diff `{field: {old, new}}` по изменившимся полям одной актуализации,
+  `changed_at`, индекс `(profile_id, changed_at)`; строка появляется только при реальном изменении;
 - `vk_group_profiles` — профиль группы, id хранится отрицательным (как в домене), `last_updated` — дата
   последней актуализации, индекс по ней;
 - `summaries` — `PENDING`/`COMPLETED`/`FAILED`, диапазон сообщений, short/full, индексы по `peer_id`;
@@ -109,12 +117,26 @@
 - **AC-message-storage-4** — КОГДА профиль группы сохранён с отрицательным id, СИСТЕМА ДОЛЖНА находить его
   по тому же id и отдавать вместе с датой последней актуализации. Test:
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileStorageIntegrationTest.kt`.
+- **AC-message-storage-5** — КОГДА при актуализации профиля изменились поля, СИСТЕМА ДОЛЖНА записать в
+  `vk_user_profile_history` только изменившиеся поля со старыми и новыми значениями; без изменений строки
+  нет. Test:
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImplTest.kt:155-208`,
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/ProfileDataMergerTest.kt:30-87`.
+- **AC-message-storage-6** — КОГДА запрошена статистика автора, СИСТЕМА ДОЛЖНА посчитать число сообщений,
+  суммарную и среднюю длину, разбивку по чатам и гистограммы по часу/дню недели в `statistics.timezone`
+  из `messages`. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileHistoryAndStatisticsIntegrationTest.kt:74-112`.
 
 ## Пробелы приёмки
 
 - Сохранение в PostgreSQL (`SaveMessageUsecase` + jOOQ) не покрыто ни одним тестом: интеграционный тест
   доходит до `messages.send`, но не проверяет строки в БД, поэтому пустая история не валит тест.
-- REST `/persistence/*` не покрыт ни одним HTTP-тестом.
+- REST `/persistence/*` не покрыт ни одним HTTP-тестом; новые `/profiles/users/{id}/history` и
+  `/statistics/users/{id}` проверены на уровне репозитория/БД, не HTTP.
+- `profile_data` у профилей, сохранённых до ADR 2026-11-10, пуст до первой актуализации; история за это окно
+  пишется только по типизированным полям.
+- Статистика сканирует `messages` автора без фильтра периода; материализованные агрегаты — условие
+  апгрейда, не текущее требование.
 - Публикация `SUMMARY_READY` при сохранении завершённого саммари не покрыта тестом —
   `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:255-268`.
 - Запись профилей jOOQ-репозиториями не покрыта тестом: `ProfileStorageIntegrationTest` проверяет чтение

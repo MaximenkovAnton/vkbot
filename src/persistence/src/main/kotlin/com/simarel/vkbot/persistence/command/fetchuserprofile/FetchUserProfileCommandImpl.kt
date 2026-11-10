@@ -1,5 +1,6 @@
 package com.simarel.vkbot.persistence.command.fetchuserprofile
 
+import com.simarel.vkbot.persistence.domain.profile.ProfileDataMerger
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePort
@@ -78,8 +79,10 @@ open class FetchUserProfileCommandImpl(
         try {
             val response = getUserProfilesBatchPort.execute(GetUserProfilesBatchPort.Request(userIds))
             response.profiles.forEach { fetched ->
-                val merged = mergeUserProfile(existingProfiles[fetched.id], fetched, actualizedAt)
-                saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(merged))
+                val existing = existingProfiles[fetched.id]
+                val merged = mergeUserProfile(existing, fetched, actualizedAt)
+                val changes = existing?.let { ProfileDataMerger.diff(it, merged) }?.takeIf { it.isNotEmpty() }
+                saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(merged, changes))
                 logger.log(System.Logger.Level.DEBUG, "Actualized user profile for id: ${merged.id.value}")
             }
         } catch (e: Exception) {
@@ -123,7 +126,15 @@ open class FetchUserProfileCommandImpl(
         birthDate = fetched.birthDate ?: existing?.birthDate,
         city = fetched.city ?: existing?.city,
         lastUpdated = actualizedAt,
+        profileData = mergeProfileData(existing, fetched),
     )
+
+    private fun mergeProfileData(existing: VkUserProfile?, fetched: VkUserProfile): Map<String, Any?> {
+        if (existing == null) {
+            return fetched.profileData
+        }
+        return ProfileDataMerger.merge(existing.profileData, fetched.profileData)
+    }
 
     private fun mergeGroupProfile(
         existing: VkGroupProfile?,

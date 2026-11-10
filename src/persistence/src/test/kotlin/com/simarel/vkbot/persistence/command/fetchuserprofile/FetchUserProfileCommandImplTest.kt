@@ -12,6 +12,7 @@ import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.OffsetDateTime
@@ -148,6 +149,61 @@ class FetchUserProfileCommandImplTest {
         assertEquals("New group", saved.name)
         assertEquals("old_group", saved.screenName)
         assertFalse(saved.lastUpdated.isBefore(before))
+    }
+
+    @Test
+    fun `stale user profile stores only the changed profile fields in history`() {
+        val fromId = FakeVoProvider.createFromId(USER_ID)
+        val stored = FakeModelProvider.createVkUserProfile(
+            id = USER_ID,
+            city = "Moscow",
+            lastUpdated = OffsetDateTime.now().minusMonths(2),
+            profileData = mapOf(
+                "first_name" to "Ivan",
+                "city" to mapOf("id" to 1, "title" to "Moscow"),
+            ),
+        )
+        val fetched = FakeModelProvider.createVkUserProfile(
+            id = USER_ID,
+            city = "Minsk",
+            profileData = mapOf(
+                "first_name" to "Ivan",
+                "city" to mapOf("id" to 2, "title" to "Minsk"),
+            ),
+        )
+        val saveUsers = FakeSaveUserProfilePort()
+
+        command(
+            findUsers = FakeFindUserProfilesByIdsPort(profiles = listOf(stored)),
+            saveUsers = saveUsers,
+            fetchUsers = FakeGetUserProfilesBatchPort(profiles = listOf(fetched)),
+        ).execute(request(fromId))
+
+        val changes = saveUsers.requests.single().changes
+        assertEquals(setOf("city"), changes?.keys)
+        assertEquals(mapOf("id" to 1, "title" to "Moscow"), changes?.getValue("city")?.get("old"))
+        assertEquals(mapOf("id" to 2, "title" to "Minsk"), changes?.getValue("city")?.get("new"))
+    }
+
+    @Test
+    fun `actualization without changes does not write profile history`() {
+        val fromId = FakeVoProvider.createFromId(USER_ID)
+        val profileData = mapOf<String, Any?>("first_name" to "Ivan")
+        val stored = FakeModelProvider.createVkUserProfile(
+            id = USER_ID,
+            lastUpdated = OffsetDateTime.now().minusMonths(2),
+            profileData = profileData,
+        )
+        val fetched = FakeModelProvider.createVkUserProfile(id = USER_ID, profileData = profileData)
+        val saveUsers = FakeSaveUserProfilePort()
+
+        command(
+            findUsers = FakeFindUserProfilesByIdsPort(profiles = listOf(stored)),
+            saveUsers = saveUsers,
+            fetchUsers = FakeGetUserProfilesBatchPort(profiles = listOf(fetched)),
+        ).execute(request(fromId))
+
+        assertNull(saveUsers.requests.single().changes)
     }
 
     @Test

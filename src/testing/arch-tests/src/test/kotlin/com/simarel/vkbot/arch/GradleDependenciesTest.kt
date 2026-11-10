@@ -164,10 +164,15 @@ class GradleDependenciesTest {
     }
 
     private fun findBuildGradleKtsFiles(): List<File> = projectRoot.walkTopDown()
-        .onEnter { it.name != "build" && it.name != ".worktrees" && it.name != ".gradle" }
+        .onEnter { it == projectRoot || it.isProjectDirectory() }
         .filter { it.isFile && it.name == "build.gradle.kts" }
         .sortedBy { it.path }
         .toList()
+
+    private fun File.isProjectDirectory(): Boolean {
+        val generatedOrHidden = name == "build" || name.startsWith(".")
+        return !generatedOrHidden && !resolve(".git").exists()
+    }
 
     private fun File.toProjectPath(): String {
         val normalized = relativeTo(projectRoot).invariantSeparatorsPath

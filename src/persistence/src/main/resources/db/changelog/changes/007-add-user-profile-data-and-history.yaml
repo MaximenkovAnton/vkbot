@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-add-user-profile-data-and-history
+      author: vk-bot
+      changes:
+        - addColumn:
+            tableName: vk_user_profiles
+            columns:
+              - column:
+                  name: profile_data
+                  type: JSONB
+                  constraints:
+                    nullable: true
+
+        - createTable:
+            tableName: vk_user_profile_history
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: profile_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: changes
+                  type: JSONB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: changed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: vk_user_profile_history
+            indexName: idx_user_profile_history_profile_changed_at
+            columns:
+              - column:
+                  name: profile_id
+              - column:
+                  name: changed_at

@@ -3,6 +3,7 @@ package com.simarel.vkbot.testfixtures.vkFacade
 import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
@@ -13,6 +14,7 @@ import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
 import com.simarel.vkbot.vkFacade.port.input.vk.VkProfileInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendPlainMessageInputPort
+import com.simarel.vkbot.vkFacade.port.output.vk.VkGetUserProfilesBatchPort
 
 object FakeVkFacadeProvider {
 
@@ -22,6 +24,10 @@ object FakeVkFacadeProvider {
     ) = VkError(error_code = errorCode, error_msg = errorMessage)
 
     fun createVkResponseDto(error: VkError? = null) = VkResponseDto(error = error)
+
+    fun createVkGetUserProfilesBatchRequest(fromIds: List<FromId> = emptyList()) = VkGetUserProfilesBatchPort.Request(
+        fromIds = fromIds,
+    )
 
     fun createVkProfileRequest(
         userIds: List<Long> = emptyList(),

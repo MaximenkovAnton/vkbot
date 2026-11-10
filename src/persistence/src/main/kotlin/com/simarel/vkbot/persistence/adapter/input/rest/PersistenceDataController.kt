@@ -1,5 +1,7 @@
 package com.simarel.vkbot.persistence.adapter.input.rest
 
+import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
+import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.share.domain.model.StoredMessage
@@ -8,6 +10,7 @@ import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.Consumes
+import jakarta.ws.rs.DefaultValue
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.POST
 import jakarta.ws.rs.Path
@@ -19,6 +22,7 @@ import java.util.UUID
 
 @ApplicationScoped
 @Path("/persistence")
+@Suppress("TooManyFunctions")
 class PersistenceDataController(
     private val persistenceDataInputPort: PersistenceDataInputPort,
 ) : PersistenceService {
@@ -122,5 +126,29 @@ class PersistenceDataController(
             PersistenceDataRequest.FindGroupProfilesByIds(ids),
         )
         return response.profiles
+    }
+
+    @GET
+    @Path("/profiles/users/{id}/history")
+    @Produces(MediaType.APPLICATION_JSON)
+    override fun findUserProfileHistory(
+        @PathParam("id") id: Long,
+        @QueryParam("limit") @DefaultValue("50") limit: Int,
+        @QueryParam("offset") @DefaultValue("0") offset: Int,
+    ): List<ProfileHistoryEntry> {
+        val response = persistenceDataInputPort.findUserProfileHistory(
+            PersistenceDataRequest.FindUserProfileHistory(id, limit, offset),
+        )
+        return response.entries
+    }
+
+    @GET
+    @Path("/statistics/users/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    override fun findUserStatistics(@PathParam("id") id: Long): UserStatistics {
+        val response = persistenceDataInputPort.findUserStatistics(
+            PersistenceDataRequest.FindUserStatistics(id),
+        )
+        return response.statistics
     }
 }

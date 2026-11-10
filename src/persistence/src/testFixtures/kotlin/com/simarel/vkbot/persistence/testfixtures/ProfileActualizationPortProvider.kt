@@ -60,10 +60,12 @@ class FakeFindGroupProfilesByIdsPort(
 class FakeSaveUserProfilePort : SaveUserProfilePort {
 
     val savedProfiles = ConcurrentLinkedQueue<VkUserProfile>()
+    val requests = ConcurrentLinkedQueue<SaveUserProfilePort.SaveUserProfileRequest>()
 
     override fun execute(
         request: SaveUserProfilePort.SaveUserProfileRequest,
     ): SaveUserProfilePort.SaveUserProfileResponse {
+        requests.add(request)
         savedProfiles.add(request.profile)
         return SaveUserProfilePort.SaveUserProfileResponse()
     }

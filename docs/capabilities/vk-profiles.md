@@ -16,6 +16,11 @@ id: запрос уходит с `-id`, ответ возвращается ка
 обновляет изменившиеся поля и сохраняет прежние значения полей, которых VK больше не отдаёт
 (`FetchUserProfileCommandImpl`). Отсутствующий профиль запрашивается сразу.
 
+Пользователь запрашивается одним `users.get` со всеми полями, которые отдаёт VK, кроме фото/аватарки
+(`photo_*`, `crop_photo`, `has_photo`); весь ответ складывается в `VkUserProfile.profileData` (JSONB
+`vk_user_profiles.profile_data`), а при актуализации `message-storage` пишет историю изменений
+([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)).
+
 ## Точки входа
 
 | Точка входа | Где в коде |
@@ -23,7 +28,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 | `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkFacadeController.kt:14-32` |
 | use case профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt:9-21` |
 | команда: пользователи и группы раздельно | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt:12-30` |
-| VK API: `users.get`, `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:12-73` |
+| VK API: `users.get` со всеми полями пользователя (кроме фото), `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:12-77` |
 | REST-клиент VK для профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt:27-38` |
 | in-process порты для других модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` |
 | контракт портов в `share` | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
@@ -73,14 +78,19 @@ id: запрос уходит с `-id`, ответ возвращается ка
 - **AC-vk-profiles-2** — КОГДА in-process порт запрашивает профили групп батчем, СИСТЕМА ДОЛЖНА передать
   только групповые id и вернуть профили. Test:
   `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:36-52`.
+- **AC-vk-profiles-3** — КОГДА профиль пользователя запрашивается из VK, СИСТЕМА ДОЛЖНА передать все поля
+  `users.get`, кроме фото/аватарки, и вернуть весь ответ VK в `profileData` без фото-полей. Test:
+  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkGetUserProfilesBatchAdapterTest.kt:17-75`.
 
 ## Пробелы приёмки
 
-- Запросы к VK API и нормализация групп к отрицательному id не покрыты тестом
-  (`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt`).
+- Нормализация групп к отрицательному id не покрыта тестом; поля пользователя и исключение фото покрыты
+  `VkGetUserProfilesBatchAdapterTest`.
 - REST `/api/profiles/*` не покрыт ни одним HTTP-тестом.
 - Сохранение профилей jOOQ-репозиториями (`SaveUserProfilePort`/`SaveGroupProfilePort`) не покрыто тестом:
-  `FetchUserProfileCommandImplTest` проверяет слияние на fake-портах, `ProfileStorageIntegrationTest` — чтение
-  сохранённых строк.
+  `FetchUserProfileCommandImplTest` проверяет слияние на fake-портах, `ProfileHistoryAndStatisticsIntegrationTest`
+  — запись профиля и истории в PostgreSQL, `ProfileStorageIntegrationTest` — чтение сохранённых строк.
+- `profileData` у профилей, сохранённых до ADR 2026-11-10, пуст до первой актуализации; история за это окно
+  пишется только по типизированным полям (named gap ADR 2026-11-10).
 - Логика устаревания профилей живёт в `message-storage`; здесь проверены только in-process порты, а не
   актуализация по `lastUpdated`.
