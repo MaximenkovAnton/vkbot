@@ -42,7 +42,7 @@ VK Bot — **гексагональный монолит в одном депл�
 ```
 Вход:
   Bots Long Poll (groups.getLongPollServer, a_check) -> receiver/adapter/input/vk/LongPollRunner.kt
-  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-126
+  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-154
   GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkFacadeController.kt:14-32
   RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-85
   Расписание greetings.cron (Quarkus @Scheduled, зона greetings.timezone) -> greetings/adapter/input/schedule/DailyGreetingRunner.kt

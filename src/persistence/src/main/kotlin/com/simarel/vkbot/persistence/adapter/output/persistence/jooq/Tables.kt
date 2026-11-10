@@ -27,8 +27,18 @@ object Tables {
         val SCREEN_NAME = DSL.field("screen_name")
         val BIRTH_DATE = DSL.field("birth_date")
         val CITY = DSL.field("city")
+        val PROFILE_DATA = DSL.field("profile_data", SQLDataType.JSONB)
         val LAST_UPDATED = DSL.field("last_updated")
         val CREATED_AT = DSL.field("created_at")
+    }
+
+    object VkUserProfileHistory {
+        val TABLE = DSL.table("vk_user_profile_history")
+
+        val ID = DSL.field("id")
+        val PROFILE_ID = DSL.field("profile_id")
+        val CHANGES = DSL.field("changes", SQLDataType.JSONB)
+        val CHANGED_AT = DSL.field("changed_at")
     }
 
     object VkGroupProfiles {

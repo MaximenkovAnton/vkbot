@@ -11,6 +11,7 @@ data class VkUserProfile(
     val birthDate: String?,
     val city: String?,
     val lastUpdated: OffsetDateTime = OffsetDateTime.now(),
+    val profileData: Map<String, Any?> = emptyMap(),
 ) {
     companion object {
         fun of(
@@ -20,6 +21,7 @@ data class VkUserProfile(
             screenName: String? = null,
             birthDate: String? = null,
             city: String? = null,
+            profileData: Map<String, Any?> = emptyMap(),
         ): VkUserProfile = VkUserProfile(
             id = FromId.of(id),
             firstName = firstName,
@@ -27,6 +29,7 @@ data class VkUserProfile(
             screenName = screenName,
             birthDate = birthDate,
             city = city,
+            profileData = profileData,
         )
     }
 }

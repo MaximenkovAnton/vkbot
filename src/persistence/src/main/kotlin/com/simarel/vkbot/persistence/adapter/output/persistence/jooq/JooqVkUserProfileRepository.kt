@@ -1,16 +1,22 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkUserProfileHistory
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkUserProfiles
 import com.simarel.vkbot.persistence.domain.BirthDateMatcher
+import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
+import org.jooq.JSONB
 import org.jooq.Record
 import java.sql.Timestamp
 import java.time.MonthDay
 import java.time.OffsetDateTime
+import java.util.UUID
 
 @ApplicationScoped
 open class JooqVkUserProfileRepository {
@@ -18,9 +24,12 @@ open class JooqVkUserProfileRepository {
     @Inject
     lateinit var dsl: DSLContext
 
+    @Inject
+    lateinit var objectMapper: ObjectMapper
+
     private val logger = System.getLogger(JooqVkUserProfileRepository::class.java.name)
 
-    open fun persist(profile: VkUserProfile) {
+    open fun persist(profile: VkUserProfile, changes: Map<String, Map<String, Any?>>? = null) {
         dsl.insertInto(VkUserProfiles.TABLE)
             .columns(
                 VkUserProfiles.ID,
@@ -29,6 +38,7 @@ open class JooqVkUserProfileRepository {
                 VkUserProfiles.SCREEN_NAME,
                 VkUserProfiles.BIRTH_DATE,
                 VkUserProfiles.CITY,
+                VkUserProfiles.PROFILE_DATA,
                 VkUserProfiles.LAST_UPDATED,
                 VkUserProfiles.CREATED_AT,
             )
@@ -39,6 +49,7 @@ open class JooqVkUserProfileRepository {
                 profile.screenName,
                 profile.birthDate,
                 profile.city,
+                JSONB.valueOf(objectMapper.writeValueAsString(profile.profileData)),
                 Timestamp.from(profile.lastUpdated.toInstant()),
                 Timestamp.from(OffsetDateTime.now().toInstant()),
             )
@@ -49,8 +60,13 @@ open class JooqVkUserProfileRepository {
             .set(VkUserProfiles.SCREEN_NAME, profile.screenName)
             .set(VkUserProfiles.BIRTH_DATE, profile.birthDate)
             .set(VkUserProfiles.CITY, profile.city)
+            .set(VkUserProfiles.PROFILE_DATA, JSONB.valueOf(objectMapper.writeValueAsString(profile.profileData)))
             .set(VkUserProfiles.LAST_UPDATED, Timestamp.from(profile.lastUpdated.toInstant()))
             .execute()
+
+        if (!changes.isNullOrEmpty()) {
+            persistHistory(profile.id.value, changes)
+        }
     }
 
     open fun findByIds(ids: Collection<Long>): List<VkUserProfile> {
@@ -83,6 +99,40 @@ open class JooqVkUserProfileRepository {
             }
     }
 
+    open fun findHistory(profileId: Long, limit: Int, offset: Int): List<ProfileHistoryEntry> {
+        if (limit <= 0) {
+            return emptyList()
+        }
+        return dsl.select()
+            .from(VkUserProfileHistory.TABLE)
+            .where(VkUserProfileHistory.PROFILE_ID.eq(profileId))
+            .orderBy(VkUserProfileHistory.CHANGED_AT.desc(), VkUserProfileHistory.ID)
+            .limit(limit)
+            .offset(offset)
+            .fetch()
+            .map { record ->
+                ProfileHistoryEntry(
+                    profileId = profileId,
+                    changedAt = record.get(VkUserProfileHistory.CHANGED_AT, OffsetDateTime::class.java),
+                    changes = objectMapper.readValue(
+                        record.get(VkUserProfileHistory.CHANGES, String::class.java),
+                        object : TypeReference<Map<String, Any?>>() {},
+                    ),
+                )
+            }
+    }
+
+    private fun persistHistory(profileId: Long, changes: Map<String, Map<String, Any?>>) {
+        dsl.insertInto(VkUserProfileHistory.TABLE)
+            .columns(VkUserProfileHistory.ID, VkUserProfileHistory.PROFILE_ID, VkUserProfileHistory.CHANGES)
+            .values(
+                UUID.randomUUID(),
+                profileId,
+                JSONB.valueOf(objectMapper.writeValueAsString(changes)),
+            )
+            .execute()
+    }
+
     private fun Record.toVkUserProfile(): VkUserProfile = VkUserProfile(
         id = FromId.of(get(VkUserProfiles.ID, Long::class.java)),
         firstName = get(VkUserProfiles.FIRST_NAME, String::class.java),
@@ -91,5 +141,8 @@ open class JooqVkUserProfileRepository {
         birthDate = get(VkUserProfiles.BIRTH_DATE, String::class.java),
         city = get(VkUserProfiles.CITY, String::class.java),
         lastUpdated = get(VkUserProfiles.LAST_UPDATED, OffsetDateTime::class.java),
+        profileData = get(VkUserProfiles.PROFILE_DATA, String::class.java)
+            ?.let { json -> objectMapper.readValue(json, object : TypeReference<Map<String, Any?>>() {}) }
+            ?: emptyMap(),
     )
 }

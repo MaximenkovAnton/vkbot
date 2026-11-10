@@ -6,6 +6,10 @@ import com.simarel.vkbot.share.port.output.OutputPortRequest
 import com.simarel.vkbot.share.port.output.OutputPortResponse
 
 interface SaveUserProfilePort : OutputPort<SaveUserProfilePort.SaveUserProfileRequest, SaveUserProfilePort.SaveUserProfileResponse> {
-    data class SaveUserProfileRequest(val profile: VkUserProfile) : OutputPortRequest
+    data class SaveUserProfileRequest(
+        val profile: VkUserProfile,
+        val changes: Map<String, Map<String, Any?>>? = null,
+    ) : OutputPortRequest
+
     class SaveUserProfileResponse : OutputPortResponse
 }

@@ -17,3 +17,6 @@ databaseChangeLog:
   - include:
       file: changes/006-create-greeting-log-table.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/007-add-user-profile-data-and-history.yaml
+      relativeToChangelogFile: true

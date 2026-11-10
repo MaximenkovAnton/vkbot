@@ -1,5 +1,7 @@
 package com.simarel.vkbot.persistence.port.input
 
+import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
+import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
@@ -60,6 +62,14 @@ interface PersistenceDataInputPort {
     fun findGroupChatPeerIds(request: PersistenceDataRequest.FindGroupChatPeerIds): PersistenceDataResponse.PeerIds
 
     fun claimDailyGreeting(request: PersistenceDataRequest.ClaimDailyGreeting): PersistenceDataResponse.Claimed
+
+    fun findUserProfileHistory(
+        request: PersistenceDataRequest.FindUserProfileHistory,
+    ): PersistenceDataResponse.ProfileHistory
+
+    fun findUserStatistics(
+        request: PersistenceDataRequest.FindUserStatistics,
+    ): PersistenceDataResponse.Statistics
 }
 
 sealed interface PersistenceDataRequest : InputPortRequest {
@@ -117,6 +127,8 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class FindUserChatPeerIds(val userId: Long) : PersistenceDataRequest
     data object FindGroupChatPeerIds : PersistenceDataRequest
     data class ClaimDailyGreeting(val date: LocalDate, val peerId: Long) : PersistenceDataRequest
+    data class FindUserProfileHistory(val profileId: Long, val limit: Int, val offset: Int) : PersistenceDataRequest
+    data class FindUserStatistics(val userId: Long) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -132,4 +144,6 @@ sealed interface PersistenceDataResponse : InputPortResponse {
     data class LongPollTs(val ts: String?) : PersistenceDataResponse
     data class PeerIds(val peerIds: Set<Long>) : PersistenceDataResponse
     data class Claimed(val claimed: Boolean) : PersistenceDataResponse
+    data class ProfileHistory(val entries: List<ProfileHistoryEntry>) : PersistenceDataResponse
+    data class Statistics(val statistics: UserStatistics) : PersistenceDataResponse
 }

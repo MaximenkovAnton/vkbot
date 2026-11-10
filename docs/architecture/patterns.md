@@ -126,7 +126,7 @@
   с коллекцией.
 - **Где:** jOOQ-репозитории `persistence/adapter/output/persistence/jooq/Jooq{Message,Summary,VkUserProfile,VkGroupProfile}Repository.kt`
   и порты-адаптеры `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
-  таблицы — `jooq/Tables.kt:6-72` (ручные константы, кодогенерация выключена).
+  таблицы — `jooq/Tables.kt:6-82` (ручные константы, кодогенерация выключена).
 - **Сила:** Dependency Inversion — бизнес-слой видит порт, а не DSLContext; замена хранилища — новый адаптер.
 
 ## Singleton / Dependency Injection (Quarkus CDI)

@@ -12,7 +12,7 @@ open class SaveUserProfileAdapter(
 
     @Transactional
     override fun execute(request: SaveUserProfilePort.SaveUserProfileRequest): SaveUserProfilePort.SaveUserProfileResponse {
-        repository.persist(request.profile)
+        repository.persist(request.profile, request.changes)
         return SaveUserProfilePort.SaveUserProfileResponse()
     }
 }

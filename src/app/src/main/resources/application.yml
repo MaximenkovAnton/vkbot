@@ -17,6 +17,8 @@ aiNewsDigestSystemprompt: ${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник,
 greetings:
   cron: "${GREETINGS_CRON:0 0 0 * * ?}"
   timezone: "${GREETINGS_TIMEZONE:Europe/Minsk}"
+statistics:
+  timezone: "${STATISTICS_TIMEZONE:Europe/Minsk}"
 summary:
   enabled-chats: ${SUMMARY_ENABLED_CHATS:}
   threshold: ${SUMMARY_THRESHOLD:100}

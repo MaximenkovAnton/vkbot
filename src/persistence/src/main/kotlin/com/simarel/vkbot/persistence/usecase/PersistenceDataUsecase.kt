@@ -19,8 +19,10 @@ import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetween
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummariesInPeriodPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfileHistoryPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserStatisticsPort
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveLongPollTsPort
@@ -63,6 +65,8 @@ open class PersistenceDataUsecase(
     private val findUserChatPeerIdsPort: FindUserChatPeerIdsPort,
     private val findGroupChatPeerIdsPort: FindGroupChatPeerIdsPort,
     private val claimDailyGreetingPort: ClaimDailyGreetingPort,
+    private val findUserProfileHistoryPort: FindUserProfileHistoryPort,
+    private val findUserStatisticsPort: FindUserStatisticsPort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -140,6 +144,14 @@ open class PersistenceDataUsecase(
     override fun claimDailyGreeting(
         request: PersistenceDataRequest.ClaimDailyGreeting,
     ): PersistenceDataResponse.Claimed = handleClaimDailyGreeting(request)
+
+    override fun findUserProfileHistory(
+        request: PersistenceDataRequest.FindUserProfileHistory,
+    ): PersistenceDataResponse.ProfileHistory = handleFindUserProfileHistory(request)
+
+    override fun findUserStatistics(
+        request: PersistenceDataRequest.FindUserStatistics,
+    ): PersistenceDataResponse.Statistics = handleFindUserStatistics(request)
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
         val messages = findMessagesBeforePort.execute(
@@ -328,6 +340,28 @@ open class PersistenceDataUsecase(
             ClaimDailyGreetingPort.ClaimDailyGreetingRequest(request.date, PeerId.of(request.peerId)),
         ).claimed
         return PersistenceDataResponse.Claimed(claimed)
+    }
+
+    private fun handleFindUserProfileHistory(
+        request: PersistenceDataRequest.FindUserProfileHistory,
+    ): PersistenceDataResponse.ProfileHistory {
+        val entries = findUserProfileHistoryPort.execute(
+            FindUserProfileHistoryPort.FindUserProfileHistoryRequest(
+                profileId = request.profileId,
+                limit = request.limit,
+                offset = request.offset,
+            ),
+        ).entries
+        return PersistenceDataResponse.ProfileHistory(entries)
+    }
+
+    private fun handleFindUserStatistics(
+        request: PersistenceDataRequest.FindUserStatistics,
+    ): PersistenceDataResponse.Statistics {
+        val statistics = findUserStatisticsPort.execute(
+            FindUserStatisticsPort.FindUserStatisticsRequest(request.userId),
+        ).statistics
+        return PersistenceDataResponse.Statistics(statistics)
     }
 
     companion object {

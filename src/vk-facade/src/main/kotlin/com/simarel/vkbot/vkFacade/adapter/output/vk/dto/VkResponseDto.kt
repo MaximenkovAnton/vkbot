@@ -1,6 +1,8 @@
 package com.simarel.vkbot.vkFacade.adapter.output.vk.dto
 
+import com.fasterxml.jackson.annotation.JsonAnySetter
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.JsonNode
 
 data class VkResponseDto(val error: VkError?)
 
@@ -27,7 +29,14 @@ data class VkUserDto(
     val city: VkCityDto?,
     @JsonProperty("name")
     val groupName: String?,
-)
+) {
+    val extraFields: MutableMap<String, JsonNode> = mutableMapOf()
+
+    @JsonAnySetter
+    fun putExtraField(name: String, value: JsonNode) {
+        extraFields[name] = value
+    }
+}
 
 @Suppress("ConstructorParameterNaming")
 data class VkCityDto(

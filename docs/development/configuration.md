@@ -57,6 +57,15 @@ Long Poll API с событием `message_new` и отключить Callback A
 Дефолт `GREETINGS_CRON=0 0 0 * * ?` означает, что первый прогон после деплоя — живой; в тестовых
 ресурсах `greetings.cron: disabled`, иначе планировщик срабатывал бы в каждом `@QuarkusTest`.
 
+## Статистика активности
+
+| Ключ | Значение / env | Эффект | Где читается |
+|---|---|---|---|
+| `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона, в которой считаются гистограммы активности по часу и дню недели (`GET /persistence/statistics/users/{id}`); невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt` |
+
+Зона влияет только на чтение: агрегаты не хранятся, поэтому смена `STATISTICS_TIMEZONE` пересчитывает
+бакеты при следующем запросе ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
+
 ## База данных и миграции
 
 | Ключ | Значение по умолчанию | Эффект |
@@ -219,7 +228,7 @@ downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` о
 `./gradlew :src:persistence:generateJooq` существует, но выполняется только при заданном `JOOQ_JDBC_URL`
 (`src/persistence/build.gradle.kts:89-125`, `onlyIf { System.getenv("JOOQ_JDBC_URL") != null }`).
 Переменные: `JOOQ_JDBC_URL`, `JOOQ_JDBC_USER`, `JOOQ_JDBC_PASSWORD`. Генерация не нужна для сборки:
-таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-72`.
+таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-82`.
 
 ## Секреты
 

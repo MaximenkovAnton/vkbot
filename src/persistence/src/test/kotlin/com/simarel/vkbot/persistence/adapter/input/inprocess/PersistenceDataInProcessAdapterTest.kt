@@ -528,6 +528,14 @@ class PersistenceDataInProcessAdapterTest {
             request: PersistenceDataRequest.ClaimDailyGreeting,
         ): PersistenceDataResponse.Claimed = unsupported()
 
+        override fun findUserProfileHistory(
+            request: PersistenceDataRequest.FindUserProfileHistory,
+        ): PersistenceDataResponse.ProfileHistory = unsupported()
+
+        override fun findUserStatistics(
+            request: PersistenceDataRequest.FindUserStatistics,
+        ): PersistenceDataResponse.Statistics = unsupported()
+
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }
 }
