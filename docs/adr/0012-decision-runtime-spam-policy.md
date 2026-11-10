@@ -123,6 +123,19 @@ runtime он не вызывается: `MessageReceivedUsecaseInput` тольк
 - Документы вне allowlist этой задачи (`docs/development/testing.md`, `docs/architecture/overview.md`,
   `AGENTS.md`, `docs/capabilities/ai-answer.md`, `docs/capabilities/vk-message-send.md`) остаются
   неточными и перечислены в отчёте MITM.
+- Пункты о немаршрутизированном `intent` и личных чатах закрыты board-task
+  `intent-routing-help-v2`: после `requiredAnswer=true` `HELP` → один `ANSWER_MESSAGE` со справкой
+  (точные `/help`/`/помощь` — детерминированно, без вызова модели; `/help` с аргументами —
+  детерминированный `general`), `NEWS` → один `NEWS_DIGEST_REQUESTED` с доменным `Message`, `GENERAL`
+  → один `MESSAGE_REQUIRE_ANSWER`; анализ спам-этапа переиспользуется, после fail-open — ровно одна
+  дополнительная попытка (всего ровно два вызова, при двух отказах ровно две WARNING — по одной на
+  попытку; `:46-52` читается по попытке), личные чаты вызывают модель после `requiredAnswer=true`.
+  **Инвариант «не более одного вызова» (`:28-33`) читается по попытке:** при уже полученном анализе
+  повтора нет; после fail-open спам-этапа ровно одна дополнительная попытка — всего ровно два вызова
+  на сообщение (Q2=B). Уточнение к пункту «Kill-switch» (`:43-45`): он гасит только спам-этап;
+  интент-вызов после `requiredAnswer=true` им не гасится и отправляет нормализованный текст в System
+  One (PII, ADR 0010). Поэтому `DECISION_SPAM_REPLY_ENABLED=false` — откат только спам-этапа; полный
+  откат decision-модели — предыдущий образ (`:102-103`).
 
 ## Отклонённые альтернативы
 

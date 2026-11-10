@@ -12,6 +12,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
 - AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
+- Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
 - Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 0004)
 - OpenTelemetry traces/metrics/logs
@@ -81,12 +82,12 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `DECISION_SPAM_THRESHOLD` | no | Spam probability threshold for the notice (default `0.9`) |
 | `DECISION_SPAM_REPLY_ENABLED` | no | Spam-reply kill-switch; `false` disables the decision call and the spam notice (default `true`) |
 | `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
-| `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries, OCR and greetings |
+| `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries, OCR, greetings and the "what's new" digest |
 | `AI_API_KEY` | no | LLM API key (default `dummy`; needed only when the server enables authorization) |
 | `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD` | in prod | PostgreSQL connection |
 | `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
 | `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
-| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
+| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
 | `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 | `GREETINGS_CRON` | no | Cron of the greeting run (default `0 0 0 * * ?`, i.e. 00:00 in `GREETINGS_TIMEZONE`); `off`/`disabled` disables the schedule |
@@ -148,11 +149,18 @@ VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles
             → MESSAGE_RECEIVED → processor
             → processor: human in a group chat, decision spamProbability ≥ DECISION_SPAM_THRESHOLD
               → ANSWER_MESSAGE (spam notice) → vk-facade → VK API
-            → otherwise: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
+            → otherwise, after requiredAnswer, by intent:
+              → help: ANSWER_MESSAGE (fixed help text) → vk-facade → VK API
+              → news: NEWS_DIGEST_REQUESTED → ai (period from the text → stored summaries/messages → LLM digest)
+                → ANSWER_MESSAGE → vk-facade → VK API
+              → general: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
 ```
 
-The processor also computes the message intent (`help`/`news`/`general`) as a third decision-model
-question; intent routing (`/help`, «что нового») is a later change and does not affect the answer yet.
+The processor computes the message intent (`help`/`news`/`general`) as a third decision-model
+question and routes it after `requiredAnswer`; exact `/help` and `/помощь` (no arguments) are recognised
+deterministically, without an extra model call. The `news` branch is served by the `chat-news-digest`
+capability (`docs/capabilities/chat-news-digest.md`): it reads stored summaries and messages through
+in-process ports and never writes to `summaries`, so `SUMMARY_REQUESTED`/`SUMMARY_READY` are not involved.
 
 Summary flow:
   persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API

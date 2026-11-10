@@ -14,9 +14,9 @@
 (`PlainMessageSendUsecase`, `forwardedMessages = null`); плоский `random_id` — SHA-256 от текста и peer_id
 (`RandomId.of(peerId, messageText)`). Плоскую ветку использует `daily-greetings`.
 
-Отправку используют три продуктовые ветки: ответ на сообщение (`ai-answer`), доставка саммари
-(`conversation-summary`) и поздравления (`daily-greetings`), поэтому это отдельная возможность, а не часть
-генерации ответа.
+Отправку используют продуктовые ветки: ответ на сообщение (`ai-answer`), спам-уведомление и справка
+(`answer-decision`), сводка «что нового» (`chat-news-digest`), доставка саммари (`conversation-summary`) и
+поздравления (`daily-greetings`), поэтому это отдельная возможность, а не часть генерации ответа.
 
 Ошибка VK (`response.error != null`) превращается в `VkException`; событие не подтверждается, и
 `event-dispatch` отправляет его по retry-лестнице.
@@ -51,13 +51,14 @@
 - `journey-answer`, шаг 5: отправка ответа на сообщение.
 - `journey-summary`, последний шаг: отправка итога обсуждения с forward-блоком на диапазон сообщений.
 - `journey-greetings`, последний шаг: плоская отправка поздравления без forward-блока.
+- `journey-news-digest`, последний шаг: отправка сводки «что нового» с forward-блоком исходного вопроса.
 
 ## Общие данные и контракты
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | `VkSendMessageInputPort` | `ai-answer` (через `ANSWER_MESSAGE`), `conversation-summary` (саммари с явным forward) | `vk-message-send` |
-| `ResponseMessage` | producer — `ai-answer` | `ai-answer` |
+| `ResponseMessage` | producers — `ai-answer`, `answer-decision` (спам и справка), `chat-news-digest` (сводка «что нового») | `ai-answer` |
 | `SendGreetingMessagePort` | `daily-greetings` | `vk-message-send` — контракт `share`, реализация в in-process адаптере |
 | `RandomId` | `MessageSendUsecase` (ответ/саммари) и `PlainMessageSendUsecase` (поздравления) | `vk-message-send` |
 | `VkClient.sendMessage` и токен VK | `vk-profiles` использует тот же клиент для `users.get`/`groups.getById` | `vk-message-send` — метод `messages.send`; общая часть клиента (`configKey = "vk"`, версия, токен) — конфигурация деплоя (ADR 0006) |

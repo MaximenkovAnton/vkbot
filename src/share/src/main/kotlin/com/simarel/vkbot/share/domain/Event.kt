@@ -7,4 +7,5 @@ enum class Event {
     ANSWER_MESSAGE,
     SUMMARY_REQUESTED,
     SUMMARY_READY,
+    NEWS_DIGEST_REQUESTED,
 }

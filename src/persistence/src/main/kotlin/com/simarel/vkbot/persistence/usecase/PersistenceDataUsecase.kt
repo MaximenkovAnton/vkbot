@@ -10,10 +10,13 @@ import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindLastMessageByAuthorPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastSummaryByPeerIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
+import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenDatesPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindSummariesInPeriodPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByBirthDatePort
@@ -38,10 +41,14 @@ import java.time.OffsetDateTime
 import java.util.UUID
 import com.simarel.vkbot.share.domain.model.SummaryStatus as SharedSummaryStatus
 
+@Suppress("LongParameterList")
 @ApplicationScoped
 open class PersistenceDataUsecase(
     private val findMessagesBeforePort: FindMessagesBeforePort,
     private val findMessagesBetweenPort: FindMessagesBetweenPort,
+    private val findLastMessageByAuthorPort: FindLastMessageByAuthorPort,
+    private val findMessagesBetweenDatesPort: FindMessagesBetweenDatesPort,
+    private val findSummariesInPeriodPort: FindSummariesInPeriodPort,
     private val findLastSummaryByPeerIdPort: FindLastSummaryByPeerIdPort,
     private val hasPendingSummaryPort: HasPendingSummaryPort,
     private val insertSummaryPort: InsertSummaryPort,
@@ -66,6 +73,18 @@ open class PersistenceDataUsecase(
     override fun findMessagesBetween(
         request: PersistenceDataRequest.FindMessagesBetween,
     ): PersistenceDataResponse.Messages = handleFindMessagesBetween(request)
+
+    override fun findLastMessageByAuthor(
+        request: PersistenceDataRequest.FindLastMessageByAuthor,
+    ): PersistenceDataResponse.OptionalMessage = handleFindLastMessageByAuthor(request)
+
+    override fun findMessagesBetweenDates(
+        request: PersistenceDataRequest.FindMessagesBetweenDates,
+    ): PersistenceDataResponse.Messages = handleFindMessagesBetweenDates(request)
+
+    override fun findSummariesInPeriod(
+        request: PersistenceDataRequest.FindSummariesInPeriod,
+    ): PersistenceDataResponse.Summaries = handleFindSummariesInPeriod(request)
 
     override fun findLastSummary(
         request: PersistenceDataRequest.FindLastSummary,
@@ -143,6 +162,46 @@ open class PersistenceDataUsecase(
             ),
         ).messages
         return PersistenceDataResponse.Messages(messages.map { it.toStoredMessage() })
+    }
+
+    private fun handleFindLastMessageByAuthor(
+        request: PersistenceDataRequest.FindLastMessageByAuthor,
+    ): PersistenceDataResponse.OptionalMessage {
+        val message = findLastMessageByAuthorPort.execute(
+            FindLastMessageByAuthorPort.Request(
+                PeerId.of(request.peerId),
+                FromId.of(request.fromId),
+                ConversationMessageId.of(request.beforeConversationMessageId),
+            ),
+        ).message?.toStoredMessage()
+        return PersistenceDataResponse.OptionalMessage(message)
+    }
+
+    private fun handleFindMessagesBetweenDates(
+        request: PersistenceDataRequest.FindMessagesBetweenDates,
+    ): PersistenceDataResponse.Messages {
+        val messages = findMessagesBetweenDatesPort.execute(
+            FindMessagesBetweenDatesPort.Request(
+                PeerId.of(request.peerId),
+                request.from,
+                request.to,
+                request.limit,
+            ),
+        ).messages
+        return PersistenceDataResponse.Messages(messages.map { it.toStoredMessage() })
+    }
+
+    private fun handleFindSummariesInPeriod(
+        request: PersistenceDataRequest.FindSummariesInPeriod,
+    ): PersistenceDataResponse.Summaries {
+        val summaries = findSummariesInPeriodPort.execute(
+            FindSummariesInPeriodPort.Request(
+                PeerId.of(request.peerId),
+                request.from,
+                request.to,
+            ),
+        ).summaries
+        return PersistenceDataResponse.Summaries(summaries.map { it.toSummary() })
     }
 
     private fun handleFindLastSummary(request: PersistenceDataRequest.FindLastSummary): PersistenceDataResponse.OptionalSummary {

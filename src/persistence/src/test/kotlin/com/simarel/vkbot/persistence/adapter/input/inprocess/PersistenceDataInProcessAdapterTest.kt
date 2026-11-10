@@ -13,6 +13,7 @@ import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 class PersistenceDataInProcessAdapterTest {
@@ -74,6 +75,93 @@ class PersistenceDataInProcessAdapterTest {
             port.requests.single(),
         )
         assertEquals(listOf(storedMessage), response.messages)
+    }
+
+    @Test
+    fun `find last stored message by author forwards request and returns message`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findLastMessageByAuthor(
+                request: PersistenceDataRequest.FindLastMessageByAuthor,
+            ): PersistenceDataResponse.OptionalMessage {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createOptionalMessageResponse(storedMessage)
+            }
+        }
+        val adapter = FindLastStoredMessageByAuthorInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindLastStoredMessageByAuthorRequest(
+                peerId = 10,
+                fromId = 30,
+                beforeConversationMessageId = 20,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindLastMessageByAuthorRequest(10, 30, 20),
+            port.requests.single(),
+        )
+        assertEquals(storedMessage, response.message)
+    }
+
+    @Test
+    fun `find stored messages between dates forwards request and returns messages`() {
+        val from = OffsetDateTime.parse("2026-11-02T00:00:00Z")
+        val to = OffsetDateTime.parse("2026-11-03T23:59:59.999999999Z")
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findMessagesBetweenDates(
+                request: PersistenceDataRequest.FindMessagesBetweenDates,
+            ): PersistenceDataResponse.Messages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage))
+            }
+        }
+        val adapter = FindStoredMessagesBetweenDatesInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindStoredMessagesBetweenDatesRequest(
+                peerId = 10,
+                from = from,
+                to = to,
+                limit = 5,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindMessagesBetweenDatesRequest(10, from, to, 5),
+            port.requests.single(),
+        )
+        assertEquals(listOf(storedMessage), response.messages)
+    }
+
+    @Test
+    fun `find stored summaries in period forwards request and returns summaries`() {
+        val from = OffsetDateTime.parse("2026-11-02T00:00:00Z")
+        val to = OffsetDateTime.parse("2026-11-03T23:59:59.999999999Z")
+        val summary = FakeModelProvider.createSummary(peerId = 10, firstMessageId = 20, lastMessageId = 30)
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findSummariesInPeriod(
+                request: PersistenceDataRequest.FindSummariesInPeriod,
+            ): PersistenceDataResponse.Summaries {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createSummariesResponse(listOf(summary))
+            }
+        }
+        val adapter = FindStoredSummariesInPeriodInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindStoredSummariesInPeriodRequest(
+                peerId = 10,
+                from = from,
+                to = to,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindSummariesInPeriodRequest(10, from, to),
+            port.requests.single(),
+        )
+        assertEquals(listOf(summary), response.summaries)
     }
 
     @Test
@@ -375,6 +463,18 @@ class PersistenceDataInProcessAdapterTest {
         override fun findMessagesBetween(
             request: PersistenceDataRequest.FindMessagesBetween,
         ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun findLastMessageByAuthor(
+            request: PersistenceDataRequest.FindLastMessageByAuthor,
+        ): PersistenceDataResponse.OptionalMessage = unsupported()
+
+        override fun findMessagesBetweenDates(
+            request: PersistenceDataRequest.FindMessagesBetweenDates,
+        ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun findSummariesInPeriod(
+            request: PersistenceDataRequest.FindSummariesInPeriod,
+        ): PersistenceDataResponse.Summaries = unsupported()
 
         override fun findLastSummary(
             request: PersistenceDataRequest.FindLastSummary,

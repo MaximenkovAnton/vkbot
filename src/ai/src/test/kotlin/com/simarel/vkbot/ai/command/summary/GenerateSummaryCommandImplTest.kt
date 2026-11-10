@@ -1,5 +1,6 @@
 package com.simarel.vkbot.ai.command.summary
 
+import com.simarel.vkbot.ai.command.common.MessageAuthorFormatter
 import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
 import com.simarel.vkbot.ai.port.output.summary.SummarizationRequest
 import com.simarel.vkbot.ai.port.output.summary.SummarizationResponse
@@ -219,8 +220,7 @@ class GenerateSummaryCommandImplTest {
         findMessagesBetweenPort = findMessagesBetweenPort,
         saveCompletedSummaryPort = saveCompletedSummaryPort,
         markSummaryAsFailedPort = markSummaryAsFailedPort,
-        findUserProfilesByIdsPort = findUserProfilesByIdsPort,
-        findGroupProfilesByIdsPort = findGroupProfilesByIdsPort,
+        messageAuthorFormatter = MessageAuthorFormatter(findUserProfilesByIdsPort, findGroupProfilesByIdsPort),
     )
 
     private fun storedMessage(

@@ -13,6 +13,14 @@ object PersistenceDataResponseProvider {
         messages: List<StoredMessage> = emptyList(),
     ) = PersistenceDataResponse.Messages(messages = messages)
 
+    fun createOptionalMessageResponse(
+        message: StoredMessage? = null,
+    ) = PersistenceDataResponse.OptionalMessage(message = message)
+
+    fun createSummariesResponse(
+        summaries: List<Summary> = emptyList(),
+    ) = PersistenceDataResponse.Summaries(summaries = summaries)
+
     fun createOptionalSummaryResponse(
         summary: Summary? = null,
     ) = PersistenceDataResponse.OptionalSummary(summary = summary)

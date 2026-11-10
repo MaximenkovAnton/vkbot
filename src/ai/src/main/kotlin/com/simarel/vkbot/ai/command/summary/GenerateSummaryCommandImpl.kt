@@ -1,13 +1,10 @@
 package com.simarel.vkbot.ai.command.summary
 
+import com.simarel.vkbot.ai.command.common.MessageAuthorFormatter
 import com.simarel.vkbot.ai.port.output.summary.SummarizationOutputPort
 import com.simarel.vkbot.ai.port.output.summary.SummarizationRequest
-import com.simarel.vkbot.share.domain.model.StoredMessage
-import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
-import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
-import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
 import jakarta.enterprise.context.ApplicationScoped
@@ -19,8 +16,7 @@ class GenerateSummaryCommandImpl(
     private val findMessagesBetweenPort: FindStoredMessagesBetweenPort,
     private val saveCompletedSummaryPort: SaveStoredCompletedSummaryPort,
     private val markSummaryAsFailedPort: MarkStoredSummaryFailedPort,
-    private val findUserProfilesByIdsPort: FindStoredUserProfilesByIdsPort,
-    private val findGroupProfilesByIdsPort: FindStoredGroupProfilesByIdsPort,
+    private val messageAuthorFormatter: MessageAuthorFormatter,
 ) : GenerateSummaryCommand {
 
     @Suppress("TooGenericExceptionCaught")
@@ -50,7 +46,7 @@ class GenerateSummaryCommandImpl(
                 return GenerateSummaryCommand.GenerateSummaryResponse(summaryId)
             }
 
-            val formattedMessages = formatMessagesForSummary(messages)
+            val formattedMessages = messageAuthorFormatter.format(messages).joinToString("\n\n")
             val summaryResult = summarizationPort.execute(SummarizationRequest(formattedMessages))
 
             saveCompletedSummaryPort.execute(
@@ -60,32 +56,6 @@ class GenerateSummaryCommandImpl(
         } catch (e: Exception) {
             markSummaryAsFailedPort.execute(MarkStoredSummaryFailedPort.Request(summaryId))
             throw e
-        }
-    }
-
-    private fun formatMessagesForSummary(messages: List<StoredMessage>): String {
-        val fromIds = messages.map { it.fromId }.distinct()
-        val (groupFromIds, userIds) = fromIds.partition { it < 0 }
-
-        val userProfiles = findUserProfilesByIdsPort.execute(
-            FindStoredUserProfilesByIdsPort.Request(userIds.map { FromId.of(it) }),
-        ).profiles.associateBy { it.id.value }
-        val groupProfiles = findGroupProfilesByIdsPort.execute(
-            FindStoredGroupProfilesByIdsPort.Request(groupFromIds.map { FromId.of(it) }),
-        ).profiles.associateBy { it.id.value }
-
-        return messages.joinToString("\n\n") { msg ->
-            val authorName = when {
-                msg.fromId < 0 -> {
-                    val groupId = -msg.fromId
-                    groupProfiles[groupId]?.name ?: "Группа ${msg.fromId}"
-                }
-                else -> {
-                    userProfiles[msg.fromId]?.let { "${it.firstName} ${it.lastName}" }
-                        ?: "Пользователь ${msg.fromId}"
-                }
-            }
-            "[$authorName]: ${msg.messageText}"
         }
     }
 }

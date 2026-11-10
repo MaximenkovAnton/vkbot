@@ -7,12 +7,25 @@ import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 interface PersistenceDataInputPort {
     fun findMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages
 
     fun findMessagesBetween(request: PersistenceDataRequest.FindMessagesBetween): PersistenceDataResponse.Messages
+
+    fun findLastMessageByAuthor(
+        request: PersistenceDataRequest.FindLastMessageByAuthor,
+    ): PersistenceDataResponse.OptionalMessage
+
+    fun findMessagesBetweenDates(
+        request: PersistenceDataRequest.FindMessagesBetweenDates,
+    ): PersistenceDataResponse.Messages
+
+    fun findSummariesInPeriod(
+        request: PersistenceDataRequest.FindSummariesInPeriod,
+    ): PersistenceDataResponse.Summaries
 
     fun findLastSummary(request: PersistenceDataRequest.FindLastSummary): PersistenceDataResponse.OptionalSummary
 
@@ -64,6 +77,24 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     ) : PersistenceDataRequest
 
     data class FindLastSummary(val peerId: Long) : PersistenceDataRequest
+    data class FindLastMessageByAuthor(
+        val peerId: Long,
+        val fromId: Long,
+        val beforeConversationMessageId: Long,
+    ) : PersistenceDataRequest
+
+    data class FindMessagesBetweenDates(
+        val peerId: Long,
+        val from: OffsetDateTime,
+        val to: OffsetDateTime,
+        val limit: Int,
+    ) : PersistenceDataRequest
+
+    data class FindSummariesInPeriod(
+        val peerId: Long,
+        val from: OffsetDateTime,
+        val to: OffsetDateTime,
+    ) : PersistenceDataRequest
     data class HasPendingSummary(val peerId: Long) : PersistenceDataRequest
     data class CreatePendingSummary(
         val peerId: Long,
@@ -90,6 +121,8 @@ sealed interface PersistenceDataRequest : InputPortRequest {
 
 sealed interface PersistenceDataResponse : InputPortResponse {
     data class Messages(val messages: List<StoredMessage>) : PersistenceDataResponse
+    data class OptionalMessage(val message: StoredMessage?) : PersistenceDataResponse
+    data class Summaries(val summaries: List<Summary>) : PersistenceDataResponse
     data class OptionalSummary(val summary: Summary?) : PersistenceDataResponse
     data class PendingStatus(val hasPending: Boolean) : PersistenceDataResponse
     data class CreatedSummaryId(val id: UUID) : PersistenceDataResponse

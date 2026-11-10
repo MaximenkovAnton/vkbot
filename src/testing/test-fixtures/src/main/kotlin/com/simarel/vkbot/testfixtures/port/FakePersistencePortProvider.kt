@@ -2,16 +2,24 @@ package com.simarel.vkbot.testfixtures.port
 
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindLastStoredMessageByAuthorPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenDatesPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredSummariesInPeriodPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
+import java.time.OffsetDateTime
 import java.util.UUID
 
+private val FIXED_FROM: OffsetDateTime = OffsetDateTime.parse("2026-11-01T00:00:00Z")
+private val FIXED_TO: OffsetDateTime = OffsetDateTime.parse("2026-11-07T23:59:59.999999999Z")
+
+@Suppress("TooManyFunctions")
 object FakePersistencePortProvider {
 
     fun createFindMessagesBeforeRequest(
@@ -37,6 +45,38 @@ object FakePersistencePortProvider {
     )
 
     fun createFindLastSummaryRequest(peerId: Long = 1) = FindLastStoredSummaryPort.Request(peerId = peerId)
+
+    fun createFindLastStoredMessageByAuthorRequest(
+        peerId: Long = 1,
+        fromId: Long = 2,
+        beforeConversationMessageId: Long = 3,
+    ) = FindLastStoredMessageByAuthorPort.Request(
+        peerId = peerId,
+        fromId = fromId,
+        beforeConversationMessageId = beforeConversationMessageId,
+    )
+
+    fun createFindStoredMessagesBetweenDatesRequest(
+        peerId: Long = 1,
+        from: OffsetDateTime = FIXED_FROM,
+        to: OffsetDateTime = FIXED_TO,
+        limit: Int = 4,
+    ) = FindStoredMessagesBetweenDatesPort.Request(
+        peerId = peerId,
+        from = from,
+        to = to,
+        limit = limit,
+    )
+
+    fun createFindStoredSummariesInPeriodRequest(
+        peerId: Long = 1,
+        from: OffsetDateTime = FIXED_FROM,
+        to: OffsetDateTime = FIXED_TO,
+    ) = FindStoredSummariesInPeriodPort.Request(
+        peerId = peerId,
+        from = from,
+        to = to,
+    )
 
     fun createHasPendingSummaryRequest(peerId: Long = 1) = HasStoredPendingSummaryPort.Request(peerId = peerId)
 

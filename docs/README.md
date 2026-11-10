@@ -36,6 +36,7 @@
 | [0010](adr/0010-decision-model-langchain4j.md) | Клиент decision-модели — библиотечный `DecisionModel` из `quarkus-langchain4j-ollama`, System One API `POST /v1/systemone`, нормализация и типизированный разбор; второй LangChain4j-провайдер только для decision (клиент подключён ADR 0012) | accepted |
 | [0011](adr/0011-exception-hierarchy.md) | Единая иерархия исключений: в production-коде бросаются только `VkBotAppException` и наследники, валидация строится цепочкой от value object к конкретной проверке, `require`/`requireNotNull` запрещены архитектурными тестами | accepted |
 | [0012](adr/0012-decision-runtime-spam-policy.md) | Decision-модель вызывается из runtime: спам-уведомление до `requiredAnswer` (порог `decision.spam-threshold`, kill-switch `decision.spam-reply.enabled`, fail-open WARNING без PII), третий вопрос `intent` (`help`/`news`/`general`) в том же `decide`; маршрутизация интентов — следующая задача | accepted |
+| [0013](adr/0013-news-digest.md) | «Что нового»: консюмер `NEWS_DIGEST_REQUESTED` в `:src:ai`, период из текста запроса (явный срок > 7 суток — отказ, без срока — от последнего сообщения автора), три read-only in-process порта к `messages`/`summaries`, LLM-сводка с тремя попытками и фолбэком, один `ANSWER_MESSAGE` публикует команда; в `summaries` не пишет | accepted |
 
 ## Продуктовая карта
 

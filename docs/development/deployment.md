@@ -70,7 +70,7 @@ docker run -p 8080:8080 \
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
 | `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — vLLM) |
-| `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари, OCR и поздравления |
+| `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари, OCR, поздравления и «что нового» |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
 | `RABBITMQ_HOST` (и при необходимости `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, `RABBITMQ_PASSWORD`) | коннектор SmallRye RabbitMQ |
@@ -88,7 +88,8 @@ docker run -p 8080:8080 \
 `VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
-`AI_GREETING_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
+`AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` (system-промпт сводки «что нового»; дефолт
+в `application.yml`), `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
 `GREETINGS_CRON` (дефолт `0 0 0 * * ?`, то есть 00:00; `off`/`disabled` выключает расписание),
 `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`),
 `DECISION_SPAM_THRESHOLD` (дефолт `0.9` — порог спама),

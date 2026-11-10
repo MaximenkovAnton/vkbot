@@ -6,7 +6,7 @@
 
 ## События и их владельцы
 
-`Event` — закрытый enum из шести значений (`share/domain/Event.kt:3-10`). Routing key в RabbitMQ равен
+`Event` — закрытый enum из семи значений (`share/domain/Event.kt:3-11`). Routing key в RabbitMQ равен
 имени события (`PublishEventOutputAdapter.kt:20-30`), диспетчер строит карту `Event.name → EventProcessor`
 (`EventDispatcher.kt:21-24`).
 
@@ -15,9 +15,10 @@
 | `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
 | `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
 | `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
-| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:66-79` (processor) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); процессор — спам-ветка (`MessageReceivedUsecaseInput.kt:46-60`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
-| `SUMMARY_READY` | `PersistenceDataUsecase.kt:195-207` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
+| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:104-106` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка и справка (`MessageReceivedUsecaseInput.kt:54-66,94-102`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:104-106` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `SUMMARY_READY` | `PersistenceDataUsecase.kt:238-269` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
 конкретный тип в processor'е; payload'ы событий лежат в `share`, поэтому дрейф формата ловится компиляцией.
@@ -84,7 +85,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
 4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
 
-## 4. Спам-проверка и решение «нужен ли ответ» (processor)
+## 4. Спам-проверка, решение «нужен ли ответ» и маршрутизация интентов (processor)
 
 `MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
 (`MessageReceivedUsecaseInput.kt:35-79`).
@@ -101,7 +102,9 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 - отказ decision-модели (`RuntimeException`) — fail-open: WARNING без текста сообщения и без throwable
   (только `peerId` и класс исключения), исключение не уходит в брокер, обработка продолжается по
   правилам ниже. `InterruptedException` восстанавливает флаг прерывания и пробрасывается.
-- при `decision.spam-reply.enabled = false` модель не вызывается, текст в System One не уходит.
+- при `decision.spam-reply.enabled = false` спам-этап модель не вызывает; ленивый интент-вызов после
+  `requiredAnswer=true` (личный чат; группа — при упоминании бота или forward от бота) по-прежнему
+  отправляет нормализованный текст в System One (PII, ADR 0010/0012).
 
 Если спам не сработал (или проверка неприменима), работает `IsRequireAnswerCommand`
 (`IsRequireAnswerCommand.kt:22-33`):
@@ -115,11 +118,66 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 | последнее пересланное сообщение — от бота (`fromId == vk.bot.id`) | нужен |
 | иначе | не нужен |
 
-Если ответ нужен — публикуется `MESSAGE_REQUIRE_ANSWER`, иначе поток завершается. Третий вопрос
-decision-модели (`intent` = `help`/`news`/`general`) вычисляется в том же единственном вызове и попадает
-в `DecisionAnalysis.intent`, но не маршрутизируется: справка и «что нового» — следующая задача.
+Если ответ нужен — маршрутизация по итоговому интенту, иначе поток завершается и ленивого вызова нет.
 
-## 5. Генерация ответа (ai)
+### Маршрутизация интентов
+
+Порядок: спам-этап → `requiredAnswer` → интент. Третий вопрос decision-модели (`intent` =
+`help`/`news`/`general`) попадает в `DecisionAnalysis.intent`; точные `/help`/`/помощь` (trim, без учёта
+регистра, без аргументов) распознаются детерминированно на интент-этапе, до ленивого вызова, а
+`/help`/`/помощь` с аргументами или `@`-суффиксом дают детерминированный `general`. Если анализа ещё нет
+(спам-этап неприменим: личный чат, не-человек, `enabled=false`), интент-этап делает ровно один ленивый
+вызов; fail-open спам-этапа даёт ровно одну дополнительную попытку (всего ровно два вызова) и `general`
+при двух отказах.
+
+| Интент | Событие | Дальше |
+|---|---|---|
+| `HELP` | ровно один `ANSWER_MESSAGE` со справкой (`responseTo = Message`) | `vk-message-send`; `ai-answer` пропущен |
+| `NEWS` | ровно один `NEWS_DIGEST_REQUESTED` с доменным `Message` | `ai` → сводка «что нового» (раздел 5) |
+| `GENERAL` | ровно один `MESSAGE_REQUIRE_ANSWER` с доменным `Message` | `ai-answer` |
+
+Если routing key не имеет консюмера, диспетчер не находит `EventProcessor`, пишет ERROR
+`Unknown message (type: …): <payload>` (`EventDispatcher.kt:89`; весь payload — текст сообщения,
+PII/OTLP) и подтверждает сообщение (`:74-76`). Сейчас консюмер есть у всех семи событий; эта ветка
+остаётся общим поведением диспетчера для будущих имён.
+
+## 5. Сводка «что нового» (ai)
+
+```
+NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
+    → ProcessNewsDigestUsecase → ProcessNewsDigestCommandImpl
+    → NewsPeriodParser: текст запроса → [from, to] (или период от последнего сообщения автора)
+    → in-process persistence: саммари периода + свежие сообщения (≤ summary.batch-size)
+    → NewsDigestAiAdapter (3 попытки) → ANSWER_MESSAGE
+    → vk-facade/SendMessageEventProcessor → VK API messages.send
+```
+
+- `NewsDigestRequestedEventProcessor.process` (`NewsDigestRequestedEventProcessor.kt:17-20`) читает
+  доменный `Message` из JSON и передаёт его в `ProcessNewsDigestInputPort`; use case — тонкий делегат
+  команды.
+- **Период.** `NewsPeriodParser.parse(message.messageText.value, message.date.value)` — чистый домен:
+  относительные и абсолютные формы, границы дня в offset-е сообщения. Явный срок длиннее
+  `Duration.ofDays(7)` → ответ «Слишком длинный срок: сводка возможна максимум за неделю.» без чтения
+  БД, LLM и профилей. Срок не найден → `FindLastStoredMessageByAuthorPort(peerId, fromId,
+  beforeConversationMessageId)`; `to` — дата запроса, `from` — дата последнего сообщения автора, если она
+  не позже `to` и не старше 7 суток, иначе `to.minusDays(7)`.
+- **Данные.** `FindStoredSummariesInPeriodPort` отдаёт только `COMPLETED`-саммари, чей id-диапазон
+  пересекает период; `FindStoredMessagesBetweenDatesPort` — ≤ `summary.batch-size` последних сообщений
+  периода. Сообщение-запрос исключено (вопрос, а не контент), из свежих сообщений оставлены только те,
+  что новее `max(lastMessageId)` саммари периода. Авторы форматируются общим `MessageAuthorFormatter` —
+  теми же именами, что у саммаризации.
+- **LLM.** `NewsDigestAiService` (`@RegisterAiService` без инструментов и памяти чата, system-промпт
+  `{config:aiNewsDigestSystemprompt}`) + `NewsDigestAiAdapter` — ровно три попытки, пустой или
+  пробельный ответ считается неудачной попыткой. После третьей — `NewsDigestGenerationException`;
+  команда отвечает «Не удалось собрать сводку. Попробуйте позже.» и пишет ERROR только с `peerId` и
+  простым именем класса исключения, без текста/PII. Если данных нет вовсе — «Нет сообщений за этот
+  период.» без вызова LLM.
+- **Запись.** `summaries` не пишется, `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются: у команды
+  только read-порты и `PublishEventCommand`. Отправляется ровно один `ANSWER_MESSAGE` с
+  `responseTo = исходное Message`; ошибки чтения БД и публикации не перехватываются — уходят в
+  retry-лестницу брокера.
+
+## 6. Генерация ответа (ai)
 
 `MessageRequireAnswerEventProcessor` (`MessageRequireAnswerEventProcessor.kt:17-20`) → `GenerateAnswerUsecase`
 (`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:32-47`):
@@ -135,7 +193,7 @@ decision-модели (`intent` = `help`/`news`/`general`) вычисляетс�
    запроса).
 3. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
 
-## 6. Отправка в VK (vk-facade)
+## 7. Отправка в VK (vk-facade)
 
 `SendMessageEventProcessor` (`SendMessageEventProcessor.kt:17-20`) читает `ResponseMessage` →
 `MessageSendUsecase` (`MessageSendUsecase.kt:17-27`):
@@ -149,7 +207,7 @@ decision-модели (`intent` = `help`/`news`/`general`) вычисляетс�
   `v=${vk.api.version}`, `disable_mentions=1`, `dont_parse_links=1` (`:12-15`);
 - ошибка VK (`response.error != null`) → `VkException` → retry через `EventDispatcher`.
 
-## 7. Саммаризация
+## 8. Саммаризация
 
 ```
 SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
@@ -166,17 +224,18 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
     `findMessagesBetween(lastSummary.lastMessageId, currentMessageId, batchSize)` (`:108-125`);
   - меньше `summary.threshold` при наличии прошлого саммари → пропуск (`:72-79`);
   - иначе `GenerateSummaryCommand` (`:89-103`).
-- `GenerateSummaryCommandImpl.execute` (`GenerateSummaryCommandImpl.kt:26-63`): создаёт pending-запись,
-  читает до 1000 сообщений, форматирует их с именами авторов (профили из in-process портов), вызывает
+- `GenerateSummaryCommandImpl.execute` (`GenerateSummaryCommandImpl.kt:23-60`): создаёт pending-запись,
+  читает до 1000 сообщений, форматирует их общим `MessageAuthorFormatter` (имена авторов из профилей
+  in-process портов), вызывает
   LLM (`SummarizationAiAdapter` — 3 попытки, `SummarizationAiAdapter.kt:18-41`), сохраняет completed;
-  при исключении помечает failed и пробрасывает дальше (`:59-62`).
+  при исключении помечает failed и пробрасывает дальше (`:56-59`).
 - Сохранение completed идёт через `SaveStoredCompletedSummaryPort` → in-process адаптер →
-  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:178-209`), который и
+  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:238-269`), который и
   публикует `SUMMARY_READY` с текстом «📋 Суммаризация обсуждения…».
 - `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
 
-## 8. Поздравления по расписанию (greetings)
+## 9. Поздравления по расписанию (greetings)
 
 ```
 greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezone
@@ -230,10 +289,27 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 | Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
 | Изоляция профилей | `FetchUserProfileCommandImpl.kt:67-107` | сбой VK при получении профилей не отменяет сохранение сообщения |
 | Повтор AI-саммари | `SummarizationAiAdapter.kt:10-40` | 3 попытки внутри одного события |
+| Повтор LLM-сводки «что нового» | `NewsDigestAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ, не retry брокера |
 | Детерминированный `random_id` | `MessageSendUsecase.kt:37-43` | повторная отправка того же ответа даёт тот же `random_id` |
 
 ## Известные ограничения (не скрывать)
 
+- **Сводка «что нового» без лимитов и без дедупликации.** LLM-вызов (до трёх попыток порта) на каждый
+  запрос; at-least-once может дать повторный LLM-вызов и повторный ответ, собственного дедупа и outbox
+  нет — дубли ограничивает только детерминированный `random_id` на стороне VK.
+- **Календарный день сводки — в offset-е сообщения.** Long Poll отдаёт UTC, поэтому «сегодня»/«вчера»
+  считаются как UTC-дни (для UTC+3 граница смещена); бизнес-зона чата — отдельное решение.
+- **Саммари периода в сводке не клипуются по датам:** берётся `shortSummary` саммари, чей id-диапазон
+  пересекает период, поэтому на границе периода в сводке возможно лишнее.
+- **`max-tokens` для сводки не задан**, усечения промпта нет: отказ провайдера по длине контекста даёт
+  фолбэк-ответ «Не удалось собрать сводку. Попробуйте позже.».
+- **Метрик и спанов сводки нет:** наблюдаемость — брокерская, OTLP-логи и ERROR при отказе LLM; отдельного
+  INFO-лога успеха нет.
+- **Справка и «что нового» подчиняются `requiredAnswer`.** В групповом чате нужен упоминание бота или
+  forward от бота; точная команда — только `/help`/`/помощь` без аргументов, `/help` с аргументами
+  уходит в `general`.
+- **Kill-switch гасит только спам-этап.** `decision.spam-reply.enabled = false` не выключает ленивый
+  интент-вызов после `requiredAnswer=true`; полный откат decision-модели — предыдущий образ.
 - **Нет идемпотентности записи.** У `messages` нет уникального ключа, `JooqMessageRepository.persist` —
   чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
   Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.

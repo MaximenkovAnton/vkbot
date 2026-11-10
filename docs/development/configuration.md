@@ -36,9 +36,10 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | `ai/adapter/output/ai/summarization/SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/OcrAiService.kt:13` |
 | `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}` | system-сообщение сервиса поздравлений | `ai/adapter/output/ai/greeting/GreetingAiService.kt` |
+| `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение сервиса сводки «что нового»; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/news/NewsDigestAiService.kt` |
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
-| `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке | там же `:22,108-125` |
+| `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке (у саммаризации) и лимит свежих сообщений сводки «что нового» | `ai/command/summary/ProcessSummaryCommandImpl.kt:22,108-125`; `ai/command/news/ProcessNewsDigestCommandImpl.kt` |
 | `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml`) | — |
 
 `summary.enabled-chats` биндится как `String` с `defaultValue = ""` (`ProcessSummaryCommandImpl.kt:18`),
@@ -115,7 +116,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
 | `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
 | `decision.spam-threshold` | `${DECISION_SPAM_THRESHOLD:0.9}` | порог спама: `spamProbability >= threshold` даёт спам-уведомление; читает `IsSpamCommandImpl` |
-| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-этапа: `false` выключает вызов decision-модели и спам-ответ; читает `MessageReceivedUsecaseInput` |
+| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-этапа: `false` выключает вызов decision-модели спам-этапа и спам-ответ; интент-вызов после `requiredAnswer=true` не гаснет и отправляет нормализованный текст в System One (PII, ADR 0010/0012); читает `MessageReceivedUsecaseInput` |
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
@@ -130,9 +131,13 @@ Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
 [ADR 0012](../adr/0012-decision-runtime-spam-policy.md)) — второй LangChain4j-провайдер:
 `decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
 `model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен. Клиент вызывается
-из runtime в `MessageReceivedUsecaseInput`: для сообщения человека в групповом чате при
-`decision.spam-reply.enabled = true` он задаёт три вопроса (`spam`, `class`, `intent`), а при
-`spamProbability >= decision.spam-threshold` бот отвечает обычным сообщением-уведомлением. Недоступность
+из runtime в `MessageReceivedUsecaseInput` в два этапа. Спам-этап: для сообщения человека в групповом
+чате при `decision.spam-reply.enabled = true` — три вопроса (`spam`, `class`, `intent`), при
+`spamProbability >= decision.spam-threshold` бот отвечает обычным сообщением-уведомлением. Интент-этап:
+после `requiredAnswer=true`, если анализа ещё нет (личный чат, `decision.spam-reply.enabled = false`),
+— ровно один вызов с теми же тремя вопросами (после fail-open спам-этапа — ровно одна дополнительная
+попытка, всего два вызова); нормализованный текст уходит в System One, kill-switch его не гасит.
+Недоступность
 decision-сервера в runtime даёт fail-open: WARNING без текста сообщения и без throwable (только `peerId`
 и класс исключения), сообщение обрабатывается как раньше, исключение в брокер не уходит.
 Провайдерские ключи `quarkus.langchain4j.ollama.log-requests/log-responses` **не добавлены**.
@@ -215,7 +220,7 @@ downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` о
 `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `AI_API_KEY` (дефолт
 `dummy`), `VK_BOT_MENTION`, `VK_LONGPOLL_ENABLED` (дефолт `true`),
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`,
-`SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт `0 0 0 * * ?`; `off`/`disabled`
-выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
+`NEWS_DIGEST_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт
+`0 0 0 * * ?`; `off`/`disabled` выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
 `VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 0008).
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

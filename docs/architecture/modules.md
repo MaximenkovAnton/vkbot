@@ -37,14 +37,15 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile}.kt`;
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
-  - события: `share/domain/Event.kt:3-10` (6 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
+  - события: `share/domain/Event.kt:3-11` (7 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
   - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
     `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
     `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
-  - исходящие порты: 13 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
-    поздравления), 2 — для позиции Long Poll (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai
-    (`GenerateGreetingTextPort`) и 3 vk (`share/port/output/vk/`, включая `SendGreetingMessagePort`) —
-    каждый `OutputPort<REQ,RESP>` с одной операцией;
+  - исходящие порты: 16 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
+    поздравления, три read-only порта сводки «что нового»), 2 — для позиции Long Poll
+    (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai (`GenerateGreetingTextPort`) и 3 vk
+    (`share/port/output/vk/`, включая `SendGreetingMessagePort`) — каждый `OutputPort<REQ,RESP>` с одной
+    операцией;
   - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt` — единая
     иерархия: `ValidationException` наследует `VkBotAppException`, доменная ошибка добавляет класс на
     value object и лист на конкретную проверку ([ADR 0011](../adr/0011-exception-hierarchy.md)).
@@ -81,57 +82,72 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - REST: `POST/GET /persistence/*` — `PersistenceDataController.kt:21-126`, контракт —
     `PersistenceService.kt:18-79` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:81-90`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
-  - in-process: `PersistenceDataInProcessAdapter.kt` — 15 классов-адаптеров share-портов
+  - in-process: `PersistenceDataInProcessAdapter.kt` — 18 классов-адаптеров share-портов
     (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
-    `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`), делегируют в
-    `PersistenceDataInputPort`;
+    `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`, три read-only порта
+    сводки «что нового» — `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`,
+    `FindStoredSummariesInPeriodPort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → `MESSAGE_RECEIVED` +
-  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (15 операций; публикует `SUMMARY_READY` при
-  сохранении завершённого саммари, `:132-144`), `FetchUserProfileCommandImpl.kt:18-58` (читает сохранённые
+  `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (18 операций, включая три чтения для сводки «что
+  нового»; публикует `SUMMARY_READY` при сохранении завершённого саммари, `:238-269`),
+  `FetchUserProfileCommandImpl.kt:18-58` (читает сохранённые
   профили; отсутствующие и устаревшие старше месяца обновляет через in-process vk-порты, поля сливает с
   сохранёнными), `JooqConfig.kt:11-20`,
   jOOQ-репозитории `adapter/output/persistence/jooq/Jooq*Repository.kt` (включая
   `JooqLongPollPositionRepository` — одна строка `long_poll_position`, и `JooqGreetingLogRepository` —
-  claim `greeting_log`), таблицы `.../jooq/Tables.kt`, changesets
-  `005-create-long-poll-position-table`/`006-create-greeting-log-table`, порты
+  claim `greeting_log`; `JooqMessageRepository`/`JooqSummaryRepository` читают последнее сообщение
+  автора, диапазон дат и саммари периода для сводки «что нового»), таблицы `.../jooq/Tables.kt`,
+  changesets `005-create-long-poll-position-table`/`006-create-greeting-log-table`, порты
   `persistence/port/output/persistence/` и `ForwardedMessagesSerializationPort.kt:8-16`.
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
-## `processor` — решение об ответе, спам-уведомление и клиент decision-модели
+## `processor` — решение об ответе, маршрутизация интентов и клиент decision-модели
 
-- **Ответственность:** по `MESSAGE_RECEIVED` вызвать decision-модель для применимого сообщения (человек
-  в групповом чате), при спаме опубликовать `ANSWER_MESSAGE` и остановить обработку, иначе решить, нужен
-  ли AI-ответ, и опубликовать `MESSAGE_REQUIRE_ANSWER`. Клиент decision-модели вызывается из runtime
+- **Ответственность:** по `MESSAGE_RECEIVED` пройти два этапа. **Спам-этап:** для человека в групповом
+  чате при `decision.spam-reply.enabled=true` вызвать decision-модель, при спаме опубликовать
+  `ANSWER_MESSAGE` и остановить обработку. **Интент-этап:** после `requiredAnswer=true` маршрутизировать
+  итоговый интент — `HELP` → `ANSWER_MESSAGE` со справкой, `NEWS` → `NEWS_DIGEST_REQUESTED`,
+  `GENERAL` → `MESSAGE_REQUIRE_ANSWER`; если анализа ещё нет (личный чат, `enabled=false`, fail-open),
+  интент-этап делает ровно один (после fail-open — одну дополнительную) вызов и отправляет
+  нормализованный текст в System One (PII, ADR 0010/0012). Клиент decision-модели вызывается из runtime
   ([ADR 0012](../adr/0012-decision-runtime-spam-policy.md)).
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
-- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:35-79` (спам-этап, fail-open, координация и
-  публикация `ANSWER_MESSAGE`/`MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
+- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:42-106` (спам-этап, `requiredAnswer`, ленивый
+  интент-вызов, fail-open, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/
+  `MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
   `spamProbability >= decision.spam-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не человек →
-  нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да). В коде есть
-  TODO-комментарий о будущем контексте (RAG) — это не реализовано.
+  нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да),
+  `command/help/BuildHelpTextCommand.kt:10-36` (текст справки и `vk.bot.mention`),
+  `command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` (точные `/help`/`/помощь` и граница «с
+  аргументами → `GENERAL`»). В коде есть TODO-комментарий о будущем контексте (RAG) — это не реализовано.
 - **Decision-клиент:** порт `processor/port/output/decision/AnalyzeMessageOutputPort.kt`
   (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
   `processor/adapter/output/decision/DecisionModelOutputAdapter.kt` над библиотечным
   `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `MessageIntent`,
   `DecisionAnalysis` и `MessageTextNormalizer` (`processor/domain/decision/`), отказ —
   `DecisionModelException` (`EXTERNAL_FAILURE`). Один `decide` задаёт три вопроса — `spam`, `class`,
-  `intent`; адаптер маппит `intent` в `MessageIntent`. Маршрутизация интентов — следующая задача.
+  `intent`; адаптер маппит `intent` в `MessageIntent`, и процессор маршрутизирует его после
+  `requiredAnswer=true`; `NEWS_DIGEST_REQUESTED` публикует processor, потребляет `ai`
+  (`NewsDigestRequestedEventProcessor`).
 - **Сборка:** `share`; внешняя зависимость `quarkus-langchain4j-ollama` для decision-модели (как у `ai` —
   `quarkus-langchain4j-openai`); `testImplementation` infrastructure для декораторов
   (`src/processor/build.gradle.kts:13`). Project-рёбра при этом не меняются.
 
-## `ai` — ответы, саммаризация, OCR, Vane
+## `ai` — ответы, саммаризация, сводка «что нового», OCR, Vane
 
-- **Ответственность:** генерация AI-ответа, саммаризация переписки, текст поздравлений, OCR-команда,
-  веб-инструменты Vane; потребление `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`, публикация
-  `ANSWER_MESSAGE`; in-process `GenerateGreetingTextPort` для `greetings`.
+- **Ответственность:** генерация AI-ответа, саммаризация переписки, сводка «что нового» (период из
+  текста запроса, чтение сохранённых саммари и сообщений, LLM-пересказ), текст поздравлений, OCR-команда,
+  веб-инструменты Vane; потребление `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`/`NEWS_DIGEST_REQUESTED`,
+  публикация `ANSWER_MESSAGE`; in-process `GenerateGreetingTextPort` для `greetings`.
 - **Публичный API:**
-  - MQ-входы: `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28`;
+  - MQ-входы: `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28`,
+    `NewsDigestRequestedEventProcessor.kt:12-22` (`NEWS_DIGEST_REQUESTED`, тело — доменный `Message`);
   - входы use case: `port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt`,
-    `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`;
+    `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`,
+    `port/input/news/ProcessNewsDigestInputPort.kt`;
   - in-process: `adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` — `GenerateGreetingTextPort`.
 - **Ключевые классы:**
   - ответ: `GenerateAnswerUsecase.kt:16-41` → `GenerateAnswerCommand.kt:14-48` (контекст через
@@ -139,14 +155,19 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `ConversationContextRestAdapter.kt:21-104` (20 последних сообщений, профили, парсинг JSONB
     `forwardedMessages`); LLM — `UserAnswerAiService.kt:13-45` + `GenerateAnswerOutputAdapter.kt:15-120`;
   - саммаризация: `ProcessSummaryCommandImpl.kt:11-128` (включённые чаты, порог, pending, батч),
-    `GenerateSummaryCommandImpl.kt:16-90` (pending-запись → форматирование с профилями → LLM → completed
-    или failed), `SummarizationAiAdapter.kt:12-42` (3 попытки), `SummarizationAiService.kt:8-37`;
+    `GenerateSummaryCommandImpl.kt:13-61` (pending-запись → форматирование общим `MessageAuthorFormatter` →
+    LLM → completed или failed), `SummarizationAiAdapter.kt:12-42` (3 попытки), `SummarizationAiService.kt:8-37`;
   - Vane: `VaneSearchToolAdapter.kt:10-32` (`@Tool search_web/search_academic/search_discussions`),
     `VaneSearchCommand` → `VaneSearchOutputAdapter.kt:10-72` (выбор провайдера) →
     `VaneSearchClient.kt:11-25` (`/api/search`, `/api/providers`);
   - OCR: `RecognizeImagesCommandImpl.kt:8-27`, `ImageRecognitionOutputAdapter.kt:12-38`, `OcrAiService.kt:9-46`;
   - поздравления: `GreetingAiService.kt` (`@RegisterAiService`, `@SystemMessage("{config:aiGreetingSystemprompt}")`)
     + `GreetingTextOutputAdapter.kt` (`GenerateGreetingTextPort`, формат даты и списков);
+  - сводка «что нового»: `ProcessNewsDigestUsecase` → `ProcessNewsDigestCommandImpl` (период через
+    `NewsPeriodParser`/`NewsPeriod`, три read-only in-process порта к `persistence`, ровно один
+    `ANSWER_MESSAGE`), `NewsDigestAiAdapter`/`NewsDigestAiService` (`@RegisterAiService` без инструментов,
+    system-промпт `{config:aiNewsDigestSystemprompt}`, 3 попытки, `NewsDigestGenerationException`),
+    `MessageAuthorFormatter` — общий форматтер авторов (`GenerateSummaryCommandImpl` и сводка);
   - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
 - **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
   провайдер (`quarkus-langchain4j-openai`, ADR 0007) (`src/ai/build.gradle.kts:14-46`).
@@ -235,15 +256,17 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `MESSAGE_NEW` | receiver (`PublishVkEventCommandImpl.kt:15-23`) | persistence (`MessageNewEventProcessor.kt:12-22`) |
 | `MESSAGE_RECEIVED` | persistence (`SaveMessageUsecase.kt:33-38`) | processor (`MessageReceivedEventProcessor.kt:12-22`) |
 | `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
-| `MESSAGE_REQUIRE_ANSWER` | processor (`MessageReceivedUsecaseInput.kt:66-79`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
-| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`), processor — спам-ветка (`MessageReceivedUsecaseInput.kt:46-60`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
-| `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:195-207`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
+| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:104-106`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
+| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`), processor — спам-ветка и справка (`MessageReceivedUsecaseInput.kt:54-66,94-102`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
+| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:104-106`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
+| `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:238-269`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
 
 ### In-process порты
 
 | Порт (`share`) | Реализация | Потребитель |
 |---|---|---|
-| `port/output/persistence/*` (сообщения, саммари, профили) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`GenerateSummaryCommandImpl.kt:7-12`, `ConversationContextRestAdapter.kt:22-26`) |
+| `port/output/persistence/*` (сообщения, саммари, профили) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`GenerateSummaryCommandImpl.kt:14-19`, `ConversationContextRestAdapter.kt:22-26`) |
+| `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` (read-only, сводка «что нового») | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`ProcessNewsDigestCommandImpl`) |
 | `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
 | `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |
