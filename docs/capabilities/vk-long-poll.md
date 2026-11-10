@@ -12,7 +12,7 @@
 `long_poll_position` и сохраняется только после успешной публикации, поэтому сбой между публикацией и
 сохранением даёт дубликат, но не потерю. HTTP-входа у `receiver` нет: `POST /vk/callback` отвечает 404, а
 ключей `vk.secret`/`vk.confirmation-code` в конфигурации нет — приём событий идёт только опросом
-([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 
 Коды VK `failed` восстанавливают сессию: `1` — продолжить с новым `ts` из ответа (часть истории VK потерял,
 WARN), `2` — новая сессия с тем же `ts`, `3` — новая сессия и `ts` из `groups.getLongPollServer`. При сбое
@@ -69,13 +69,13 @@ WARN), `2` — новая сессия с тем же `ts`, `3` — новая �
 
 ## ADR
 
-- ADR 0003 — разбор ответа VK (`jakarta.json`) живёт во входном адаптере, порты опроса остаются на плоских
+- ADR 2026-10-28-module-boundaries-and-layer-rules — разбор ответа VK (`jakarta.json`) живёт во входном адаптере, порты опроса остаются на плоских
   типах; `server`/`key`/`ts` не протекают в домен.
-- ADR 0004 — межмодульное взаимодействие событием RabbitMQ (`MESSAGE_NEW`) и in-process портами (позиция
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — межмодульное взаимодействие событием RabbitMQ (`MESSAGE_NEW`) и in-process портами (позиция
   `ts`), без HTTP-вызова.
-- ADR 0006 — `vk.group.id` и `vk.longpoll.enabled` читаются из одного production-конфига, секретов в дереве
+- ADR 2026-10-28-configuration-and-secrets — `vk.group.id` и `vk.longpoll.enabled` читаются из одного production-конфига, секретов в дереве
   нет.
-- ADR 0008 — транспорт Bots Long Poll, `ts` в PostgreSQL, дубликат вместо потери, один экземпляр.
+- ADR 2026-11-05-bots-long-poll-transport — транспорт Bots Long Poll, `ts` в PostgreSQL, дубликат вместо потери, один экземпляр.
 
 ## Acceptance criteria
 

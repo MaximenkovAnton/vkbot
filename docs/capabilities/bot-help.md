@@ -49,7 +49,7 @@
 
 Персистентных данных не владеет, в БД ничего не пишет. Текст справки — константа кода. Текст сообщения,
 ушедшего в decision-модель для интента, логируется провайдером на INFO и экспортируется по OTLP — PII,
-принятый риск ADR 0010/0012; новый код текст не логирует. `vk.bot.mention` — существующий ключ (ADR 0006).
+принятый риск ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy; новый код текст не логирует. `vk.bot.mention` — существующий ключ (ADR 2026-10-28-configuration-and-secrets).
 
 ## Journey
 
@@ -61,8 +61,8 @@
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | `vk-message-send` (consumer); producers — `ai-answer`, `answer-decision` (спам и справка), `chat-news-digest` (сводка «что нового») | `ai-answer` (контракт/payload не меняется) |
-| `MessageIntent` | `answer-decision`, тесты `processor` и `src/app` | `processor` (ADR 0010/0012) |
-| `vk.bot.mention` | `IsRequireAnswerCommandImpl`, `BuildHelpTextCommandImpl` | composition root `:src:app` (ADR 0006) |
+| `MessageIntent` | `answer-decision`, тесты `processor` и `src/app` | `processor` (ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy) |
+| `vk.bot.mention` | `IsRequireAnswerCommandImpl`, `BuildHelpTextCommandImpl` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
 
@@ -71,10 +71,10 @@
 
 ## ADR
 
-- ADR 0003 — команда и use case без фреймворка, вход только через `port.input`.
-- ADR 0004 — шаг в событийном потоке, публикация через `PublishEventCommand`.
-- ADR 0010 — decision-клиент и PII decision-логов (INFO/OTLP).
-- ADR 0012 — источник интента — decision-модель, спам/jailbreak-kill-switch'и гасят только decision-этап.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — команда и use case без фреймворка, вход только через `port.input`.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — шаг в событийном потоке, публикация через `PublishEventCommand`.
+- ADR 2026-11-08-decision-model-langchain4j — decision-клиент и PII decision-логов (INFO/OTLP).
+- ADR 2026-11-09-decision-runtime-spam-policy — источник интента — decision-модель, спам/jailbreak-kill-switch'и гасят только decision-этап.
 
 ## Acceptance criteria
 
@@ -110,4 +110,4 @@
 - В групповом чате справка подчиняется `requiredAnswer`: нужно упоминание бота или forward от бота.
 - Спам-этап имеет приоритет над точной командой и может дать уведомление при `requiresAnswer=false`.
 - Доставка событий at-least-once: повторная доставка может дать повторную справку; дедупликации нет.
-- PII decision-логов — принятый риск ADR 0010/0012.
+- PII decision-логов — принятый риск ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy.

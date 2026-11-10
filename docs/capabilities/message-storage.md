@@ -19,7 +19,7 @@
 остаётся устаревшей и будет перезапрошена при следующем сообщении.
 
 Читать можно двумя входами к одному `port.input`: публичным REST `/persistence/*` и in-process адаптерами,
-которые подключают модули `ai` и `persistence` без HTTP (ADR 0004).
+которые подключают модули `ai` и `persistence` без HTTP (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest).
 
 ## Точки входа
 
@@ -88,9 +88,9 @@
 
 ## ADR
 
-- ADR 0003 — модуль `persistence` видит только `share`, слои внутри модуля.
-- ADR 0004 — читающие и пишущие контракты для других модулей — in-process порты `share`, не loopback-REST.
-- ADR 0006 — datasource и Liquibase-конфигурация в `:src:app`.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — модуль `persistence` видит только `share`, слои внутри модуля.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — читающие и пишущие контракты для других модулей — in-process порты `share`, не loopback-REST.
+- ADR 2026-10-28-configuration-and-secrets — datasource и Liquibase-конфигурация в `:src:app`.
 
 ## Acceptance criteria
 

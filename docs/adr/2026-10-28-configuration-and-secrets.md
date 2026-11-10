@@ -1,4 +1,4 @@
-# ADR 0006: Конфигурация и секреты
+# 2026-10-28: Конфигурация и секреты
 
 - **Статус:** accepted
 - **Дата:** 2026-10-28
@@ -22,8 +22,8 @@ system-промпты), а документация обещала env `DATABASE
 
 | Ключ | Значение / env | Потребитель |
 |---|---|---|
-| `vk.group.id` | `${VK_GROUP_ID}` | `VkLongPollOutputAdapter` (`groups.getLongPollServer`, ADR 0008) |
-| `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | `LongPollRunner` (старт опроса Bots Long Poll, ADR 0008) |
+| `vk.group.id` | `${VK_GROUP_ID}` | `VkLongPollOutputAdapter` (`groups.getLongPollServer`, ADR 2026-11-05-bots-long-poll-transport) |
+| `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | `LongPollRunner` (старт опроса Bots Long Poll, ADR 2026-11-05-bots-long-poll-transport) |
 | `vk.api.token` | `${VK_API_TOKEN}` | `application.yml:56` (заголовок `Authorization` для VK) |
 | `vk.api.version` | `5.199` | `VkClient.kt:13`, `VkLongPollOutputAdapter.kt:106` (`v=` в каждом запросе VK) |
 | `vk.bot.id` | `${VK_BOT_ID}` | `IsRequireAnswerCommand.kt:17` |
@@ -31,7 +31,7 @@ system-промпты), а документация обещала env `DATABASE
 | `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:…}` | `UserAnswerAiService.kt:17` |
 | `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | `SummarizationAiService.kt:11` |
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:…}` | `OcrAiService.kt:13` |
-| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:…}` | `GreetingAiService.kt:11` (`@SystemMessage`, ADR 0009) |
+| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:…}` | `GreetingAiService.kt:11` (`@SystemMessage`, ADR 2026-11-07-daily-greetings) |
 | `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | `DailyGreetingRunner.kt:21` (`@Scheduled`; `off`/`disabled` выключает) |
 | `greetings.timezone` | `${GREETINGS_TIMEZONE:Europe/Minsk}` | `DailyGreetingRunner.kt:17,19,21` (`@Scheduled`/`ZoneId.of`) |
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; `String` с пустым дефолтом — пустое значение выключает саммаризацию, но старт не валит |
@@ -46,16 +46,16 @@ system-промпты), а документация обещала env `DATABASE
 | `mp.messaging.*` | очереди/обменники/retry | `application.yml:92-186` + `application-queues.yml:1-32` |
 | `dlq.levels[]` | `retry-count`, `queue-name`, `ttl-ms`, `exchange-name` | `DlqConfig.kt:6-16`, `EventDispatcher.kt:25-26` |
 | `smallrye.messaging.observation.enabled` | `true` | `application.yml:188-191` |
-| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг; OpenAI-совместимый провайдер: `openai.base-url` / `openai.api-key` / `openai.max-retries` / `openai.chat-model.model-name` (ADR 0007) | `application.yml:65-76` |
+| `quarkus.langchain4j.*` | логирование запросов/ответов и трейсинг; OpenAI-совместимый провайдер: `openai.base-url` / `openai.api-key` / `openai.max-retries` / `openai.chat-model.model-name` (ADR 2026-11-05-llm-provider-vllm-openai) | `application.yml:65-76` |
 
-Ключей `vk.secret`/`vk.confirmation-code` больше нет: Callback-эндпоинт удалён в ADR 0008, а вход событий VK
+Ключей `vk.secret`/`vk.confirmation-code` больше нет: Callback-эндпоинт удалён в ADR 2026-11-05-bots-long-poll-transport, а вход событий VK
 идёт исходящим опросом Bots Long Poll через `vk.group.id` и `vk.longpoll.enabled`.
 
 ### Dev/test и prod
 
 - DevServices (PostgreSQL, RabbitMQ, LGTM) включены в `application.yml:29-32,62-64` и в тестовых
   профилях; production задаётся env. LLM больше не поднимается DevServices: это внешний
-  OpenAI-совместимый endpoint (ADR 0007). Обязательные env для prod: `VK_GROUP_ID`,
+  OpenAI-совместимый endpoint (ADR 2026-11-05-llm-provider-vllm-openai). Обязательные env для prod: `VK_GROUP_ID`,
   `VK_API_TOKEN`, `VK_BOT_ID`, `VANE_URL`, `AI_BASE_URL`, `AI_CHAT_MODEL`,
   `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`,
   `RABBITMQ_HOST` (плюс `RABBITMQ_PORT/USERNAME/PASSWORD` при необходимости);

@@ -30,7 +30,7 @@
 | транзиентная память чата | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/TransientChatMemoryProvider.kt:11-18` |
 
 Конфигурация: `aiUseranswerSystemprompt`, `quarkus.langchain4j.openai.*` (env `AI_BASE_URL`,
-`AI_CHAT_MODEL`, `AI_API_KEY`) в `src/app/src/main/resources/application.yml` (ADR 0007).
+`AI_CHAT_MODEL`, `AI_API_KEY`) в `src/app/src/main/resources/application.yml` (ADR 2026-11-05-llm-provider-vllm-openai).
 
 ## Данные
 
@@ -60,10 +60,10 @@ LLM может вызвать веб-поиск — это возможност�
 
 ## ADR
 
-- ADR 0003 — `command`/`usecase` не видят LangChain4j: AI-сервис и адаптер только в `adapter/output`.
-- ADR 0004 — контекст и профили приходят in-process портами, а не HTTP-вызовом к `persistence`.
-- ADR 0006 — промпты и endpoint LLM — конфигурация, не код.
-- ADR 0007 — провайдер один: OpenAI-совместимый API (vLLM); одна chat-модель на ответ, саммари и OCR.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — `command`/`usecase` не видят LangChain4j: AI-сервис и адаптер только в `adapter/output`.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — контекст и профили приходят in-process портами, а не HTTP-вызовом к `persistence`.
+- ADR 2026-10-28-configuration-and-secrets — промпты и endpoint LLM — конфигурация, не код.
+- ADR 2026-11-05-llm-provider-vllm-openai — провайдер один: OpenAI-совместимый API (vLLM); одна chat-модель на ответ, саммари и OCR.
 
 ## Acceptance criteria
 

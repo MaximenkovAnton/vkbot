@@ -275,7 +275,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 Этого достаточно и для Long Poll: `groups.getLongPollServer` идёт в `/method`, а `a_check` — на `server` из
 ответа заглушки, то есть на тот же базовый URL WireMock.
 Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
-возврате HTTP-контура между модулями (ADR 0004).
+возврате HTTP-контура между модулями (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest).
 
 ## Архитектурные тесты
 
@@ -301,14 +301,14 @@ REST-триггера нет. Покрыты: дни рождения в гру�
   `coverageMin = 0.40`, `measuredLineCoverage = 0.5687` (`build.gradle.kts:19-20`).
 - Порог включён в `check` → `build` (`build.gradle.kts:131-134`) и в CI-джоб `coverage`.
 - Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), следующий целевой
-  порог 0.60 — отдельная задача с новыми тестами (ADR 0005). Покрытие меряется по бизнес-коду, а не по glue.
+  порог 0.60 — отдельная задача с новыми тестами (ADR 2026-10-28-quality-gates-and-ci). Покрытие меряется по бизнес-коду, а не по glue.
 - Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.56,
   but expected minimum is 0.99`, exit 1.
 
 ## Ограничения
 
 - `@QuarkusTest` в `app` требует Docker (DevServices); в окружении без Docker эти тесты не пройдут.
-- `@QuarkusTest` в `:src:ai` не запускается (нет плагина `io.quarkus`, ADR 0002), поэтому проводка `ai`
+- `@QuarkusTest` в `:src:ai` не запускается (нет плагина `io.quarkus`, ADR 2026-10-28-single-deployable-app-module), поэтому проводка `ai`
   проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
   plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`

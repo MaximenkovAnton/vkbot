@@ -1,4 +1,4 @@
-# ADR 0009: Ежедневные поздравления — cron-расписание, at-most-once через `greeting_log`
+# 2026-11-07: Ежедневные поздравления — cron-расписание, at-most-once через `greeting_log`
 
 - **Статус:** accepted
 - **Дата:** 2026-11-07
@@ -75,7 +75,7 @@
 - Новый модуль `:src:greetings` входит в allowlist arch-тестов и в `coverageModules`; `:src:app` —
   composition root, ключи читаются из `src/app/src/main/resources/application.yml`.
 - `quarkus-scheduler` — ещё одно расширение каркаса, но не второй деплой и не второй раннер: расписание
-  живёт в `:src:app` (ADR 0002).
+  живёт в `:src:app` (ADR 2026-10-28-single-deployable-app-module).
 - Первый прогон после деплоя — живой (дефолт `GREETINGS_CRON=0 0 0 * * ?`), его ограничивают at-most-once,
   один прогон в сутки и тестовые профили с `greetings.cron: disabled`.
 - Известные ограничения (приняты):

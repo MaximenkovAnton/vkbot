@@ -73,11 +73,11 @@ for file in "$map_dir"/*.md; do
 
     while IFS= read -r id; do
         [ -z "$id" ] && continue
-        if ! compgen -G "docs/adr/${id}-*.md" >/dev/null; then
-            echo "FAIL: $file references ADR $id, but docs/adr/${id}-*.md does not exist" >&2
+        if [ ! -f "docs/adr/${id}.md" ]; then
+            echo "FAIL: $file references ADR $id, but docs/adr/${id}.md does not exist" >&2
             status=1
         fi
-    done < <(grep -oE 'ADR [0-9]{4}' "$file" | awk '{print $2}' | sort -u || true)
+    done < <(grep -oE 'ADR [0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9-]+' "$file" | awk '{print $2}' | sort -u || true)
 
     capability_status=$(grep -m1 -E '^- \*\*Статус:\*\* ' "$file" | sed -E 's/^- \*\*Статус:\*\* //' || true)
     case "$capability_status" in

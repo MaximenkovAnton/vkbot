@@ -53,7 +53,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 | `VkUserProfile`, `VkGroupProfile` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`, `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена), `daily-greetings` (имя именинника) | `vk-profiles` |
 | `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` | `message-storage` (`FetchUserProfileCommandImpl`) | `vk-profiles` |
 | таблицы `vk_user_profiles`/`vk_group_profiles` | `message-storage` пишет их своими портами | `message-storage` |
-| `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 0006) |
+| `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
 
@@ -61,9 +61,9 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 ## ADR
 
-- ADR 0003 — VK REST-клиент только в `adapter/output`, `share`-порты без реализаций.
-- ADR 0004 — `message-storage` получает профили in-process портами, а не loopback-HTTP.
-- ADR 0006 — токен VK и URL клиента в конфигурации деплоя.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — VK REST-клиент только в `adapter/output`, `share`-порты без реализаций.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — `message-storage` получает профили in-process портами, а не loopback-HTTP.
+- ADR 2026-10-28-configuration-and-secrets — токен VK и URL клиента в конфигурации деплоя.
 
 ## Acceptance criteria
 
