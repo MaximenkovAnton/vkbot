@@ -8,6 +8,7 @@ import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindChatAuthorsByPeerIdPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastMessageByAuthorPort
@@ -67,6 +68,7 @@ open class PersistenceDataUsecase(
     private val claimDailyGreetingPort: ClaimDailyGreetingPort,
     private val findUserProfileHistoryPort: FindUserProfileHistoryPort,
     private val findUserStatisticsPort: FindUserStatisticsPort,
+    private val findChatAuthorsByPeerIdPort: FindChatAuthorsByPeerIdPort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -152,6 +154,10 @@ open class PersistenceDataUsecase(
     override fun findUserStatistics(
         request: PersistenceDataRequest.FindUserStatistics,
     ): PersistenceDataResponse.Statistics = handleFindUserStatistics(request)
+
+    override fun findChatAuthors(
+        request: PersistenceDataRequest.FindChatAuthors,
+    ): PersistenceDataResponse.ChatAuthors = handleFindChatAuthors(request)
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
         val messages = findMessagesBeforePort.execute(
@@ -362,6 +368,15 @@ open class PersistenceDataUsecase(
             FindUserStatisticsPort.FindUserStatisticsRequest(request.userId),
         ).statistics
         return PersistenceDataResponse.Statistics(statistics)
+    }
+
+    private fun handleFindChatAuthors(
+        request: PersistenceDataRequest.FindChatAuthors,
+    ): PersistenceDataResponse.ChatAuthors {
+        val authors = findChatAuthorsByPeerIdPort.execute(
+            FindChatAuthorsByPeerIdPort.Request(PeerId.of(request.peerId)),
+        ).authors
+        return PersistenceDataResponse.ChatAuthors(authors)
     }
 
     companion object {

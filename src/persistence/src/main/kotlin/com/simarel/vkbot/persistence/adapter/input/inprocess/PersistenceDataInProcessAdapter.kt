@@ -6,6 +6,7 @@ import com.simarel.vkbot.share.domain.vo.LongPollTs
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindChatAuthorsPort
 import com.simarel.vkbot.share.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredMessageByAuthorPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
@@ -15,7 +16,9 @@ import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforeP
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenDatesPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredSummariesInPeriodPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfileHistoryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserStatisticsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
@@ -273,5 +276,43 @@ class ClaimDailyGreetingInProcessAdapter(
             PersistenceDataRequest.ClaimDailyGreeting(request.date, request.peerId.value),
         )
         return ClaimDailyGreetingPort.Response(response.claimed)
+    }
+}
+
+@ApplicationScoped
+class FindChatAuthorsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindChatAuthorsPort {
+    override fun execute(request: FindChatAuthorsPort.Request): FindChatAuthorsPort.Response {
+        val response = persistenceDataInputPort.findChatAuthors(
+            PersistenceDataRequest.FindChatAuthors(request.peerId.value),
+        )
+        return FindChatAuthorsPort.Response(response.authors)
+    }
+}
+
+@ApplicationScoped
+class FindStoredUserStatisticsInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindStoredUserStatisticsPort {
+    override fun execute(request: FindStoredUserStatisticsPort.Request): FindStoredUserStatisticsPort.Response {
+        val response = persistenceDataInputPort.findUserStatistics(
+            PersistenceDataRequest.FindUserStatistics(request.userId.value),
+        )
+        return FindStoredUserStatisticsPort.Response(response.statistics)
+    }
+}
+
+@ApplicationScoped
+class FindStoredUserProfileHistoryInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindStoredUserProfileHistoryPort {
+    override fun execute(
+        request: FindStoredUserProfileHistoryPort.Request,
+    ): FindStoredUserProfileHistoryPort.Response {
+        val response = persistenceDataInputPort.findUserProfileHistory(
+            PersistenceDataRequest.FindUserProfileHistory(request.profileId.value, request.limit, 0),
+        )
+        return FindStoredUserProfileHistoryPort.Response(response.entries)
     }
 }

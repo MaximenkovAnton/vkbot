@@ -6,7 +6,7 @@
 
 ## События и их владельцы
 
-`Event` — закрытый enum из семи значений (`share/domain/Event.kt:3-11`). Routing key в RabbitMQ равен
+`Event` — закрытый enum из восьми значений (`share/domain/Event.kt:3-12`). Routing key в RabbitMQ равен
 имени события (`PublishEventOutputAdapter.kt:20-30`), диспетчер строит карту `Event.name → EventProcessor`
 (`EventDispatcher.kt:21-24`).
 
@@ -18,6 +18,7 @@
 | `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
 | `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:61-67,98-101`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
 | `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `PROFILE_REQUESTED` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `profile`) | `ProfileRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
 | `SUMMARY_READY` | `PersistenceDataUsecase.kt:238-269` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
@@ -188,11 +189,12 @@ decision.jailbreak-reply.enabled`) use case вызывает decision-модел
 |---|---|---|
 | `HELP` | ровно один `ANSWER_MESSAGE` со справкой (`responseTo = Message`) | `vk-message-send`; `ai-answer` пропущен |
 | `NEWS` | ровно один `NEWS_DIGEST_REQUESTED` с доменным `Message` | `ai` → сводка «что нового» (раздел 5) |
+| `PROFILE` | ровно один `PROFILE_REQUESTED` с доменным `Message` | `ai` → досье об участнике чата (раздел 6) |
 | `GENERAL` | ровно один `MESSAGE_REQUIRE_ANSWER` с доменным `Message` | `ai-answer` |
 
 Если routing key не имеет консюмера, диспетчер не находит `EventProcessor`, пишет ERROR
 `Unknown message (type: …): <payload>` (`EventDispatcher.kt:89`; весь payload — текст сообщения,
-PII/OTLP) и подтверждает сообщение (`:74-76`). Сейчас консюмер есть у всех семи событий; эта ветка
+PII/OTLP) и подтверждает сообщение (`:74-76`). Сейчас консюмер есть у всех восьми событий; эта ветка
 остаётся общим поведением диспетчера для будущих имён.
 
 ## 5. Сводка «что нового» (ai)
@@ -231,7 +233,46 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
   `responseTo = исходное Message`; ошибки чтения БД и публикации не перехватываются — уходят в
   retry-лестницу брокера.
 
-## 6. Генерация ответа (ai)
+## 6. Досье об участнике чата (ai)
+
+```
+PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
+    → ProcessProfileUsecase → ProcessProfileCommandImpl
+    → ProfileTargetResolver: mention id/club/public → пересылка → «обо мне»/«про меня»
+        → имя среди сохранённых профилей авторов этого peer_id
+    → in-process persistence: авторы чата, профиль VK, статистика, история (20 записей)
+    → при отсутствии сохранённого профиля — live vk-порт (ответ VK не сохраняется)
+    → ProfileDossierFormatter → ProfileAiAdapter (3 попытки) → ANSWER_MESSAGE
+    → vk-facade/SendMessageEventProcessor → VK API messages.send
+```
+
+- `ProfileRequestedEventProcessor.process` (`ProfileRequestedEventProcessor.kt:17-20`) читает доменный
+  `Message` из JSON и передаёт его в `ProcessProfileInputPort`; use case — тонкий делегат команды.
+- **Резолв адресата — детерминированный домен.** Приоритет строгий: один mention `id`/`club`/`public`,
+  затем последнее пересланное сообщение с `fromId ≠ vk.bot.id`, затем «обо мне»/«про меня» (автор
+  сообщения), затем фраза имени среди сохранённых профилей авторов этого `peer_id`. Один кандидат —
+  цель; несколько — одно уточнение со списком не больше 10 кандидатов и без LLM; ноль — «не нашёл».
+  Упоминание самого бота отбрасывается. Состояния уточнения нет: следующий запрос резолвится заново.
+- **Данные.** `FindChatAuthorsPort` даёт авторов чата и счётчик сообщений цели; сохранённый профиль —
+  `FindStoredUserProfilesByIdsPort`/`FindStoredGroupProfilesByIdsPort`, при отсутствии —
+  `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (live VK; ответ не сохраняется);
+  `FindStoredUserStatisticsPort` — материализованные агрегаты (глобальные и по чатам, включая чужие);
+  `FindStoredUserProfileHistoryPort(id, limit = 20)` — последние записи newest-first. Группа получает
+  только профиль и счётчик в этом чате.
+- **Текст.** `ProfileDossierFormatter` — чистый домен: секции `Профиль:`, `Статистика:`,
+  `История изменений:`, `В этом чате:`; пустые секции не пишутся; `details` и история рендерятся по
+  allowlist (без телефонов, контактов, `counters`, `connections`, неизвестных ключей и VK-id).
+- **LLM и ответ.** `ProfileAiService` (`@RegisterAiService` без инструментов и памяти, system-промпт
+  `{config:aiProfileSystemprompt}`) + `ProfileAiAdapter` — ровно три попытки, пустой ответ считается
+  неудачей; после третьей — `ProfileGenerationException`. Команда публикует фиксированный текст «Не
+  удалось собрать профиль. Попробуйте позже.» и пишет ERROR только с `peerId` и простым именем класса
+  исключения (без текста/PII). Если профиль не получен ни из БД, ни из VK — «Профиль недоступен.» без
+  LLM.
+- **Запись.** В БД ничего не пишется: у команды нет write-портов; live-профиль не сохраняется; ровно один
+  `ANSWER_MESSAGE` с `responseTo = исходное Message`. Ошибки чтения и публикации не перехватываются —
+  уходят в retry-лестницу брокера.
+
+## 7. Генерация ответа (ai)
 
 `MessageRequireAnswerEventProcessor` (`MessageRequireAnswerEventProcessor.kt:17-20`) → `GenerateAnswerUsecase`
 (`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:32-47`):
@@ -247,7 +288,7 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
    запроса).
 3. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
 
-## 7. Отправка в VK (vk-facade)
+## 8. Отправка в VK (vk-facade)
 
 `SendMessageEventProcessor` (`SendMessageEventProcessor.kt:17-20`) читает `ResponseMessage` →
 `MessageSendUsecase` (`MessageSendUsecase.kt:17-27`):
@@ -261,7 +302,7 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
   `v=${vk.api.version}`, `disable_mentions=1`, `dont_parse_links=1` (`:12-15`);
 - ошибка VK (`response.error != null`) → `VkException` → retry через `EventDispatcher`.
 
-## 8. Саммаризация
+## 9. Саммаризация
 
 ```
 SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
@@ -289,7 +330,7 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 - `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
 
-## 9. Поздравления по расписанию (greetings)
+## 10. Поздравления по расписанию (greetings)
 
 ```
 greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezone
@@ -344,6 +385,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 | Изоляция профилей | `FetchUserProfileCommandImpl.kt:67-107` | сбой VK при получении профилей не отменяет сохранение сообщения |
 | Повтор AI-саммари | `SummarizationAiAdapter.kt:10-40` | 3 попытки внутри одного события |
 | Повтор LLM-сводки «что нового» | `NewsDigestAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ, не retry брокера |
+| Повтор LLM-досье «профиль» | `ProfileAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ «Не удалось собрать профиль. Попробуйте позже.», не retry брокера |
 | Детерминированный `random_id` | `MessageSendUsecase.kt:37-43` | повторная отправка того же ответа даёт тот же `random_id` |
 
 ## Известные ограничения (не скрывать)
@@ -359,6 +401,10 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
   фолбэк-ответ «Не удалось собрать сводку. Попробуйте позже.».
 - **Метрик и спанов сводки нет:** наблюдаемость — брокерская, OTLP-логи и ERROR при отказе LLM; отдельного
   INFO-лога успеха нет.
+- **Досье «профиль» без лимитов и без дедупликации.** LLM-вызов (до трёх попыток порта) на каждый
+  запрос; at-least-once может дать повторный ответ и повторный вызов; кэша ответов и rate limit нет.
+  Резолв по имени — префиксная эвристика: `Паша` не находится по `Павел`; группы — только по
+  `club`/`public`-id или пересылке. Live-профиль из VK не сохраняется.
 - **Справка и «что нового» подчиняются `requiredAnswer`.** В групповом чате нужен упоминание бота или
   forward от бота; точная команда — только `/help`/`/помощь` без аргументов, `/help` с аргументами
   уходит в `general`.

@@ -65,9 +65,9 @@ In-process (без HTTP):
 
 ## Основной поток
 
-Событий ровно семь — закрытый `enum class Event` (`share/domain/Event.kt:3-11`):
+Событий ровно восемь — закрытый `enum class Event` (`share/domain/Event.kt:3-12`):
 `MESSAGE_NEW`, `MESSAGE_RECEIVED`, `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `SUMMARY_REQUESTED`,
-`SUMMARY_READY`, `NEWS_DIGEST_REQUESTED`.
+`SUMMARY_READY`, `NEWS_DIGEST_REQUESTED`, `PROFILE_REQUESTED`.
 
 ```
 VK ──Bots Long Poll──> receiver
@@ -83,12 +83,18 @@ MESSAGE_RECEIVED ──> processor/MessageReceivedEventProcessor
     IsRequireAnswerCommand → если ответ нужен, интент:
       help → ANSWER_MESSAGE (справка) → vk-facade
       news → NEWS_DIGEST_REQUESTED
+      profile → PROFILE_REQUESTED
       general → MESSAGE_REQUIRE_ANSWER
 
 NEWS_DIGEST_REQUESTED ──> ai/NewsDigestRequestedEventProcessor
     ProcessNewsDigestCommand: период из текста запроса
     → in-process persistence (саммари периода + свежие сообщения) → LLM
     → ANSWER_MESSAGE
+
+PROFILE_REQUESTED ──> ai/ProfileRequestedEventProcessor
+    ProcessProfileCommand: резолв адресата (mention → пересылка → «обо мне» → имя среди авторов чата)
+    → in-process persistence (профиль VK, статистика, история) + live vk-порт при отсутствии профиля
+    → LLM (досье) → ANSWER_MESSAGE
 
 MESSAGE_REQUIRE_ANSWER ──> ai/MessageRequireAnswerEventProcessor
     GenerateAnswerUsecase: контекст (in-process persistence-порты) → LLM
@@ -123,17 +129,18 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `Command<REQ,RESP>`; `EventProcessor` — единый вход консьюмера.
 - **Use case'ы**: `ReceiveMessageUsecase`, `SaveMessageUsecase`, `PersistenceDataUsecase`,
   `MessageReceivedUsecaseInput`, `GenerateAnswerUsecase`, `ProcessSummaryUsecase`, `GenerateSummaryUsecase`,
-  `ProcessNewsDigestUsecase`, `MessageSendUsecase`, `PlainMessageSendUsecase`, `VkProfileUsecase`,
+  `ProcessNewsDigestUsecase`, `ProcessProfileUsecase`, `MessageSendUsecase`, `PlainMessageSendUsecase`, `VkProfileUsecase`,
   `RunDailyGreetingsUsecase`.
 - **Команды**: `PublishVkEventCommand`, `PublishEventCommand`, `IsRequireAnswerCommand`,
   `FetchUserProfileCommand`, `GenerateAnswerCommand`, `GenerateSummaryCommand`, `ProcessSummaryCommand`,
-  `ProcessNewsDigestCommand` (+ общий форматтер авторов `MessageAuthorFormatter`),
+  `ProcessNewsDigestCommand`, `ProcessProfileCommand` (+ общий форматтер авторов `MessageAuthorFormatter`),
   `RecognizeImagesCommand` (реализована, ни к одному use case не подключена), `SendVkMessageCommand`,
   `GetProfileCommand`, `VaneSearchCommand`, `CollectGreetingPlansCommand`, `GenerateGreetingTextCommand`.
 - **Адаптеры**: входные — `LongPollRunner` (опрос VK), `DailyGreetingRunner` (cron-расписание Quarkus),
-  REST-контроллеры, `@Incoming`-процессоры (включая `NewsDigestRequestedEventProcessor`), in-process
-  адаптеры; выходные — jOOQ-репозитории, VK REST client, LangChain4j AI-сервисы (включая
-  `NewsDigestAiService`), Vane client, Jackson-сериализация.
+  REST-контроллеры, `@Incoming`-процессоры (включая `NewsDigestRequestedEventProcessor` и
+  `ProfileRequestedEventProcessor`), in-process адаптеры; выходные — jOOQ-репозитории, VK REST client,
+  LangChain4j AI-сервисы (включая `NewsDigestAiService` и `ProfileAiService`), Vane client,
+  Jackson-сериализация.
 - **Инфраструктура**: `EventDispatcher` (маршрутизация по routing key = имя события, retry, DLQ),
   `PublishEventOutputAdapter`, logging-декораторы, `DlqConfig`, `MapperConfig`.
 

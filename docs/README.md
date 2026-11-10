@@ -48,6 +48,7 @@
 | [2026-11-10](adr/2026-11-10-vk-profile-history-and-statistics.md) | Полный профиль VK одним `users.get` (все поля, кроме фото/аватарки) в JSONB `profile_data`; история изменений `vk_user_profile_history` как JSONB-diff `{field: {old, new}}`; статистика автора (число сообщений, средняя длина, чаты, дни/часы) считается на чтении из `messages` в зоне `statistics.timezone`; REST `/persistence/statistics/users/{id}` и `/persistence/profiles/users/{id}/history` | accepted |
 | [2026-11-10](adr/2026-11-10-vk-profile-human-details.md) | Профиль VK в человеческих значениях: один JSONB `profile_details` (русские подписи enum, title города/страны, объекты без VK-id, без пустых строк и волатильных полей; `USER_FIELDS` 54 → 35) вместо сырого `profile_data`; `ProfileFieldsMerger` сливает `details` и diff-ит typed-колонки и `details` по именам ключей (`birth_date`); changeset 008 add→purge→drop; `Amends` ADR 2026-11-10-vk-profile-history-and-statistics | accepted |
 | [2026-11-10](adr/2026-11-10-user-statistics-materialization.md) | Статистика автора материализуется при сохранении сообщения: три таблицы `user_statistics`/`user_chat_statistics`/`user_hour_statistics`, три upsert'а в транзакции сообщения, UTC-бакеты конвертируются в `statistics.timezone` на чтении; `009-create-user-statistics-tables` (только DDL) и идемпотентный `backfill-user-statistics.sql` (остановка писателя, `ACCESS EXCLUSIVE` + `lock_timeout`, `ANALYZE`); REST-формат не меняется; `Amends` ADR 2026-11-10-vk-profile-history-and-statistics | accepted |
+| [2026-11-10](adr/2026-11-10-profile-dossier.md) | «Профиль»: консюмер `PROFILE_REQUESTED` в `:src:ai`, детерминированный резолв адресата (mention → пересылка → «обо мне» → имя среди авторов чата), досье из сохранённого профиля VK, материализованной статистики и истории изменений, один `ANSWER_MESSAGE` с LLM-текстом публикует команда; в БД не пишет, always-on, PII-egress в LLM — принятый риск | accepted |
 
 Исторические номера (для старых ссылок в git-истории и отчётах задач):
 
@@ -67,6 +68,7 @@
 | 0012 | `2026-11-09-decision-runtime-spam-policy` |
 | 0013 | `2026-11-10-news-digest` |
 | 0014 | `2026-11-10-decision-jailbreak-detection` |
+| 0015 | `2026-11-10-profile-dossier` |
 
 ## Продуктовая карта
 

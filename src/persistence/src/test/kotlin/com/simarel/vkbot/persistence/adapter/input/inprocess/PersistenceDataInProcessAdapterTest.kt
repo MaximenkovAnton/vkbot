@@ -453,6 +453,85 @@ class PersistenceDataInProcessAdapterTest {
         assertEquals(true, response.claimed)
     }
 
+    @Test
+    fun `chat authors adapter delegates the peer id`() {
+        val authors = listOf(FakeModelProvider.createChatAuthor(fromId = 7_600_001, messageCount = 2))
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findChatAuthors(
+                request: PersistenceDataRequest.FindChatAuthors,
+            ): PersistenceDataResponse.ChatAuthors {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createChatAuthorsResponse(authors)
+            }
+        }
+        val adapter = FindChatAuthorsInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindChatAuthorsRequest(peerId = 2_600_000_001),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindChatAuthorsRequest(peerId = 2_600_000_001),
+            port.requests.single(),
+        )
+        assertEquals(authors, response.authors)
+    }
+
+    @Test
+    fun `statistics adapter delegates the user id`() {
+        val statistics = FakeModelProvider.createUserStatistics(userId = 7_600_002, messageCount = 3)
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserStatistics(
+                request: PersistenceDataRequest.FindUserStatistics,
+            ): PersistenceDataResponse.Statistics {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createStatisticsResponse(statistics)
+            }
+        }
+        val adapter = FindStoredUserStatisticsInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindStoredUserStatisticsRequest(userId = 7_600_002),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserStatisticsRequest(userId = 7_600_002),
+            port.requests.single(),
+        )
+        assertEquals(statistics, response.statistics)
+    }
+
+    @Test
+    fun `history adapter delegates id and limit`() {
+        val entries = listOf(FakeModelProvider.createProfileHistoryEntry(profileId = 7_600_003))
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserProfileHistory(
+                request: PersistenceDataRequest.FindUserProfileHistory,
+            ): PersistenceDataResponse.ProfileHistory {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createProfileHistoryResponse(entries)
+            }
+        }
+        val adapter = FindStoredUserProfileHistoryInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindStoredUserProfileHistoryRequest(
+                profileId = 7_600_003,
+                limit = 20,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserProfileHistoryRequest(
+                profileId = 7_600_003,
+                limit = 20,
+                offset = 0,
+            ),
+            port.requests.single(),
+        )
+        assertEquals(entries, response.entries)
+    }
+
     private open class RecordingPersistenceDataInputPort : PersistenceDataInputPort {
         val requests = mutableListOf<PersistenceDataRequest>()
 
@@ -535,6 +614,10 @@ class PersistenceDataInProcessAdapterTest {
         override fun findUserStatistics(
             request: PersistenceDataRequest.FindUserStatistics,
         ): PersistenceDataResponse.Statistics = unsupported()
+
+        override fun findChatAuthors(
+            request: PersistenceDataRequest.FindChatAuthors,
+        ): PersistenceDataResponse.ChatAuthors = unsupported()
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }

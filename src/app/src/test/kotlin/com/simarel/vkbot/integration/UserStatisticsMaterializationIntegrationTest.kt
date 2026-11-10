@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqUserStatisticsRepository
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
-import com.simarel.vkbot.persistence.domain.statistics.DayOfWeekActivity
-import com.simarel.vkbot.persistence.domain.statistics.HourActivity
-import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import io.quarkus.test.junit.QuarkusTest
@@ -118,13 +116,39 @@ class UserStatisticsMaterializationIntegrationTest {
         assertEquals(listOf(2L, 1L), minsk.chats.map { it.messageCount })
         assertEquals(listOf(9L, 0L), minsk.chats.map { it.totalLength })
         assertEquals(listOf(4.5, 0.0), minsk.chats.map { it.averageLength })
-        assertEquals(listOf(HourActivity(10, 1), HourActivity(11, 1), HourActivity(23, 1)), minsk.activityByHour)
-        assertEquals(listOf(DayOfWeekActivity(1, 2), DayOfWeekActivity(2, 1)), minsk.activityByDayOfWeek)
+        assertEquals(
+            listOf(
+                FakeModelProvider.createHourActivity(10, 1),
+                FakeModelProvider.createHourActivity(11, 1),
+                FakeModelProvider.createHourActivity(23, 1),
+            ),
+            minsk.activityByHour,
+        )
+        assertEquals(
+            listOf(
+                FakeModelProvider.createDayOfWeekActivity(1, 2),
+                FakeModelProvider.createDayOfWeekActivity(2, 1),
+            ),
+            minsk.activityByDayOfWeek,
+        )
 
         val utc = statisticsRepository.findByUser(userId, ZoneId.of("UTC"))
 
-        assertEquals(listOf(HourActivity(7, 1), HourActivity(8, 1), HourActivity(20, 1)), utc.activityByHour)
-        assertEquals(listOf(DayOfWeekActivity(1, 2), DayOfWeekActivity(2, 1)), utc.activityByDayOfWeek)
+        assertEquals(
+            listOf(
+                FakeModelProvider.createHourActivity(7, 1),
+                FakeModelProvider.createHourActivity(8, 1),
+                FakeModelProvider.createHourActivity(20, 1),
+            ),
+            utc.activityByHour,
+        )
+        assertEquals(
+            listOf(
+                FakeModelProvider.createDayOfWeekActivity(1, 2),
+                FakeModelProvider.createDayOfWeekActivity(2, 1),
+            ),
+            utc.activityByDayOfWeek,
+        )
     }
 
     @Test
@@ -134,12 +158,32 @@ class UserStatisticsMaterializationIntegrationTest {
         saveMessage(userId, peerId = 111, text = "abc", date = "2026-01-06T00:30:00+03:00", messageId = 1)
 
         val minsk = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
-        assertEquals(listOf(HourActivity(0, 1)), minsk.activityByHour)
-        assertEquals(listOf(DayOfWeekActivity(2, 1)), minsk.activityByDayOfWeek)
+        assertEquals(
+            listOf(
+                FakeModelProvider.createHourActivity(0, 1),
+            ),
+            minsk.activityByHour,
+        )
+        assertEquals(
+            listOf(
+                FakeModelProvider.createDayOfWeekActivity(2, 1),
+            ),
+            minsk.activityByDayOfWeek,
+        )
 
         val utc = statisticsRepository.findByUser(userId, ZoneId.of("UTC"))
-        assertEquals(listOf(HourActivity(21, 1)), utc.activityByHour)
-        assertEquals(listOf(DayOfWeekActivity(1, 1)), utc.activityByDayOfWeek)
+        assertEquals(
+            listOf(
+                FakeModelProvider.createHourActivity(21, 1),
+            ),
+            utc.activityByHour,
+        )
+        assertEquals(
+            listOf(
+                FakeModelProvider.createDayOfWeekActivity(1, 1),
+            ),
+            utc.activityByDayOfWeek,
+        )
     }
 
     @Test
@@ -176,8 +220,21 @@ class UserStatisticsMaterializationIntegrationTest {
         assertEquals(Instant.parse("2026-01-06T20:30:00Z"), after.lastMessageAt?.toInstant())
         assertEquals(listOf(111L, 222L), after.chats.map { it.peerId })
         assertEquals(listOf(2L, 1L), after.chats.map { it.messageCount })
-        assertEquals(listOf(HourActivity(10, 1), HourActivity(11, 1), HourActivity(23, 1)), after.activityByHour)
-        assertEquals(listOf(DayOfWeekActivity(1, 2), DayOfWeekActivity(2, 1)), after.activityByDayOfWeek)
+        assertEquals(
+            listOf(
+                FakeModelProvider.createHourActivity(10, 1),
+                FakeModelProvider.createHourActivity(11, 1),
+                FakeModelProvider.createHourActivity(23, 1),
+            ),
+            after.activityByHour,
+        )
+        assertEquals(
+            listOf(
+                FakeModelProvider.createDayOfWeekActivity(1, 2),
+                FakeModelProvider.createDayOfWeekActivity(2, 1),
+            ),
+            after.activityByDayOfWeek,
+        )
     }
 
     @Test

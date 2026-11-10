@@ -1,9 +1,9 @@
 package com.simarel.vkbot.persistence.adapter.input.rest
 
-import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
-import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import jakarta.enterprise.context.ApplicationScoped

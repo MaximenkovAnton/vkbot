@@ -2,6 +2,7 @@ package com.simarel.vkbot.testfixtures.port
 
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
+import com.simarel.vkbot.share.port.output.persistence.FindChatAuthorsPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredMessageByAuthorPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
@@ -9,10 +10,13 @@ import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforeP
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenDatesPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredSummariesInPeriodPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfileHistoryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserStatisticsPort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
+import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -111,4 +115,20 @@ object FakePersistencePortProvider {
     fun createFindGroupProfilesByIdsRequest(
         ids: List<FromId> = emptyList(),
     ) = FindStoredGroupProfilesByIdsPort.Request(ids = ids)
+
+    fun createFindChatAuthorsRequest(
+        peerId: Long = 2_000_000_001,
+    ) = FindChatAuthorsPort.Request(peerId = FakeVoProvider.createPeerId(peerId))
+
+    fun createFindStoredUserStatisticsRequest(
+        userId: Long = 1,
+    ) = FindStoredUserStatisticsPort.Request(userId = FakeVoProvider.createFromId(userId))
+
+    fun createFindStoredUserProfileHistoryRequest(
+        profileId: Long = 1,
+        limit: Int = 10,
+    ) = FindStoredUserProfileHistoryPort.Request(
+        profileId = FakeVoProvider.createFromId(profileId),
+        limit = limit,
+    )
 }

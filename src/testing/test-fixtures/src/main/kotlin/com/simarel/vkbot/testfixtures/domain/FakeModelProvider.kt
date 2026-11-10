@@ -1,10 +1,16 @@
 package com.simarel.vkbot.testfixtures.domain
 
+import com.simarel.vkbot.share.domain.model.ChatAuthor
+import com.simarel.vkbot.share.domain.model.ChatStatistics
+import com.simarel.vkbot.share.domain.model.DayOfWeekActivity
+import com.simarel.vkbot.share.domain.model.HourActivity
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.SummaryStatus
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.MessageText
@@ -13,6 +19,7 @@ import java.util.UUID
 
 private val FIXED_DATE: OffsetDateTime = OffsetDateTime.parse("2026-01-01T00:00:00Z")
 
+@Suppress("TooManyFunctions")
 object FakeModelProvider {
 
     fun createStoredMessage(
@@ -95,5 +102,70 @@ object FakeModelProvider {
     ) = ResponseMessage(
         messageText = messageText ?: FakeVoProvider.createMessageText(),
         responseTo = responseTo ?: FakeVoProvider.createMessage(),
+    )
+
+    fun createChatAuthor(
+        fromId: Long? = null,
+        messageCount: Long = 1,
+    ) = ChatAuthor(
+        fromId = FakeVoProvider.createFromId(fromId),
+        messageCount = messageCount,
+    )
+
+    @Suppress("LongParameterList")
+    fun createUserStatistics(
+        userId: Long = 1,
+        messageCount: Long = 0,
+        totalLength: Long = 0,
+        averageLength: Double = 0.0,
+        firstMessageAt: OffsetDateTime? = null,
+        lastMessageAt: OffsetDateTime? = null,
+        chats: List<ChatStatistics> = emptyList(),
+        activityByHour: List<HourActivity> = emptyList(),
+        activityByDayOfWeek: List<DayOfWeekActivity> = emptyList(),
+    ) = UserStatistics(
+        userId = userId,
+        messageCount = messageCount,
+        totalLength = totalLength,
+        averageLength = averageLength,
+        firstMessageAt = firstMessageAt,
+        lastMessageAt = lastMessageAt,
+        chats = chats,
+        activityByHour = activityByHour,
+        activityByDayOfWeek = activityByDayOfWeek,
+    )
+
+    fun createChatStatistics(
+        peerId: Long = 1,
+        messageCount: Long = 0,
+        totalLength: Long = 0,
+        averageLength: Double = 0.0,
+        lastMessageAt: OffsetDateTime? = null,
+    ) = ChatStatistics(
+        peerId = peerId,
+        messageCount = messageCount,
+        totalLength = totalLength,
+        averageLength = averageLength,
+        lastMessageAt = lastMessageAt,
+    )
+
+    fun createHourActivity(
+        hour: Int = 10,
+        messageCount: Long = 1,
+    ) = HourActivity(hour = hour, messageCount = messageCount)
+
+    fun createDayOfWeekActivity(
+        dayOfWeek: Int = 1,
+        messageCount: Long = 1,
+    ) = DayOfWeekActivity(dayOfWeek = dayOfWeek, messageCount = messageCount)
+
+    fun createProfileHistoryEntry(
+        profileId: Long = 1,
+        changedAt: OffsetDateTime = FIXED_DATE,
+        changes: Map<String, Any?> = emptyMap(),
+    ) = ProfileHistoryEntry(
+        profileId = profileId,
+        changedAt = changedAt,
+        changes = changes,
     )
 }

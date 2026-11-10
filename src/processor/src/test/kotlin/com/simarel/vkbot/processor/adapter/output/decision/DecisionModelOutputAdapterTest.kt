@@ -64,6 +64,9 @@ private val INTENT_CRITERIA = mapOf(
     "news" to
         "Спрашивает, что нового или что происходило в чате: «что нового», «что писали», " +
         "«о чём говорили», «что было вчера», «что нового за последние 3 дня»",
+    "profile" to
+        "Спрашивает, что известно о человеке/группе: «что ты знаешь о …», «что знаешь про …», " +
+        "«кто такой …», «расскажи о …», «обо мне», «про меня»; не про бота и не про новости чата",
     "general" to "Всё остальное: обычный вопрос, сообщение или просьба не из списка",
 )
 private val DEFAULT_PROBABILITIES = mapOf("spam" to 0.959, "command" to 0.009, "ham" to 0.032)
@@ -150,7 +153,7 @@ class DecisionModelOutputAdapterTest {
     }
 
     @ParameterizedTest
-    @CsvSource("help, HELP", "news, NEWS", "general, GENERAL")
+    @CsvSource("help, HELP", "news, NEWS", "general, GENERAL", "profile, PROFILE")
     fun `execute maps the intent answer to the message intent`(
         choice: String,
         expectedIntent: MessageIntent,

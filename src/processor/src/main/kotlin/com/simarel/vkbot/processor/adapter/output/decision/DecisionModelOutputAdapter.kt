@@ -27,6 +27,7 @@ private const val COMMAND_CLASS = "command"
 private const val HAM_CLASS = "ham"
 private const val HELP_INTENT = "help"
 private const val NEWS_INTENT = "news"
+private const val PROFILE_INTENT = "profile"
 private const val GENERAL_INTENT = "general"
 private const val SPAM_QUESTION_TEXT = "Это спам, реклама, накрутка или мошенничество?"
 private const val CLASS_QUESTION_TEXT = "Определи тип сообщения в чате с ботом."
@@ -54,6 +55,9 @@ private val INTENT_CRITERIA = mapOf(
     NEWS_INTENT to
         "Спрашивает, что нового или что происходило в чате: «что нового», «что писали», " +
         "«о чём говорили», «что было вчера», «что нового за последние 3 дня»",
+    PROFILE_INTENT to
+        "Спрашивает, что известно о человеке/группе: «что ты знаешь о …», «что знаешь про …», " +
+        "«кто такой …», «расскажи о …», «обо мне», «про меня»; не про бота и не про новости чата",
     GENERAL_INTENT to "Всё остальное: обычный вопрос, сообщение или просьба не из списка",
 )
 
@@ -148,6 +152,7 @@ open class DecisionModelOutputAdapter(
     private fun toMessageIntent(value: String): MessageIntent = when (value) {
         HELP_INTENT -> MessageIntent.HELP
         NEWS_INTENT -> MessageIntent.NEWS
+        PROFILE_INTENT -> MessageIntent.PROFILE
         GENERAL_INTENT -> MessageIntent.GENERAL
         else -> throw DecisionModelException(
             INVALID_RESPONSE_MESSAGE,

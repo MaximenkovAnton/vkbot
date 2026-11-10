@@ -89,7 +89,8 @@ docker run -p 8080:8080 \
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` (system-промпт сводки «что нового»; дефолт
-в `application.yml`), `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
+в `application.yml`), `AI_PROFILE_SYSTEM_PROMPT` (system-промпт досье об участнике чата; дефолт в
+`application.yml`, новых обязательных env нет), `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
 `GREETINGS_CRON` (дефолт `0 0 0 * * ?`, то есть 00:00; `off`/`disabled` выключает расписание),
 `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`),
 `DECISION_SPAM_THRESHOLD` (дефолт `0.9` — порог спама),
@@ -222,6 +223,10 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   нет: откат — предыдущий образ; `DECISION_URL` остаётся в деплое, её читает и предыдущий образ
   (`${DECISION_URL}` без дефолта, `application.yml:89`); повторная раскатка — тем же порядком
   «env → образ».
+- **«Профиль» (`profile-dossier`) — always-on без kill-switch.** Схема и данные не меняются (новых
+  changeset нет), новых обязательных env нет: `AI_PROFILE_SYSTEM_PROMPT` опционален, дефолт в
+  `application.yml`. Откат — предыдущий образ; откат возвращает потерю запросов «профиль» (unknown
+  routing key → ERROR с payload), данные и схема при откате не страдают.
 
 ## Health и наблюдаемость
 
