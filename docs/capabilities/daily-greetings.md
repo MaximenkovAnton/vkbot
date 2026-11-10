@@ -31,7 +31,7 @@
 | правила праздников и дней рождения | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/Holidays.kt`, `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/BirthdayDates.kt` |
 | план чата: отдельный праздник или все именинники даты | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/GreetingPlan.kt` |
 | ключи `greetings.cron`, `greetings.timezone`, `aiGreetingSystemprompt` | `src/app/src/main/resources/application.yml` |
-| решение | `docs/adr/0009-daily-greetings.md` |
+| решение | `docs/adr/2026-11-07-daily-greetings.md` |
 
 ## Данные
 
@@ -70,9 +70,9 @@
 
 ## ADR
 
-- ADR 0003 — модуль видит только `share`, слои внутри модуля.
-- ADR 0004 — in-process `share`-порты вместо loopback-REST.
-- ADR 0009 — расписание через `quarkus-scheduler`, at-most-once `greeting_log`, один текст на праздник и
+- ADR 2026-10-28-module-boundaries-and-layer-rules — модуль видит только `share`, слои внутри модуля.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — in-process `share`-порты вместо loopback-REST.
+- ADR 2026-11-07-daily-greetings — расписание через `quarkus-scheduler`, at-most-once `greeting_log`, один текст на праздник и
   один на именинников чата, шаблон-фолбэк, известные ограничения.
 
 ## Acceptance criteria
@@ -148,7 +148,7 @@
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`.
 - **AC-dg-11** — КОГДА изменение доставлено, СИСТЕМА ДОЛЖНА иметь production-рёбра `:src:app →
   :src:greetings` и `:src:testing:arch-tests → :src:greetings`, модуль в allowlist и `coverageModules`,
-  capability-файл в индексе с ADR 0009 и зелёные `./gradlew capabilitiesCheck` /
+  capability-файл в индексе с ADR 2026-11-07-daily-greetings и зелёные `./gradlew capabilitiesCheck` /
   `./scripts/check-capabilities.sh`. Test:
   `src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/GradleDependenciesTest.kt`,
   `src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ModuleDependenciesTest.kt`.
@@ -161,7 +161,7 @@
 ## Известные ограничения
 
 - Ошибка VK/claim сжигает чат на день: строка claim пишется на чат до отправки всех его сообщений, retry в
-  этом таске нет (ADR 0009).
+  этом таске нет (ADR 2026-11-07-daily-greetings).
 - `greeting_log` не чистится: 1 строка на чат в день, ретенции нет.
 - Пропущенный день не догоняется: catch-up за прошлые сутки нет.
 - Приватность: имена и `birth_date` попадают в промпт ИИ и в pre-existing sink'и LLM/REST/трейсов

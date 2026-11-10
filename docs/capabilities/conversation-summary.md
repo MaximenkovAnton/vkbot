@@ -38,7 +38,7 @@ in-process порт `message-storage`, который публикует `SUMMAR
 | сохранение completed → публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:238-269` |
 | `SUMMARY_READY` → forward-блок → отправка в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt:23-57` |
 
-Конфигурация: `summary.enabled-chats` (`SUMMARY_ENABLED_CHATS`, ADR 0006),
+Конфигурация: `summary.enabled-chats` (`SUMMARY_ENABLED_CHATS`, ADR 2026-10-28-configuration-and-secrets),
 `summary.threshold`, `summary.batch-size`, `aiSumarizationSystemprompt`
 в `src/app/src/main/resources/application.yml`.
 
@@ -71,9 +71,9 @@ in-process порт `message-storage`, который публикует `SUMMAR
 
 ## ADR
 
-- ADR 0003 — вся бизнес-логика саммаризации в `command`, LLM — только в `adapter/output`.
-- ADR 0004 — сообщения и профили читаются in-process портами, `SUMMARY_READY` публикуется событием.
-- ADR 0006 — порог и batch-size — конфигурация с дефолтами `100`; включённые чаты — `SUMMARY_ENABLED_CHATS`,
+- ADR 2026-10-28-module-boundaries-and-layer-rules — вся бизнес-логика саммаризации в `command`, LLM — только в `adapter/output`.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — сообщения и профили читаются in-process портами, `SUMMARY_READY` публикуется событием.
+- ADR 2026-10-28-configuration-and-secrets — порог и batch-size — конфигурация с дефолтами `100`; включённые чаты — `SUMMARY_ENABLED_CHATS`,
   пустое значение оставляет саммаризацию выключенной.
 
 ## Acceptance criteria

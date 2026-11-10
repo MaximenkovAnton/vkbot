@@ -1,4 +1,4 @@
-# ADR 0013: «Что нового» — консюмер `NEWS_DIGEST_REQUESTED`, период из текста и LLM-сводка
+# 2026-11-10: «Что нового» — консюмер `NEWS_DIGEST_REQUESTED`, период из текста и LLM-сводка
 
 - **Статус:** accepted
 - **Дата:** 2026-11-10
@@ -6,7 +6,7 @@
 
 ## Контекст
 
-Маршрутизация интентов (ADR 0012, доставлена board-task `intent-routing-help-v2`) публикует после
+Маршрутизация интентов (ADR 2026-11-09-decision-runtime-spam-policy, доставлена board-task `intent-routing-help-v2`) публикует после
 `requiredAnswer=true` ровно одно событие по интенту: `help` → `ANSWER_MESSAGE` со справкой,
 `news` → `NEWS_DIGEST_REQUESTED` с доменным `Message`, `general` → `MESSAGE_REQUIRE_ANSWER`.
 `NEWS_DIGEST_REQUESTED` — седьмое значение закрытого `enum class Event` — потребителя не имеет: диспетчер
@@ -85,9 +85,9 @@
   публикация переезжает в use case.
 - **PII.** Текст чата уходит в LLM-промпт; глобальные `quarkus.langchain4j.log-requests/log-responses:
   true` логируют его на INFO и экспортируют по OTLP — тот же принятый риск, что ответы и саммаризация
-  (ADR 0007/0010). Инструментов у AI-сервиса нет, поэтому prompt injection не даёт действий; новый код
+  (ADR 2026-11-05-llm-provider-vllm-openai, ADR 2026-11-08-decision-model-langchain4j). Инструментов у AI-сервиса нет, поэтому prompt injection не даёт действий; новый код
   текст не логирует.
-- **Конфигурация** (единственный конфиг `:src:app`, ADR 0006):
+- **Конфигурация** (единственный конфиг `:src:app`, ADR 2026-10-28-configuration-and-secrets):
 
   ```yaml
   aiNewsDigestSystemprompt: ${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}
@@ -137,5 +137,5 @@
   события и `ResponseMessage` не менялся.
 - Седьмое событие получило консюмера; промежуточное состояние «событие без потребителя» больше не
   существует. Публичный REST и схема БД не менялись.
-- Текст чата уходит в LLM-промпт и в INFO/OTLP-логи провайдера — новый принятый PII-поток (ADR 0007/0010).
+- Текст чата уходит в LLM-промпт и в INFO/OTLP-логи провайдера — новый принятый PII-поток (ADR 2026-11-05-llm-provider-vllm-openai, ADR 2026-11-08-decision-model-langchain4j).
 - Стоимость: LLM-вызов (до трёх попыток порта) на каждый запрос «что нового»; лимитов нет (named gap).

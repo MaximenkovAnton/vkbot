@@ -1,10 +1,10 @@
 # Модульная структура
 
 12 Gradle-модулей (`settings.gradle.kts:22-33`), один деплой — `:src:app`
-([ADR 0002](../adr/0002-single-deployable-app-module.md)). Модули — горизонтальные бизнес-модули вокруг
+([ADR 2026-10-28-single-deployable-app-module](../adr/2026-10-28-single-deployable-app-module.md)). Модули — горизонтальные бизнес-модули вокруг
 общего ядра `share`; фичи (приём событий VK, ответ, саммари, профили, поздравления) — вертикали внутри них. Компилятор делает
 неправильный импорт ошибкой сборки, а ArchUnit-тесты проверяют правила слоёв
-([ADR 0003](../adr/0003-module-boundaries-and-layer-rules.md)).
+([ADR 2026-10-28-module-boundaries-and-layer-rules](../adr/2026-10-28-module-boundaries-and-layer-rules.md)).
 
 ## Разрешённый граф зависимостей
 
@@ -48,7 +48,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
     операцией;
   - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt` — единая
     иерархия: `ValidationException` наследует `VkBotAppException`, доменная ошибка добавляет класс на
-    value object и лист на конкретную проверку ([ADR 0011](../adr/0011-exception-hierarchy.md)).
+    value object и лист на конкретную проверку ([ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md)).
 - **Зависимости:** нет проектных (только библиотеки: Jakarta CDI, Quarkus core/arc, RabbitMQ messaging,
   Jackson, REST client — `src/share/build.gradle.kts:16-33`).
 
@@ -58,7 +58,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   (`groups.getLongPollServer` → `a_check`), парсит VK JSON в DMZ-DTO, маппит в доменное `Message`,
   публикует `MESSAGE_NEW` и сохраняет позицию опроса `ts`. HTTP-эндпоинта у модуля нет: `POST /vk/callback`
   отвечает 404. Исходящие вызовы VK API (`messages.send`, профили) остаются за `vk-facade`
-  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 - **Публичный API:**
   - цикл опроса — `receiver/adapter/input/vk/LongPollRunner.kt` (виртуальный поток, старт по
     `StartupEvent`, стоп по `ShutdownEvent`, включение ключом `vk.longpoll.enabled`);
@@ -113,10 +113,11 @@ Test-scope рёбра (не входят в production-граф, разреше�
   итоговый интент — `HELP` → `ANSWER_MESSAGE` со справкой, `NEWS` → `NEWS_DIGEST_REQUESTED`,
   `GENERAL` → `MESSAGE_REQUIRE_ANSWER`; если анализа ещё нет (личный чат, обе ветки off, fail-open),
   интент-этап делает ровно один (после fail-open — одну дополнительную) вызов и отправляет
-  нормализованный текст в System One (PII, ADR 0010/0012); интент-вызов не гасится
+  нормализованный текст в System One (PII, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy); интент-вызов не гасится
   спам/jailbreak-kill-switch'ами. Клиент decision-модели вызывается из runtime
-  ([ADR 0012](../adr/0012-decision-runtime-spam-policy.md),
-  [ADR 0014](../adr/0014-decision-jailbreak-detection.md)).
+  ([ADR 2026-11-09-decision-runtime-spam-policy](../adr/2026-11-09-decision-runtime-spam-policy.md),
+  [ADR 2026-11-10-decision-jailbreak-detection](../adr/2026-11-10-decision-jailbreak-detection.md),
+  [ADR 2026-11-10-jailbreak-rubric-and-threshold](../adr/2026-11-10-jailbreak-rubric-and-threshold.md)).
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
 - **Ключевые классы:** `MessageReceivedUsecaseInput.kt:31-141` (decision-этап с приоритетом
@@ -178,7 +179,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `MessageAuthorFormatter` — общий форматтер авторов (`GenerateSummaryCommandImpl` и сводка);
   - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
 - **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
-  провайдер (`quarkus-langchain4j-openai`, ADR 0007) (`src/ai/build.gradle.kts:14-46`).
+  провайдер (`quarkus-langchain4j-openai`, ADR 2026-11-05-llm-provider-vllm-openai) (`src/ai/build.gradle.kts:14-46`).
 
 ## `vk-facade` — выход в VK API и профили
 

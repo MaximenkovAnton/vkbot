@@ -3,7 +3,7 @@
 A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
 stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM
 OpenAI-compatible API, sends them back to the VK API, and summarizes long conversations. The code follows
-hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 0003).
+hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 2026-10-28-module-boundaries-and-layer-rules).
 
 ## Features
 
@@ -14,7 +14,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - Conversation summarization with a configurable threshold and enabled-chat list
 - Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
 - Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
-- In-process ports between modules of the same deployable (no loopback HTTP, ADR 0004)
+- In-process ports between modules of the same deployable (no loopback HTTP, ADR 2026-10-28-in-process-ports-instead-of-loopback-rest)
 - OpenTelemetry traces/metrics/logs
 - Dockerfiles for JVM, legacy-jar, native and native-micro images
 - JUnit 5 tests with Fake Objects, ArchUnit architecture tests, JaCoCo coverage threshold
@@ -56,7 +56,7 @@ src/
 ```
 
 Production dependency direction: every business module depends only on `share`; `app` depends on all of
-them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/0003-module-boundaries-and-layer-rules.md`).
+them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/2026-10-28-module-boundaries-and-layer-rules.md`).
 
 ## Prerequisites
 
@@ -81,7 +81,7 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `DECISION_URL` | yes | Root of the System One decision server (no `/v1`, no `/v1/systemone`) |
 | `DECISION_SPAM_THRESHOLD` | no | Spam probability threshold for the notice (default `0.9`) |
 | `DECISION_SPAM_REPLY_ENABLED` | no | Spam-reply kill-switch for the decision stage; `false` disables only the spam notice (default `true`). The intent-stage decision call after `requiredAnswer` is not governed by it |
-| `DECISION_JAILBREAK_THRESHOLD` | no | Prompt-injection-attempt probability threshold for the jailbreak notice (default `0.9`) |
+| `DECISION_JAILBREAK_THRESHOLD` | no | Prompt-injection-attempt probability threshold for the jailbreak notice (default `0.85`) |
 | `DECISION_JAILBREAK_REPLY_ENABLED` | no | Jailbreak-reply kill-switch for the decision stage; `false` disables only the jailbreak notice (default `true`). With both decision-stage kill-switches `false` the model is not called for the spam/jailbreak stage |
 | `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
 | `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries, OCR, greetings and the "what's new" digest |
@@ -139,7 +139,7 @@ Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` 
 | `/q/health`, `/q/health/ready`, `/q/health/live` | GET | Quarkus health checks |
 
 `receiver` has no HTTP endpoint: VK events arrive through Bots Long Poll polling, and `POST /vk/callback`
-returns 404 (ADR 0008). There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The
+returns 404 (ADR 2026-11-05-bots-long-poll-transport). There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The
 health endpoints exist but currently report **DOWN** (503): seven retry/DLQ channels are declared without a
 downstream consumer and the messaging health check marks them `[KO]` (`SRMSG00208`); the polling loop itself
 runs independently of HTTP health probes. See `docs/development/deployment.md`.
@@ -182,7 +182,7 @@ Greetings flow (scheduler, not an event):
 ```
 
 Events run on RabbitMQ with a five-step retry ladder and a final DLQ (`application-queues.yml`); synchronous
-calls inside the deployable go through `share` ports (ADR 0004). Details: `docs/architecture/data-flow.md`.
+calls inside the deployable go through `share` ports (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest). Details: `docs/architecture/data-flow.md`.
 
 ## Testing
 

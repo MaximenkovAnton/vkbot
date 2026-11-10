@@ -61,7 +61,7 @@
 | `ResponseMessage` | producers — `ai-answer`, `answer-decision` (спам и справка), `chat-news-digest` (сводка «что нового») | `ai-answer` |
 | `SendGreetingMessagePort` | `daily-greetings` | `vk-message-send` — контракт `share`, реализация в in-process адаптере |
 | `RandomId` | `MessageSendUsecase` (ответ/саммари) и `PlainMessageSendUsecase` (поздравления) | `vk-message-send` |
-| `VkClient.sendMessage` и токен VK | `vk-profiles` использует тот же клиент для `users.get`/`groups.getById` | `vk-message-send` — метод `messages.send`; общая часть клиента (`configKey = "vk"`, версия, токен) — конфигурация деплоя (ADR 0006) |
+| `VkClient.sendMessage` и токен VK | `vk-profiles` использует тот же клиент для `users.get`/`groups.getById` | `vk-message-send` — метод `messages.send`; общая часть клиента (`configKey = "vk"`, версия, токен) — конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
 
@@ -69,9 +69,9 @@
 
 ## ADR
 
-- ADR 0003 — HTTP-клиент VK — только `adapter/output`; use case и команда не видят JAX-RS.
-- ADR 0004 — `ANSWER_MESSAGE` идёт событием, а не синхронным вызовом из `ai`.
-- ADR 0006 — токен и версия API в конфигурации, заголовок `Authorization: Bearer` — в конфиге клиента.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — HTTP-клиент VK — только `adapter/output`; use case и команда не видят JAX-RS.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — `ANSWER_MESSAGE` идёт событием, а не синхронным вызовом из `ai`.
+- ADR 2026-10-28-configuration-and-secrets — токен и версия API в конфигурации, заголовок `Authorization: Bearer` — в конфиге клиента.
 
 ## Acceptance criteria
 

@@ -3,7 +3,7 @@
 Источник истины — `src/app/src/main/resources/application.yml` и подключаемый
 `src/app/src/main/resources/application-queues.yml` (`quarkus.config.locations: application-queues.yml`,
 `application.yml`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
-([ADR 0006](../adr/0006-configuration-and-secrets.md)).
+([ADR 2026-10-28-configuration-and-secrets](../adr/2026-10-28-configuration-and-secrets.md)).
 
 Значения `${VAR}` без дефолта обязательны: без них приложение не стартует.
 Секреты в репозиторий не коммитятся, `.env` в `.gitignore`.
@@ -20,7 +20,7 @@
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | упоминание, включающее ответ в чате | там же `:19` |
 
 Ключей `vk.secret` и `vk.confirmation-code` больше нет: Callback-эндпоинт удалён, события приходят опросом
-Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+Bots Long Poll ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 
 Получение значений: сообщество VK → «Управление» → «Работа с API»: во вкладке **Long Poll API** включить
 Long Poll API с событием `message_new` и отключить Callback API; `VK_GROUP_ID` — положительный id сообщества
@@ -116,11 +116,11 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
 | `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
 | `decision.spam-threshold` | `${DECISION_SPAM_THRESHOLD:0.9}` | порог спама: `spamProbability >= threshold` даёт спам-уведомление; читает `IsSpamCommandImpl` |
-| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-ветки decision-этапа: `false` гасит только спам-уведомление; вызов decision-модели и PII-egress спам/jailbreak-этапа останавливают только оба ключа `false`. Интент-вызов после `requiredAnswer=true` не гаснет и отправляет нормализованный текст в System One (PII, ADR 0010/0012); читает `MessageReceivedUsecaseInput` |
-| `decision.jailbreak-threshold` | `${DECISION_JAILBREAK_THRESHOLD:0.9}` | порог попытки взлома ИИ: `jailbreakProbability >= threshold` даёт jailbreak-уведомление; читает `IsJailbreakCommandImpl` |
+| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-ветки decision-этапа: `false` гасит только спам-уведомление; вызов decision-модели и PII-egress спам/jailbreak-этапа останавливают только оба ключа `false`. Интент-вызов после `requiredAnswer=true` не гаснет и отправляет нормализованный текст в System One (PII, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy); читает `MessageReceivedUsecaseInput` |
+| `decision.jailbreak-threshold` | `${DECISION_JAILBREAK_THRESHOLD:0.85}` | порог попытки взлома ИИ: `jailbreakProbability >= threshold` даёт jailbreak-уведомление; читает `IsJailbreakCommandImpl` |
 | `decision.jailbreak-reply.enabled` | `${DECISION_JAILBREAK_REPLY_ENABLED:true}` | kill-switch jailbreak-ветки decision-этапа: `false` гасит только jailbreak-уведомление; читает `MessageReceivedUsecaseInput` |
 
-LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
+LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 2026-11-05-llm-provider-vllm-openai). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
 `log-responses: true`, `tracing.include-prompt/completion`, `application.yml`).
 Ловушка миграции: `base-url` — корень OpenAI API вместе с `/v1`, расширение само дописывает
@@ -129,9 +129,10 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 `src/app/src/test/resources/application-integration-test.yaml:89-97`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
 (`base-url` = `baseUrl()/v1`).
 
-Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
-[ADR 0012](../adr/0012-decision-runtime-spam-policy.md),
-[ADR 0014](../adr/0014-decision-jailbreak-detection.md)) — второй LangChain4j-провайдер:
+Decision-модель ([ADR 2026-11-08-decision-model-langchain4j](../adr/2026-11-08-decision-model-langchain4j.md),
+[ADR 2026-11-09-decision-runtime-spam-policy](../adr/2026-11-09-decision-runtime-spam-policy.md),
+[ADR 2026-11-10-decision-jailbreak-detection](../adr/2026-11-10-decision-jailbreak-detection.md),
+[ADR 2026-11-10-jailbreak-rubric-and-threshold](../adr/2026-11-10-jailbreak-rubric-and-threshold.md)) — второй LangChain4j-провайдер:
 `decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
 `model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен. Клиент вызывается
 из runtime в `MessageReceivedUsecaseInput` в два этапа. Decision-этап: для сообщения человека в групповом
@@ -157,7 +158,7 @@ Decision-логи **включены** наследованием глобаль
 логировать выше DEBUG. В тестах заданы dummy `base-url: http://localhost:8089` и
 `model-id: test-decision`, а `WireMockTestResource` подменяет `base-url` на `baseUrl()`.
 `DECISION_URL` — обязательное значение контракта деплоя; поведение старта без переменной этой задачей
-**не проверялось**, поэтому здесь не утверждается, что старт без неё проходит (named gap ADR 0010).
+**не проверялось**, поэтому здесь не утверждается, что старт без неё проходит (named gap ADR 2026-11-08-decision-model-langchain4j).
 Деплой выставляет переменную вручную, первый деплой проверяет позитивную половину (переменная задана →
 ключ резолвится); наблюдение M-1 — `impl.md` board-task `decision-integration`.
 
@@ -229,5 +230,5 @@ downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` о
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`,
 `NEWS_DIGEST_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт
 `0 0 0 * * ?`; `off`/`disabled` выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
-`VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 0008).
+`VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 2026-11-05-bots-long-poll-transport).
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

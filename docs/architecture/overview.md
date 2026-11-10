@@ -2,8 +2,8 @@
 
 VK Bot — **гексагональный монолит в одном деплое**. Горизонтальные слои разделены внутри модулей,
 вертикали (фичи) живут в тех же модулях, поведение спрятано за портами, Quarkus — на краю.
-Решение: [ADR 0003](../adr/0003-module-boundaries-and-layer-rules.md); один деплой —
-[ADR 0002](../adr/0002-single-deployable-app-module.md).
+Решение: [ADR 2026-10-28-module-boundaries-and-layer-rules](../adr/2026-10-28-module-boundaries-and-layer-rules.md); один деплой —
+[ADR 2026-10-28-single-deployable-app-module](../adr/2026-10-28-single-deployable-app-module.md).
 
 ## Принципы
 
@@ -18,7 +18,7 @@ VK Bot — **гексагональный монолит в одном депл�
    `share/domain/Event.kt:3-10`). Модули зависят только от них.
 4. **Синхронные вызовы внутри деплоя — in-process.** `ai` и `persistence` общаются через порты `share`,
    реализованные модулем-поставщиком, а не через loopback HTTP
-   ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)).
+   ([ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md)).
 5. **Асинхронность только там, где она нужна.** Приём событий VK не ждёт AI: этапы идут через RabbitMQ с
    retry-лестницей и финальным DLQ.
 
@@ -141,7 +141,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 
 - **Публичного HTTP-входа у `receiver` нет:** `POST /vk/callback` отвечает 404, секрета и
   confirmation-кода в конфигурации нет. Единственный вход событий VK — исходящий опрос Bots Long Poll
-  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)); токен VK уходит заголовком `Authorization`.
+  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)); токен VK уходит заголовком `Authorization`.
 - **DMZ**: VK JSON парсится в DTO в `receiver/adapter/input/dto/`, в домен маппится
   `receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58`. `jakarta.json.JsonObject` не покидает входной
   адаптер.
@@ -150,7 +150,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   production-коде бросаются только её наследники; `ValidationException` — база доменной валидации
   (`ValidationException → <ValueObject>ValidationException → <проверка>Exception`), а `require` и
   `requireNotNull` запрещены архитектурным тестом
-  (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`, [ADR 0011](../adr/0011-exception-hierarchy.md));
+  (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`, [ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md));
   HTTP-маппинг в деплое остался только у REST-контроллеров `persistence` и `vk-facade`.
 
 ## Что здесь не реализовано
@@ -163,17 +163,17 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 - нет Prometheus-эндпоинта `/metrics` и пути `/health`; health — `/q/health`;
 - нет публичного HTTP-входа для VK: `/vk/callback` отсутствует, события приходят опросом Bots Long Poll;
 - нет отдельного «AI-клиента»: AI вызывается через LangChain4j AI-сервисы (`@RegisterAiService`) к
-  OpenAI-совместимому endpoint, в деплое — vLLM ([ADR 0007](../adr/0007-llm-provider-vllm-openai.md)).
+  OpenAI-совместимому endpoint, в деплое — vLLM ([ADR 2026-11-05-llm-provider-vllm-openai](../adr/2026-11-05-llm-provider-vllm-openai.md)).
 
 ## Связанные решения
 
 | ADR | О чём |
 |---|---|
-| [0001](../adr/0001-stack-kotlin-quarkus-gradle.md) | стек и версии |
-| [0002](../adr/0002-single-deployable-app-module.md) | один деплой `:src:app` |
-| [0003](../adr/0003-module-boundaries-and-layer-rules.md) | границы модулей и слоёв |
-| [0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md) | in-process порты, события RabbitMQ |
-| [0005](../adr/0005-quality-gates-and-ci.md) | гейты и CI |
-| [0006](../adr/0006-configuration-and-secrets.md) | конфигурация и секреты |
-| [0007](../adr/0007-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API |
-| [0008](../adr/0008-bots-long-poll-transport.md) | приём событий VK — Bots Long Poll, позиция `ts` в PostgreSQL |
+| [0001](../adr/2026-10-28-stack-kotlin-quarkus-gradle.md) | стек и версии |
+| [0002](../adr/2026-10-28-single-deployable-app-module.md) | один деплой `:src:app` |
+| [0003](../adr/2026-10-28-module-boundaries-and-layer-rules.md) | границы модулей и слоёв |
+| [0004](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) | in-process порты, события RabbitMQ |
+| [0005](../adr/2026-10-28-quality-gates-and-ci.md) | гейты и CI |
+| [0006](../adr/2026-10-28-configuration-and-secrets.md) | конфигурация и секреты |
+| [0007](../adr/2026-11-05-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API |
+| [0008](../adr/2026-11-05-bots-long-poll-transport.md) | приём событий VK — Bots Long Poll, позиция `ts` в PostgreSQL |
