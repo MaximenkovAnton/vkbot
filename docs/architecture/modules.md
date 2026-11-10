@@ -103,23 +103,28 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
-## `processor` — решение об ответе, маршрутизация интентов и клиент decision-модели
+## `processor` — решение об ответе, маршрутизация интентов, спам/jailbreak-уведомления и клиент decision-модели
 
-- **Ответственность:** по `MESSAGE_RECEIVED` пройти два этапа. **Спам-этап:** для человека в групповом
-  чате при `decision.spam-reply.enabled=true` вызвать decision-модель, при спаме опубликовать
-  `ANSWER_MESSAGE` и остановить обработку. **Интент-этап:** после `requiredAnswer=true` маршрутизировать
+- **Ответственность:** по `MESSAGE_RECEIVED` пройти два этапа. **Decision-этап:** для человека в
+  групповом чате при включённой хотя бы одной ветке (`decision.spam-reply.enabled=true` или
+  `decision.jailbreak-reply.enabled=true`) вызвать decision-модель **один раз**; при спаме опубликовать
+  спам-`ANSWER_MESSAGE`, иначе при попытке взлома ИИ — jailbreak-`ANSWER_MESSAGE`, и остановить
+  обработку (приоритет `spam → jailbreak`). **Интент-этап:** после `requiredAnswer=true` маршрутизировать
   итоговый интент — `HELP` → `ANSWER_MESSAGE` со справкой, `NEWS` → `NEWS_DIGEST_REQUESTED`,
-  `GENERAL` → `MESSAGE_REQUIRE_ANSWER`; если анализа ещё нет (личный чат, `enabled=false`, fail-open),
+  `GENERAL` → `MESSAGE_REQUIRE_ANSWER`; если анализа ещё нет (личный чат, обе ветки off, fail-open),
   интент-этап делает ровно один (после fail-open — одну дополнительную) вызов и отправляет
-  нормализованный текст в System One (PII, ADR 0010/0012). Клиент decision-модели вызывается из runtime
-  ([ADR 0012](../adr/0012-decision-runtime-spam-policy.md)).
+  нормализованный текст в System One (PII, ADR 0010/0012); интент-вызов не гасится
+  спам/jailbreak-kill-switch'ами. Клиент decision-модели вызывается из runtime
+  ([ADR 0012](../adr/0012-decision-runtime-spam-policy.md),
+  [ADR 0014](../adr/0014-decision-jailbreak-detection.md)).
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
-- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:42-106` (спам-этап, `requiredAnswer`, ленивый
-  интент-вызов, fail-open, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/
-  `MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
-  `spamProbability >= decision.spam-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не человек →
-  нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да),
+- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:31-141` (decision-этап с приоритетом
+  `spam → jailbreak`, `requiredAnswer`, ленивый интент-вызов, fail-open, маршрутизация и публикация
+  `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
+  `spamProbability >= decision.spam-threshold`), `IsJailbreakCommand.kt:9-23` (правило
+  `jailbreakProbability >= decision.jailbreak-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не
+  человек → нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да),
   `command/help/BuildHelpTextCommand.kt:10-36` (текст справки и `vk.bot.mention`),
   `command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` (точные `/help`/`/помощь` и граница «с
   аргументами → `GENERAL`»). В коде есть TODO-комментарий о будущем контексте (RAG) — это не реализовано.
@@ -127,11 +132,14 @@ Test-scope рёбра (не входят в production-граф, разреше�
   (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
   `processor/adapter/output/decision/DecisionModelOutputAdapter.kt` над библиотечным
   `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `MessageIntent`,
-  `DecisionAnalysis` и `MessageTextNormalizer` (`processor/domain/decision/`), отказ —
-  `DecisionModelException` (`EXTERNAL_FAILURE`). Один `decide` задаёт три вопроса — `spam`, `class`,
-  `intent`; адаптер маппит `intent` в `MessageIntent`, и процессор маршрутизирует его после
-  `requiredAnswer=true`; `NEWS_DIGEST_REQUESTED` публикует processor, потребляет `ai`
-  (`NewsDigestRequestedEventProcessor`).
+  `DecisionAnalysis` (включая `jailbreakProbability`) и `MessageTextNormalizer`
+  (`processor/domain/decision/`), отказ —
+  `DecisionModelException` (`EXTERNAL_FAILURE`). Один `decide` задаёт четыре вопроса — `spam`, `class`,
+  `intent`, `jailbreak` — и отправляет их одним `POST /v1/systemone`; адаптер маппит `intent` в
+  `MessageIntent`, и процессор маршрутизирует его после `requiredAnswer=true`; `NEWS_DIGEST_REQUESTED`
+  публикует processor, потребляет `ai` (`NewsDigestRequestedEventProcessor`). Kill-switch'и гасят ветку
+  реакции, а не вопрос: decision-этап вызывается при включённой хотя бы одной ветке. Детект смотрит
+  только `message.messageText` — forward/вложения не анализируются (named gap `answer-decision`).
 - **Сборка:** `share`; внешняя зависимость `quarkus-langchain4j-ollama` для decision-модели (как у `ai` —
   `quarkus-langchain4j-openai`); `testImplementation` infrastructure для декораторов
   (`src/processor/build.gradle.kts:13`). Project-рёбра при этом не меняются.
@@ -256,9 +264,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `MESSAGE_NEW` | receiver (`PublishVkEventCommandImpl.kt:15-23`) | persistence (`MessageNewEventProcessor.kt:12-22`) |
 | `MESSAGE_RECEIVED` | persistence (`SaveMessageUsecase.kt:33-38`) | processor (`MessageReceivedEventProcessor.kt:12-22`) |
 | `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
-| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:104-106`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
-| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`), processor — спам-ветка и справка (`MessageReceivedUsecaseInput.kt:54-66,94-102`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
-| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:104-106`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
+| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:74-78`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
+| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`), processor — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:61-67,98-101`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
+| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:74-78`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
 | `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:238-269`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
 
 ### In-process порты

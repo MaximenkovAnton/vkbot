@@ -1,25 +1,14 @@
 package com.simarel.vkbot.processor.usecase.message.messageReceived
 
-import com.simarel.vkbot.processor.command.help.BuildHelpTextCommand
-import com.simarel.vkbot.processor.command.help.BuildHelpTextCommandImpl
-import com.simarel.vkbot.processor.command.isSpam.IsSpamCommandImpl
-import com.simarel.vkbot.processor.command.resolveIntent.ResolveMessageIntentCommandImpl
 import com.simarel.vkbot.processor.domain.decision.MessageIntent
 import com.simarel.vkbot.processor.domain.exception.DecisionModelException
 import com.simarel.vkbot.processor.domain.exception.DecisionModelResponseException
 import com.simarel.vkbot.processor.test.SystemLoggerCapture
-import com.simarel.vkbot.processor.testfixtures.command.FakeIsRequireAnswerCommand
-import com.simarel.vkbot.processor.testfixtures.decision.FakeDecisionProvider
 import com.simarel.vkbot.processor.testfixtures.port.input.FakeMessageNewInputPortProvider
 import com.simarel.vkbot.processor.testfixtures.port.output.decision.FakeAnalyzeMessageOutputPort
 import com.simarel.vkbot.share.domain.Event
-import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.ResponseMessage
-import com.simarel.vkbot.share.domain.vo.FromId
-import com.simarel.vkbot.share.domain.vo.MessageText
-import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.testfixtures.command.vkFacade.FakePublishEventCommand
-import com.simarel.vkbot.testfixtures.domain.FakeMessageProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -32,12 +21,6 @@ import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.MethodSource
 import java.util.logging.Level
 import java.util.stream.Stream
-
-private const val GROUP_CHAT_PEER_ID = 2_000_000_001L
-private const val PRIVATE_CHAT_PEER_ID = 123_456_789L
-private const val TEST_BOT_MENTION = "@testbot"
-private const val LOGGER_NAME =
-    "com.simarel.vkbot.processor.usecase.message.messageReceived.MessageReceivedUsecaseInput"
 
 class MessageReceivedUsecaseInputTest {
 
@@ -136,6 +119,32 @@ class MessageReceivedUsecaseInputTest {
         assertEquals(1, analyzePort.executeCalls.size)
         assertEquals(1, publishCommand.executeCalls.size)
         assertEquals(Event.MESSAGE_REQUIRE_ANSWER, publishCommand.executeCalls.single().event)
+    }
+
+    @ParameterizedTest
+    @CsvSource("true, false", "false, true", "false, false")
+    fun `execute resolves only the intent outside a group chat or for a non-human`(
+        human: Boolean,
+        groupChat: Boolean,
+    ) {
+        val publishCommand = FakePublishEventCommand()
+        val analyzePort = FakeAnalyzeMessageOutputPort().apply {
+            response = analysis(0.99, jailbreakProbability = 0.99)
+        }
+        val usecase = createUsecase(publishCommand, analyzePort, requiresAnswer = true)
+        val fromId = if (human) FakeVoProvider.createHumanFromId() else FakeVoProvider.createGroupFromId()
+        val peerId = FakeVoProvider.createPeerId(if (groupChat) GROUP_CHAT_PEER_ID else PRIVATE_CHAT_PEER_ID)
+
+        usecase.execute(
+            FakeMessageNewInputPortProvider.createRequest(
+                incomingMessage(fromId = fromId, peerId = peerId),
+            ),
+        )
+
+        assertEquals(1, analyzePort.executeCalls.size)
+        assertEquals(1, publishCommand.executeCalls.size)
+        assertEquals(Event.MESSAGE_REQUIRE_ANSWER, publishCommand.executeCalls.single().event)
+        assertTrue(publishCommand.executeCalls.none { it.event == Event.ANSWER_MESSAGE })
     }
 
     @Test
@@ -534,48 +543,6 @@ class MessageReceivedUsecaseInputTest {
         assertTrue(publishCommand.executeCalls.none { it.event == Event.MESSAGE_REQUIRE_ANSWER })
         assertTrue(publishCommand.executeCalls.none { it.event == Event.NEWS_DIGEST_REQUESTED })
     }
-
-    private fun createUsecase(
-        publishCommand: FakePublishEventCommand = FakePublishEventCommand(),
-        analyzePort: FakeAnalyzeMessageOutputPort = FakeAnalyzeMessageOutputPort(),
-        requiresAnswer: Boolean = true,
-        spamThreshold: Double = 0.9,
-        spamReplyEnabled: Boolean = true,
-    ): MessageReceivedUsecaseInput {
-        val isRequireAnswerCommand = FakeIsRequireAnswerCommand()
-        isRequireAnswerCommand.shouldRequireAnswer = requiresAnswer
-        return MessageReceivedUsecaseInput(
-            publishCommand,
-            isRequireAnswerCommand,
-            analyzePort,
-            IsSpamCommandImpl(spamThreshold),
-            BuildHelpTextCommandImpl(TEST_BOT_MENTION),
-            ResolveMessageIntentCommandImpl(),
-            spamReplyEnabled,
-        )
-    }
-
-    private fun helpText(): MessageText = BuildHelpTextCommandImpl(TEST_BOT_MENTION).execute(
-        BuildHelpTextCommand.BuildHelpTextRequest,
-    ).messageText
-
-    private fun incomingMessage(
-        fromId: FromId = FakeVoProvider.createHumanFromId(),
-        peerId: PeerId = FakeVoProvider.createPeerId(GROUP_CHAT_PEER_ID),
-        messageText: MessageText = FakeVoProvider.createMessageText("Что нового в чате?"),
-    ): Message = FakeMessageProvider.createMessage(
-        fromId = fromId,
-        peerId = peerId,
-        messageText = messageText,
-        forwardedMessages = emptyList(),
-    )
-
-    private fun analysis(
-        spamProbability: Double,
-        intent: MessageIntent = MessageIntent.GENERAL,
-    ) = FakeDecisionProvider.createAnalyzeMessageResponse(
-        FakeDecisionProvider.createAnalysis(spamProbability = spamProbability, intent = intent),
-    )
 
     private companion object {
         @JvmStatic

@@ -9,11 +9,15 @@ data class DecisionAnalysis(
     val classConfidence: Double?,
     val classProbabilities: Map<MessageClass, Double>,
     val spamProbability: Double,
+    val jailbreakProbability: Double,
     val intent: MessageIntent,
 ) {
     init {
         if (spamProbability !in PROBABILITY_RANGE) {
             throw DecisionAnalysisSpamProbabilityValidationException(spamProbability)
+        }
+        if (jailbreakProbability !in PROBABILITY_RANGE) {
+            throw DecisionAnalysisJailbreakProbabilityValidationException(jailbreakProbability)
         }
         if (classConfidence != null && classConfidence !in PROBABILITY_RANGE) {
             throw DecisionAnalysisClassConfidenceValidationException(classConfidence)
@@ -30,6 +34,12 @@ class DecisionAnalysisSpamProbabilityValidationException(
     spamProbability: Double,
 ) : DecisionAnalysisValidationException(
     "spamProbability must be in [0, 1], but was $spamProbability",
+)
+
+class DecisionAnalysisJailbreakProbabilityValidationException(
+    jailbreakProbability: Double,
+) : DecisionAnalysisValidationException(
+    "jailbreakProbability must be in [0, 1], but was $jailbreakProbability",
 )
 
 class DecisionAnalysisClassConfidenceValidationException(

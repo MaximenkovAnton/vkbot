@@ -15,9 +15,9 @@
 | `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
 | `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
 | `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
-| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:104-106` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка и справка (`MessageReceivedUsecaseInput.kt:54-66,94-102`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
-| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:104-106` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:61-67,98-101`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
 | `SUMMARY_READY` | `PersistenceDataUsecase.kt:238-269` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
@@ -85,28 +85,45 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
 4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
 
-## 4. Спам-проверка, решение «нужен ли ответ» и маршрутизация интентов (processor)
+## 4. Спам- и jailbreak-проверки, решение «нужен ли ответ» и маршрутизация интентов (processor)
 
 `MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
-(`MessageReceivedUsecaseInput.kt:35-79`).
+(`MessageReceivedUsecaseInput.kt:31-141`).
 
-Сначала — спам-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате (`peerId.isGroupChat()`)
-при `decision.spam-reply.enabled = true` use case вызывает decision-модель один раз через
-`AnalyzeMessageOutputPort` (адаптер `DecisionModelOutputAdapter`, ADR 0010/0012):
+Сначала — decision-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате
+(`peerId.isGroupChat()`) при включённой хотя бы одной ветке (`decision.spam-reply.enabled ||
+decision.jailbreak-reply.enabled`) use case вызывает decision-модель **один раз** через
+`AnalyzeMessageOutputPort` (адаптер `DecisionModelOutputAdapter`, ADR 0010/0012/0014). Адаптер задаёт
+четыре вопроса — `spam`, `class`, `intent`, `jailbreak` — и библиотека отправляет их одним
+`POST /v1/systemone`.
 
 - `spamProbability >= decision.spam-threshold` → публикуется ровно один `ANSWER_MESSAGE` с
   `ResponseMessage` и текстом `Сработал автодетект спама. Вероятность спама: N%.`
   (`N = round(spamProbability * 100)`), обработка останавливается: `MESSAGE_REQUIRE_ANSWER` и другие
   события не публикуются. В групповом чате `vk-facade` добавит forward-блок исходного сообщения;
   `ai-answer` пропускается.
+- иначе `jailbreakProbability >= decision.jailbreak-threshold` (проверка после спама) → публикуется
+  ровно один `ANSWER_MESSAGE` с текстом `Сработал автодетект попытки взлома ИИ. Вероятность: N%.`
+  (`N = Math.round(jailbreakProbability * 100)`), обработка также останавливается. Если оба порога
+  превышены, срабатывает только спам-ветка (приоритет `spam → jailbreak`).
 - отказ decision-модели (`RuntimeException`) — fail-open: WARNING без текста сообщения и без throwable
   (только `peerId` и класс исключения), исключение не уходит в брокер, обработка продолжается по
   правилам ниже. `InterruptedException` восстанавливает флаг прерывания и пробрасывается.
-- при `decision.spam-reply.enabled = false` спам-этап модель не вызывает; ленивый интент-вызов после
-  `requiredAnswer=true` (личный чат; группа — при упоминании бота или forward от бота) по-прежнему
-  отправляет нормализованный текст в System One (PII, ADR 0010/0012).
+- kill-switch гасит ветку реакции, а не вопрос: при выключенной спам-ветке и включённой jailbreak-ветке
+  модель всё равно вызывается (один раз, четыре вопроса). Вызов модели и PII-egress спам/jailbreak-этапа
+  останавливаются **только когда оба ключа `false`**. Матрица (человек в групповом чате):
 
-Если спам не сработал (или проверка неприменима), работает `IsRequireAnswerCommand`
+  | `decision.spam-reply.enabled` | `decision.jailbreak-reply.enabled` | вызов модели | сработавшие ветки |
+  |---|---|---|---|
+  | `true` | `true` | ровно один | spam → jailbreak (приоритет спама) |
+  | `true` | `false` | ровно один | только spam |
+  | `false` | `true` | ровно один | только jailbreak |
+  | `false` | `false` | ноль для decision-этапа | — |
+
+  Интент-вызов после `requiredAnswer=true` этими ключами не гасится (см. «Маршрутизация интентов»);
+  полный откат decision-модели — предыдущий образ.
+
+Если ни одна ветка не сработала (или проверка неприменима), работает `IsRequireAnswerCommand`
 (`IsRequireAnswerCommand.kt:22-33`):
 
 | Условие | Ответ |
@@ -119,16 +136,18 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 | иначе | не нужен |
 
 Если ответ нужен — маршрутизация по итоговому интенту, иначе поток завершается и ленивого вызова нет.
+Детект анализирует только `message.messageText`: `forwardedMessages` и вложения не проверяются (named gap
+в `answer-decision.md`); forward-блок в `vk-facade` — доставка, а не проверка содержимого.
 
 ### Маршрутизация интентов
 
-Порядок: спам-этап → `requiredAnswer` → интент. Третий вопрос decision-модели (`intent` =
-`help`/`news`/`general`) попадает в `DecisionAnalysis.intent`; точные `/help`/`/помощь` (trim, без учёта
-регистра, без аргументов) распознаются детерминированно на интент-этапе, до ленивого вызова, а
-`/help`/`/помощь` с аргументами или `@`-суффиксом дают детерминированный `general`. Если анализа ещё нет
-(спам-этап неприменим: личный чат, не-человек, `enabled=false`), интент-этап делает ровно один ленивый
-вызов; fail-open спам-этапа даёт ровно одну дополнительную попытку (всего ровно два вызова) и `general`
-при двух отказах.
+Порядок: decision-этап (спам → jailbreak) → `requiredAnswer` → интент. Третий вопрос decision-модели
+(`intent` = `help`/`news`/`general`) попадает в `DecisionAnalysis.intent`; точные `/help`/`/помощь`
+(trim, без учёта регистра, без аргументов) распознаются детерминированно на интент-этапе, до ленивого
+вызова, а `/help`/`/помощь` с аргументами или `@`-суффиксом дают детерминированный `general`. Если
+анализа ещё нет (decision-этап неприменим: личный чат, не-человек, оба ключа `false`), интент-этап делает
+ровно один ленивый вызов; fail-open decision-этапа даёт ровно одну дополнительную попытку (всего ровно
+два вызова) и `general` при двух отказах.
 
 | Интент | Событие | Дальше |
 |---|---|---|
@@ -308,8 +327,13 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 - **Справка и «что нового» подчиняются `requiredAnswer`.** В групповом чате нужен упоминание бота или
   forward от бота; точная команда — только `/help`/`/помощь` без аргументов, `/help` с аргументами
   уходит в `general`.
-- **Kill-switch гасит только спам-этап.** `decision.spam-reply.enabled = false` не выключает ленивый
-  интент-вызов после `requiredAnswer=true`; полный откат decision-модели — предыдущий образ.
+- **Kill-switch'и гасят только decision-этап.** `decision.spam-reply.enabled = false` и
+  `decision.jailbreak-reply.enabled = false` не выключают ленивый интент-вызов после
+  `requiredAnswer=true`: вызов модели и PII-egress прекращаются только вместе с интент-маршрутизацией,
+  то есть предыдущим образом.
+- **Jailbreak-детект смотрит только `message.messageText`:** forward и вложения не проверяются; детектор
+  вероятностный (состязательный текст может склонить модель к низкой вероятности), гарантий безопасности
+  нет. Уведомление раскрывает точную вероятность и работает oracle'ом; модерации, бана и rate limit нет.
 - **Нет идемпотентности записи.** У `messages` нет уникального ключа, `JooqMessageRepository.persist` —
   чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
   Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.

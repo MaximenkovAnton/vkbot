@@ -2,6 +2,8 @@ package com.simarel.vkbot.processor.usecase.message.messageReceived
 
 import com.simarel.vkbot.processor.command.help.BuildHelpTextCommand
 import com.simarel.vkbot.processor.command.help.BuildHelpTextCommand.BuildHelpTextRequest
+import com.simarel.vkbot.processor.command.isJailbreak.IsJailbreakCommand
+import com.simarel.vkbot.processor.command.isJailbreak.IsJailbreakCommand.IsJailbreakRequest
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand.IsRequireAnswerRequest
 import com.simarel.vkbot.processor.command.isSpam.IsSpamCommand
@@ -26,15 +28,19 @@ import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.config.inject.ConfigProperty
 
 @ApplicationScoped
+@Suppress("LongParameterList")
 open class MessageReceivedUsecaseInput(
     private val publishEventCommand: PublishEventCommand,
     private val isRequireAnswerCommand: IsRequireAnswerCommand,
     private val analyzeMessageOutputPort: AnalyzeMessageOutputPort,
     private val isSpamCommand: IsSpamCommand,
+    private val isJailbreakCommand: IsJailbreakCommand,
     private val buildHelpTextCommand: BuildHelpTextCommand,
     private val resolveMessageIntentCommand: ResolveMessageIntentCommand,
     @ConfigProperty(name = "decision.spam-reply.enabled", defaultValue = "true")
     private val spamReplyEnabled: Boolean,
+    @ConfigProperty(name = "decision.jailbreak-reply.enabled", defaultValue = "true")
+    private val jailbreakReplyEnabled: Boolean,
 ) : MessageReceivedInputPort {
     private val okResponse = MessageReceivedInputPortResponse("ok")
     private val logger: System.Logger = System.getLogger(MessageReceivedUsecaseInput::class.java.name)
@@ -50,20 +56,18 @@ open class MessageReceivedUsecaseInput(
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
         val message = request.message
-        val analysis = spamStage(message)
-        if (analysis != null && isSpamCommand.execute(IsSpamRequest(analysis.spamProbability)).isSpam) {
-            publishEventCommand.execute(
-                PublishEventRequest(
-                    event = Event.ANSWER_MESSAGE,
-                    payload = Payload(
-                        ResponseMessage(
-                            messageText = MessageText.of(spamNotification(analysis.spamProbability)),
-                            responseTo = message,
-                        ),
-                    ),
-                ),
-            )
-            return okResponse
+        val analysis = decisionStage(message)
+        if (analysis != null) {
+            if (spamReplyEnabled && isSpamCommand.execute(IsSpamRequest(analysis.spamProbability)).isSpam) {
+                publishAnswer(message, MessageText.of(spamNotification(analysis.spamProbability)))
+                return okResponse
+            }
+            if (jailbreakReplyEnabled &&
+                isJailbreakCommand.execute(IsJailbreakRequest(analysis.jailbreakProbability)).isJailbreak
+            ) {
+                publishAnswer(message, MessageText.of(jailbreakNotification(analysis.jailbreakProbability)))
+                return okResponse
+            }
         }
         if (!isRequireAnswerCommand.execute(IsRequireAnswerRequest(message)).requiresAnswer) {
             return okResponse
@@ -76,8 +80,9 @@ open class MessageReceivedUsecaseInput(
         return okResponse
     }
 
-    private fun spamStage(message: Message): DecisionAnalysis? {
-        if (!spamReplyEnabled || !message.fromId.isHuman() || !message.peerId.isGroupChat()) {
+    private fun decisionStage(message: Message): DecisionAnalysis? {
+        val branchesEnabled = spamReplyEnabled || jailbreakReplyEnabled
+        if (!branchesEnabled || !message.fromId.isHuman() || !message.peerId.isGroupChat()) {
             return null
         }
         return analyze(message)
@@ -93,10 +98,14 @@ open class MessageReceivedUsecaseInput(
 
     private fun publishHelp(message: Message) {
         val helpText = buildHelpTextCommand.execute(BuildHelpTextRequest)
+        publishAnswer(message, helpText.messageText)
+    }
+
+    private fun publishAnswer(message: Message, messageText: MessageText) {
         publishEventCommand.execute(
             PublishEventRequest(
                 event = Event.ANSWER_MESSAGE,
-                payload = Payload(ResponseMessage(messageText = helpText.messageText, responseTo = message)),
+                payload = Payload(ResponseMessage(messageText = messageText, responseTo = message)),
             ),
         )
     }
@@ -122,6 +131,11 @@ open class MessageReceivedUsecaseInput(
     private fun spamNotification(spamProbability: Double): String {
         val percent = Math.round(spamProbability * PERCENT_SCALE)
         return "Сработал автодетект спама. Вероятность спама: $percent%."
+    }
+
+    private fun jailbreakNotification(jailbreakProbability: Double): String {
+        val percent = Math.round(jailbreakProbability * PERCENT_SCALE)
+        return "Сработал автодетект попытки взлома ИИ. Вероятность: $percent%."
     }
 
     private companion object {
