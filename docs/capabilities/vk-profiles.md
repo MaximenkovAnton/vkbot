@@ -19,7 +19,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 Пользователь запрашивается одним `users.get` со всеми полями, которые отдаёт VK, кроме фото/аватарки
 (`photo_*`, `crop_photo`, `has_photo`); весь ответ складывается в `VkUserProfile.profileData` (JSONB
 `vk_user_profiles.profile_data`), а при актуализации `message-storage` пишет историю изменений
-([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)).
+([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
 
 ## Точки входа
 
@@ -28,7 +28,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 | `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkFacadeController.kt:14-32` |
 | use case профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt:9-21` |
 | команда: пользователи и группы раздельно | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt:12-30` |
-| VK API: `users.get` со всеми полями пользователя (кроме фото), `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:12-77` |
+| VK API: `users.get` со всеми полями пользователя (кроме фото), `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:20-78` |
 | REST-клиент VK для профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt:27-38` |
 | in-process порты для других модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` |
 | контракт портов в `share` | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
@@ -58,7 +58,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 | `VkUserProfile`, `VkGroupProfile` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`, `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена), `daily-greetings` (имя именинника) | `vk-profiles` |
 | `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` | `message-storage` (`FetchUserProfileCommandImpl`) | `vk-profiles` |
 | таблицы `vk_user_profiles`/`vk_group_profiles` | `message-storage` пишет их своими портами | `message-storage` |
-| `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 0006) |
+| `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
 
@@ -66,9 +66,9 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 ## ADR
 
-- ADR 0003 — VK REST-клиент только в `adapter/output`, `share`-порты без реализаций.
-- ADR 0004 — `message-storage` получает профили in-process портами, а не loopback-HTTP.
-- ADR 0006 — токен VK и URL клиента в конфигурации деплоя.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — VK REST-клиент только в `adapter/output`, `share`-порты без реализаций.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — `message-storage` получает профили in-process портами, а не loopback-HTTP.
+- ADR 2026-10-28-configuration-and-secrets — токен VK и URL клиента в конфигурации деплоя.
 
 ## Acceptance criteria
 
@@ -90,7 +90,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 - Сохранение профилей jOOQ-репозиториями (`SaveUserProfilePort`/`SaveGroupProfilePort`) не покрыто тестом:
   `FetchUserProfileCommandImplTest` проверяет слияние на fake-портах, `ProfileHistoryAndStatisticsIntegrationTest`
   — запись профиля и истории в PostgreSQL, `ProfileStorageIntegrationTest` — чтение сохранённых строк.
-- `profileData` у профилей, сохранённых до ADR 2026-11-10, пуст до первой актуализации; история за это окно
-  пишется только по типизированным полям (named gap ADR 2026-11-10).
+- `profileData` у профилей, сохранённых до ADR 2026-11-10-vk-profile-history-and-statistics, пуст до первой актуализации; история за это окно
+  пишется только по типизированным полям (named gap ADR 2026-11-10-vk-profile-history-and-statistics).
 - Логика устаревания профилей живёт в `message-storage`; здесь проверены только in-process порты, а не
   актуализация по `lastUpdated`.

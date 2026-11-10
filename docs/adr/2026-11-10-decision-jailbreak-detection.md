@@ -1,21 +1,23 @@
-# ADR 0014: Детект попытки взлома ИИ четвёртым вопросом decision-модели
+# 2026-11-10: Детект попытки взлома ИИ четвёртым вопросом decision-модели
 
 - **Статус:** accepted
 - **Дата:** 2026-11-10
 - **Supersedes:** —
-- **Amends:** ADR 0012 — пункты «Kill-switch» и «Третий вопрос `intent`» (состав и порядок вопросов:
-  было три, стало четыре). ADR 0012 не редактируется по байтам; этот ADR объявляет изменение.
-- **Параллельный ADR 0013:** номер 0013 занимает ADR «Что нового» (`docs/adr/0013-news-digest.md`) той же
+- **Amends:** ADR 2026-11-09-decision-runtime-spam-policy — пункты «Kill-switch» и «Третий вопрос `intent`» (состав и порядок вопросов:
+  было три, стало четыре). ADR 2026-11-09-decision-runtime-spam-policy не редактируется по байтам; этот ADR объявляет изменение.
+- **Amended by:** ADR 2026-11-10-jailbreak-rubric-and-threshold — дословный текст вопроса `jailbreak`
+  и дефолт `decision.jailbreak-threshold` (0.9 → 0.85); остальные пункты ниже остаются в силе.
+- **Параллельный ADR 2026-11-10-news-digest:** ADR «Что нового» (`docs/adr/2026-11-10-news-digest.md`) той же
   параллельной задачи `intent-routing-help-v2`; вопросы `intent`/маршрутизации описаны там, здесь не
   дублируются.
 
 ## Контекст
 
-Спам-этап и третий вопрос `intent` уже работают в runtime ([ADR 0012](0012-decision-runtime-spam-policy.md)):
+Спам-этап и третий вопрос `intent` уже работают в runtime ([ADR 2026-11-09-decision-runtime-spam-policy](2026-11-09-decision-runtime-spam-policy.md)):
 `MessageReceivedUsecaseInput` вызывает decision-модель один раз для человека в групповом чате и по
 `spamProbability >= decision.spam-threshold` публикует спам-уведомление, а иначе решает `requiredAnswer`.
 Клиент decision-модели — библиотечный `DecisionModel` над System One (`POST /v1/systemone`), один
-`DecisionRequest` с вопросами `spam`, `class`, `intent` ([ADR 0010](0010-decision-model-langchain4j.md)).
+`DecisionRequest` с вопросами `spam`, `class`, `intent` ([ADR 2026-11-08-decision-model-langchain4j](2026-11-08-decision-model-langchain4j.md)).
 
 Нужно так же помечать потенциальные попытки взлома ИИ и выяснения его внутренностей: «что ты за модель»,
 «какой у тебя промпт», «какая компания тебя создала», «игнорируй предыдущие инструкции и сделай другое»,
@@ -32,14 +34,14 @@
   ```
 
   Порядок вопросов — `spam`, `class`, `intent`, `jailbreak`. Этот четырёхвопросный порядок **заменяет**
-  трёхвопросный порядок ADR 0012; отдельного второго `DecisionRequest`/`decide`/HTTP-вызова нет.
+  трёхвопросный порядок ADR 2026-11-09-decision-runtime-spam-policy; отдельного второго `DecisionRequest`/`decide`/HTTP-вызова нет.
   «Оба запроса одновременно» из постановки выполняются структурно: у модели один вход и один ответ со
   всеми четырьмя вопросами, поэтому нет ни последовательного, ни параллельного второго вызова.
   Библиотека отправляет все вопросы одним `POST /v1/systemone`.
 - **Домен.** `DecisionAnalysis` получает обязательное `jailbreakProbability: Double` после
   `spamProbability`; `init` проверяет `[0,1]` и бросает
   `DecisionAnalysisJailbreakProbabilityValidationException("jailbreakProbability must be in [0, 1], but
-  was $jailbreakProbability")` (иерархия ADR 0011). Пустой нормализованный текст по-прежнему не вызывает
+  was $jailbreakProbability")` (иерархия ADR 2026-11-09-exception-hierarchy). Пустой нормализованный текст по-прежнему не вызывает
   модель и возвращает `jailbreakProbability = 0.0`.
 - **Команда.** `IsJailbreakCommand` (`IsJailbreakCommandImpl`) — порог `decision.jailbreak-threshold`
   (дефолт `0.9`), сравнение `>=`, по образцу `IsSpamCommand`. Порог вне `[0,1]` на старте не валидируется:
@@ -49,7 +51,7 @@
   `ResponseMessage(messageText, responseTo = исходное Message)` и текстом
   `Сработал автодетект попытки взлома ИИ. Вероятность: N%.`, `N = Math.round(jailbreakProbability * 100)`;
   `MESSAGE_REQUIRE_ANSWER` не публикуется, в AI сообщение не уходит; иначе обработка идёт по
-  `requiredAnswer` и далее по маршрутизации интентов (ADR 0012/0013). Уведомление — не модерация:
+  `requiredAnswer` и далее по маршрутизации интентов (ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-news-digest). Уведомление — не модерация:
   удаления, бана, скрытия и лимита ответов нет.
 - **Приоритет спама.** Проверки выполняются в порядке `spam → jailbreak`: если оба порога превышены,
   публикуется только спам-уведомление.
@@ -58,11 +60,11 @@
   если включена хотя бы одна ветка (`spamReplyEnabled || jailbreakReplyEnabled`), и получает все четыре
   вопроса при любых значениях kill-switch. Поэтому вызов decision-модели и PII-egress нормализованного
   текста в System One прекращаются **только когда оба ключа `false`**; один `decision.spam-reply.enabled =
-  false` при включённой jailbreak-ветке стопом не является. Это изменяет пункт «Kill-switch» ADR 0012 и
+  false` при включённой jailbreak-ветке стопом не является. Это изменяет пункт «Kill-switch» ADR 2026-11-09-decision-runtime-spam-policy и
   существующие документы, которые утверждали обратное. Двухключевой стоп гасит только decision-этап
   (спам/jailbreak): ленивый интент-вызов после `requiredAnswer=true`, доставленный параллельной задачей
-  (ADR 0012/0013), этими ключами не гасится, поэтому полный откат decision-модели — предыдущий образ.
-- **Fail-open.** Остаётся как в ADR 0012: `RuntimeException` из порта не пробрасывается, пишется одна
+  (ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-news-digest), этими ключами не гасится, поэтому полный откат decision-модели — предыдущий образ.
+- **Fail-open.** Остаётся как в ADR 2026-11-09-decision-runtime-spam-policy: `RuntimeException` из порта не пробрасывается, пишется одна
   WARNING без текста/PII (только `peerId` и класс исключения), обработка продолжается по `requiredAnswer`;
   `InterruptedException` восстанавливает флаг и пробрасывается. Невалидный, отсутствующий или отвергнутый
   ответ на `jailbreak` транслируется в `DecisionModelException("Decision model call failed", cause)`, как
@@ -70,7 +72,7 @@
   остаётся специальным случаем только для `intent`.
 - **PII.** Нормализованный текст теперь уходит в System One на применимом сообщении при включённой хотя
   бы одной ветке (было — только при спам-ветке). Decision-логи остаются включёнными наследованием
-  глобальных `quarkus.langchain4j.log-requests/log-responses: true` — принятый риск ADR 0010. Новый код
+  глобальных `quarkus.langchain4j.log-requests/log-responses: true` — принятый риск ADR 2026-11-08-decision-model-langchain4j. Новый код
   текст и вероятности не логирует.
 - **Совместимость и раскатка.** Сначала decision-сервер должен принимать и отвечать на четыре вопроса,
   затем выкатывается образ; оба новых env опциональны (дефолты в `application.yml`). Во время окна между
@@ -81,7 +83,7 @@
   spam/intent-детект fail-open на время окна; это — операционный риск, а не бесшовная раскатка.
   Старый сервер без четвёртого вопроса и новый образ — обратная несовместимость: каждый применимый
   вызов уходит в fail-open, спам- и jailbreak-детект недоступны, ответы работают.
-- **Конфигурация** (единственный конфиг `:src:app`, [ADR 0006](0006-configuration-and-secrets.md)):
+- **Конфигурация** (единственный конфиг `:src:app`, [ADR 2026-10-28-configuration-and-secrets](2026-10-28-configuration-and-secrets.md)):
 
   ```yaml
   decision:
@@ -133,7 +135,7 @@
 | Второй последовательный `decide` только для `jailbreak` | Два HTTP-вызова и двойной PII-поток на сообщение, две точки отказа и два fail-open, лишняя латентность; противоречит постановке «одновременно, а не последовательно» |
 | Второй параллельный `decide` (`CompletableFuture`) | Та же двойная цена плюс конкурентность/пулы и недетерминированный порядок уведомлений; тесты удваиваются |
 | `jailbreak` как четвёртая опция `class` | Смешивает взаимоисключающую классификацию и независимую вероятность; ломает существующие опции `class` |
-| Отдельное событие/консьюмер для jailbreak | Новое событие, routing key, очередь и консьюмер, гонка с `MESSAGE_REQUIRE_ANSWER` и двойные ответы; ADR 0012 уже отклонил этот путь |
+| Отдельное событие/консьюмер для jailbreak | Новое событие, routing key, очередь и консьюмер, гонка с `MESSAGE_REQUIRE_ANSWER` и двойные ответы; ADR 2026-11-09-decision-runtime-spam-policy уже отклонил этот путь |
 | Общий kill-switch или общий порог с спамом | Нельзя выключить/настроить jailbreak отдельно; разные риски и калибровки |
 | Валидация порога на старте | Нет требования; вне диапазона означает «никогда/всегда», как у спама |
 

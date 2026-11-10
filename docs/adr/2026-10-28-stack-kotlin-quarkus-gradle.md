@@ -1,4 +1,4 @@
-# ADR 0001: Стек и версии — Kotlin 2.3.0, Gradle 9.3.0, Quarkus 3.40.1.1, JDK 21
+# 2026-10-28: Стек и версии — Kotlin 2.3.0, Gradle 9.3.0, Quarkus 3.40.1.1, JDK 21
 
 - **Статус:** accepted
 - **Дата:** 2026-10-28
@@ -50,7 +50,7 @@
 - Сборка воспроизводима: все версии разрешаются из `gradle.properties` и wrapper.
 - Обновление Quarkus — одна правка `gradle.properties`; обновление Jackson — из BOM.
 - JDK 21 — предыдущий LTS; при выходе обновления Quarkus с поддержкой более нового JDK нужна отдельная
-  задача с прогоном всех гейтов (ADR 0005).
+  задача с прогоном всех гейтов (ADR 2026-10-28-quality-gates-and-ci).
 - `org.gradle.jvmargs = --add-opens=java.base/java.lang=ALL-UNNAMED` (`gradle.properties:11`) сохранён как
   рабочее требование текущего окружения.
 

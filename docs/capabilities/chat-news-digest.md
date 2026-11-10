@@ -67,7 +67,7 @@ read-only in-process порта, профили авторов — через с
 
 Текст чата уходит в LLM-промпт; глобальные `quarkus.langchain4j.log-requests/log-responses: true`
 логируют его на INFO и экспортируют по OTLP — тот же принятый PII-риск, что у ответа и саммаризации
-(ADR 0007/0010). Новый код текст не логирует: ERROR при отказе LLM содержит только `peerId` и простое имя
+(ADR 2026-11-05-llm-provider-vllm-openai, ADR 2026-11-08-decision-model-langchain4j). Новый код текст не логирует: ERROR при отказе LLM содержит только `peerId` и простое имя
 класса исключения. Собственных метрик и спанов нет.
 
 ## Journey
@@ -84,7 +84,7 @@ read-only in-process порта, профили авторов — через с
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | consumer — `vk-message-send`; producers — `ai-answer`, `answer-decision`, `chat-news-digest` | `ai-answer` (контракт/payload не меняется) |
 | `PublishEventCommand`/`PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
 | `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
-| `summary.batch-size` | `ProcessSummaryCommandImpl` | composition root `:src:app` (ADR 0006) |
+| `summary.batch-size` | `ProcessSummaryCommandImpl` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 | `MessageAuthorFormatter` | `GenerateSummaryCommandImpl` | `ai` |
 
 ## Зависит от
@@ -92,16 +92,16 @@ read-only in-process порта, профили авторов — через с
 - `answer-decision` — producer события `NEWS_DIGEST_REQUESTED`.
 - `event-dispatch` — доставка события и публикация `ANSWER_MESSAGE`.
 - `message-storage` — in-process чтение саммари, сообщений и профилей.
-- внешний LLM — через LangChain4j AI-сервис (ADR 0007).
+- внешний LLM — через LangChain4j AI-сервис (ADR 2026-11-05-llm-provider-vllm-openai).
 
 ## ADR
 
-- ADR 0003 — command/usecase без фреймворка, вход только через `port.input`.
-- ADR 0004 — шаг в событийном потоке, чтение данных через in-process `share`-порты.
-- ADR 0007 — LLM через OpenAI-совместимый API, PII-риск провайдерских логов.
-- ADR 0010 — decision-модель: третий вопрос `intent`, из которого рождается `news`.
-- ADR 0011 — `NewsDigestGenerationException` в единой иерархии `VkBotAppException`.
-- ADR 0013 — решение «что нового»: период, три read-порта, LLM с повторами и фолбэком, публикация из команды.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — command/usecase без фреймворка, вход только через `port.input`.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — шаг в событийном потоке, чтение данных через in-process `share`-порты.
+- ADR 2026-11-05-llm-provider-vllm-openai — LLM через OpenAI-совместимый API, PII-риск провайдерских логов.
+- ADR 2026-11-08-decision-model-langchain4j — decision-модель: третий вопрос `intent`, из которого рождается `news`.
+- ADR 2026-11-09-exception-hierarchy — `NewsDigestGenerationException` в единой иерархии `VkBotAppException`.
+- ADR 2026-11-10-news-digest — решение «что нового»: период, три read-порта, LLM с повторами и фолбэком, публикация из команды.
 
 ## Acceptance criteria
 
@@ -148,7 +148,7 @@ read-only in-process порта, профили авторов — через с
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestIntegrationTest.kt`.
 - **AC-news-digest-8** — КОГДА изменение доставлено, СИСТЕМА ДОЛЖНА содержать capability-файл со статусом
   `delivered`, строки в `docs/capabilities/index.md` (возможность и journey `journey-news-digest`), ADR
-  0013 и строку в `docs/README.md`, обновлённые `docs/architecture/modules.md`,
+  ADR 2026-11-10-news-digest и строку в `docs/README.md`, обновлённые `docs/architecture/modules.md`,
   `docs/architecture/data-flow.md`, `docs/architecture/overview.md`, `docs/development/configuration.md`,
   `docs/development/deployment.md`, `docs/development/testing.md`, `README.md`, правки allowlist-дельты и
   ключ `aiNewsDigestSystemprompt` в `src/app/src/main/resources/application.yml`; проверка — Tests:

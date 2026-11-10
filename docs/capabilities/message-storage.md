@@ -17,13 +17,13 @@
 - при сохранении завершённого саммари публикует `SUMMARY_READY`;
 - по запросу считает статистику автора из `messages` (число сообщений, суммарная и средняя длина, разбивка
   по чатам, гистограммы по часу и ISO-дню недели в зоне `statistics.timezone`) и отдаёт историю профиля
-  ([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)).
+  ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
 
 Профиль, который VK не вернул по запросу, не перезаписывается: сохранённые данные остаются, а строка
 остаётся устаревшей и будет перезапрошена при следующем сообщении.
 
 Читать можно двумя входами к одному `port.input`: публичным REST `/persistence/*` и in-process адаптерами,
-которые подключают модули `ai` и `persistence` без HTTP (ADR 0004).
+которые подключают модули `ai` и `persistence` без HTTP (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest).
 
 ## Точки входа
 
@@ -31,17 +31,17 @@
 |---|---|
 | `MESSAGE_NEW` из `all-events-queue` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt:12-22` |
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
-| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-166` |
-| контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:18-90` |
+| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-154` |
+| контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:24-97` |
 | 18 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления и трёх read-only чтений сводки «что нового» | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
-| реализация 18 операций (включая три чтения сводки «что нового»: последнее сообщение автора, сообщения диапазона дат, саммари периода) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
+| реализация 20 операций (включая три чтения сводки «что нового» — последнее сообщение автора, сообщения диапазона дат, саммари периода — а также историю профиля и статистику автора) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
-| запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:65-135` |
-| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-90`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
-| история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:23-140`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:1-120` |
+| запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:75-149` |
+| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-82`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
+| история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:17-124` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
 | claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
-| профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:26-95` |
+| профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:18-153` |
 
 ## Данные, которыми владеет
 
@@ -96,9 +96,9 @@
 
 ## ADR
 
-- ADR 0003 — модуль `persistence` видит только `share`, слои внутри модуля.
-- ADR 0004 — читающие и пишущие контракты для других модулей — in-process порты `share`, не loopback-REST.
-- ADR 0006 — datasource и Liquibase-конфигурация в `:src:app`.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — модуль `persistence` видит только `share`, слои внутри модуля.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — читающие и пишущие контракты для других модулей — in-process порты `share`, не loopback-REST.
+- ADR 2026-10-28-configuration-and-secrets — datasource и Liquibase-конфигурация в `:src:app`.
 
 ## Acceptance criteria
 
@@ -133,7 +133,7 @@
   доходит до `messages.send`, но не проверяет строки в БД, поэтому пустая история не валит тест.
 - REST `/persistence/*` не покрыт ни одним HTTP-тестом; новые `/profiles/users/{id}/history` и
   `/statistics/users/{id}` проверены на уровне репозитория/БД, не HTTP.
-- `profile_data` у профилей, сохранённых до ADR 2026-11-10, пуст до первой актуализации; история за это окно
+- `profile_data` у профилей, сохранённых до ADR 2026-11-10-vk-profile-history-and-statistics, пуст до первой актуализации; история за это окно
   пишется только по типизированным полям.
 - Статистика сканирует `messages` автора без фильтра периода; материализованные агрегаты — условие
   апгрейда, не текущее требование.

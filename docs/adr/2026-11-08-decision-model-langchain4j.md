@@ -1,4 +1,4 @@
-# ADR 0010: Decision-модель — библиотечный `DecisionModel` из `quarkus-langchain4j-ollama`
+# 2026-11-08: Decision-модель — библиотечный `DecisionModel` из `quarkus-langchain4j-ollama`
 
 - **Статус:** accepted
 - **Дата:** 2026-11-08
@@ -9,12 +9,12 @@
 Нужен клиент decision-модели: по тексту сообщения получить вероятность спама и класс сообщения
 (`spam`/`command`/`ham`). Сервер — System One API, `POST {DECISION_URL}/v1/systemone`; у него
 экспериментальный decision-endpoint, которого нет у OpenAI-совместимого провайдера, а второй
-провайдер уже стоит в деплое как chat-модель ([ADR 0007](0007-llm-provider-vllm-openai.md)).
+провайдер уже стоит в деплое как chat-модель ([ADR 2026-11-05-llm-provider-vllm-openai](2026-11-05-llm-provider-vllm-openai.md)).
 Своего HTTP-клиента, DTO и JSON-маппинга заводить не нужно: LangChain4j 1.23.0 содержит
 `dev.langchain4j.model.decision.DecisionModel`, а Quarkus-расширение собирает его из конфига.
 
 Клиент — заготовка: в этой задаче он не вызывается из runtime, политика «отвечать/не отвечать» и
-пороги — следующая задача (решение «без вызова из runtime» заменено [ADR 0012](0012-decision-runtime-spam-policy.md)).
+пороги — следующая задача (решение «без вызова из runtime» заменено [ADR 2026-11-09-decision-runtime-spam-policy](2026-11-09-decision-runtime-spam-policy.md)).
 Картинки/vision тоже позже.
 
 ## Решение
@@ -24,18 +24,18 @@
   `DecisionModelOutputAdapter` (`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt`)
   вызывает библиотечный `DecisionModel`, переводит `DecisionRequest`/`DecisionResponse` в доменный
   `DecisionAnalysis` и прячет LangChain4j за портом `AnalyzeMessageOutputPort`. Смена библиотеки или
-  апгрейд — правка адаптера и `gradle.properties` ([ADR 0001](0001-stack-kotlin-quarkus-gradle.md)).
+  апгрейд — правка адаптера и `gradle.properties` ([ADR 2026-10-28-stack-kotlin-quarkus-gradle](2026-10-28-stack-kotlin-quarkus-gradle.md)).
 - **Почему не `-openai`.** Decision-endpoint OpenAI-расширения — `/v1/decisions`; у System One API путь
   `/v1/systemone`, и тот же запрос OpenAI-провайдером не обслуживается. **Почему не `-typesafe`.**
   Typesafe-расширение — text-only и не даёт decision-модели с noul/choice-вопросами.
 - **Два провайдера и два build-time ключа.** На classpath `-openai` и `-ollama`, поэтому обязательны
   `quarkus.langchain4j.chat-model.provider: openai` и
   `quarkus.langchain4j.decision-model.provider: ollama` — иначе сборка падает на «multiple available
-  providers». «Один провайдер» из [ADR 0007](0007-llm-provider-vllm-openai.md) относится к chat-модели
+  providers». «Один провайдер» из [ADR 2026-11-05-llm-provider-vllm-openai](2026-11-05-llm-provider-vllm-openai.md) относится к chat-модели
   (ответ, саммаризация, OCR); второй провайдер добавлен **только для decision** и выбирается
-  build-time пином, а не рантайм-флагом. Решение ADR 0007 не пересматривается.
+  build-time пином, а не рантайм-флагом. Решение ADR 2026-11-05-llm-provider-vllm-openai не пересматривается.
 - **`DECISION_URL` — голый корень System One-сервера** (без `/v1`, без `/v1/systemone`, без хвостового
-  `/`), обязателен и без дефолта ([ADR 0006](0006-configuration-and-secrets.md)); ключ —
+  `/`), обязателен и без дефолта ([ADR 2026-10-28-configuration-and-secrets](2026-10-28-configuration-and-secrets.md)); ключ —
   `quarkus.langchain4j.ollama.base-url`, расширение дописывает `v1/systemone`, иначе оно ушло бы на
   `http://localhost:11434`. **`DECISION_URL` объявлен обязательным без дефолта, но `fail-fast на старте не
   enforced`** — принятый named gap AC-5: decision-бин библиотеки — ленивый `@ApplicationScoped` synthetic
@@ -83,13 +83,13 @@
   `FakeDecisionModel` (он реализует `doDecide`, default `decide` сам вызывает валидатор расширения),
   `:src:app` — `@QuarkusTest` с WireMock на HTTP-границе (`POST /v1/systemone`), настоящим
   `OllamaDecisionModel` и без Ollama DevServices.
-- **Без вызова из runtime** (решение заменено [ADR 0012](0012-decision-runtime-spam-policy.md)). Порт
+- **Без вызова из runtime** (решение заменено [ADR 2026-11-09-decision-runtime-spam-policy](2026-11-09-decision-runtime-spam-policy.md)). Порт
   не вызывает ни один use case, входного адаптера нет; в продуктовой карте — строка «Не отображено в
   карте и почему». Поведение delivered-возможностей не меняется.
 
 ## Последствия
 
-- Смена адреса или модели decision-сервера — правка env ([ADR 0006](0006-configuration-and-secrets.md)),
+- Смена адреса или модели decision-сервера — правка env ([ADR 2026-10-28-configuration-and-secrets](2026-10-28-configuration-and-secrets.md)),
   а не кода; апгрейд LangChain4j — `gradle.properties` + адаптер.
 - Контракт деплоя требует `DECISION_URL`; пока fail-fast на старте не enforced (AC-5 — named gap,
   см. выше), поэтому переменную нужно выставлять до раскатки, а не надеяться на отказ старта.
@@ -111,4 +111,4 @@
 | Выключить decision у `-openai` и chat/embedding у `-ollama` вместо двух `provider`-ключей | Три ключа вместо двух и менее явное выражение выбора |
 | Провайдерские `ollama.log-requests/log-responses: false` | Выключило бы decision-логи, но это отдельное решение о PII, а не часть подключения клиента |
 | Свои повторы/кэш/батчинг | Клиент недостижим из runtime; политика и бюджет — следующая задача |
-| Дефолт `DECISION_URL` | Молчаливый запрос в неизвестный хост вместо отказа на старте ([ADR 0006](0006-configuration-and-secrets.md)) |
+| Дефолт `DECISION_URL` | Молчаливый запрос в неизвестный хост вместо отказа на старте ([ADR 2026-10-28-configuration-and-secrets](2026-10-28-configuration-and-secrets.md)) |

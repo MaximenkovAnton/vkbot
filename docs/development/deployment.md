@@ -1,6 +1,6 @@
 # Деплой и развёртывание
 
-Один деплой — `:src:app` ([ADR 0002](../adr/0002-single-deployable-app-module.md)). Документ описывает
+Один деплой — `:src:app` ([ADR 2026-10-28-single-deployable-app-module](../adr/2026-10-28-single-deployable-app-module.md)). Документ описывает
 артефакт, образы, обязательные переменные окружения, переключение сообщества на Bots Long Poll, миграции и
 откат; всё, что не проверялось прогоном, помечено явно.
 
@@ -56,7 +56,7 @@ docker run -p 8080:8080 \
   `build/*`), поэтому native/legacy-образы не получат файлы без расширения белого списка. Перед сборкой
   добавить `!src/app/build/*-runner` и `!src/app/build/lib/*` в `.dockerignore`.
 - Native-сборка (`./gradlew build -Dquarkus.native.enabled=true -Dquarkus.package.jar.enabled=false`)
-  требует GraalVM/нативного тулчейна и в этом проходе не выполнялась; в CI не входит (ADR 0005).
+  требует GraalVM/нативного тулчейна и в этом проходе не выполнялась; в CI не входит (ADR 2026-10-28-quality-gates-and-ci).
   Legacy-jar требует отдельного packaging-типа и тоже не проверялся.
 
 ## Переменные окружения
@@ -77,7 +77,7 @@ docker run -p 8080:8080 \
 
 `DECISION_URL` — обязательное значение контракта деплоя и новый поток данных в runtime: decision-модель
 вызывается из `MessageReceivedUsecaseInput` для сообщения человека в групповом чате. Поведение старта без
-переменной этой задачей **не проверялось** (named gap ADR 0010), поэтому здесь не утверждается, что
+переменной этой задачей **не проверялось** (named gap ADR 2026-11-08-decision-model-langchain4j), поэтому здесь не утверждается, что
 старт без неё проходит:
 
 | Переменная | Назначение |
@@ -95,7 +95,7 @@ docker run -p 8080:8080 \
 `DECISION_SPAM_THRESHOLD` (дефолт `0.9` — порог спама),
 `DECISION_SPAM_REPLY_ENABLED` (дефолт `true`; `false` гасит только спам-ветку — вызов decision-модели и
 PII-egress при включённой jailbreak-ветке продолжаются),
-`DECISION_JAILBREAK_THRESHOLD` (дефолт `0.9` — порог попытки взлома ИИ),
+`DECISION_JAILBREAK_THRESHOLD` (дефолт `0.85` — порог попытки взлома ИИ),
 `DECISION_JAILBREAK_REPLY_ENABLED` (дефолт `true`; `false` гасит только jailbreak-ветку).
 
 `GREETINGS_CRON=0 0 0 * * ?` по умолчанию: первый прогон после деплоя — живой, в ближайшие 00:00 зоны
@@ -103,7 +103,7 @@ PII-egress при включённой jailbreak-ветке продолжают
 ручного триггера; на время приёмки выставляйте `GREETINGS_CRON=off` (или `disabled`).
 
 `VK_SECRET` и `VK_CONFIRMATION_CODE` из контракта деплоя удалены: Callback-эндпоинта нет, приём идёт
-опросом Bots Long Poll ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+опросом Bots Long Poll ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 
 Замечания:
 
@@ -118,9 +118,10 @@ PII-egress при включённой jailbreak-ветке продолжают
   раньше. Обратный случай — новый образ со старым трёхвопросным сервером: каждый применимый вызов тоже
   fail-open, jailbreak- и спам-детект недоступны. Переменную выставляет деплой **вручную**; поведение
   старта без переменной этой задачей не проверялось, на отказ старта рассчитывать нельзя
-  ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
-  [ADR 0012](../adr/0012-decision-runtime-spam-policy.md),
-  [ADR 0014](../adr/0014-decision-jailbreak-detection.md)). Операционный откат без отката образа:
+  ([ADR 2026-11-08-decision-model-langchain4j](../adr/2026-11-08-decision-model-langchain4j.md),
+  [ADR 2026-11-09-decision-runtime-spam-policy](../adr/2026-11-09-decision-runtime-spam-policy.md),
+  [ADR 2026-11-10-decision-jailbreak-detection](../adr/2026-11-10-decision-jailbreak-detection.md),
+  [ADR 2026-11-10-jailbreak-rubric-and-threshold](../adr/2026-11-10-jailbreak-rubric-and-threshold.md)). Операционный откат без отката образа:
   `DECISION_JAILBREAK_REPLY_ENABLED=false` гасит только jailbreak-ветку; вызов decision-модели и
   PII-egress останавливают только оба ключа `false` — `DECISION_SPAM_REPLY_ENABLED=false` и
   `DECISION_JAILBREAK_REPLY_ENABLED=false`; двухключевой стоп гасит только decision-этап
@@ -129,7 +130,7 @@ PII-egress при включённой jailbreak-ветке продолжают
 - В `application.yml` prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
   `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в `application.yml` есть, но читают env:
   `AI_BASE_URL` — это корень OpenAI API вместе с `/v1` (расширение дописывает `/chat/completions`),
-  `AI_CHAT_MODEL` — имя модели (ADR 0007).
+  `AI_CHAT_MODEL` — имя модели (ADR 2026-11-05-llm-provider-vllm-openai).
 - `RABBITMQ_HOST` — стандартное отображение MicroProfile Config на `rabbitmq-host`; запуском prod-конфигурации
   в этом проходе не проверялось.
 - Секреты храните в секрет-менеджере платформы; в репозиторий и образ они не попадают.

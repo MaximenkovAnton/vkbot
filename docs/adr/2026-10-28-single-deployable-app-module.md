@@ -1,4 +1,4 @@
-# ADR 0002: Один деплой — модуль `:src:app`, корень — агрегатор
+# 2026-10-28: Один деплой — модуль `:src:app`, корень — агрегатор
 
 - **Статус:** accepted
 - **Дата:** 2026-10-28
@@ -36,9 +36,9 @@ JVM-образ копировал артефакт `src/app/build`, native/legac
 - Composition root — CDI Quarkus в `:src:app`: ArC валидирует injection points на этапе сборки, поэтому
   несвязанный порт (in-process адаптер без реализации) валит `./gradlew build`, а не прод.
 - `./gradlew build` собирает все 12 модулей (`BUILD SUCCESSFUL`, 180 задач), включая тесты, линт и порог
-  покрытия (ADR 0005); smoke: `BUILD SUCCESSFUL` + `src/app/build/quarkus-app/quarkus-run.jar` существует,
+  покрытия (ADR 2026-10-28-quality-gates-and-ci); smoke: `BUILD SUCCESSFUL` + `src/app/build/quarkus-app/quarkus-run.jar` существует,
   корневого `build/quarkus-app` нет.
-- Native/legacy-образы не собираются в CI (ADR 0005); `.dockerignore` в текущем виде допускает только
+- Native/legacy-образы не собираются в CI (ADR 2026-10-28-quality-gates-and-ci); `.dockerignore` в текущем виде допускает только
   `src/app/build/quarkus-app/*`, поэтому для native/legacy-сборок его белый список нужно расширить — это
   известное ограничение, зафиксированное в `docs/development/deployment.md`.
 
@@ -48,4 +48,4 @@ JVM-образ копировал артефакт `src/app/build`, native/legac
 |---|---|
 | Оставить два раннера и описать оба | Два артефакта, два dev-режима, native/legacy-образы из другого источника; скрытый дефект навсегда |
 | Сделать деплоем корень | `@QuarkusMain` и все зависимости уже в `:src:app`; перенос — churn без выгоды |
-| Отдельный деплой на модуль | Нет требования независимого деплоя/масштабирования; см. ADR 0003 |
+| Отдельный деплой на модуль | Нет требования независимого деплоя/масштабирования; см. ADR 2026-10-28-module-boundaries-and-layer-rules |

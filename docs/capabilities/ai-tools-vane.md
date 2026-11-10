@@ -41,7 +41,7 @@
 |---|---|---|
 | слот инструментов `UserAnswerAiService.tools` | `ai-answer` | `ai-answer` |
 | контракт `VaneSearchOutputPort` (`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/vane/VaneSearchOutputPort.kt`) | только этот шаг | `ai-tools-vane` |
-| `VANE_URL` и таймауты клиента | конфигурация деплоя (ADR 0006) | `ai-tools-vane` |
+| `VANE_URL` и таймауты клиента | конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) | `ai-tools-vane` |
 
 ## Зависит от
 
@@ -49,8 +49,8 @@
 
 ## ADR
 
-- ADR 0003 — `@Tool` живёт только на адаптере, команда не знает LangChain4j.
-- ADR 0006 — URL Vane — обязательная конфигурация (`VANE_URL`), без неё приложение не стартует.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — `@Tool` живёт только на адаптере, команда не знает LangChain4j.
+- ADR 2026-10-28-configuration-and-secrets — URL Vane — обязательная конфигурация (`VANE_URL`), без неё приложение не стартует.
 
 ## Acceptance criteria
 

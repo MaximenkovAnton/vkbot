@@ -13,7 +13,7 @@ interface IsJailbreakCommand : Command<IsJailbreakCommand.IsJailbreakRequest, Is
 
 @ApplicationScoped
 open class IsJailbreakCommandImpl(
-    @ConfigProperty(name = "decision.jailbreak-threshold", defaultValue = "0.9")
+    @ConfigProperty(name = "decision.jailbreak-threshold", defaultValue = "0.85")
     private val jailbreakThreshold: Double,
 ) : IsJailbreakCommand {
     override fun execute(request: IsJailbreakCommand.IsJailbreakRequest): IsJailbreakCommand.IsJailbreakResponse {

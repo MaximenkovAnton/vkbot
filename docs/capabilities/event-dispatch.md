@@ -55,9 +55,9 @@
 
 ## ADR
 
-- ADR 0003 — диспетчер и публикатор — адаптеры в `infrastructure`, контракты — в `share`.
-- ADR 0004 — асинхронные шаги внутри деплоя идут событиями, синхронные — in-process портами.
-- ADR 0006 — `dlq.levels[]` и `mp.messaging.*` — единственный источник конфигурации очередей.
+- ADR 2026-10-28-module-boundaries-and-layer-rules — диспетчер и публикатор — адаптеры в `infrastructure`, контракты — в `share`.
+- ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — асинхронные шаги внутри деплоя идут событиями, синхронные — in-process портами.
+- ADR 2026-10-28-configuration-and-secrets — `dlq.levels[]` и `mp.messaging.*` — единственный источник конфигурации очередей.
 
 ## Acceptance criteria
 

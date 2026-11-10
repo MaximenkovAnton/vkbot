@@ -30,7 +30,8 @@
   `VkGetUserProfilesBatchAdapter`.
 - **Хранение ответа — JSONB-снимок.** `VkUserProfile.profileData: Map<String, Any?>` — весь ответ VK
   (топ-уровневые поля, вложенные объекты как `Map`/`List`), без фото-полей. Домен остаётся без фреймворков:
-  ADR 0003/L1 запрещает `com.fasterxml..` в `..domain..`, поэтому это обычная `Map`, а не `JsonNode`.
+  ADR 2026-10-28-module-boundaries-and-layer-rules/L1 запрещает `com.fasterxml..` в `..domain..`,
+  поэтому это обычная `Map`, а не `JsonNode`.
   В БД — `vk_user_profiles.profile_data JSONB`; сериализация только в output-адаптере
   `JooqVkUserProfileRepository`. Типизированные колонки остаются: `birth_date` — запрос именинников
   `daily-greetings`, `first_name`/`last_name`/`screen_name`/`city` — отображение имён и `GET /api/profiles/*`.

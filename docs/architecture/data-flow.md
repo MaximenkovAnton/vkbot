@@ -35,7 +35,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 - **Транспорт.** `receiver` сам опрашивает Bots Long Poll API; публичного HTTP-входа у него нет —
   `POST /vk/callback` отвечает 404, `vk.secret`/`vk.confirmation-code` в конфигурации отсутствуют
-  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)). `groups.getLongPollServer` возвращает
+  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)). `groups.getLongPollServer` возвращает
   `server`, `key` и `ts`; на старте сессия запрашивается заново, а `server` и `key` нигде не хранятся.
 - **Позиция.** В PostgreSQL (`long_poll_position`) лежит только `ts` последнего обработанного обновления.
   Если он есть, первый `a_check` идёт с ним — так доставляются сообщения, пришедшие за время простоя;
@@ -73,7 +73,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 `SaveMessageUsecase.execute` (`SaveMessageUsecase.kt:28-51`, `@Transactional`):
 
-1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:29-58`): собирает `from_id` из сообщения и
+1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:31-60`): собирает `from_id` из сообщения и
    forward'ов; читает сохранённые профили через `FindUserProfilesByIdsPort`/`FindGroupProfilesByIdsPort` и
    считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
@@ -81,8 +81,8 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`; разницу снимков
    (`ProfileDataMerger.diff`) пишет в `vk_user_profile_history` (JSONB `{field: {old, new}}`, только
    изменившиеся поля). Полный ответ VK без фото лежит в `vk_user_profiles.profile_data`
-   ([ADR 2026-11-10](<../adr/2026-11-10: Полный профиль VK, история изменений и статистика активности.md>)). Ошибка получения профилей не валит
-   сохранение: логируется WARNING.
+   ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
+   Ошибка получения профилей не валит сохранение: логируется WARNING.
 2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
    с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
 3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
@@ -90,11 +90,11 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 ### Чтение истории профиля и статистики автора
 
-`GET /persistence/profiles/users/{id}/history` (`PersistenceDataController.kt:140-153`) →
+`GET /persistence/profiles/users/{id}/history` (`PersistenceDataController.kt:134-143`) →
 `PersistenceDataUsecase.findUserProfileHistory` → `FindUserProfileHistoryPort` →
 `JooqVkUserProfileRepository.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
 
-`GET /persistence/statistics/users/{id}` (`PersistenceDataController.kt:155-163`) →
+`GET /persistence/statistics/users/{id}` (`PersistenceDataController.kt:148-153`) →
 `PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `JooqUserStatisticsRepository`:
 `count`, `sum(length(message_text))`, `min/max(date)`, разбивка по `peer_id` и гистограммы
 `extract(hour|isodow from date at time zone {statistics.timezone})` по `messages.from_id`. Агрегаты не
@@ -108,7 +108,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 Сначала — decision-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате
 (`peerId.isGroupChat()`) при включённой хотя бы одной ветке (`decision.spam-reply.enabled ||
 decision.jailbreak-reply.enabled`) use case вызывает decision-модель **один раз** через
-`AnalyzeMessageOutputPort` (адаптер `DecisionModelOutputAdapter`, ADR 0010/0012/0014). Адаптер задаёт
+`AnalyzeMessageOutputPort` (адаптер `DecisionModelOutputAdapter`, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-decision-jailbreak-detection, ADR 2026-11-10-jailbreak-rubric-and-threshold). Адаптер задаёт
 четыре вопроса — `spam`, `class`, `intent`, `jailbreak` — и библиотека отправляет их одним
 `POST /v1/systemone`.
 
@@ -303,7 +303,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 - **At-most-once.** Claim-строка `greeting_log` (PK `(greeting_date, peer_id)`) пишется один раз на чат до
   отправки всех его сообщений: повторный прогон даты получает `claimed = false` и не отправляет, два
   экземпляра проигрывают конфликт. Цена — ошибка отправки не повторяется, оставшиеся сообщения чата
-  теряются до следующих суток (известное ограничение, ADR 0009).
+  теряются до следующих суток (известное ограничение, ADR 2026-11-07-daily-greetings).
 - **Изоляция.** Ошибка claim → ERROR-лог с `peerId`, все сообщения чата учитываются в `failed`, остальные
   чаты продолжаются; ошибка отправки одного сообщения учитывается в `failed`, но следующие сообщения и
   чаты продолжаются; `InterruptedException` (остановка приложения) пробрасывается с сохранённым флагом.
@@ -353,10 +353,10 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
   чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
   Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.
   Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
-  появятся в проде (в этом проходе не менялось, [ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md) §Последствия).
+  появятся в проде (в этом проходе не менялось, [ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) §Последствия).
 - **Приём рассчитан на один экземпляр.** Токен сообщества и позиция `ts` одни на деплой: второй экземпляр
   опрашивал бы VK с тем же `ts` и мешал первому. Горизонтальное масштабирование приёма не поддерживается
-  ([ADR 0008](../adr/0008-bots-long-poll-transport.md)).
+  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 - **`failed: 1` теряет часть истории.** VK отбрасывает события, которые приложение не забрало; опрос
   продолжается с нового `ts`, потеря фиксируется WARN-логом и восстановлению не подлежит.
 - **Нет outbox.** Сохранение в БД и публикация в RabbitMQ не транзакционны относительно друг друга
@@ -388,7 +388,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 2. Новый `EventProcessor` в модуле-владельце шага; он сам попадёт в карту диспетчера по `event()`.
 3. Публикация события из предыдущего use case через `PublishEventCommand` (не напрямую из адаптера).
 4. Если шаг синхронный и внутри деплоя — новый порт в `share` + in-process адаптер у поставщика
-   ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)), без HTTP.
+   ([ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md)), без HTTP.
 
 Никакая карта процессоров не регистрируется вручную: `@All processors: MutableList<EventProcessor>`
 (`EventDispatcher.kt:20-24`) собирает бины CDI.

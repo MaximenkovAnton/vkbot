@@ -24,16 +24,17 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено на дереве с полным профилем VK, историей изменений и статистикой (ADR 2026-11-10): `./gradlew build`
-→ `BUILD SUCCESSFUL`, 180 задач (включая `capabilitiesCheck`, `coverageVerification`,
-`:src:app:quarkusBuild`); **467 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям:
-app — 50 (11 классов, в т.ч. `AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10,
-`DecisionModelIntegrationTest` — 11, `DecisionModelIntegrationTestSpamPolicy` — 3,
-`NewsDigestIntegrationTest` — 3, `ProfileStorageIntegrationTest` — 2,
-`ProfileHistoryAndStatisticsIntegrationTest` — 3, `HealthTest` — 3), ai — 133 (19 классов),
-receiver — 22 (5 классов), share — 8 (2 класса), vk-facade — 19 (10 классов), persistence — 48
-(4 класса), infrastructure — 2 (1 класс), processor — 116 (9 классов), greetings — 45 (7 классов),
-arch-tests — 24 (6 классов).
+Проверено на дереве с полным профилем VK, историей изменений и статистикой
+(ADR 2026-11-10-vk-profile-history-and-statistics) и доработкой фильтра взлома ИИ
+(ADR 2026-11-10-jailbreak-rubric-and-threshold): `./gradlew build` → `BUILD SUCCESSFUL`, 180 задач
+(включая `capabilitiesCheck`, `coverageVerification`, `:src:app:quarkusBuild`); **491 тест,
+0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям: app — 50 (11 классов, в т.ч.
+`AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10, `DecisionModelIntegrationTest` — 11,
+`DecisionModelIntegrationTestSpamPolicy` — 3, `NewsDigestIntegrationTest` — 3,
+`ProfileStorageIntegrationTest` — 2, `ProfileHistoryAndStatisticsIntegrationTest` — 3,
+`HealthTest` — 3), ai — 133 (19 классов), receiver — 22 (5 классов), share — 8 (2 класса),
+vk-facade — 19 (10 классов), persistence — 48 (4 класса), infrastructure — 2 (1 класс),
+processor — 140 (9 классов), greetings — 45 (7 классов), arch-tests — 24 (6 классов).
 
 `./gradlew capabilitiesCheck` запускает `scripts/check-capabilities.sh` через bash; тот же скрипт
 выполняется в CI-джобе `docs`.
@@ -51,7 +52,7 @@ arch-tests — 24 (6 классов).
 | `ai` | 133 теста (19 классов): `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `command/news/ProcessNewsDigestCommandTest` (18 — срок, сборка данных, фолбэк, «нет сообщений»), `domain/news/NewsPeriodParserTest` (43 — таблица форм срока), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/input/event/NewsDigestRequestedEventProcessorTest` (2), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/news/NewsDigestAiAdapterTest` (4 — 3 попытки), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (4) |
 | `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
 | `persistence` | `PersistenceDataInProcessAdapterTest` (18 тестов — маппинг всех in-process портов, включая три read-only чтения сводки «что нового»), `BirthDateMatcherTest` (17 — разбор `birth_date`), `domain/profile/ProfileDataMergerTest` (5 — слияние снимка и JSONB-diff истории), `command/fetchuserprofile/FetchUserProfileCommandImplTest` (8 — актуализация устаревших профилей, слияние полей и запись истории) |
-| `processor` | `usecase/message/messageReceived/MessageReceivedUsecaseInputTest` (37), `usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest` (13), `command/isSpam/IsSpamCommandTest` (7), `command/isJailbreak/IsJailbreakCommandTest` (7), `command/resolveIntent/ResolveMessageIntentCommandTest` (14), `command/help/BuildHelpTextCommandTest` (1), `domain/decision/DecisionAnalysisTest` (4 — листовые исключения валидации), `domain/decision/MessageTextNormalizerTest` (5), `adapter/output/decision/DecisionModelOutputAdapterTest` (28 — ответы и ошибки decision-модели) |
+| `processor` | `usecase/message/messageReceived/MessageReceivedUsecaseInputTest` (37), `usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest` (13), `command/isSpam/IsSpamCommandTest` (7), `command/isJailbreak/IsJailbreakCommandTest` (7), `command/resolveIntent/ResolveMessageIntentCommandTest` (14), `command/help/BuildHelpTextCommandTest` (1), `domain/decision/DecisionAnalysisTest` (4 — листовые исключения валидации), `domain/decision/MessageTextNormalizerTest` (5), `adapter/output/decision/DecisionModelOutputAdapterTest` (52 — ответы и ошибки decision-модели, рубрика взлома и порог) |
 | `vk-facade` | `VkProfileInProcessAdapterTest` (2), `VkGetUserProfilesBatchAdapterTest` (3 — полный набор полей, снимок без фото, ошибка VK), `SendGreetingMessageInProcessAdapterTest` (1), `VkSendMessageOutputAdapterTest` (2), `PublishEventCommandImplTest` (1), `SendVkMessageCommandImplTest` (1), `MessageSendUsecaseTest` (1), `PlainMessageSendUsecaseTest` (2 — плоская отправка), `RandomIdTest` (5 — детерминированный `random_id`), `SummaryReadyEventProcessorTest` (1) |
 | `greetings` | `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (8), `usecase/RunDailyGreetingsUsecaseTest` (8), `adapter/input/schedule/DailyGreetingRunnerTest` (4) |
 | `share` | `MessageTextTest`, `ConversationMessageIdTest` |
@@ -276,7 +277,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 Этого достаточно и для Long Poll: `groups.getLongPollServer` идёт в `/method`, а `a_check` — на `server` из
 ответа заглушки, то есть на тот же базовый URL WireMock.
 Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
-возврате HTTP-контура между модулями (ADR 0004).
+возврате HTTP-контура между модулями (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest).
 
 ## Архитектурные тесты
 
@@ -302,14 +303,14 @@ REST-триггера нет. Покрыты: дни рождения в гру�
   `coverageMin = 0.40`, `measuredLineCoverage = 0.5687` (`build.gradle.kts:19-20`).
 - Порог включён в `check` → `build` (`build.gradle.kts:131-134`) и в CI-джоб `coverage`.
 - Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), следующий целевой
-  порог 0.60 — отдельная задача с новыми тестами (ADR 0005). Покрытие меряется по бизнес-коду, а не по glue.
+  порог 0.60 — отдельная задача с новыми тестами (ADR 2026-10-28-quality-gates-and-ci). Покрытие меряется по бизнес-коду, а не по glue.
 - Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.56,
   but expected minimum is 0.99`, exit 1.
 
 ## Ограничения
 
 - `@QuarkusTest` в `app` требует Docker (DevServices); в окружении без Docker эти тесты не пройдут.
-- `@QuarkusTest` в `:src:ai` не запускается (нет плагина `io.quarkus`, ADR 0002), поэтому проводка `ai`
+- `@QuarkusTest` в `:src:ai` не запускается (нет плагина `io.quarkus`, ADR 2026-10-28-single-deployable-app-module), поэтому проводка `ai`
   проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
   plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`

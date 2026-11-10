@@ -19,7 +19,7 @@
 ## In-process Adapter (вместо loopback-REST)
 
 - **Проблема:** синхронный вызов между модулями одного деплоя не должен платить за HTTP-раундтрип, дубль
-  контракта и сетевые таймауты ([ADR 0004](../adr/0004-in-process-ports-instead-of-loopback-rest.md)).
+  контракта и сетевые таймауты ([ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md)).
 - **Где:** `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (адаптеры всех
   `share`-портов persistence: сообщения, саммари, профили, позиция Long Poll, чаты и claim поздравлений) и
   `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` (2 адаптера). Потребители видят только
@@ -126,7 +126,7 @@
   с коллекцией.
 - **Где:** jOOQ-репозитории `persistence/adapter/output/persistence/jooq/Jooq{Message,Summary,VkUserProfile,VkGroupProfile}Repository.kt`
   и порты-адаптеры `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
-  таблицы — `jooq/Tables.kt:6-72` (ручные константы, кодогенерация выключена).
+  таблицы — `jooq/Tables.kt:6-82` (ручные константы, кодогенерация выключена).
 - **Сила:** Dependency Inversion — бизнес-слой видит порт, а не DSLContext; замена хранилища — новый адаптер.
 
 ## Singleton / Dependency Injection (Quarkus CDI)
@@ -142,11 +142,11 @@
 |---|---|
 | Event Sourcing / CQRS | События не сохраняются, event store отсутствует; чтение и запись — одни и те же модели |
 | Circuit Breaker | Расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` (`application.yml:193-198`) никем не читается |
-| Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 0007; выбор модели — конфиг, а не рантайм-стратегия |
+| Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 2026-11-05-llm-provider-vllm-openai; выбор модели — конфиг, а не рантайм-стратегия |
 | Chain of Responsibility | Валидация не выстроена в цепочку; правила решения — один `when` в `IsRequireAnswerCommand.kt:22-33` |
 | Observer / fan-out | Один процессор на событие; множество подписчиков не поддерживается картой диспетчера |
 | Saga / Outbox | Согласованность между БД и RabbitMQ не гарантируется; сообщение сохраняется и публикуется в одном use case без outbox (`SaveMessageUsecase.kt:28-51`) |
-| Отдельный сервис/брокер на модуль | Нет требования независимого деплоя; см. ADR 0002/0003 |
+| Отдельный сервис/брокер на модуль | Нет требования независимого деплоя; см. ADR 2026-10-28-single-deployable-app-module, ADR 2026-10-28-module-boundaries-and-layer-rules |
 
 ## Как выбирать паттерн здесь
 
@@ -154,4 +154,4 @@
 - Новая зависимость на внешний мир = новый `port/output` + адаптер, не прямой вызов из use case.
 - Новое сквозное поведение = CDI-декоратор, не правка каждого use case.
 - Новая фича = use case + команды в существующем модуле; новый модуль — только если у него свой владелец
-  данных и он входит в allowlist (ADR 0003).
+  данных и он входит в allowlist (ADR 2026-10-28-module-boundaries-and-layer-rules).
