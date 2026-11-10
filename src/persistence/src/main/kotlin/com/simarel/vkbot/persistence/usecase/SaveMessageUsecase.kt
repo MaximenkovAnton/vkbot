@@ -8,6 +8,7 @@ import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortRequest
 import com.simarel.vkbot.persistence.port.input.SaveMessageInputPortResponse
 import com.simarel.vkbot.persistence.port.output.ForwardedMessagesSerializationPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveMessagePort
+import com.simarel.vkbot.persistence.port.output.persistence.UpdateUserStatisticsPort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
@@ -24,12 +25,14 @@ open class SaveMessageUsecase(
     private val forwardedMessagesSerializationPort: ForwardedMessagesSerializationPort,
     private val publishEventCommand: PublishEventCommand,
     private val fetchUserProfileCommand: FetchUserProfileCommand,
+    private val updateUserStatisticsPort: UpdateUserStatisticsPort,
 ) : SaveMessageInputPort {
     @Transactional
     override fun execute(request: SaveMessageInputPortRequest): SaveMessageInputPortResponse {
         val message = request.message
         fetchUserProfileCommand.execute(FetchUserProfileRequest(message))
         saveMessage(message)
+        updateStatistics(message)
         publishEventCommand.execute(
             PublishEventRequest(
                 event = Event.MESSAGE_RECEIVED,
@@ -48,6 +51,18 @@ open class SaveMessageUsecase(
             ),
         )
         return SaveMessageInputPortResponse
+    }
+
+    private fun updateStatistics(message: Message) {
+        val text = message.messageText.value
+        updateUserStatisticsPort.execute(
+            UpdateUserStatisticsPort.Request(
+                userId = message.fromId.value,
+                peerId = message.peerId.value,
+                date = message.date.value,
+                messageTextLength = text.codePointCount(0, text.length),
+            ),
+        )
     }
 
     private fun saveMessage(message: Message) {

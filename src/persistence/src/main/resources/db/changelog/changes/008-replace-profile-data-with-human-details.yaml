@@ -1,0 +1,30 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-profile-details
+      author: vk-bot
+      changes:
+        - addColumn:
+            tableName: vk_user_profiles
+            columns:
+              - column:
+                  name: profile_details
+                  type: JSONB
+                  constraints:
+                    nullable: true
+  - changeSet:
+      id: 008-clear-profile-history
+      author: vk-bot
+      changes:
+        - sql:
+            sql: SET LOCAL lock_timeout = '10s'
+        - delete:
+            tableName: vk_user_profile_history
+  - changeSet:
+      id: 008-drop-profile-data
+      author: vk-bot
+      changes:
+        - sql:
+            sql: SET LOCAL lock_timeout = '10s'
+        - dropColumn:
+            tableName: vk_user_profiles
+            columnName: profile_data

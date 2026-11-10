@@ -3,6 +3,10 @@
 - **Статус:** accepted
 - **Дата:** 2026-11-10
 - **Supersedes:** —
+- **Amended by:** ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики
+  автора вместо расчёта из `messages` (три таблицы, upsert в транзакции сообщения, backfill-скрипт);
+  ADR 2026-11-10-vk-profile-human-details — человеческие поля профиля VK (`profile_details` вместо
+  `profile_data`, `USER_FIELDS` 35, typed + человеческий diff); остальные пункты ниже остаются в силе.
 
 ## Контекст
 

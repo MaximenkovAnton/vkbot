@@ -20,3 +20,9 @@ databaseChangeLog:
   - include:
       file: changes/007-add-user-profile-data-and-history.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/008-replace-profile-data-with-human-details.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/009-create-user-statistics-tables.yaml
+      relativeToChangelogFile: true

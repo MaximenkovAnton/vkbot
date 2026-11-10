@@ -67,7 +67,7 @@ class FetchUserProfileCommandImplTest {
     }
 
     @Test
-    fun `stale user profile updates changed fields and keeps the old ones when vk has no data`() {
+    fun `stale user profile replaces provided details and keeps the stored ones`() {
         val fromId = FakeVoProvider.createFromId(USER_ID)
         val stored = FakeModelProvider.createVkUserProfile(
             id = USER_ID,
@@ -77,6 +77,7 @@ class FetchUserProfileCommandImplTest {
             birthDate = "01.01.1990",
             city = "Moscow",
             lastUpdated = OffsetDateTime.now().minusMonths(2),
+            details = mapOf("about" to "old about", "career" to listOf(mapOf("company" to "Acme"))),
         )
         val fetched = FakeModelProvider.createVkUserProfile(
             id = USER_ID,
@@ -85,6 +86,7 @@ class FetchUserProfileCommandImplTest {
             screenName = null,
             birthDate = null,
             city = null,
+            details = mapOf("career" to emptyList<Any?>()),
         )
         val saveUsers = FakeSaveUserProfilePort()
 
@@ -101,13 +103,19 @@ class FetchUserProfileCommandImplTest {
         assertEquals("old_login", saved.screenName)
         assertEquals("01.01.1990", saved.birthDate)
         assertEquals("Moscow", saved.city)
+        assertEquals("old about", saved.details["about"])
+        assertEquals(emptyList<Any?>(), saved.details["career"])
         assertFalse(saved.lastUpdated.isBefore(before))
     }
 
     @Test
-    fun `missing user profile is fetched and saved with the actualization date`() {
+    fun `missing user profile is saved without history`() {
         val fromId = FakeVoProvider.createFromId(USER_ID)
-        val fetched = FakeModelProvider.createVkUserProfile(id = USER_ID, firstName = "New")
+        val fetched = FakeModelProvider.createVkUserProfile(
+            id = USER_ID,
+            firstName = "New",
+            details = mapOf("about" to "about me"),
+        )
         val saveUsers = FakeSaveUserProfilePort()
 
         val before = OffsetDateTime.now()
@@ -118,7 +126,9 @@ class FetchUserProfileCommandImplTest {
 
         val saved = saveUsers.savedProfiles.single()
         assertEquals("New", saved.firstName)
+        assertEquals("about me", saved.details["about"])
         assertFalse(saved.lastUpdated.isBefore(before))
+        assertNull(saveUsers.requests.single().changes)
     }
 
     @Test
@@ -158,18 +168,12 @@ class FetchUserProfileCommandImplTest {
             id = USER_ID,
             city = "Moscow",
             lastUpdated = OffsetDateTime.now().minusMonths(2),
-            profileData = mapOf(
-                "first_name" to "Ivan",
-                "city" to mapOf("id" to 1, "title" to "Moscow"),
-            ),
+            details = mapOf("about" to "about me"),
         )
         val fetched = FakeModelProvider.createVkUserProfile(
             id = USER_ID,
             city = "Minsk",
-            profileData = mapOf(
-                "first_name" to "Ivan",
-                "city" to mapOf("id" to 2, "title" to "Minsk"),
-            ),
+            details = mapOf("about" to "about me"),
         )
         val saveUsers = FakeSaveUserProfilePort()
 
@@ -181,20 +185,19 @@ class FetchUserProfileCommandImplTest {
 
         val changes = saveUsers.requests.single().changes
         assertEquals(setOf("city"), changes?.keys)
-        assertEquals(mapOf("id" to 1, "title" to "Moscow"), changes?.getValue("city")?.get("old"))
-        assertEquals(mapOf("id" to 2, "title" to "Minsk"), changes?.getValue("city")?.get("new"))
+        assertEquals(mapOf("old" to "Moscow", "new" to "Minsk"), changes?.getValue("city"))
     }
 
     @Test
     fun `actualization without changes does not write profile history`() {
         val fromId = FakeVoProvider.createFromId(USER_ID)
-        val profileData = mapOf<String, Any?>("first_name" to "Ivan")
+        val details = mapOf<String, Any?>("about" to "about me")
         val stored = FakeModelProvider.createVkUserProfile(
             id = USER_ID,
             lastUpdated = OffsetDateTime.now().minusMonths(2),
-            profileData = profileData,
+            details = details,
         )
-        val fetched = FakeModelProvider.createVkUserProfile(id = USER_ID, profileData = profileData)
+        val fetched = FakeModelProvider.createVkUserProfile(id = USER_ID, details = details)
         val saveUsers = FakeSaveUserProfilePort()
 
         command(

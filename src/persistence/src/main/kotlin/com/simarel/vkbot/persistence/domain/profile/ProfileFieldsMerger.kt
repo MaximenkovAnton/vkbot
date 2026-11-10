@@ -3,11 +3,11 @@ package com.simarel.vkbot.persistence.domain.profile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import java.math.BigDecimal
 
-object ProfileDataMerger {
+object ProfileFieldsMerger {
 
-    fun merge(stored: Map<String, Any?>, fetched: Map<String, Any?>): Map<String, Any?> {
-        val merged = LinkedHashMap<String, Any?>(stored)
-        fetched.forEach { (name, value) ->
+    fun merge(storedDetails: Map<String, Any?>, fetchedDetails: Map<String, Any?>): Map<String, Any?> {
+        val merged = LinkedHashMap<String, Any?>(storedDetails)
+        fetchedDetails.forEach { (name, value) ->
             if (value != null) {
                 merged[name] = value
             }
@@ -16,13 +16,14 @@ object ProfileDataMerger {
     }
 
     fun diff(previous: VkUserProfile, current: VkUserProfile): Map<String, Map<String, Any?>> {
-        if (previous.profileData.isEmpty()) {
-            return typedDiff(previous, current)
+        val changes = LinkedHashMap(typedDiff(previous, current))
+        if (previous.details.isNotEmpty()) {
+            changes.putAll(detailsDiff(previous.details, current.details))
         }
-        return dataDiff(previous.profileData, current.profileData)
+        return changes
     }
 
-    private fun dataDiff(
+    private fun detailsDiff(
         previous: Map<String, Any?>,
         current: Map<String, Any?>,
     ): Map<String, Map<String, Any?>> {
@@ -69,6 +70,6 @@ object ProfileDataMerger {
     private const val FIRST_NAME = "first_name"
     private const val LAST_NAME = "last_name"
     private const val SCREEN_NAME = "screen_name"
-    private const val BIRTH_DATE = "bdate"
+    private const val BIRTH_DATE = "birth_date"
     private const val CITY = "city"
 }

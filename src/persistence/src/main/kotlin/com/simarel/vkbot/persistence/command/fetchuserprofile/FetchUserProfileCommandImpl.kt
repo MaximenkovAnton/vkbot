@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.command.fetchuserprofile
 
-import com.simarel.vkbot.persistence.domain.profile.ProfileDataMerger
+import com.simarel.vkbot.persistence.domain.profile.ProfileFieldsMerger
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveGroupProfilePort
@@ -81,7 +81,7 @@ open class FetchUserProfileCommandImpl(
             response.profiles.forEach { fetched ->
                 val existing = existingProfiles[fetched.id]
                 val merged = mergeUserProfile(existing, fetched, actualizedAt)
-                val changes = existing?.let { ProfileDataMerger.diff(it, merged) }?.takeIf { it.isNotEmpty() }
+                val changes = existing?.let { ProfileFieldsMerger.diff(it, merged) }?.takeIf { it.isNotEmpty() }
                 saveUserProfilePort.execute(SaveUserProfilePort.SaveUserProfileRequest(merged, changes))
                 logger.log(System.Logger.Level.DEBUG, "Actualized user profile for id: ${merged.id.value}")
             }
@@ -126,14 +126,14 @@ open class FetchUserProfileCommandImpl(
         birthDate = fetched.birthDate ?: existing?.birthDate,
         city = fetched.city ?: existing?.city,
         lastUpdated = actualizedAt,
-        profileData = mergeProfileData(existing, fetched),
+        details = mergeDetails(existing, fetched),
     )
 
-    private fun mergeProfileData(existing: VkUserProfile?, fetched: VkUserProfile): Map<String, Any?> {
+    private fun mergeDetails(existing: VkUserProfile?, fetched: VkUserProfile): Map<String, Any?> {
         if (existing == null) {
-            return fetched.profileData
+            return fetched.details
         }
-        return ProfileDataMerger.merge(existing.profileData, fetched.profileData)
+        return ProfileFieldsMerger.merge(existing.details, fetched.details)
     }
 
     private fun mergeGroupProfile(

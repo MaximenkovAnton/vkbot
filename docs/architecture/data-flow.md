@@ -78,15 +78,22 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
    `VkProfileInProcessAdapter` → VK API `users.get`/`groups.getById`), сливает с сохранёнными (значение из
-   VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`; разницу снимков
-   (`ProfileDataMerger.diff`) пишет в `vk_user_profile_history` (JSONB `{field: {old, new}}`, только
-   изменившиеся поля). Полный ответ VK без фото лежит в `vk_user_profiles.profile_data`
-   ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md)).
+   VK перекрывает старое, `null` оставляет старое) и сохраняет с новым `last_updated`; разницу typed-полей
+   и `details` (`ProfileFieldsMerger.diff`) пишет в `vk_user_profile_history` (JSONB `{field: {old, new}}`,
+   только изменившиеся ключи, значения человеческие). Человеческие значения полей VK без id и фото лежат
+   в `vk_user_profiles.profile_details`
+   ([ADR 2026-11-10-vk-profile-human-details](../adr/2026-11-10-vk-profile-human-details.md)).
    Ошибка получения профилей не валит сохранение: логируется WARNING.
 2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
    с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
-3. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
-4. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
+3. `UpdateUserStatisticsPort` → `UpdateUserStatisticsAdapter` (`@Transactional`) →
+   `JooqUserStatisticsWriterRepository`: в той же транзакции, что и сообщение, три upsert'а в
+   фиксированном порядке — `user_statistics` (итоги: `message_count + 1`, `total_length` + длина в
+   code points, `first_message_at = LEAST`, `last_message_at = GREATEST`, `updated_at = now()`),
+   `user_chat_statistics` (автор×чат) и `user_hour_statistics` (UTC-бакет `(utc_date, utc_hour)` из
+   `date.withOffsetSameInstant(UTC)`). Сбой статистики откатывает и вставку сообщения.
+4. Публикует `MESSAGE_RECEIVED` с тем же `Message`.
+5. Публикует `SUMMARY_REQUESTED` с `SummaryRequestedPayload(peerId, conversationMessageId)`.
 
 ### Чтение истории профиля и статистики автора
 
@@ -95,10 +102,23 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 `JooqVkUserProfileRepository.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
 
 `GET /persistence/statistics/users/{id}` (`PersistenceDataController.kt:148-153`) →
-`PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `JooqUserStatisticsRepository`:
-`count`, `sum(length(message_text))`, `min/max(date)`, разбивка по `peer_id` и гистограммы
-`extract(hour|isodow from date at time zone {statistics.timezone})` по `messages.from_id`. Агрегаты не
-хранятся — единственный источник истины `messages`, двойной записи нет.
+`PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `JooqUserStatisticsRepository`
+читает только материализованные агрегаты: итоги из `user_statistics` (`message_count`, `total_length`,
+`min/max`), разбивку по чатам из `user_chat_statistics` и гистограммы из `user_hour_statistics`,
+конвертируя UTC-бакет в зону на чтении
+(`(utc_date + utc_hour * interval '1 hour') AT TIME ZONE 'UTC' AT TIME ZONE {statistics.timezone}`).
+При отсутствии строк агрегатов отдаются нули и пустые списки; формат REST не меняется. Источник истины
+для статистики — агрегаты, а не `messages`: после материализации удаление строк журнала ответ не меняет.
+
+Накопленные `messages` переигрываются в агрегаты вручную скриптом
+`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` — это отдельный ops-артефакт,
+не миграция и не рантайм-бин. Транзакцией владеет вызывающий (в файле нет `BEGIN`/`COMMIT`; запуск —
+`psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f backfill-user-statistics.sql`), поэтому
+ошибка любой строки откатывает всё. Скрипт требует остановленного писателя, берёт
+`SET LOCAL lock_timeout = '2s'` и `LOCK TABLE user_statistics, user_chat_statistics, user_hour_statistics
+IN ACCESS EXCLUSIVE MODE`, пересобирает агрегаты (`DELETE` + три `INSERT ... SELECT` из `messages`) и
+выполняет `ANALYZE` трёх таблиц; повторный запуск идемпотентен
+([ADR 2026-11-10-user-statistics-materialization](../adr/2026-11-10-user-statistics-materialization.md)).
 
 ## 4. Спам- и jailbreak-проверки, решение «нужен ли ответ» и маршрутизация интентов (processor)
 

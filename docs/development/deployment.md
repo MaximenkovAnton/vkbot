@@ -187,14 +187,38 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 - Схема принадлежит `:src:persistence`; master-чейнджлог
   `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml` включает changesets
   `001-create-messages-table`, `002-create-user-profiles-table`, `003-create-group-profiles-table`,
-  `004-create-summaries-table`, `005-create-long-poll-position-table`, `006-create-greeting-log-table`.
+  `004-create-summaries-table`, `005-create-long-poll-position-table`, `006-create-greeting-log-table`,
+  `007-add-user-profile-data-and-history`, `008-replace-profile-data-with-human-details`,
+  `009-create-user-statistics-tables`.
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
   `application.yml`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
-- Правило: **применённый changeset не редактируется**; следующий номер — `007`.
+- Правило: **применённый changeset не редактируется**; следующий номер — 010.
 - Rollback-команд Liquibase в проекте нет: откат приложения — предыдущий образ, схема обязана быть
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
+- **Исключение — changeset `008-replace-profile-data-with-human-details`.** Он удаляет колонку
+  `vk_user_profiles.profile_data` (и очищает старую историю), а предыдущий образ её читает и пишет
+  (`JooqVkUserProfileRepository.kt:41-63`) и падает на `findByIds`/`persist`
+  (`FetchUserProfileCommandImpl.kt:36`). Поэтому 008 применяется только вместе с новым образом; откат
+  образа после 008 — только с восстановлением БД из бэкапа до 008, иначе сохранение сообщений ломается.
+- **Backfill статистики — ручной ops-шаг, не миграция.** Changeset 009 создаёт только пустые таблицы;
+  накопленные `messages` переносятся скриптом `backfill-user-statistics.sql`
+  (`src/persistence/src/main/resources/db/backfill/`). Скрипт не владеет транзакцией и требует
+  остановленного писателя, поэтому порядок такой: **остановить приложение** (единственный писатель
+  агрегатов; при живой аппликации транзакции сохранения сообщений встают на upsert'ах до конца
+  пересборки) → из каталога скрипта выполнить
+  `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f backfill-user-statistics.sql` →
+  проверить `sum(message_count)` в `user_statistics` (и суммы по чатам/часам) против `count(*)` в
+  `messages` → запустить приложение. Скрипт берёт `LOCK TABLE user_statistics, user_chat_statistics,
+  user_hour_statistics IN ACCESS EXCLUSIVE MODE` с `SET LOCAL lock_timeout = '2s'`: при чужом писателе
+  (или втором запуске) он падает fail fast примерно за 2 секунды, не меняя строк, а сбой в середине
+  откатывает весь файл. Повторный запуск идемпотентен (`DELETE` + пересборка в одной транзакции); после
+  пересборки скрипт выполняет `ANALYZE` на трёх таблицах, отдельная команда не нужна.
+- **Окно дрейфа.** Между откатом на предыдущий образ (он пишет `messages`, но не агрегаты) и возвратом
+  новой версии агрегаты расходятся с журналом: сообщения окна в статистику не попадут. Это named gap;
+  согласованность восстанавливает тот же ручной пересчёт `backfill-user-statistics.sql` (остановка
+  писателя + `--single-transaction` + `ON_ERROR_STOP`); автоматического заполнения нет.
 - Порядок деплоя: сначала применить совместимую миграцию (новый образ при старте), затем переключить
-  трафик; при откате — вернуть предыдущий образ (схема остаётся). Для decision-клиента данных и миграций
+  трафик; при откате — вернуть предыдущий образ. Для decision-клиента данных и миграций
   нет: откат — предыдущий образ; `DECISION_URL` остаётся в деплое, её читает и предыдущий образ
   (`${DECISION_URL}` без дефолта, `application.yml:89`); повторная раскатка — тем же порядком
   «env → образ».
