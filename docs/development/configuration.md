@@ -37,6 +37,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/OcrAiService.kt:13` |
 | `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}` | system-сообщение сервиса поздравлений | `ai/adapter/output/ai/greeting/GreetingAiService.kt` |
 | `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение сервиса сводки «что нового»; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/news/NewsDigestAiService.kt` |
+| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение сервиса досье об участнике чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env, новых обязательных env нет | `ai/adapter/output/ai/profile/ProfileAiService.kt` |
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке (у саммаризации) и лимит свежих сообщений сводки «что нового» | `ai/command/summary/ProcessSummaryCommandImpl.kt:22,108-125`; `ai/command/news/ProcessNewsDigestCommandImpl.kt` |
@@ -239,7 +240,7 @@ downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` о
 `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`; опциональные — `AI_API_KEY` (дефолт
 `dummy`), `VK_BOT_MENTION`, `VK_LONGPOLL_ENABLED` (дефолт `true`),
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`,
-`NEWS_DIGEST_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт
+`NEWS_DIGEST_SYSTEM_PROMPT`, `AI_PROFILE_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт
 `0 0 0 * * ?`; `off`/`disabled` выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
 `VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 2026-11-05-bots-long-poll-transport).
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

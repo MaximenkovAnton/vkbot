@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.port.output.persistence
 
-import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.port.output.OutputPort
 import com.simarel.vkbot.share.port.output.OutputPortRequest
 import com.simarel.vkbot.share.port.output.OutputPortResponse

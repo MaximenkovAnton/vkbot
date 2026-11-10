@@ -1,10 +1,14 @@
 package com.simarel.vkbot.persistence.testfixtures
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.share.domain.model.ChatAuthor
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import java.util.UUID
 
 object PersistenceDataResponseProvider {
@@ -54,4 +58,16 @@ object PersistenceDataResponseProvider {
     fun createClaimedResponse(
         claimed: Boolean = true,
     ) = PersistenceDataResponse.Claimed(claimed = claimed)
+
+    fun createChatAuthorsResponse(
+        authors: List<ChatAuthor> = emptyList(),
+    ) = PersistenceDataResponse.ChatAuthors(authors = authors)
+
+    fun createStatisticsResponse(
+        statistics: UserStatistics = FakeModelProvider.createUserStatistics(),
+    ) = PersistenceDataResponse.Statistics(statistics = statistics)
+
+    fun createProfileHistoryResponse(
+        entries: List<ProfileHistoryEntry> = emptyList(),
+    ) = PersistenceDataResponse.ProfileHistory(entries = entries)
 }

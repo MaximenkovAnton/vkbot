@@ -13,7 +13,8 @@
   прежними; перед обновлением пишет старые значения изменившихся typed-полей и `details` в
   `vk_user_profile_history` (JSONB-diff); сохраняет сообщение вместе с
   пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
-- по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили; ведёт
+- по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили и авторов
+  чата по `peer_id` с числом сообщений (порядок `from_id asc`); ведёт
   записи саммари по lifecycle (`PENDING` → `COMPLETED`/`FAILED`);
 - при сохранении завершённого саммари публикует `SUMMARY_READY`;
 - при сохранении сообщения материализует статистику автора в той же транзакции: три upsert'а в
@@ -39,11 +40,11 @@
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
 | `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-154` |
 | контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:24-97` |
-| 18 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления и трёх read-only чтений сводки «что нового» | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
-| реализация 20 операций (включая три чтения сводки «что нового» — последнее сообщение автора, сообщения диапазона дат, саммари периода — а также историю профиля и статистику автора) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
+| 21 in-process адаптер `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`) и истории профиля (`FindStoredUserProfileHistoryPort`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
+| реализация 21 операции (включая три чтения сводки «что нового» — последнее сообщение автора, сообщения диапазона дат, саммари периода — а также авторов чата, историю профиля и статистику автора) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
-| запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:75-149` |
-| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-82`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-130`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
+| запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:78-154` |
+| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-82`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-149`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
 | история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:17-124` |
 | материализация статистики при сохранении сообщения: порт, адаптер и jOOQ-writer | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsWriterRepository.kt` |
 | changeset 009 и ручной backfill-скрипт | `src/persistence/src/main/resources/db/changelog/changes/009-create-user-statistics-tables.yaml`, `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` |
@@ -98,6 +99,8 @@
   `greeting_log` — шаги 1 и 3 этого пути.
 - `journey-news-digest`: чтение саммари периода и свежих сообщений через три in-process порта — шаг
   `chat-news-digest`.
+- `journey-profile`: чтение авторов чата, материализованной статистики и истории профиля через три
+  read-only in-process порта — шаг `profile-dossier`.
 
 ## Общие данные и контракты
 
@@ -107,7 +110,9 @@
 | читающая модель `StoredMessage` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt`) | `ai-answer`, `conversation-summary`, `chat-news-digest` | `message-storage` |
 | таблица `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary`, `daily-greetings` (профили по дате рождения) | `message-storage` — схема, jOOQ, Liquibase |
 | таблица `summaries` и статусы | `conversation-summary` (создаёт pending, завершает, помечает failed); `chat-news-digest` читает только `COMPLETED` | `message-storage` — схема, jOOQ, Liquibase |
-| `PersistenceDataInputPort` | REST-контроллер и 18 in-process адаптеров | `message-storage` |
+| `PersistenceDataInputPort` | REST-контроллер и 21 in-process адаптер | `message-storage` |
+| читающие модели `UserStatistics`, `ProfileHistoryEntry`, `ChatAuthor` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/`) | `profile-dossier` читает статистику, историю профиля и авторов чата | `message-storage` |
+| read-порты `FindChatAuthorsPort` (авторы чата по `peer_id`, порядок `from_id asc`), `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | `profile-dossier` — авторы чата, материализованная статистика и последние записи истории профиля | `message-storage` |
 | таблица `greeting_log` и семантика claim | `daily-greetings` (вызывает `ClaimDailyGreetingPort`) | `message-storage` — схема, jOOQ, Liquibase |
 | `vk_user_profiles.birth_date` | `daily-greetings` читает через `FindUserProfilesByBirthDatePort`; заполняет `vk-profiles` | `message-storage` — схема |
 | события `MESSAGE_RECEIVED`, `SUMMARY_REQUESTED`, `SUMMARY_READY` | `answer-decision`/`ai-answer` (`MESSAGE_RECEIVED`), `conversation-summary` (`SUMMARY_REQUESTED`, `SUMMARY_READY`) | `message-storage` — единственный публикатор этих трёх |
@@ -174,6 +179,12 @@
   полный откат транзакции вызывающего). Test:
   `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/backfill/BackfillScriptContractTest.kt`,
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserStatisticsMaterializationIntegrationTest.kt`.
+- **AC-message-storage-10** — КОГДА in-process порт `FindChatAuthorsPort` получает `peerId`, СИСТЕМА
+  ДОЛЖНА вернуть ровно одного `ChatAuthor` на каждый различный `from_id` сохранённых сообщений этого
+  чата с числом сообщений, в порядке `from_id asc`, без авторов из других чатов; для чата без
+  сохранённых сообщений — пустой список. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileDataPortsIntegrationTest.kt`,
+  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt`.
 
 ## Пробелы приёмки
 

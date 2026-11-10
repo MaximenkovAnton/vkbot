@@ -14,6 +14,7 @@ aiSumarizationSystemprompt: ${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. C
 aiOcrSystemPrompt: ${OCR_SYSTEM_PROMPT:Describe every image in detail and extract all visible text.}
 aiGreetingSystemprompt: ${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}
 aiNewsDigestSystemprompt: ${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}
+aiProfileSystemprompt: ${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}
 greetings:
   cron: "${GREETINGS_CRON:0 0 0 * * ?}"
   timezone: "${GREETINGS_TIMEZONE:Europe/Minsk}"

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkUserProfileHistory
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.VkUserProfiles
 import com.simarel.vkbot.persistence.domain.BirthDateMatcher
-import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped

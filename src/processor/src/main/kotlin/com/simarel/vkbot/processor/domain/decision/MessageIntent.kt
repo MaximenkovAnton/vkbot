@@ -4,4 +4,5 @@ enum class MessageIntent {
     HELP,
     NEWS,
     GENERAL,
+    PROFILE,
 }

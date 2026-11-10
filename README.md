@@ -13,6 +13,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
 - Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
+- The `profile` intent (a decision-model intent, not a slash command): "what do you know about ...", "about me" — the bot resolves the target deterministically (a mention id/club/public, a forwarded message, "обо мне"/"про меня", or a name among the participants of this chat), answers with one LLM dossier built from the stored VK profile (typed fields and human details), materialized statistics (including per-chat activity), the last 20 profile-history entries and the target's message count in this chat, and asks for clarification with at most 10 candidates without an LLM call; nothing is written to the database
 - Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 2026-10-28-in-process-ports-instead-of-loopback-rest)
 - OpenTelemetry traces/metrics/logs
@@ -44,7 +45,7 @@ src/
 ├── receiver/               # VK Bots Long Poll entry point (DMZ)
 ├── persistence/            # PostgreSQL storage, REST query API, in-process persistence ports
 ├── processor/              # "does this message need an AI answer?"
-├── ai/                     # AI answer, summarization, OCR command, Vane tools
+├── ai/                     # AI answer, summarization, profile dossier, OCR command, Vane tools
 ├── vk-facade/              # VK API output, profile endpoints, in-process vk ports
 ├── greetings/              # cron-scheduled greeting run: holidays, birthdays, orchestration, span
 ├── infrastructure/         # RabbitMQ dispatcher, retry/DLQ, logging decorators
@@ -89,7 +90,7 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD` | in prod | PostgreSQL connection |
 | `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
 | `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
-| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
+| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT`, `AI_PROFILE_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
 | `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 | `GREETINGS_CRON` | no | Cron of the greeting run (default `0 0 0 * * ?`, i.e. 00:00 in `GREETINGS_TIMEZONE`); `off`/`disabled` disables the schedule |
@@ -158,6 +159,9 @@ VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles
             → otherwise, after requiredAnswer, by intent:
               → help: ANSWER_MESSAGE (fixed help text) → vk-facade → VK API
               → news: NEWS_DIGEST_REQUESTED → ai (period from the text → stored summaries/messages → LLM digest)
+                → ANSWER_MESSAGE → vk-facade → VK API
+              → profile: PROFILE_REQUESTED → ai (deterministic target → stored profile/statistics/history
+                + live VK profile when missing → LLM dossier)
                 → ANSWER_MESSAGE → vk-facade → VK API
               → general: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
 ```

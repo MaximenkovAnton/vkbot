@@ -1,9 +1,10 @@
 package com.simarel.vkbot.persistence.port.input
 
-import com.simarel.vkbot.persistence.domain.profile.ProfileHistoryEntry
-import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
+import com.simarel.vkbot.share.domain.model.ChatAuthor
+import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.port.input.InputPortRequest
@@ -70,6 +71,8 @@ interface PersistenceDataInputPort {
     fun findUserStatistics(
         request: PersistenceDataRequest.FindUserStatistics,
     ): PersistenceDataResponse.Statistics
+
+    fun findChatAuthors(request: PersistenceDataRequest.FindChatAuthors): PersistenceDataResponse.ChatAuthors
 }
 
 sealed interface PersistenceDataRequest : InputPortRequest {
@@ -129,6 +132,7 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class ClaimDailyGreeting(val date: LocalDate, val peerId: Long) : PersistenceDataRequest
     data class FindUserProfileHistory(val profileId: Long, val limit: Int, val offset: Int) : PersistenceDataRequest
     data class FindUserStatistics(val userId: Long) : PersistenceDataRequest
+    data class FindChatAuthors(val peerId: Long) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -146,4 +150,5 @@ sealed interface PersistenceDataResponse : InputPortResponse {
     data class Claimed(val claimed: Boolean) : PersistenceDataResponse
     data class ProfileHistory(val entries: List<ProfileHistoryEntry>) : PersistenceDataResponse
     data class Statistics(val statistics: UserStatistics) : PersistenceDataResponse
+    data class ChatAuthors(val authors: List<ChatAuthor>) : PersistenceDataResponse
 }

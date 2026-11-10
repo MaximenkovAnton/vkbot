@@ -362,6 +362,30 @@ class MessageReceivedUsecaseInputTest {
         assertTrue(publishCommand.executeCalls.none { it.event == Event.NEWS_DIGEST_REQUESTED })
     }
 
+    @Test
+    fun `execute routes profile to exactly one PROFILE_REQUESTED`() {
+        val publishCommand = FakePublishEventCommand()
+        val analyzePort = FakeAnalyzeMessageOutputPort().apply {
+            response = analysis(0.0, MessageIntent.PROFILE)
+        }
+        val usecase = createUsecase(publishCommand, analyzePort, requiresAnswer = true)
+        val request = FakeMessageNewInputPortProvider.createRequest(
+            incomingMessage(peerId = FakeVoProvider.createPeerId(PRIVATE_CHAT_PEER_ID)),
+        )
+
+        val result = usecase.execute(request)
+
+        assertEquals("ok", result.value)
+        assertEquals(1, analyzePort.executeCalls.size)
+        assertEquals(1, publishCommand.executeCalls.size)
+        val published = publishCommand.executeCalls.single()
+        assertEquals(Event.PROFILE_REQUESTED, published.event)
+        assertSame(request.message, published.payload.value)
+        assertTrue(publishCommand.executeCalls.none { it.event == Event.MESSAGE_REQUIRE_ANSWER })
+        assertTrue(publishCommand.executeCalls.none { it.event == Event.ANSWER_MESSAGE })
+        assertTrue(publishCommand.executeCalls.none { it.event == Event.NEWS_DIGEST_REQUESTED })
+    }
+
     @ParameterizedTest
     @CsvSource("private", "spam")
     fun `execute routes news to exactly one NEWS_DIGEST_REQUESTED`(analysisSource: String) {
@@ -505,7 +529,7 @@ class MessageReceivedUsecaseInputTest {
     }
 
     @ParameterizedTest
-    @CsvSource("HELP", "NEWS")
+    @CsvSource("HELP", "NEWS", "PROFILE")
     fun `execute does not route a ready analysis when no answer is required`(intent: MessageIntent) {
         val publishCommand = FakePublishEventCommand()
         val analyzePort = FakeAnalyzeMessageOutputPort().apply {
@@ -513,8 +537,9 @@ class MessageReceivedUsecaseInputTest {
         }
         val usecase = createUsecase(publishCommand, analyzePort, requiresAnswer = false)
 
-        usecase.execute(FakeMessageNewInputPortProvider.createRequest(incomingMessage()))
+        val result = usecase.execute(FakeMessageNewInputPortProvider.createRequest(incomingMessage()))
 
+        assertEquals("ok", result.value)
         assertEquals(1, analyzePort.executeCalls.size)
         assertEquals(0, publishCommand.executeCalls.size)
     }

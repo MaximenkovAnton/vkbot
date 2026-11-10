@@ -2,11 +2,14 @@ package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.Messages
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
+import com.simarel.vkbot.share.domain.model.ChatAuthor
+import com.simarel.vkbot.share.domain.vo.FromId
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
 import org.jooq.JSONB
 import org.jooq.Record
+import org.jooq.impl.DSL
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -123,6 +126,22 @@ open class JooqMessageRepository {
         .fetch()
         .map { it.get(Messages.PEER_ID, Long::class.java) }
         .toSet()
+
+    open fun findAuthorsByPeerId(peerIdValue: Long): List<ChatAuthor> {
+        val authorCount = DSL.count()
+        return dsl.select(Messages.FROM_ID, authorCount)
+            .from(Messages.TABLE)
+            .where(Messages.PEER_ID.eq(peerIdValue))
+            .groupBy(Messages.FROM_ID)
+            .orderBy(Messages.FROM_ID.asc())
+            .fetch()
+            .map { record ->
+                ChatAuthor(
+                    fromId = FromId.of(record.get(Messages.FROM_ID, Long::class.java)),
+                    messageCount = record.get(authorCount, Int::class.java).toLong(),
+                )
+            }
+    }
 
     companion object {
         private const val GROUP_CHAT_PEER_ID_START = 2_000_000_000L

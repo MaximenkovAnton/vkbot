@@ -11,9 +11,11 @@
 оно уходит по retry-лестнице `retry-5s` → `retry-30s` → `retry-1m` → `retry-15m` → `retry-1h` → `dlq-final`
 (без TTL, ручной разбор), счётчик — заголовок `x-retry-count`.
 
-Событий ровно семь — закрытый `enum class Event`: `MESSAGE_NEW`, `MESSAGE_RECEIVED`,
+Событий ровно восемь — закрытый `enum class Event`: `MESSAGE_NEW`, `MESSAGE_RECEIVED`,
 `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `SUMMARY_REQUESTED`, `SUMMARY_READY`,
-`NEWS_DIGEST_REQUESTED`.
+`NEWS_DIGEST_REQUESTED`, `PROFILE_REQUESTED`. У всех восьми имён есть `EventProcessor`;
+`PROFILE_REQUESTED` потребляет `ProfileRequestedEventProcessor` в `ai` (ветка `profile` возможности
+`profile-dossier`).
 
 ## Точки входа
 
@@ -24,7 +26,7 @@
 | конфигурация уровней retry из `dlq.levels[]` | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/DlqConfig.kt:6-16` |
 | публикация: JSON payload + routing key = имя события | `src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` |
 | реализация `PublishEventCommand` для всех модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/publishEvent/PublishEventCommandImpl.kt:11-21` |
-| контракты: событие, процессор, порт публикации, команда | `src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt:3-11`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/EventProcessor.kt:5-8`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/PublishEventOutputPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/command/publishEvent/PublishEventCommand.kt:9-13` |
+| контракты: событие, процессор, порт публикации, команда | `src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt:3-12`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/EventProcessor.kt:5-8`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/PublishEventOutputPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/command/publishEvent/PublishEventCommand.kt:9-13` |
 
 Конфигурация: `dlq.levels[]` в `src/app/src/main/resources/application-queues.yml`, `mp.messaging.*` в
 `src/app/src/main/resources/application.yml`.
@@ -36,16 +38,16 @@
 
 ## Journey
 
-Транспорт всех путей с событиями: `journey-answer`, `journey-summary` и `journey-news-digest` проходят
-через него на каждом шаге. Отдельного пользовательского шага не образует.
+Транспорт всех путей с событиями: `journey-answer`, `journey-summary`, `journey-news-digest` и
+`journey-profile` проходят через него на каждом шаге. Отдельного пользовательского шага не образует.
 
 ## Общие данные и контракты
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| `Event` (каталог из семи имён и routing key) | все producer/consumer возможностей | `event-dispatch` |
-| `EventProcessor` | `MessageNewEventProcessor`, `MessageReceivedEventProcessor`, `MessageRequireAnswerEventProcessor`, `SummaryRequestedEventProcessor`, `SendMessageEventProcessor`, `SummaryReadyEventProcessor`, `NewsDigestRequestedEventProcessor` | `event-dispatch` |
-| `PublishEventOutputPort` | `vk-long-poll`, `message-storage`, `answer-decision`, `ai-answer`, `chat-news-digest`, `conversation-summary` | `event-dispatch` |
+| `Event` (каталог из восьми имён и routing key) | все producer/consumer возможностей | `event-dispatch` |
+| `EventProcessor` | `MessageNewEventProcessor`, `MessageReceivedEventProcessor`, `MessageRequireAnswerEventProcessor`, `SummaryRequestedEventProcessor`, `SendMessageEventProcessor`, `SummaryReadyEventProcessor`, `NewsDigestRequestedEventProcessor`, `ProfileRequestedEventProcessor` | `event-dispatch` |
+| `PublishEventOutputPort` | `vk-long-poll`, `message-storage`, `answer-decision`, `ai-answer`, `chat-news-digest`, `profile-dossier`, `conversation-summary` | `event-dispatch` |
 | `PublishEventCommand` и его реализация | все публикующие возможности | `event-dispatch` |
 | payload каждого события | producer соответствующего события (см. `message-storage`, `ai-answer`, `vk-message-send`, `conversation-summary`) | producer события |
 

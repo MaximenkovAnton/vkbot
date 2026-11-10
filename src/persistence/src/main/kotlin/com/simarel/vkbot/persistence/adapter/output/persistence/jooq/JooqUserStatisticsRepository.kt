@@ -3,10 +3,10 @@ package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.UserChatStatisticsTable
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.UserHourStatisticsTable
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.UserStatisticsTable
-import com.simarel.vkbot.persistence.domain.statistics.ChatStatistics
-import com.simarel.vkbot.persistence.domain.statistics.DayOfWeekActivity
-import com.simarel.vkbot.persistence.domain.statistics.HourActivity
-import com.simarel.vkbot.persistence.domain.statistics.UserStatistics
+import com.simarel.vkbot.share.domain.model.ChatStatistics
+import com.simarel.vkbot.share.domain.model.DayOfWeekActivity
+import com.simarel.vkbot.share.domain.model.HourActivity
+import com.simarel.vkbot.share.domain.model.UserStatistics
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext

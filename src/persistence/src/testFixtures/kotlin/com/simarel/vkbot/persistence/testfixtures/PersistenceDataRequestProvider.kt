@@ -121,4 +121,22 @@ object PersistenceDataRequestProvider {
         date: LocalDate = LocalDate.parse("2026-09-13"),
         peerId: Long = 2_000_000_001,
     ) = PersistenceDataRequest.ClaimDailyGreeting(date = date, peerId = peerId)
+
+    fun createFindChatAuthorsRequest(
+        peerId: Long = 2_000_000_001,
+    ) = PersistenceDataRequest.FindChatAuthors(peerId = peerId)
+
+    fun createFindUserStatisticsRequest(
+        userId: Long = 1,
+    ) = PersistenceDataRequest.FindUserStatistics(userId = userId)
+
+    fun createFindUserProfileHistoryRequest(
+        profileId: Long = 1,
+        limit: Int = 10,
+        offset: Int = 0,
+    ) = PersistenceDataRequest.FindUserProfileHistory(
+        profileId = profileId,
+        limit = limit,
+        offset = offset,
+    )
 }

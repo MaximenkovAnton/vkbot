@@ -14,8 +14,8 @@
 взлома ИИ и тоже останавливает обработку. Если ни одна ветка не сработала — работают правила
 `requiredAnswer`: если ответ не нужен, поток на этом шаге заканчивается; если нужен — итоговый интент
 выбирает ровно одно событие: `help` → `ANSWER_MESSAGE` со справкой, `news` → `NEWS_DIGEST_REQUESTED`,
-`general` → `MESSAGE_REQUIRE_ANSWER` с тем же доменным `Message`. Ветку `help` подробно описывает
-`bot-help.md`, ветку `news` — `chat-news-digest.md`.
+`profile` → `PROFILE_REQUESTED`, `general` → `MESSAGE_REQUIRE_ANSWER` с тем же доменным `Message`. Ветку `help` подробно описывает
+`bot-help.md`, ветку `news` — `chat-news-digest.md`, ветку `profile` — `profile-dossier.md`.
 
 Спам-правило:
 
@@ -64,13 +64,14 @@ Kill-switch'и останавливают вызов decision-модели и PI
 сформулированы в тексте вопроса, классифицирует модель. Детект анализирует только
 `message.messageText`: `forwardedMessages` и вложения не проверяются.
 
-Третий вопрос decision-модели (`intent` = `help`/`news`/`general`) вычисляется в том же вызове и попадает
+Третий вопрос decision-модели (`intent` = `help`/`news`/`profile`/`general`) вычисляется в том же вызове и попадает
 в `DecisionAnalysis.intent`. После `requiredAnswer=true` маршрутизация по итоговому интенту:
 
 | Интент | Событие | Дальше |
 |---|---|---|
 | `HELP` | ровно один `ANSWER_MESSAGE` со справкой (`responseTo = Message`) | `vk-message-send`; `ai-answer` пропущен |
 | `NEWS` | ровно один `NEWS_DIGEST_REQUESTED` с доменным `Message` | `chat-news-digest` — сводка «что нового» |
+| `PROFILE` | ровно один `PROFILE_REQUESTED` с доменным `Message` | `profile-dossier` — досье из сохранённого профиля VK, статистики и истории |
 | `GENERAL` | ровно один `MESSAGE_REQUIRE_ANSWER` с доменным `Message` | `ai-answer` |
 
 Точные `/help` и `/помощь` (trim, без учёта регистра, без аргументов) распознаются детерминированно на
@@ -97,11 +98,11 @@ fail-open), интент-этап делает ровно один ленивы�
 | Точка входа | Где в коде |
 |---|---|
 | `MESSAGE_RECEIVED` из `all-events-queue` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22` |
-| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:31-142` |
+| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:32-145` |
 | правило порога спама | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt:9-23` |
 | правило порога jailbreak | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt:9-23` |
 | decision-порт | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt:9-13` |
-| клиент decision-модели: четыре вопроса, пустой вход, ошибки, маппинг | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:56-152` |
+| клиент decision-модели: четыре вопроса, пустой вход, ошибки, маппинг | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:56-162` |
 | домен: `jailbreakProbability` и валидация `[0,1]` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt:7-43` |
 | правила решения | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33` |
 | справка: текст и подстановка `vk.bot.mention` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36` |
@@ -129,7 +130,8 @@ decision-этап. WARNING при отказе содержит только `pe
 
 `journey-answer`, шаг 3: между сохранением и генерацией ответа. Спам-ветка, jailbreak-ветка и ветка
 `HELP` идут из шага 3 сразу в шаг 5 (`vk-message-send`), минуя `ai-answer`. `NEWS` публикует событие и
-уходит в `journey-news-digest` (шаг `chat-news-digest`). В `journey-summary` не участвует.
+уходит в `journey-news-digest` (шаг `chat-news-digest`), `PROFILE` — в `journey-profile` (шаг
+`profile-dossier`). В `journey-summary` не участвует.
 
 ## Общие данные и контракты
 
@@ -139,6 +141,7 @@ decision-этап. WARNING при отказе содержит только `pe
 | `DecisionAnalysis` (включая `jailbreakProbability`), `MessageClass`, `MessageIntent`, контракт четырёх вопросов | тесты `processor` и `src/app`, внешний System One | `processor` (decision-клиент, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-decision-jailbreak-detection) |
 | событие `MESSAGE_REQUIRE_ANSWER` | `ai-answer` (consumer); producer — `answer-decision` (ветка `general`) | `answer-decision` |
 | событие `NEWS_DIGEST_REQUESTED` | consumer — `chat-news-digest` (сводка «что нового») | producer и payload — `answer-decision`; имя и routing key — `event-dispatch` |
+| событие `PROFILE_REQUESTED` | consumer — `profile-dossier` (досье об участнике чата) | producer и payload — `answer-decision` (ветка `profile`); имя и routing key — `event-dispatch` |
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | `vk-message-send` (consumer); producers — `ai-answer` и `answer-decision` (спам, jailbreak и справка) | `ai-answer` (контракт/payload не меняется) |
 | событие `MESSAGE_RECEIVED` | producer — `message-storage` | `message-storage` |
 | `PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
@@ -158,6 +161,7 @@ decision-этап. WARNING при отказе содержит только `pe
   вопрос `intent`; инвариант «не более одного вызова» читается по попытке; маршрутизация интентов
   доставлена этой возможностью.
 - ADR 2026-11-10-news-digest — сводка «что нового» — consumer ветки `NEWS` (`NEWS_DIGEST_REQUESTED`).
+- ADR 2026-11-10-profile-dossier — досье об участнике чата — consumer ветки `PROFILE` (`PROFILE_REQUESTED`): детерминированный резолв адресата, досье из сохранённых данных, LLM пишет только текст.
 - ADR 2026-11-10-decision-jailbreak-detection — четвёртый вопрос `jailbreak` (попытка взлома ИИ), отдельный порог и kill-switch, приоритет
   спама, fail-open; `Amends` ADR 2026-11-09-decision-runtime-spam-policy в пунктах «Kill-switch» и «Третий вопрос `intent`» (kill-switch'и
   гасят только decision-этап; интент-вызов после `requiredAnswer=true` не гасится).
@@ -277,6 +281,13 @@ decision-этап. WARNING при отказе содержит только `pe
   `docs/capabilities/index.md`; `./scripts/check-capabilities.sh` ДОЛЖЕН завершиться с exit 0. Test:
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`
   (в блоках AC — существующие тест-пути); команда `./scripts/check-capabilities.sh`.
+- **AC-answer-decision-19** — КОГДА `requiredAnswer=true` и итоговый интент `profile`, СИСТЕМА ДОЛЖНА
+  опубликовать ровно один `PROFILE_REQUESTED` с исходным доменным `Message` и не публиковать
+  `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `NEWS_DIGEST_REQUESTED`; КОГДА `requiredAnswer=false`,
+  `PROFILE_REQUESTED` не публикуется. Test:
+  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  (`execute routes profile to exactly one PROFILE_REQUESTED`,
+  `execute does not route a ready analysis when no answer is required`).
 
 ## Пробелы приёмки
 

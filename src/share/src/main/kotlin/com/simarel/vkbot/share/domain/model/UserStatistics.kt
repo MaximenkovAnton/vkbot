@@ -1,4 +1,4 @@
-package com.simarel.vkbot.persistence.domain.statistics
+package com.simarel.vkbot.share.domain.model
 
 import java.time.OffsetDateTime
 

@@ -75,6 +75,7 @@ open class MessageReceivedUsecaseInput(
         when (resolveIntent(message, analysis)) {
             MessageIntent.HELP -> publishHelp(message)
             MessageIntent.NEWS -> publish(message, Event.NEWS_DIGEST_REQUESTED)
+            MessageIntent.PROFILE -> publish(message, Event.PROFILE_REQUESTED)
             MessageIntent.GENERAL -> publish(message, Event.MESSAGE_REQUIRE_ANSWER)
         }
         return okResponse
