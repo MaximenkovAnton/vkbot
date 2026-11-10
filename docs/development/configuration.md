@@ -116,7 +116,9 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
 | `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
 | `decision.spam-threshold` | `${DECISION_SPAM_THRESHOLD:0.9}` | порог спама: `spamProbability >= threshold` даёт спам-уведомление; читает `IsSpamCommandImpl` |
-| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-этапа: `false` выключает вызов decision-модели спам-этапа и спам-ответ; интент-вызов после `requiredAnswer=true` не гаснет и отправляет нормализованный текст в System One (PII, ADR 0010/0012); читает `MessageReceivedUsecaseInput` |
+| `decision.spam-reply.enabled` | `${DECISION_SPAM_REPLY_ENABLED:true}` | kill-switch спам-ветки decision-этапа: `false` гасит только спам-уведомление; вызов decision-модели и PII-egress спам/jailbreak-этапа останавливают только оба ключа `false`. Интент-вызов после `requiredAnswer=true` не гаснет и отправляет нормализованный текст в System One (PII, ADR 0010/0012); читает `MessageReceivedUsecaseInput` |
+| `decision.jailbreak-threshold` | `${DECISION_JAILBREAK_THRESHOLD:0.9}` | порог попытки взлома ИИ: `jailbreakProbability >= threshold` даёт jailbreak-уведомление; читает `IsJailbreakCommandImpl` |
+| `decision.jailbreak-reply.enabled` | `${DECISION_JAILBREAK_REPLY_ENABLED:true}` | kill-switch jailbreak-ветки decision-этапа: `false` гасит только jailbreak-уведомление; читает `MessageReceivedUsecaseInput` |
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 0007). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
@@ -128,16 +130,21 @@ production-конфиге `quarkus.langchain4j.*` заданы логирова�
 (`base-url` = `baseUrl()/v1`).
 
 Decision-модель ([ADR 0010](../adr/0010-decision-model-langchain4j.md),
-[ADR 0012](../adr/0012-decision-runtime-spam-policy.md)) — второй LangChain4j-провайдер:
+[ADR 0012](../adr/0012-decision-runtime-spam-policy.md),
+[ADR 0014](../adr/0014-decision-jailbreak-detection.md)) — второй LangChain4j-провайдер:
 `decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
 `model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен. Клиент вызывается
-из runtime в `MessageReceivedUsecaseInput` в два этапа. Спам-этап: для сообщения человека в групповом
-чате при `decision.spam-reply.enabled = true` — три вопроса (`spam`, `class`, `intent`), при
-`spamProbability >= decision.spam-threshold` бот отвечает обычным сообщением-уведомлением. Интент-этап:
-после `requiredAnswer=true`, если анализа ещё нет (личный чат, `decision.spam-reply.enabled = false`),
-— ровно один вызов с теми же тремя вопросами (после fail-open спам-этапа — ровно одна дополнительная
-попытка, всего два вызова); нормализованный текст уходит в System One, kill-switch его не гасит.
-Недоступность
+из runtime в `MessageReceivedUsecaseInput` в два этапа. Decision-этап: для сообщения человека в групповом
+чате при включённой хотя бы одной ветке (`decision.spam-reply.enabled` или
+`decision.jailbreak-reply.enabled`) — четыре вопроса (`spam`, `class`, `intent`, `jailbreak`) одним
+`POST /v1/systemone`; при `spamProbability >= decision.spam-threshold` бот отвечает спам-уведомлением,
+иначе при `jailbreakProbability >= decision.jailbreak-threshold` — уведомлением о попытке взлома ИИ; оба
+уведомления останавливают обработку, приоритет у спама. Kill-switch гасит ветку реакции, а не вопрос:
+decision-этап вызывается при включённой хотя бы одной ветке и останавливается только когда оба ключа
+`false`. Интент-этап: после `requiredAnswer=true`, если анализа ещё нет (личный чат, обе ветки `false`),
+— ровно один вызов с теми же четырьмя вопросами (после fail-open decision-этапа — ровно одна
+дополнительная попытка, всего два вызова); нормализованный текст уходит в System One,
+спам/jailbreak-kill-switch'и его не гасят. Недоступность
 decision-сервера в runtime даёт fail-open: WARNING без текста сообщения и без throwable (только `peerId`
 и класс исключения), сообщение обрабатывается как раньше, исключение в брокер не уходит.
 Провайдерские ключи `quarkus.langchain4j.ollama.log-requests/log-responses` **не добавлены**.

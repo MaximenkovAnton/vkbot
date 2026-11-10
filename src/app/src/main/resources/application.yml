@@ -26,6 +26,9 @@ decision:
   spam-threshold: ${DECISION_SPAM_THRESHOLD:0.9}
   spam-reply:
     enabled: ${DECISION_SPAM_REPLY_ENABLED:true}
+  jailbreak-threshold: ${DECISION_JAILBREAK_THRESHOLD:0.9}
+  jailbreak-reply:
+    enabled: ${DECISION_JAILBREAK_REPLY_ENABLED:true}
 quarkus:
   config:
     locations: application-queues.yml

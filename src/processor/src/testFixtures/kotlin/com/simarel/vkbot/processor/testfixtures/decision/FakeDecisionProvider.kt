@@ -31,12 +31,14 @@ object FakeDecisionProvider {
             MessageClass.HAM to 0.032,
         ),
         spamProbability: Double = 0.908,
+        jailbreakProbability: Double = 0.0,
         intent: MessageIntent = MessageIntent.GENERAL,
     ): DecisionAnalysis = DecisionAnalysis(
         messageClass = messageClass,
         classConfidence = classConfidence,
         classProbabilities = classProbabilities,
         spamProbability = spamProbability,
+        jailbreakProbability = jailbreakProbability,
         intent = intent,
     )
 }

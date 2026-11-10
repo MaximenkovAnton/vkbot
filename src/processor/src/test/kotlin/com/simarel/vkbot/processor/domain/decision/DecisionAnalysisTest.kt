@@ -1,6 +1,7 @@
 package com.simarel.vkbot.processor.domain.decision
 
 import com.simarel.vkbot.processor.testfixtures.decision.FakeDecisionProvider
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -11,6 +12,15 @@ class DecisionAnalysisTest {
         assertThrows(DecisionAnalysisSpamProbabilityValidationException::class.java) {
             FakeDecisionProvider.createAnalysis(spamProbability = 1.5)
         }
+    }
+
+    @Test
+    fun `DecisionAnalysis rejects a jailbreak probability outside the unit interval`() {
+        val exception = assertThrows(DecisionAnalysisJailbreakProbabilityValidationException::class.java) {
+            FakeDecisionProvider.createAnalysis(jailbreakProbability = 1.5)
+        }
+
+        assertEquals("jailbreakProbability must be in [0, 1], but was 1.5", exception.message)
     }
 
     @Test

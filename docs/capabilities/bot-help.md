@@ -74,7 +74,7 @@
 - ADR 0003 — команда и use case без фреймворка, вход только через `port.input`.
 - ADR 0004 — шаг в событийном потоке, публикация через `PublishEventCommand`.
 - ADR 0010 — decision-клиент и PII decision-логов (INFO/OTLP).
-- ADR 0012 — источник интента — decision-модель, kill-switch гасит только спам-этап.
+- ADR 0012 — источник интента — decision-модель, спам/jailbreak-kill-switch'и гасят только decision-этап.
 
 ## Acceptance criteria
 

@@ -80,7 +80,9 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `VANE_URL` | yes | Base URL of the Vane search API |
 | `DECISION_URL` | yes | Root of the System One decision server (no `/v1`, no `/v1/systemone`) |
 | `DECISION_SPAM_THRESHOLD` | no | Spam probability threshold for the notice (default `0.9`) |
-| `DECISION_SPAM_REPLY_ENABLED` | no | Spam-reply kill-switch; `false` disables the decision call and the spam notice (default `true`) |
+| `DECISION_SPAM_REPLY_ENABLED` | no | Spam-reply kill-switch for the decision stage; `false` disables only the spam notice (default `true`). The intent-stage decision call after `requiredAnswer` is not governed by it |
+| `DECISION_JAILBREAK_THRESHOLD` | no | Prompt-injection-attempt probability threshold for the jailbreak notice (default `0.9`) |
+| `DECISION_JAILBREAK_REPLY_ENABLED` | no | Jailbreak-reply kill-switch for the decision stage; `false` disables only the jailbreak notice (default `true`). With both decision-stage kill-switches `false` the model is not called for the spam/jailbreak stage |
 | `AI_BASE_URL` | yes | Root of the OpenAI-compatible LLM API, including `/v1` |
 | `AI_CHAT_MODEL` | yes | Chat model name; one model serves answers, summaries, OCR, greetings and the "what's new" digest |
 | `AI_API_KEY` | no | LLM API key (default `dummy`; needed only when the server enables authorization) |
@@ -147,8 +149,12 @@ runs independently of HTTP health probes. See `docs/development/deployment.md`.
 ```
 VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles)
             → MESSAGE_RECEIVED → processor
-            → processor: human in a group chat, decision spamProbability ≥ DECISION_SPAM_THRESHOLD
-              → ANSWER_MESSAGE (spam notice) → vk-facade → VK API
+            → processor: human in a group chat, at least one decision-stage kill-switch on
+              → one decision call with four questions (spam, class, intent, jailbreak)
+              → spamProbability ≥ DECISION_SPAM_THRESHOLD
+                → ANSWER_MESSAGE (spam notice) → vk-facade → VK API
+              → otherwise jailbreakProbability ≥ DECISION_JAILBREAK_THRESHOLD
+                → ANSWER_MESSAGE (prompt-injection attempt notice) → vk-facade → VK API
             → otherwise, after requiredAnswer, by intent:
               → help: ANSWER_MESSAGE (fixed help text) → vk-facade → VK API
               → news: NEWS_DIGEST_REQUESTED → ai (period from the text → stored summaries/messages → LLM digest)
@@ -156,8 +162,14 @@ VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles
               → general: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
 ```
 
-The processor computes the message intent (`help`/`news`/`general`) as a third decision-model
-question and routes it after `requiredAnswer`; exact `/help` and `/помощь` (no arguments) are recognised
+The decision stage (spam and jailbreak) runs for a human in a group chat when at least one of its two
+kill-switches is on; a kill-switch turns off the corresponding reaction, not the question, so the model
+gets all four questions and the stage call stops only when both are `false`. The spam branch wins when both
+thresholds are exceeded. The detector analyses only the author's `messageText`; forwarded content and
+attachments are not checked (the forward block added by `vk-facade` is a delivery feature, not detection).
+The processor computes the message intent (`help`/`news`/`general`) as the third decision-model question
+and routes it after `requiredAnswer`; the intent-stage call (lazy, when the stage did not run) is not
+governed by the spam/jailbreak kill-switches. Exact `/help` and `/помощь` (no arguments) are recognised
 deterministically, without an extra model call. The `news` branch is served by the `chat-news-digest`
 capability (`docs/capabilities/chat-news-digest.md`): it reads stored summaries and messages through
 in-process ports and never writes to `summaries`, so `SUMMARY_REQUESTED`/`SUMMARY_READY` are not involved.
