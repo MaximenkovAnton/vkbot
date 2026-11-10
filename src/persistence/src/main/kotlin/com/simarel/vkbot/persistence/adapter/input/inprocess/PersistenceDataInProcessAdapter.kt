@@ -7,11 +7,14 @@ import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindGroupChatPeerIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindLastStoredMessageByAuthorPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBeforePort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenDatesPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredSummariesInPeriodPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDatePort
@@ -203,6 +206,61 @@ class FindGroupChatPeerIdsInProcessAdapter(
         val response = persistenceDataInputPort.findGroupChatPeerIds(PersistenceDataRequest.FindGroupChatPeerIds)
         val peerIds = response.peerIds.map { PeerId.of(it) }.toSet()
         return FindGroupChatPeerIdsPort.Response(peerIds)
+    }
+}
+
+@ApplicationScoped
+class FindLastStoredMessageByAuthorInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindLastStoredMessageByAuthorPort {
+    override fun execute(
+        request: FindLastStoredMessageByAuthorPort.Request,
+    ): FindLastStoredMessageByAuthorPort.Response {
+        val response = persistenceDataInputPort.findLastMessageByAuthor(
+            PersistenceDataRequest.FindLastMessageByAuthor(
+                request.peerId,
+                request.fromId,
+                request.beforeConversationMessageId,
+            ),
+        )
+        return FindLastStoredMessageByAuthorPort.Response(response.message)
+    }
+}
+
+@ApplicationScoped
+class FindStoredMessagesBetweenDatesInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindStoredMessagesBetweenDatesPort {
+    override fun execute(
+        request: FindStoredMessagesBetweenDatesPort.Request,
+    ): FindStoredMessagesBetweenDatesPort.Response {
+        val response = persistenceDataInputPort.findMessagesBetweenDates(
+            PersistenceDataRequest.FindMessagesBetweenDates(
+                request.peerId,
+                request.from,
+                request.to,
+                request.limit,
+            ),
+        )
+        return FindStoredMessagesBetweenDatesPort.Response(response.messages)
+    }
+}
+
+@ApplicationScoped
+class FindStoredSummariesInPeriodInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : FindStoredSummariesInPeriodPort {
+    override fun execute(
+        request: FindStoredSummariesInPeriodPort.Request,
+    ): FindStoredSummariesInPeriodPort.Response {
+        val response = persistenceDataInputPort.findSummariesInPeriod(
+            PersistenceDataRequest.FindSummariesInPeriod(
+                request.peerId,
+                request.from,
+                request.to,
+            ),
+        )
+        return FindStoredSummariesInPeriodPort.Response(response.summaries)
     }
 }
 

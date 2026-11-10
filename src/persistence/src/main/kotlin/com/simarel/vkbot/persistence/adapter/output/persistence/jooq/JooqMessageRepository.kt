@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
 import org.jooq.JSONB
+import org.jooq.Record
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -51,18 +52,62 @@ open class JooqMessageRepository {
             .fetch()
             .reversed()
 
-        return records.map { record ->
-            MessageEntity().apply {
-                id = record.get(Messages.ID, UUID::class.java)
-                date = record.get(Messages.DATE, OffsetDateTime::class.java)
-                fromId = record.get(Messages.FROM_ID, Long::class.java)
-                groupId = record.get(Messages.GROUP_ID, Long::class.java)
-                peerId = record.get(Messages.PEER_ID, Long::class.java)
-                conversationMessageId = record.get(Messages.CONVERSATION_MESSAGE_ID, Long::class.java)
-                messageText = record.get(Messages.MESSAGE_TEXT, String::class.java)
-                forwardedMessages = record.get(Messages.FORWARDED_MESSAGES, String::class.java)
-            }
+        return records.map { it.toMessageEntity() }
+    }
+
+    open fun findMessagesBetweenDates(
+        peerIdValue: Long,
+        from: OffsetDateTime,
+        to: OffsetDateTime,
+        limit: Int,
+    ): List<MessageEntity> {
+        if (limit <= 0) {
+            return emptyList()
         }
+        val records = dsl.select()
+            .from(Messages.TABLE)
+            .where(Messages.PEER_ID.eq(peerIdValue))
+            .and(
+                Messages.DATE.between(
+                    Timestamp.from(from.toInstant()),
+                    Timestamp.from(to.toInstant()),
+                ),
+            )
+            .orderBy(Messages.CONVERSATION_MESSAGE_ID.desc())
+            .limit(limit)
+            .fetch()
+            .reversed()
+
+        return records.map { it.toMessageEntity() }
+    }
+
+    open fun findLastByAuthor(
+        peerIdValue: Long,
+        fromIdValue: Long,
+        beforeConversationMessageIdValue: Long,
+    ): MessageEntity? {
+        val record = dsl.select()
+            .from(Messages.TABLE)
+            .where(Messages.PEER_ID.eq(peerIdValue))
+            .and(Messages.FROM_ID.eq(fromIdValue))
+            .and(Messages.CONVERSATION_MESSAGE_ID.lessThan(beforeConversationMessageIdValue))
+            .orderBy(Messages.CONVERSATION_MESSAGE_ID.desc())
+            .limit(1)
+            .fetchOne()
+            ?: return null
+
+        return record.toMessageEntity()
+    }
+
+    private fun Record.toMessageEntity(): MessageEntity = MessageEntity().apply {
+        id = get(Messages.ID, UUID::class.java)
+        date = get(Messages.DATE, OffsetDateTime::class.java)
+        fromId = get(Messages.FROM_ID, Long::class.java)
+        groupId = get(Messages.GROUP_ID, Long::class.java)
+        peerId = get(Messages.PEER_ID, Long::class.java)
+        conversationMessageId = get(Messages.CONVERSATION_MESSAGE_ID, Long::class.java)
+        messageText = get(Messages.MESSAGE_TEXT, String::class.java)
+        forwardedMessages = get(Messages.FORWARDED_MESSAGES, String::class.java)
     }
 
     open fun findPeerIdsByFromId(fromId: Long): Set<Long> = dsl.selectDistinct(Messages.PEER_ID)

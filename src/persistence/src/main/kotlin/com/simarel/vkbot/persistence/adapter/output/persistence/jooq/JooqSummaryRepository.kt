@@ -7,6 +7,8 @@ import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.inject.Inject
 import org.jooq.DSLContext
+import org.jooq.impl.DSL
+import org.jooq.impl.SQLDataType
 import java.sql.Timestamp
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -133,6 +135,61 @@ open class JooqSummaryRepository {
                 conversationMessageId = record.get(MessagesTable.CONVERSATION_MESSAGE_ID, Long::class.java)
                 messageText = record.get(MessagesTable.MESSAGE_TEXT, String::class.java)
                 forwardedMessages = record.get(MessagesTable.FORWARDED_MESSAGES, String::class.java)
+            }
+        }
+    }
+
+    open fun findByPeriod(peerIdValue: Long, from: OffsetDateTime, to: OffsetDateTime): List<SummaryEntity> {
+        val fromTimestamp = Timestamp.from(from.toInstant())
+        val toTimestamp = Timestamp.from(to.toInstant())
+        val minWindowMessageId = DSL.min(MessagesTable.CONVERSATION_MESSAGE_ID)
+        val maxWindowMessageId = DSL.max(MessagesTable.CONVERSATION_MESSAGE_ID)
+        val windowRange = dsl.select(minWindowMessageId, maxWindowMessageId)
+            .from(MessagesTable.TABLE)
+            .where(MessagesTable.PEER_ID.eq(peerIdValue))
+            .and(MessagesTable.DATE.between(fromTimestamp, toTimestamp))
+            .fetchOne()
+            ?: return emptyList()
+        val firstWindowMessageId = windowRange.get(minWindowMessageId) ?: return emptyList()
+        val lastWindowMessageId = windowRange.get(maxWindowMessageId) ?: return emptyList()
+
+        val messagesAlias = DSL.table("messages").`as`("m")
+        val messagePeerId = DSL.field("m.peer_id", SQLDataType.BIGINT)
+        val messageConversationMessageId = DSL.field("m.conversation_message_id", SQLDataType.BIGINT)
+        val messageDate = DSL.field("m.date")
+        val summaryPeerId = DSL.field("summaries.peer_id", SQLDataType.BIGINT)
+        val summaryFirstMessageId = DSL.field("summaries.first_message_id", SQLDataType.BIGINT)
+        val summaryLastMessageId = DSL.field("summaries.last_message_id", SQLDataType.BIGINT)
+
+        val records = dsl.select()
+            .from(Summaries.TABLE)
+            .where(Summaries.PEER_ID.eq(peerIdValue))
+            .and(Summaries.STATUS.eq(SummaryStatus.COMPLETED.name))
+            .and(Summaries.FIRST_MESSAGE_ID.le(lastWindowMessageId))
+            .and(Summaries.LAST_MESSAGE_ID.ge(firstWindowMessageId))
+            .and(
+                DSL.exists(
+                    dsl.selectOne()
+                        .from(messagesAlias)
+                        .where(messagePeerId.eq(summaryPeerId))
+                        .and(messageConversationMessageId.between(summaryFirstMessageId, summaryLastMessageId))
+                        .and(messageDate.between(fromTimestamp, toTimestamp)),
+                ),
+            )
+            .orderBy(Summaries.CREATED_AT.asc())
+            .fetch()
+
+        return records.map { record ->
+            SummaryEntity().apply {
+                id = record.get(Summaries.ID, UUID::class.java)
+                peerId = record.get(Summaries.PEER_ID, Long::class.java)
+                firstMessageId = record.get(Summaries.FIRST_MESSAGE_ID, Long::class.java)
+                lastMessageId = record.get(Summaries.LAST_MESSAGE_ID, Long::class.java)
+                fullSummary = record.get(Summaries.FULL_SUMMARY, String::class.java)
+                shortSummary = record.get(Summaries.SHORT_SUMMARY, String::class.java)
+                status = record.get(Summaries.STATUS, String::class.java)?.let { SummaryStatus.valueOf(it) }
+                createdAt = record.get(Summaries.CREATED_AT, OffsetDateTime::class.java)
+                updatedAt = record.get(Summaries.UPDATED_AT, OffsetDateTime::class.java)
             }
         }
     }

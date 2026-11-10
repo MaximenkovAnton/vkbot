@@ -2,7 +2,11 @@ package com.simarel.vkbot.persistence.testfixtures
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
+
+private val FIXED_FROM: OffsetDateTime = OffsetDateTime.parse("2026-11-01T00:00:00Z")
+private val FIXED_TO: OffsetDateTime = OffsetDateTime.parse("2026-11-07T23:59:59.999999999Z")
 
 object PersistenceDataRequestProvider {
 
@@ -26,6 +30,38 @@ object PersistenceDataRequestProvider {
         firstMessageId = firstMessageId,
         lastMessageId = lastMessageId,
         limit = limit,
+    )
+
+    fun createFindLastMessageByAuthorRequest(
+        peerId: Long = 1,
+        fromId: Long = 2,
+        beforeConversationMessageId: Long = 3,
+    ) = PersistenceDataRequest.FindLastMessageByAuthor(
+        peerId = peerId,
+        fromId = fromId,
+        beforeConversationMessageId = beforeConversationMessageId,
+    )
+
+    fun createFindMessagesBetweenDatesRequest(
+        peerId: Long = 1,
+        from: OffsetDateTime = FIXED_FROM,
+        to: OffsetDateTime = FIXED_TO,
+        limit: Int = 4,
+    ) = PersistenceDataRequest.FindMessagesBetweenDates(
+        peerId = peerId,
+        from = from,
+        to = to,
+        limit = limit,
+    )
+
+    fun createFindSummariesInPeriodRequest(
+        peerId: Long = 1,
+        from: OffsetDateTime = FIXED_FROM,
+        to: OffsetDateTime = FIXED_TO,
+    ) = PersistenceDataRequest.FindSummariesInPeriod(
+        peerId = peerId,
+        from = from,
+        to = to,
     )
 
     fun createFindLastSummaryRequest(peerId: Long = 1) = PersistenceDataRequest.FindLastSummary(peerId = peerId)

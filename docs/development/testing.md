@@ -24,13 +24,14 @@
 модуле, где совпадений нет (`No tests found for given includes` в `:src:app`), поэтому одиночный тест
 запускается в своём модуле.
 
-Проверено на дереве с иерархией исключений (ADR 0011): `./gradlew build` →
-`BUILD SUCCESSFUL in 2m 4s`, 180 задач (включая `capabilitiesCheck`, `coverageVerification`,
-`:src:app:quarkusBuild`); **282 теста, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям:
-app — 36 (8 классов, в т.ч. `AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10,
-`DecisionModelIntegrationTest` — 6, `ProfileStorageIntegrationTest` — 2, `HealthTest` — 3), ai — 66
-(15 классов), receiver — 22 (5 классов), share — 8 (2 класса), vk-facade — 16 (9 классов), persistence —
-38 (3 класса), infrastructure — 2 (1 класс), processor — 25 (4 класса), greetings — 45 (7 классов),
+Проверено на дереве с маршрутизацией интентов и сводкой «что нового»: `./gradlew build` →
+`BUILD SUCCESSFUL`, 180 задач (включая `capabilitiesCheck`, `coverageVerification`,
+`:src:app:quarkusBuild`); **423 тестов, 0 падений, 0 ошибок, 0 пропущенных**. Распределение по модулям:
+app — 44 (10 классов, в т.ч. `AiIntegrationTest` — 8, `DailyGreetingsIntegrationTest` — 10,
+`DecisionModelIntegrationTest` — 9, `DecisionModelIntegrationTestSpamPolicy` — 2,
+`NewsDigestIntegrationTest` — 3, `ProfileStorageIntegrationTest` — 2, `HealthTest` — 3), ai — 133
+(19 классов), receiver — 22 (5 классов), share — 8 (2 класса), vk-facade — 16 (9 классов), persistence —
+41 (3 класса), infrastructure — 2 (1 класс), processor — 88 (7 классов), greetings — 45 (7 классов),
 arch-tests — 24 (6 классов).
 
 `./gradlew capabilitiesCheck` запускает `scripts/check-capabilities.sh` через bash; тот же скрипт
@@ -39,16 +40,16 @@ arch-tests — 24 (6 классов).
 `src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt` —
 известная точка: из-за длинного имени Gradle пишет его отчёт в `build/test-results` с префиксом
 `__TES-…`, поэтому число файлов `TEST-*.xml` занижает итог. Считать тесты по `testsuite` из всех XML
-(в этом проходе — 15 классов, 66 тестов в `ai`) и сверять со сводкой Gradle.
+(в этом проходе — 19 классов, 133 теста в `ai`) и сверять со сводкой Gradle.
 
 ## Где лежат тесты
 
 | Модуль | Файлы |
 |---|---|
-| `app` | `InitTest` (контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `HealthTest` (3 теста — 200 UP на `/q/health`, `/q/health/ready`, `/q/health/live`), `integration/VkLongPollIntegrationTest` (5 тестов — приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 тестов — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 тестов — поздравления: план по чатам, ИИ, claim, отправка), `integration/ProfileStorageIntegrationTest` (2 теста — профили из PostgreSQL и отрицательный id группы), `integration/DecisionModelIntegrationTest` (6 тестов — decision-модель: Ollama, System One `/v1/systemone` и ошибки клиента), `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
-| `ai` | 66 тестов: `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (4) |
+| `app` | 44 теста (10 классов): `InitTest` (1 — контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `HealthTest` (3 — 200 UP на `/q/health`, `/q/health/ready`, `/q/health/live`), `integration/VkLongPollIntegrationTest` (5 — приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (1 — позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 — поздравления: план по чатам, ИИ, claim, отправка), `integration/ProfileStorageIntegrationTest` (2 — профили из PostgreSQL и отрицательный id группы), `integration/DecisionModelIntegrationTest` (9 — decision-модель: Ollama, System One `/v1/systemone` и ошибки клиента), `integration/DecisionModelIntegrationTestSpamPolicy` (2 — спам-политика и kill-switch), `integration/NewsDigestIntegrationTest` (3 — read-порты против PostgreSQL, сводка end-to-end, «нет сообщений»); инфраструктура — `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
+| `ai` | 133 теста (19 классов): `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `command/news/ProcessNewsDigestCommandTest` (18 — срок, сборка данных, фолбэк, «нет сообщений»), `domain/news/NewsPeriodParserTest` (43 — таблица форм срока), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/input/event/NewsDigestRequestedEventProcessorTest` (2), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/news/NewsDigestAiAdapterTest` (4 — 3 попытки), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (4) |
 | `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
-| `persistence` | `PersistenceDataInProcessAdapterTest` (15 тестов — маппинг всех in-process портов), `BirthDateMatcherTest` (17 — разбор `birth_date`), `command/fetchuserprofile/FetchUserProfileCommandImplTest` (6 — актуализация устаревших профилей и слияние полей) |
+| `persistence` | `PersistenceDataInProcessAdapterTest` (18 тестов — маппинг всех in-process портов, включая три read-only чтения сводки «что нового»), `BirthDateMatcherTest` (17 — разбор `birth_date`), `command/fetchuserprofile/FetchUserProfileCommandImplTest` (6 — актуализация устаревших профилей и слияние полей) |
 | `processor` | `usecase/message/messageReceived/MessageReceivedUsecaseInputTest` (2), `domain/decision/DecisionAnalysisTest` (3 — листовые исключения валидации), `domain/decision/MessageTextNormalizerTest` (5), `adapter/output/decision/DecisionModelOutputAdapterTest` (15 — ответы и ошибки decision-модели) |
 | `vk-facade` | `VkProfileInProcessAdapterTest` (2), `SendGreetingMessageInProcessAdapterTest` (1), `VkSendMessageOutputAdapterTest` (2), `PublishEventCommandImplTest` (1), `SendVkMessageCommandImplTest` (1), `MessageSendUsecaseTest` (1), `PlainMessageSendUsecaseTest` (2 — плоская отправка), `RandomIdTest` (5 — детерминированный `random_id`), `SummaryReadyEventProcessorTest` (1) |
 | `greetings` | `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (8), `usecase/RunDailyGreetingsUsecaseTest` (8), `adapter/input/schedule/DailyGreetingRunnerTest` (4) |

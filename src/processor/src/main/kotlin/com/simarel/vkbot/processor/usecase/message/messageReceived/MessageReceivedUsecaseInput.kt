@@ -1,10 +1,15 @@
 package com.simarel.vkbot.processor.usecase.message.messageReceived
 
+import com.simarel.vkbot.processor.command.help.BuildHelpTextCommand
+import com.simarel.vkbot.processor.command.help.BuildHelpTextCommand.BuildHelpTextRequest
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand.IsRequireAnswerRequest
 import com.simarel.vkbot.processor.command.isSpam.IsSpamCommand
 import com.simarel.vkbot.processor.command.isSpam.IsSpamCommand.IsSpamRequest
+import com.simarel.vkbot.processor.command.resolveIntent.ResolveMessageIntentCommand
+import com.simarel.vkbot.processor.command.resolveIntent.ResolveMessageIntentCommand.ResolveMessageIntentRequest
 import com.simarel.vkbot.processor.domain.decision.DecisionAnalysis
+import com.simarel.vkbot.processor.domain.decision.MessageIntent
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPort
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortRequest
 import com.simarel.vkbot.processor.port.input.messageReceived.MessageReceivedInputPortResponse
@@ -26,6 +31,8 @@ open class MessageReceivedUsecaseInput(
     private val isRequireAnswerCommand: IsRequireAnswerCommand,
     private val analyzeMessageOutputPort: AnalyzeMessageOutputPort,
     private val isSpamCommand: IsSpamCommand,
+    private val buildHelpTextCommand: BuildHelpTextCommand,
+    private val resolveMessageIntentCommand: ResolveMessageIntentCommand,
     @ConfigProperty(name = "decision.spam-reply.enabled", defaultValue = "true")
     private val spamReplyEnabled: Boolean,
 ) : MessageReceivedInputPort {
@@ -43,39 +50,59 @@ open class MessageReceivedUsecaseInput(
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
         val message = request.message
-        if (spamReplyEnabled && message.fromId.isHuman() && message.peerId.isGroupChat()) {
-            val analysis = analyze(message) ?: return requireAnswer(message)
-            if (isSpamCommand.execute(IsSpamRequest(analysis.spamProbability)).isSpam) {
-                publishEventCommand.execute(
-                    PublishEventRequest(
-                        event = Event.ANSWER_MESSAGE,
-                        payload = Payload(
-                            ResponseMessage(
-                                messageText = MessageText.of(spamNotification(analysis.spamProbability)),
-                                responseTo = message,
-                            ),
-                        ),
-                    ),
-                )
-                return okResponse
-            }
-        }
-        return requireAnswer(message)
-    }
-
-    private fun requireAnswer(message: Message): MessageReceivedInputPortResponse {
-        val requireAnswerResult = isRequireAnswerCommand.execute(
-            IsRequireAnswerRequest(message),
-        )
-        if (requireAnswerResult.requiresAnswer) {
+        val analysis = spamStage(message)
+        if (analysis != null && isSpamCommand.execute(IsSpamRequest(analysis.spamProbability)).isSpam) {
             publishEventCommand.execute(
                 PublishEventRequest(
-                    event = Event.MESSAGE_REQUIRE_ANSWER,
-                    payload = Payload(message),
+                    event = Event.ANSWER_MESSAGE,
+                    payload = Payload(
+                        ResponseMessage(
+                            messageText = MessageText.of(spamNotification(analysis.spamProbability)),
+                            responseTo = message,
+                        ),
+                    ),
                 ),
             )
+            return okResponse
+        }
+        if (!isRequireAnswerCommand.execute(IsRequireAnswerRequest(message)).requiresAnswer) {
+            return okResponse
+        }
+        when (resolveIntent(message, analysis)) {
+            MessageIntent.HELP -> publishHelp(message)
+            MessageIntent.NEWS -> publish(message, Event.NEWS_DIGEST_REQUESTED)
+            MessageIntent.GENERAL -> publish(message, Event.MESSAGE_REQUIRE_ANSWER)
         }
         return okResponse
+    }
+
+    private fun spamStage(message: Message): DecisionAnalysis? {
+        if (!spamReplyEnabled || !message.fromId.isHuman() || !message.peerId.isGroupChat()) {
+            return null
+        }
+        return analyze(message)
+    }
+
+    private fun resolveIntent(message: Message, analysis: DecisionAnalysis?): MessageIntent {
+        val request = ResolveMessageIntentRequest(message.messageText)
+        return resolveMessageIntentCommand.execute(request).intent
+            ?: analysis?.intent
+            ?: analyze(message)?.intent
+            ?: MessageIntent.GENERAL
+    }
+
+    private fun publishHelp(message: Message) {
+        val helpText = buildHelpTextCommand.execute(BuildHelpTextRequest)
+        publishEventCommand.execute(
+            PublishEventRequest(
+                event = Event.ANSWER_MESSAGE,
+                payload = Payload(ResponseMessage(messageText = helpText.messageText, responseTo = message)),
+            ),
+        )
+    }
+
+    private fun publish(message: Message, event: Event) {
+        publishEventCommand.execute(PublishEventRequest(event = event, payload = Payload(message)))
     }
 
     @Suppress("TooGenericExceptionCaught")
