@@ -24,7 +24,11 @@
   `statistics.timezone` (число сообщений, суммарная и средняя длина, разбивка по чатам, гистограммы по
   часу и ISO-дню недели), и отдаёт историю профиля
   ([ADR 2026-11-10-vk-profile-history-and-statistics](../adr/2026-11-10-vk-profile-history-and-statistics.md),
-  [ADR 2026-11-10-user-statistics-materialization](../adr/2026-11-10-user-statistics-materialization.md)).
+  [ADR 2026-11-10-user-statistics-materialization](../adr/2026-11-10-user-statistics-materialization.md));
+- хранит знания о людях из чата (R1): пять таблиц — карточки фактов, свидетельства-ссылки без текста
+  сообщений, сводки профиля и чата, курсор извлечения; доверие, окна времени, конфликты и `value_hash`
+  считает `persistence`
+  ([ADR 2026-11-11-user-knowledge-facts](../adr/2026-11-11-user-knowledge-facts.md)).
 
 Профиль, который VK не вернул по запросу, не перезаписывается: сохранённые данные остаются, а строка
 остаётся устаревшей и будет перезапрошена при следующем сообщении.
@@ -40,14 +44,16 @@
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
 | `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-154` |
 | контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:24-97` |
-| 21 in-process адаптер `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`) и истории профиля (`FindStoredUserProfileHistoryPort`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
-| реализация 21 операции (включая три чтения сводки «что нового» — последнее сообщение автора, сообщения диапазона дат, саммари периода — а также авторов чата, историю профиля и статистику автора) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
+| 29 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`), истории профиля (`FindStoredUserProfileHistoryPort`), знаний из чата (шесть портов R1: четыре write — `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort`; два read — `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`) и чтения сводки чата/окна сообщений (`FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
+| реализация 29 операций (включая три чтения сводки «что нового», авторов чата, историю профиля, статистику автора, шесть операций знаний и два чтения сводки чата) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
 | запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:78-154` |
-| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-82`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-149`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
+| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-178`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-149`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
+| jOOQ знаний: карточки, свидетельства, сводки, курсор; правила доверия, времени и `value_hash` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserKnowledgeRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/FactConfidenceCalculator.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeTemporalPolicy.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeValueHash.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt` |
 | история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:17-124` |
 | материализация статистики при сохранении сообщения: порт, адаптер и jOOQ-writer | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsWriterRepository.kt` |
 | changeset 009 и ручной backfill-скрипт | `src/persistence/src/main/resources/db/changelog/changes/009-create-user-statistics-tables.yaml`, `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` |
+| changeset 010 (5 таблиц знаний + нетранзакционный индекс `messages`) | `src/persistence/src/main/resources/db/changelog/changes/010-create-user-knowledge-tables.yaml` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
 | claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
 | профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:18-153` |
@@ -73,7 +79,22 @@
 - `user_chat_statistics` — автор×чат: `message_count`, `total_length`, `last_message_at`;
   PK `(user_id, peer_id)`;
 - `user_hour_statistics` — автор×UTC-дата×UTC-час: `message_count`; PK `(user_id, utc_date, utc_hour)`,
-  CHECK `chk_user_hour_statistics_utc_hour` (`utc_hour BETWEEN 0 AND 23`); ретенции нет.
+  CHECK `chk_user_hour_statistics_utc_hour` (`utc_hour BETWEEN 0 AND 23`); ретенции нет;
+- `user_facts` — карточка факта: UNIQUE `(user_id, category, fact_key, value_hash)` без `peer_id`
+  (в карточке — чат первого свидетельства), `value`/`value_payload`, `confidence`/`status`/`conflict`,
+  `first_observed_at`/`last_confirmed_at`/`superseded_at`, агрегаты `evidence_count`/
+  `max_evidence_confidence`; индексы `(user_id, status)` и `(user_id, fact_key, last_confirmed_at)`, CHECK
+  на `confidence`/`max_evidence_confidence`; TTL нет;
+- `user_fact_evidence` — свидетельства-ссылки: `fact_id` (FK → `user_facts.id` `ON DELETE CASCADE`),
+  `message_id` (без FK на `messages`), `conversation_message_id`, `peer_id`, `said_by_id`, `source_kind`,
+  `confidence`, `observed_at`; UNIQUE `(fact_id, peer_id, conversation_message_id)`, не более 20 последних
+  ссылок на карточку; текста сообщения нет;
+- `user_knowledge_summary` — сводка профиля: PK `user_id`, `summary_text`, `facts_covered`,
+  `last_fact_at`, `summarized_at`;
+- `chat_knowledge_summary` — сводка чата: PK `peer_id`, `summary_text`, `messages_covered`,
+  `first_conversation_message_id`, `last_conversation_message_id`, `summarized_at`;
+- `knowledge_extraction_cursors` — курсор извлечения: PK `peer_id`, `last_conversation_message_id`,
+  `last_completed_at`, `updated_at`.
 
 Миграции: `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml`,
 `src/persistence/src/main/resources/db/changelog/changes/001-create-messages-table.yaml`,
@@ -83,12 +104,20 @@
 `.../008-replace-profile-data-with-human-details.yaml` (три changeSet'а: `add profile_details` → all-rows
 `delete` истории с `lock_timeout` → `dropColumn` старой колонки),
 `.../009-create-user-statistics-tables.yaml` (только DDL: три `createTable` + один `sql` с
-`ALTER TABLE ... CHECK (utc_hour BETWEEN 0 AND 23)`). Переигровка накопленных `messages` в агрегаты —
+`ALTER TABLE ... CHECK (utc_hour BETWEEN 0 AND 23)`),
+`.../010-create-user-knowledge-tables.yaml` (changeset `010-create-user-knowledge-tables`: 5 `createTable`,
+2 UNIQUE, 2 индекса, FK `ON DELETE CASCADE` и 2 CHECK `BETWEEN 0 AND 1` (`confidence` и
+`max_evidence_confidence`); changeset `010-create-messages-knowledge-index`: `runInTransaction: false`,
+`DROP INDEX CONCURRENTLY IF EXISTS
+idx_messages_peer_id_conversation_message_id` + `CREATE INDEX CONCURRENTLY
+idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_message_id)`).
+Переигровка накопленных `messages` в агрегаты —
 отдельный ручной ops-скрипт `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`
 (не миграция и не рантайм-бин: в файле нет `BEGIN`/`COMMIT`, запускается под `psql --single-transaction
 -v ON_ERROR_STOP=1`, требует остановленного писателя, берёт `ACCESS EXCLUSIVE` + `lock_timeout` и делает
 `ANALYZE`). Смысл данных делят другие возможности: профили — `vk-profiles`,
-саммари — `conversation-summary`, поздравления — `daily-greetings`; схема остаётся здесь (см. таблицу ниже).
+саммари — `conversation-summary`, поздравления — `daily-greetings`, знания — `user-knowledge` (семантика
+фактов, доверия и времени); схема остаётся здесь (см. таблицу ниже).
 
 ## Journey
 
@@ -101,6 +130,9 @@
   `chat-news-digest`.
 - `journey-profile`: чтение авторов чата, материализованной статистики и истории профиля через три
   read-only in-process порта — шаг `profile-dossier`.
+- `journey-knowledge`, шаг 1: сохранение фактов, свидетельств-ссылок, сводок профиля/чата и курсора
+  извлечения через шесть портов знаний R1 (четыре write и два read) и два read-порта сводки чата
+  (R1/R2a/R3b); текст сообщений в таблицы знаний не попадает.
 
 ## Общие данные и контракты
 
@@ -110,10 +142,11 @@
 | читающая модель `StoredMessage` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt`) | `ai-answer`, `conversation-summary`, `chat-news-digest` | `message-storage` |
 | таблица `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary`, `daily-greetings` (профили по дате рождения) | `message-storage` — схема, jOOQ, Liquibase |
 | таблица `summaries` и статусы | `conversation-summary` (создаёт pending, завершает, помечает failed); `chat-news-digest` читает только `COMPLETED` | `message-storage` — схема, jOOQ, Liquibase |
-| `PersistenceDataInputPort` | REST-контроллер и 21 in-process адаптер | `message-storage` |
+| `PersistenceDataInputPort` | REST-контроллер и 29 in-process адаптеров | `message-storage` |
 | читающие модели `UserStatistics`, `ProfileHistoryEntry`, `ChatAuthor` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/`) | `profile-dossier` читает статистику, историю профиля и авторов чата | `message-storage` |
 | read-порты `FindChatAuthorsPort` (авторы чата по `peer_id`, порядок `from_id asc`), `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | `profile-dossier` — авторы чата, материализованная статистика и последние записи истории профиля | `message-storage` |
 | таблица `greeting_log` и семантика claim | `daily-greetings` (вызывает `ClaimDailyGreetingPort`) | `message-storage` — схема, jOOQ, Liquibase |
+| таблицы знаний `user_facts`/`user_fact_evidence`/`user_knowledge_summary`/`chat_knowledge_summary`/`knowledge_extraction_cursors` | `user-knowledge` (семантика фактов, доверия, окон и нормализации), `processor`/`ai` пишут через in-process порты R1, `ai` читает сводку чата | `message-storage` — схема, jOOQ, Liquibase |
 | `vk_user_profiles.birth_date` | `daily-greetings` читает через `FindUserProfilesByBirthDatePort`; заполняет `vk-profiles` | `message-storage` — схема |
 | события `MESSAGE_RECEIVED`, `SUMMARY_REQUESTED`, `SUMMARY_READY` | `answer-decision`/`ai-answer` (`MESSAGE_RECEIVED`), `conversation-summary` (`SUMMARY_REQUESTED`, `SUMMARY_READY`) | `message-storage` — единственный публикатор этих трёх |
 
@@ -130,6 +163,7 @@
 - ADR 2026-10-28-configuration-and-secrets — datasource и Liquibase-конфигурация в `:src:app`.
 - ADR 2026-11-10-vk-profile-human-details — `profile_details` вместо сырого снимка, typed + человеческий diff истории, changeset 008.
 - ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики автора: три таблицы, upsert в транзакции сообщения, ручной backfill-скрипт, конвертация UTC-бакетов на чтении.
+- ADR 2026-11-11-user-knowledge-facts — пять таблиц знаний: карточка на `(user_id, category, fact_key, value_hash)` без `peer_id`, свидетельства-ссылки без текста, агрегаты `evidence_count`/`max_evidence_confidence` и K=20, доверие и временная политика, changeset `010` и нетранзакционный индекс `messages`.
 
 ## Acceptance criteria
 

@@ -7,9 +7,15 @@ import com.simarel.vkbot.share.domain.model.Summary
 import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
+import com.simarel.vkbot.share.domain.model.knowledge.UserFact
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.port.input.InputPortRequest
 import com.simarel.vkbot.share.port.input.InputPortResponse
+import java.time.Duration
 import java.time.LocalDate
+import java.time.MonthDay
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -73,6 +79,48 @@ interface PersistenceDataInputPort {
     ): PersistenceDataResponse.Statistics
 
     fun findChatAuthors(request: PersistenceDataRequest.FindChatAuthors): PersistenceDataResponse.ChatAuthors
+
+    fun hasPendingKnowledgeBatch(
+        request: PersistenceDataRequest.HasPendingKnowledgeBatch,
+    ): PersistenceDataResponse.PendingStatus
+
+    fun findPendingKnowledgeBatch(
+        request: PersistenceDataRequest.FindPendingKnowledgeBatch,
+    ): PersistenceDataResponse.Messages
+
+    fun saveUserFacts(request: PersistenceDataRequest.SaveUserFacts): PersistenceDataResponse.SavedUserFacts
+
+    fun advanceKnowledgeExtractionCursor(
+        request: PersistenceDataRequest.AdvanceKnowledgeExtractionCursor,
+    ): PersistenceDataResponse.Empty
+
+    fun saveUserKnowledgeSummary(
+        request: PersistenceDataRequest.SaveUserKnowledgeSummary,
+    ): PersistenceDataResponse.Empty
+
+    fun saveChatKnowledgeSummary(
+        request: PersistenceDataRequest.SaveChatKnowledgeSummary,
+    ): PersistenceDataResponse.Empty
+
+    fun findChatKnowledgeSummary(
+        request: PersistenceDataRequest.FindChatKnowledgeSummary,
+    ): PersistenceDataResponse.ChatKnowledgeSummary
+
+    fun findChatSummaryMessages(
+        request: PersistenceDataRequest.FindChatSummaryMessages,
+    ): PersistenceDataResponse.Messages
+
+    fun findUserKnowledge(
+        request: PersistenceDataRequest.FindUserKnowledge,
+    ): PersistenceDataResponse.UserKnowledgeByUserIds
+
+    fun findUserBirthdayFacts(
+        request: PersistenceDataRequest.FindUserBirthdayFacts,
+    ): PersistenceDataResponse.UserFacts
+
+    fun findUserKnowledgeSummaryState(
+        request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
+    ): PersistenceDataResponse.UserKnowledgeSummaryState
 }
 
 sealed interface PersistenceDataRequest : InputPortRequest {
@@ -133,6 +181,39 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class FindUserProfileHistory(val profileId: Long, val limit: Int, val offset: Int) : PersistenceDataRequest
     data class FindUserStatistics(val userId: Long) : PersistenceDataRequest
     data class FindChatAuthors(val peerId: Long) : PersistenceDataRequest
+    data class HasPendingKnowledgeBatch(
+        val peerId: Long,
+        val minCount: Int,
+        val minInterval: Duration,
+    ) : PersistenceDataRequest
+
+    data class FindPendingKnowledgeBatch(
+        val peerId: Long,
+        val upToConversationMessageId: Long,
+        val limit: Int,
+    ) : PersistenceDataRequest
+
+    data class SaveUserFacts(val candidates: List<UserFactCandidate>) : PersistenceDataRequest
+    data class AdvanceKnowledgeExtractionCursor(
+        val peerId: Long,
+        val lastConversationMessageId: Long,
+        val completedAt: OffsetDateTime,
+    ) : PersistenceDataRequest
+
+    data class SaveUserKnowledgeSummary(val userId: Long, val summaryText: String) : PersistenceDataRequest
+    data class SaveChatKnowledgeSummary(
+        val peerId: Long,
+        val summaryText: String,
+        val firstConversationMessageId: Long,
+        val lastConversationMessageId: Long,
+        val messagesCovered: Int,
+    ) : PersistenceDataRequest
+
+    data class FindChatKnowledgeSummary(val peerId: Long) : PersistenceDataRequest
+    data class FindChatSummaryMessages(val peerId: Long, val limit: Int) : PersistenceDataRequest
+    data class FindUserKnowledge(val userIds: List<Long>) : PersistenceDataRequest
+    data class FindUserBirthdayFacts(val monthDay: MonthDay) : PersistenceDataRequest
+    data class FindUserKnowledgeSummaryState(val userId: Long) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -151,4 +232,12 @@ sealed interface PersistenceDataResponse : InputPortResponse {
     data class ProfileHistory(val entries: List<ProfileHistoryEntry>) : PersistenceDataResponse
     data class Statistics(val statistics: UserStatistics) : PersistenceDataResponse
     data class ChatAuthors(val authors: List<ChatAuthor>) : PersistenceDataResponse
+    data class SavedUserFacts(val saved: Int, val skipped: Int) : PersistenceDataResponse
+    data class ChatKnowledgeSummary(val knowledge: ChatKnowledge?) : PersistenceDataResponse
+    data class UserKnowledgeByUserIds(val knowledge: Map<Long, UserKnowledge>) : PersistenceDataResponse
+    data class UserFacts(val facts: List<UserFact>) : PersistenceDataResponse
+    data class UserKnowledgeSummaryState(
+        val summarizedAt: OffsetDateTime?,
+        val factsSinceSummary: Int,
+    ) : PersistenceDataResponse
 }

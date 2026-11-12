@@ -8,6 +8,7 @@ import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerComman
 import com.simarel.vkbot.processor.command.isRequireAnswer.IsRequireAnswerCommand.IsRequireAnswerRequest
 import com.simarel.vkbot.processor.command.isSpam.IsSpamCommand
 import com.simarel.vkbot.processor.command.isSpam.IsSpamCommand.IsSpamRequest
+import com.simarel.vkbot.processor.command.knowledge.RequestKnowledgeExtractionCommand
 import com.simarel.vkbot.processor.command.resolveIntent.ResolveMessageIntentCommand
 import com.simarel.vkbot.processor.command.resolveIntent.ResolveMessageIntentCommand.ResolveMessageIntentRequest
 import com.simarel.vkbot.processor.domain.decision.DecisionAnalysis
@@ -37,6 +38,7 @@ open class MessageReceivedUsecaseInput(
     private val isJailbreakCommand: IsJailbreakCommand,
     private val buildHelpTextCommand: BuildHelpTextCommand,
     private val resolveMessageIntentCommand: ResolveMessageIntentCommand,
+    private val requestKnowledgeExtractionCommand: RequestKnowledgeExtractionCommand,
     @ConfigProperty(name = "decision.spam-reply.enabled", defaultValue = "true")
     private val spamReplyEnabled: Boolean,
     @ConfigProperty(name = "decision.jailbreak-reply.enabled", defaultValue = "true")
@@ -56,6 +58,7 @@ open class MessageReceivedUsecaseInput(
          */
         // TODO: Собирать профиль пользователей на основе сообщений в чатах
         val message = request.message
+        triggerKnowledgeExtraction(message)
         val analysis = decisionStage(message)
         if (analysis != null) {
             if (spamReplyEnabled && isSpamCommand.execute(IsSpamRequest(analysis.spamProbability)).isSpam) {
@@ -79,6 +82,15 @@ open class MessageReceivedUsecaseInput(
             MessageIntent.GENERAL -> publish(message, Event.MESSAGE_REQUIRE_ANSWER)
         }
         return okResponse
+    }
+
+    private fun triggerKnowledgeExtraction(message: Message) {
+        try {
+            requestKnowledgeExtractionCommand.execute(RequestKnowledgeExtractionCommand.Request(message))
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw e
+        }
     }
 
     private fun decisionStage(message: Message): DecisionAnalysis? {

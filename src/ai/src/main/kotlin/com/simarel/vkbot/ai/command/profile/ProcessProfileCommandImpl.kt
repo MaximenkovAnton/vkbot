@@ -17,6 +17,7 @@ import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.ResponseMessage
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.Payload
@@ -25,6 +26,7 @@ import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesBy
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfileHistoryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserStatisticsPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgePort
 import com.simarel.vkbot.share.port.output.vk.GetGroupProfilesBatchPort
 import com.simarel.vkbot.share.port.output.vk.GetUserProfilesBatchPort
 import jakarta.enterprise.context.ApplicationScoped
@@ -46,6 +48,7 @@ private const val CLARIFICATION_HEADER = "Уточните, о ком речь:"
 private const val CLARIFICATION_FOOTER = "Напишите полное имя или упоминание."
 private const val NOT_FOUND_TEMPLATE = "Среди участников этого чата не нашёл «%s». " +
     "Напишите полное имя, @упоминание, id или перешлите сообщение."
+private val EMPTY_KNOWLEDGE = UserKnowledge(emptyList(), null, false)
 
 @ApplicationScoped
 @Suppress("LongParameterList", "TooManyFunctions")
@@ -56,6 +59,7 @@ class ProcessProfileCommandImpl(
     private val findStoredGroupProfilesByIdsPort: FindStoredGroupProfilesByIdsPort,
     private val findStoredUserStatisticsPort: FindStoredUserStatisticsPort,
     private val findStoredUserProfileHistoryPort: FindStoredUserProfileHistoryPort,
+    private val findUserKnowledgePort: FindUserKnowledgePort,
     private val getUserProfilesBatchPort: GetUserProfilesBatchPort,
     private val getGroupProfilesBatchPort: GetGroupProfilesBatchPort,
     private val profileAnswerGenerationPort: ProfileAnswerGenerationPort,
@@ -103,7 +107,12 @@ class ProcessProfileCommandImpl(
     ) {
         val chatMessageCount = authors.firstOrNull { it.fromId == resolution.target.fromId }?.messageCount
         val dossier = when (val target = resolution.target) {
-            is ProfileTarget.User -> userDossier(target.fromId, resolution.profile, chatMessageCount)
+            is ProfileTarget.User -> userDossier(
+                target.fromId,
+                resolution.profile,
+                chatMessageCount,
+                message.peerId.value,
+            )
             is ProfileTarget.Group -> groupDossier(target.fromId, chatMessageCount)
         }
         if (dossier == null) {
@@ -127,6 +136,7 @@ class ProcessProfileCommandImpl(
         userId: FromId,
         resolvedProfile: VkUserProfile?,
         chatMessageCount: Long?,
+        peerId: Long,
     ): ProfileDossier? {
         val profile = resolvedProfile
             ?: findStoredUserProfilesByIdsPort.execute(
@@ -145,7 +155,21 @@ class ProcessProfileCommandImpl(
                 FindStoredUserProfileHistoryPort.Request(userId, HISTORY_LIMIT),
             ).entries,
             chatMessageCount = chatMessageCount,
+            knowledge = knowledge(userId, peerId),
         )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun knowledge(userId: FromId, peerId: Long): UserKnowledge = try {
+        findUserKnowledgePort.execute(FindUserKnowledgePort.Request(listOf(userId)))
+            .knowledge[userId] ?: EMPTY_KNOWLEDGE
+    } catch (e: RuntimeException) {
+        logger.log(
+            System.Logger.Level.WARNING,
+            "Profile knowledge read failed for peerId=$peerId targetId=${userId.value}: " +
+                e.javaClass.simpleName,
+        )
+        EMPTY_KNOWLEDGE
     }
 
     private fun groupDossier(groupFromId: FromId, chatMessageCount: Long?): ProfileDossier? {

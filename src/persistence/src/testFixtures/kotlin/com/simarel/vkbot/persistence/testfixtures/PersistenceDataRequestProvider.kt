@@ -1,7 +1,10 @@
 package com.simarel.vkbot.persistence.testfixtures
 
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
+import java.time.Duration
 import java.time.LocalDate
+import java.time.MonthDay
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -139,4 +142,78 @@ object PersistenceDataRequestProvider {
         limit = limit,
         offset = offset,
     )
+
+    fun createHasPendingKnowledgeBatchRequest(
+        peerId: Long = 10,
+        minCount: Int = 25,
+        minInterval: Duration = Duration.ofMinutes(30),
+    ) = PersistenceDataRequest.HasPendingKnowledgeBatch(
+        peerId = peerId,
+        minCount = minCount,
+        minInterval = minInterval,
+    )
+
+    fun createFindPendingKnowledgeBatchRequest(
+        peerId: Long = 10,
+        upToConversationMessageId: Long = 30,
+        limit: Int = 25,
+    ) = PersistenceDataRequest.FindPendingKnowledgeBatch(
+        peerId = peerId,
+        upToConversationMessageId = upToConversationMessageId,
+        limit = limit,
+    )
+
+    fun createSaveUserFactsRequest(
+        candidates: List<UserFactCandidate> = emptyList(),
+    ) = PersistenceDataRequest.SaveUserFacts(candidates = candidates)
+
+    fun createAdvanceKnowledgeExtractionCursorRequest(
+        peerId: Long = 10,
+        lastConversationMessageId: Long = 30,
+        completedAt: OffsetDateTime = OffsetDateTime.parse("2026-11-01T00:00:00Z"),
+    ) = PersistenceDataRequest.AdvanceKnowledgeExtractionCursor(
+        peerId = peerId,
+        lastConversationMessageId = lastConversationMessageId,
+        completedAt = completedAt,
+    )
+
+    fun createSaveUserKnowledgeSummaryRequest(
+        userId: Long = 10,
+        summaryText: String = "summary",
+    ) = PersistenceDataRequest.SaveUserKnowledgeSummary(userId = userId, summaryText = summaryText)
+
+    fun createSaveChatKnowledgeSummaryRequest(
+        peerId: Long = 10,
+        summaryText: String = "chat summary",
+        firstConversationMessageId: Long = 10,
+        lastConversationMessageId: Long = 70,
+        messagesCovered: Int = 7,
+    ) = PersistenceDataRequest.SaveChatKnowledgeSummary(
+        peerId = peerId,
+        summaryText = summaryText,
+        firstConversationMessageId = firstConversationMessageId,
+        lastConversationMessageId = lastConversationMessageId,
+        messagesCovered = messagesCovered,
+    )
+
+    fun createFindChatKnowledgeSummaryRequest(
+        peerId: Long = 10,
+    ) = PersistenceDataRequest.FindChatKnowledgeSummary(peerId = peerId)
+
+    fun createFindChatSummaryMessagesRequest(
+        peerId: Long = 10,
+        limit: Int = 100,
+    ) = PersistenceDataRequest.FindChatSummaryMessages(peerId = peerId, limit = limit)
+
+    fun createFindUserKnowledgeRequest(
+        userIds: List<Long> = emptyList(),
+    ) = PersistenceDataRequest.FindUserKnowledge(userIds = userIds)
+
+    fun createFindUserKnowledgeSummaryStateRequest(
+        userId: Long = 10,
+    ) = PersistenceDataRequest.FindUserKnowledgeSummaryState(userId = userId)
+
+    fun createFindUserBirthdayFactsRequest(
+        monthDay: MonthDay = MonthDay.of(5, 14),
+    ) = PersistenceDataRequest.FindUserBirthdayFacts(monthDay = monthDay)
 }

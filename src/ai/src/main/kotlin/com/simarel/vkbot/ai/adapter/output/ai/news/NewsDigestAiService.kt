@@ -14,11 +14,15 @@ interface NewsDigestAiService {
     @UserMessage(
         """
         Перескажи, что происходило в чате, по данным ниже. Верни только текст сводки.
-
+{interests}{chatTopics}
         ---
         {data}
         ---
     """,
     )
-    fun generateDigest(@V("data") data: String): String
+    fun generateDigest(
+        @V("data") data: String,
+        @V("interests") interests: String,
+        @V("chatTopics") chatTopics: String,
+    ): String
 }

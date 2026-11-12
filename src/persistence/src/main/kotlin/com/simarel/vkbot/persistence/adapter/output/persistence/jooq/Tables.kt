@@ -109,4 +109,71 @@ object Tables {
         val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
         val CREATED_AT = DSL.field("created_at")
     }
+
+    object UserFacts {
+        val TABLE = DSL.table("user_facts")
+
+        val ID = DSL.field("id", SQLDataType.UUID)
+        val USER_ID = DSL.field("user_id", SQLDataType.BIGINT)
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val CATEGORY = DSL.field("category")
+        val FACT_KEY = DSL.field("fact_key")
+        val VALUE = DSL.field("value")
+        val VALUE_HASH = DSL.field("value_hash")
+        val VALUE_PAYLOAD = DSL.field("value_payload", SQLDataType.JSONB)
+        val EVIDENCE_COUNT = DSL.field("evidence_count", SQLDataType.INTEGER)
+        val MAX_EVIDENCE_CONFIDENCE = DSL.field("max_evidence_confidence", SQLDataType.NUMERIC)
+        val CONFIDENCE = DSL.field("confidence", SQLDataType.NUMERIC)
+        val STATUS = DSL.field("status")
+        val FIRST_OBSERVED_AT = DSL.field("first_observed_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val LAST_CONFIRMED_AT = DSL.field("last_confirmed_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val SUPERSEDED_AT = DSL.field("superseded_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val CONFLICT = DSL.field("conflict", SQLDataType.BOOLEAN)
+        val CREATED_AT = DSL.field("created_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val UPDATED_AT = DSL.field("updated_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object UserFactEvidence {
+        val TABLE = DSL.table("user_fact_evidence")
+
+        val ID = DSL.field("id", SQLDataType.UUID)
+        val FACT_ID = DSL.field("fact_id", SQLDataType.UUID)
+        val MESSAGE_ID = DSL.field("message_id", SQLDataType.UUID)
+        val CONVERSATION_MESSAGE_ID = DSL.field("conversation_message_id", SQLDataType.BIGINT)
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val SAID_BY_ID = DSL.field("said_by_id", SQLDataType.BIGINT)
+        val SOURCE_KIND = DSL.field("source_kind")
+        val CONFIDENCE = DSL.field("confidence", SQLDataType.NUMERIC)
+        val OBSERVED_AT = DSL.field("observed_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object UserKnowledgeSummaries {
+        val TABLE = DSL.table("user_knowledge_summary")
+
+        val USER_ID = DSL.field("user_id", SQLDataType.BIGINT)
+        val SUMMARY_TEXT = DSL.field("summary_text")
+        val FACTS_COVERED = DSL.field("facts_covered", SQLDataType.INTEGER)
+        val LAST_FACT_AT = DSL.field("last_fact_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val SUMMARIZED_AT = DSL.field("summarized_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object ChatKnowledgeSummaries {
+        val TABLE = DSL.table("chat_knowledge_summary")
+
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val SUMMARY_TEXT = DSL.field("summary_text")
+        val MESSAGES_COVERED = DSL.field("messages_covered", SQLDataType.INTEGER)
+        val FIRST_CONVERSATION_MESSAGE_ID = DSL.field("first_conversation_message_id", SQLDataType.BIGINT)
+        val LAST_CONVERSATION_MESSAGE_ID = DSL.field("last_conversation_message_id", SQLDataType.BIGINT)
+        val SUMMARIZED_AT = DSL.field("summarized_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object KnowledgeExtractionCursors {
+        val TABLE = DSL.table("knowledge_extraction_cursors")
+
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val LAST_CONVERSATION_MESSAGE_ID = DSL.field("last_conversation_message_id", SQLDataType.BIGINT)
+        val LAST_COMPLETED_AT = DSL.field("last_completed_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+        val UPDATED_AT = DSL.field("updated_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
 }

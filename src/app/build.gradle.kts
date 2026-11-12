@@ -77,6 +77,7 @@ tasks.withType<Test> {
     systemProperty("java.util.logging.manager", "org.jboss.logmanager.LogManager")
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
+    maxHeapSize = "2g"
 }
 
 tasks.withType<JavaCompile> {

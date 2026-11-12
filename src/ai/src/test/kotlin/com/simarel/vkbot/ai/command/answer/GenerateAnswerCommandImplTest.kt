@@ -6,12 +6,18 @@ import com.simarel.vkbot.ai.port.output.ai.GenerateAnswerOutputPortResponse
 import com.simarel.vkbot.ai.port.output.context.ConversationContextOutputPort
 import com.simarel.vkbot.ai.port.output.context.ConversationContextRequest
 import com.simarel.vkbot.ai.port.output.context.ConversationContextResponse
+import com.simarel.vkbot.ai.test.SystemLoggerCapture
 import com.simarel.vkbot.ai.testfixtures.FakeAnswerProvider
+import com.simarel.vkbot.ai.testfixtures.port.knowledge.FakeFindUserKnowledgePort
+import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgePort
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.logging.Level
 
 class GenerateAnswerCommandImplTest {
 
@@ -29,7 +35,7 @@ class GenerateAnswerCommandImplTest {
     fun `execute loads the conversation context and forwards it to the ai port`() {
         val contextPort = RecordingConversationContextPort(context)
         val aiPort = RecordingGenerateAnswerOutputPort("answer")
-        val command = GenerateAnswerCommandImpl(aiPort, contextPort)
+        val command = GenerateAnswerCommandImpl(aiPort, contextPort, FakeFindUserKnowledgePort())
 
         command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(incomingMessage))
 
@@ -50,11 +56,113 @@ class GenerateAnswerCommandImplTest {
         val command = GenerateAnswerCommandImpl(
             RecordingGenerateAnswerOutputPort("answer from model"),
             RecordingConversationContextPort(context),
+            FakeFindUserKnowledgePort(),
         )
 
         val response = command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(incomingMessage))
 
         assertEquals("answer from model", response.responseText.value)
+    }
+
+    @Test
+    fun `execute reads knowledge for the current message author`() {
+        val author = FakeVoProvider.createFromId(7)
+        val message = FakeVoProvider.createMessage(fromId = author)
+        val knowledge = FakeModelProvider.createUserKnowledge(
+            facts = listOf(FakeModelProvider.createUserFact(value = "футбол")),
+            summary = "Свежая сводка профиля",
+            summaryFresh = true,
+        )
+        val knowledgePort = FakeFindUserKnowledgePort().apply { this.knowledge = mapOf(author to knowledge) }
+        val aiPort = RecordingGenerateAnswerOutputPort("answer")
+        val command = GenerateAnswerCommandImpl(
+            aiPort,
+            RecordingConversationContextPort(
+                FakeAnswerProvider.createConversationContextResponse(currentMessage = message),
+            ),
+            knowledgePort,
+        )
+
+        command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(message))
+
+        assertEquals(listOf(author), knowledgePort.executeCalls.single().userIds)
+        assertEquals(knowledge, aiPort.requests.single().userKnowledge)
+    }
+
+    @Test
+    fun `execute passes empty knowledge when the port has no entry for the author`() {
+        val knowledgePort = FakeFindUserKnowledgePort()
+        val aiPort = RecordingGenerateAnswerOutputPort("answer")
+        val command = GenerateAnswerCommandImpl(
+            aiPort,
+            RecordingConversationContextPort(context),
+            knowledgePort,
+        )
+
+        command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(incomingMessage))
+
+        assertEquals(FakeModelProvider.createUserKnowledge(), aiPort.requests.single().userKnowledge)
+    }
+
+    @Test
+    fun `execute fails open with a warning without pii when the knowledge read fails`() {
+        val message = FakeVoProvider.createMessage(
+            fromId = FakeVoProvider.createFromId(7),
+            peerId = FakeVoProvider.createPeerId(200),
+            messageText = FakeVoProvider.createMessageText("секрет"),
+        )
+        val profile = FakeModelProvider.createVkUserProfile(id = 7, firstName = "Иван", lastName = "Иванов")
+        val contextPort = RecordingConversationContextPort(
+            FakeAnswerProvider.createConversationContextResponse(
+                currentMessage = message,
+                userProfiles = mapOf(profile.id to profile),
+            ),
+        )
+        val knowledgePort = FakeFindUserKnowledgePort().apply {
+            failure = IllegalStateException("knowledge failed for Иван Иванов")
+        }
+        val aiPort = RecordingGenerateAnswerOutputPort("answer from model")
+        val command = GenerateAnswerCommandImpl(aiPort, contextPort, knowledgePort)
+        val loggerCapture = SystemLoggerCapture(GenerateAnswerCommandImpl::class.java.name)
+
+        try {
+            val response = command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(message))
+
+            assertEquals("answer from model", response.responseText.value)
+            assertEquals(FakeModelProvider.createUserKnowledge(), aiPort.requests.single().userKnowledge)
+            assertEquals(
+                listOf("User knowledge read failed for peerId=200: IllegalStateException"),
+                loggerCapture.messages(Level.WARNING),
+            )
+            val logged = loggerCapture.records.mapNotNull { it.message }
+            assertTrue(logged.none { "секрет" in it || "Иван" in it || "футбол" in it })
+        } finally {
+            loggerCapture.close()
+        }
+    }
+
+    @Test
+    fun `execute restores the interrupt flag and rethrows InterruptedException`() {
+        val aiPort = RecordingGenerateAnswerOutputPort("answer")
+        val command = GenerateAnswerCommandImpl(
+            aiPort,
+            RecordingConversationContextPort(context),
+            InterruptingFindUserKnowledgePort(),
+        )
+        val loggerCapture = SystemLoggerCapture(GenerateAnswerCommandImpl::class.java.name)
+
+        try {
+            assertThrows(InterruptedException::class.java) {
+                command.execute(FakeAnswerProvider.createGenerateAnswerCommandRequest(incomingMessage))
+            }
+
+            assertTrue(Thread.currentThread().isInterrupted)
+            assertTrue(aiPort.requests.isEmpty())
+            assertEquals(emptyList<String>(), loggerCapture.messages(Level.WARNING))
+        } finally {
+            Thread.interrupted()
+            loggerCapture.close()
+        }
     }
 
     private class RecordingConversationContextPort(
@@ -77,5 +185,11 @@ class GenerateAnswerCommandImplTest {
             requests.add(request)
             return FakeAnswerProvider.createGenerateAnswerOutputPortResponse(answer)
         }
+    }
+
+    private class InterruptingFindUserKnowledgePort : FindUserKnowledgePort {
+        override fun execute(
+            request: FindUserKnowledgePort.Request,
+        ): FindUserKnowledgePort.Response = throw InterruptedException("interrupted")
     }
 }

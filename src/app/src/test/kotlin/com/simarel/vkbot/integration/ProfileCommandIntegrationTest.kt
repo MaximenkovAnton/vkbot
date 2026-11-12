@@ -14,6 +14,7 @@ import com.simarel.vkbot.ai.testfixtures.FakeProfileProvider
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import io.quarkus.test.common.QuarkusTestResource
@@ -66,6 +67,8 @@ class ProfileCommandIntegrationTest {
     @Inject
     lateinit var processProfileInputPort: ProcessProfileInputPort
 
+    private val knowledgeFixtures: UserKnowledgeReadFixtures by lazy { UserKnowledgeReadFixtures(dataSource) }
+
     private val wireMock: WireMockServer
         get() = WireMockTestResource.wireMockServer
 
@@ -104,9 +107,40 @@ class ProfileCommandIntegrationTest {
         assertTrue(prompt.contains("Сообщений в этом чате: $SEEDED_MESSAGE_COUNT"), prompt)
         assertFalse(prompt.contains(PHONE), prompt)
         assertFalse(prompt.contains(HOME_PHONE), prompt)
+        assertFalse(prompt.contains(KNOWLEDGE_HEADER), prompt)
         assertEquals(profilesBefore, countRows(VK_USER_PROFILES_TABLE))
         assertEquals(historyBefore, countRows(VK_USER_PROFILE_HISTORY_TABLE))
         assertEquals(messagesBefore, countRows(MESSAGES_TABLE))
+    }
+
+    @Test
+    fun `readsChatKnowledgeIntoThePromptWithoutWriting`() {
+        seedDossier()
+        knowledgeFixtures.insertFact(
+            userId = DOSSIER_USER_ID,
+            value = "Гомель",
+            lastConfirmedAt = SEEDED_DATE,
+            category = UserFactCategory.PROFILE_ATTRIBUTE,
+            factKey = "city",
+        )
+        stubChatReply(DOSSIER_REPLY)
+        val profilesBefore = countRows(VK_USER_PROFILES_TABLE)
+        val summariesBefore = countRows(USER_KNOWLEDGE_SUMMARY_TABLE)
+        val messagesBefore = countRows(MESSAGES_TABLE)
+        val knowledgeBefore = knowledgeFixtures.counts(DOSSIER_USER_ID, DOSSIER_PEER_ID)
+
+        askAbout(DOSSIER_PEER_ID, DOSSIER_USER_ID, DOSSIER_LABEL, DOSSIER_REQUEST_MESSAGE_ID)
+
+        awaitSentMessage(DOSSIER_PEER_ID, DOSSIER_REPLY)
+        val prompt = userPrompt()
+        assertTrue(prompt.contains("Город: Минск"), prompt)
+        assertTrue(prompt.contains(KNOWLEDGE_HEADER), prompt)
+        assertTrue(prompt.contains("- Гомель"), prompt)
+        assertEquals(profilesBefore, countRows(VK_USER_PROFILES_TABLE))
+        assertEquals(summariesBefore, countRows(USER_KNOWLEDGE_SUMMARY_TABLE))
+        assertEquals(messagesBefore, countRows(MESSAGES_TABLE))
+        assertEquals(knowledgeBefore, knowledgeFixtures.counts(DOSSIER_USER_ID, DOSSIER_PEER_ID))
+        assertEquals("Минск", profileRepository.findByIds(listOf(DOSSIER_USER_ID)).single().city)
     }
 
     @Test
@@ -256,6 +290,7 @@ class ProfileCommandIntegrationTest {
 
     private fun chatCompletionBodies(): List<JsonNode> = wireMock
         .findAll(postRequestedFor(urlPathEqualTo(CHAT_COMPLETIONS_PATH)))
+        .filter { request -> !request.bodyAsString.contains(EXTRACTION_RUBRIC) }
         .map { request -> objectMapper.readTree(request.bodyAsString) }
 
     private fun modelMessages(): List<ModelMessage> = chatCompletionBodies().flatMap { body ->
@@ -339,6 +374,9 @@ class ProfileCommandIntegrationTest {
         deleteRows(DELETE_HISTORY_SQL, SEEDED_USER_IDS)
         deleteRows(DELETE_PROFILES_SQL, SEEDED_USER_IDS)
         deleteRows(DELETE_MESSAGES_SQL, SEEDED_PEER_IDS)
+        SEEDED_USER_IDS.zip(SEEDED_PEER_IDS).forEach { (userId, peerId) ->
+            knowledgeFixtures.deleteKnowledge(userId, peerId)
+        }
     }
 
     private fun deleteRows(sql: String, ids: List<Long>) {
@@ -383,6 +421,7 @@ class ProfileCommandIntegrationTest {
         const val HOME_PHONE = "+375171234567"
 
         const val PROFILE_HEADER = "Профиль:"
+        const val KNOWLEDGE_HEADER = "Из общения:"
         const val STATISTICS_HEADER = "Статистика:"
         const val HISTORY_HEADER = "История изменений:"
         const val CHAT_HEADER = "В этом чате:"
@@ -415,10 +454,12 @@ class ProfileCommandIntegrationTest {
 
         const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
         const val MESSAGES_SEND_PATH = "/method/messages.send"
+        const val EXTRACTION_RUBRIC = "Извлеки факты о людях"
         const val USERS_GET_PATH = "/method/users.get"
 
         const val VK_USER_PROFILES_TABLE = "vk_user_profiles"
         const val VK_USER_PROFILE_HISTORY_TABLE = "vk_user_profile_history"
+        const val USER_KNOWLEDGE_SUMMARY_TABLE = "user_knowledge_summary"
         const val MESSAGES_TABLE = "messages"
 
         const val AWAIT_SECONDS = 120L

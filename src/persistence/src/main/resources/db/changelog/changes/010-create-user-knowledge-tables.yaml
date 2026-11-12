@@ -1,0 +1,298 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-create-user-knowledge-tables
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: user_facts
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: category
+                  type: VARCHAR(24)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: fact_key
+                  type: VARCHAR(96)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: value
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: value_hash
+                  type: CHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: value_payload
+                  type: JSONB
+                  constraints:
+                    nullable: true
+              - column:
+                  name: evidence_count
+                  type: INT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_evidence_confidence
+                  type: NUMERIC(4,3)
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confidence
+                  type: NUMERIC(4,3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_observed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_confirmed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: superseded_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: true
+              - column:
+                  name: conflict
+                  type: BOOLEAN
+                  defaultValue: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: user_fact_evidence
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: fact_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: said_by_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_kind
+                  type: VARCHAR(24)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confidence
+                  type: NUMERIC(4,3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: observed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: user_knowledge_summary
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: summary_text
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: facts_covered
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_fact_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: summarized_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: chat_knowledge_summary
+            columns:
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: summary_text
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: messages_covered
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: first_conversation_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_conversation_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: summarized_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: knowledge_extraction_cursors
+            columns:
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: last_conversation_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_completed_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            constraintName: uq_user_facts_user_category_fact_key_value_hash
+            tableName: user_facts
+            columnNames: user_id, category, fact_key, value_hash
+
+        - addUniqueConstraint:
+            constraintName: uq_user_fact_evidence_fact_peer_conversation
+            tableName: user_fact_evidence
+            columnNames: fact_id, peer_id, conversation_message_id
+
+        - createIndex:
+            indexName: idx_user_facts_user_id_status
+            tableName: user_facts
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: status
+
+        - createIndex:
+            indexName: idx_user_facts_user_id_fact_key_last_confirmed_at
+            tableName: user_facts
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: fact_key
+              - column:
+                  name: last_confirmed_at
+
+        - addForeignKeyConstraint:
+            constraintName: fk_user_fact_evidence_fact
+            baseTableName: user_fact_evidence
+            baseColumnNames: fact_id
+            referencedTableName: user_facts
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - sql:
+            sql: ALTER TABLE user_facts ADD CONSTRAINT chk_user_facts_confidence CHECK (confidence BETWEEN 0 AND 1)
+
+        - sql:
+            sql: ALTER TABLE user_facts ADD CONSTRAINT chk_user_facts_max_evidence_confidence CHECK (max_evidence_confidence BETWEEN 0 AND 1)
+
+  - changeSet:
+      id: 010-create-messages-knowledge-index
+      author: vk-bot
+      runInTransaction: false
+      changes:
+        - sql:
+            sql: DROP INDEX CONCURRENTLY IF EXISTS idx_messages_peer_id_conversation_message_id
+        - sql:
+            sql: CREATE INDEX CONCURRENTLY idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_message_id)

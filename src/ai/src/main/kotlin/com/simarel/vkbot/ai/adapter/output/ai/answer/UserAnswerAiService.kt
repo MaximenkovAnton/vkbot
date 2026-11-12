@@ -23,7 +23,7 @@ interface UserAnswerAiService {
         <профили_участников>
         {userProfiles}
         {groupProfiles}
-        </профили_участников>
+        </профили_участников>{userKnowledge}
 
         <история_чата>
         {chatHistory}
@@ -38,6 +38,7 @@ interface UserAnswerAiService {
     fun generateAnswer(
         @V("userProfiles") userProfiles: String,
         @V("groupProfiles") groupProfiles: String,
+        @V("userKnowledge") userKnowledge: String,
         @V("chatHistory") chatHistory: String,
         @V("currentMessage") currentMessage: String,
         @V("dateTime") dateTime: String = ZonedDateTime.now().format(DateTimeFormatter.ISO_ZONED_DATE_TIME),

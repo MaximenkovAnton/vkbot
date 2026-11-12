@@ -4,11 +4,15 @@ import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryEntity
 import com.simarel.vkbot.persistence.domain.entity.SummaryStatus
 import com.simarel.vkbot.persistence.domain.exception.SummaryNotFoundException
+import com.simarel.vkbot.persistence.domain.knowledge.UserKnowledgeReadModel
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.persistence.port.output.persistence.CheckPendingKnowledgeBatchPort
 import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindChatAuthorsByPeerIdPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindChatSummaryMessagesQueryPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindChatSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindGroupProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindLastMessageByAuthorPort
@@ -17,24 +21,34 @@ import com.simarel.vkbot.persistence.port.output.persistence.FindLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBeforePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenDatesPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindMessagesBetweenPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindPendingKnowledgeMessagesPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummariesInPeriodPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindSummaryByIdPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserBirthdayFactsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserFactsByUserIdsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserKnowledgeSummariesByUserIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfileHistoryPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserStatisticsPort
+import com.simarel.vkbot.persistence.port.output.persistence.FindUserSummaryStatePort
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
+import com.simarel.vkbot.persistence.port.output.persistence.PersistUserFactsPort
+import com.simarel.vkbot.persistence.port.output.persistence.SaveKnowledgeExtractionCursorPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatusAndSummariesPort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatusPort
+import com.simarel.vkbot.persistence.port.output.persistence.UpsertChatKnowledgeSummaryPort
+import com.simarel.vkbot.persistence.port.output.persistence.UpsertUserKnowledgeSummaryPort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.event.SummaryReadyPayload
 import com.simarel.vkbot.share.domain.model.StoredMessage
 import com.simarel.vkbot.share.domain.model.Summary
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.Payload
@@ -69,6 +83,18 @@ open class PersistenceDataUsecase(
     private val findUserProfileHistoryPort: FindUserProfileHistoryPort,
     private val findUserStatisticsPort: FindUserStatisticsPort,
     private val findChatAuthorsByPeerIdPort: FindChatAuthorsByPeerIdPort,
+    private val checkPendingKnowledgeBatchPort: CheckPendingKnowledgeBatchPort,
+    private val findPendingKnowledgeMessagesPort: FindPendingKnowledgeMessagesPort,
+    private val persistUserFactsPort: PersistUserFactsPort,
+    private val saveKnowledgeExtractionCursorPort: SaveKnowledgeExtractionCursorPort,
+    private val upsertUserKnowledgeSummaryPort: UpsertUserKnowledgeSummaryPort,
+    private val upsertChatKnowledgeSummaryPort: UpsertChatKnowledgeSummaryPort,
+    private val findChatSummaryPort: FindChatSummaryPort,
+    private val findChatSummaryMessagesQueryPort: FindChatSummaryMessagesQueryPort,
+    private val findUserFactsByUserIdsPort: FindUserFactsByUserIdsPort,
+    private val findUserBirthdayFactsPort: FindUserBirthdayFactsPort,
+    private val findUserKnowledgeSummariesByUserIdsPort: FindUserKnowledgeSummariesByUserIdsPort,
+    private val findUserSummaryStatePort: FindUserSummaryStatePort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -158,6 +184,50 @@ open class PersistenceDataUsecase(
     override fun findChatAuthors(
         request: PersistenceDataRequest.FindChatAuthors,
     ): PersistenceDataResponse.ChatAuthors = handleFindChatAuthors(request)
+
+    override fun hasPendingKnowledgeBatch(
+        request: PersistenceDataRequest.HasPendingKnowledgeBatch,
+    ): PersistenceDataResponse.PendingStatus = handleHasPendingKnowledgeBatch(request)
+
+    override fun findPendingKnowledgeBatch(
+        request: PersistenceDataRequest.FindPendingKnowledgeBatch,
+    ): PersistenceDataResponse.Messages = handleFindPendingKnowledgeBatch(request)
+
+    override fun saveUserFacts(
+        request: PersistenceDataRequest.SaveUserFacts,
+    ): PersistenceDataResponse.SavedUserFacts = handleSaveUserFacts(request)
+
+    override fun advanceKnowledgeExtractionCursor(
+        request: PersistenceDataRequest.AdvanceKnowledgeExtractionCursor,
+    ): PersistenceDataResponse.Empty = handleAdvanceKnowledgeExtractionCursor(request)
+
+    override fun saveUserKnowledgeSummary(
+        request: PersistenceDataRequest.SaveUserKnowledgeSummary,
+    ): PersistenceDataResponse.Empty = handleSaveUserKnowledgeSummary(request)
+
+    override fun saveChatKnowledgeSummary(
+        request: PersistenceDataRequest.SaveChatKnowledgeSummary,
+    ): PersistenceDataResponse.Empty = handleSaveChatKnowledgeSummary(request)
+
+    override fun findChatKnowledgeSummary(
+        request: PersistenceDataRequest.FindChatKnowledgeSummary,
+    ): PersistenceDataResponse.ChatKnowledgeSummary = handleFindChatKnowledgeSummary(request)
+
+    override fun findChatSummaryMessages(
+        request: PersistenceDataRequest.FindChatSummaryMessages,
+    ): PersistenceDataResponse.Messages = handleFindChatSummaryMessages(request)
+
+    override fun findUserKnowledge(
+        request: PersistenceDataRequest.FindUserKnowledge,
+    ): PersistenceDataResponse.UserKnowledgeByUserIds = handleFindUserKnowledge(request)
+
+    override fun findUserBirthdayFacts(
+        request: PersistenceDataRequest.FindUserBirthdayFacts,
+    ): PersistenceDataResponse.UserFacts = handleFindUserBirthdayFacts(request)
+
+    override fun findUserKnowledgeSummaryState(
+        request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
+    ): PersistenceDataResponse.UserKnowledgeSummaryState = handleFindUserKnowledgeSummaryState(request)
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
         val messages = findMessagesBeforePort.execute(
@@ -379,7 +449,133 @@ open class PersistenceDataUsecase(
         return PersistenceDataResponse.ChatAuthors(authors)
     }
 
+    private fun handleHasPendingKnowledgeBatch(
+        request: PersistenceDataRequest.HasPendingKnowledgeBatch,
+    ): PersistenceDataResponse.PendingStatus {
+        val hasPending = checkPendingKnowledgeBatchPort.execute(
+            CheckPendingKnowledgeBatchPort.Request(request.peerId, request.minCount, request.minInterval),
+        ).hasPending
+        return PersistenceDataResponse.PendingStatus(hasPending)
+    }
+
+    private fun handleFindPendingKnowledgeBatch(
+        request: PersistenceDataRequest.FindPendingKnowledgeBatch,
+    ): PersistenceDataResponse.Messages {
+        val messages = findPendingKnowledgeMessagesPort.execute(
+            FindPendingKnowledgeMessagesPort.Request(
+                request.peerId,
+                request.upToConversationMessageId,
+                request.limit,
+            ),
+        ).messages
+        return PersistenceDataResponse.Messages(messages)
+    }
+
+    private fun handleSaveUserFacts(request: PersistenceDataRequest.SaveUserFacts): PersistenceDataResponse.SavedUserFacts {
+        val (valid, invalid) = request.candidates.partition { candidate -> candidate.isValid() }
+        var saved = 0
+        valid.forEach { candidate ->
+            if (persistUserFactsPort.execute(PersistUserFactsPort.Request(candidate)).saved) {
+                saved++
+            }
+        }
+        return PersistenceDataResponse.SavedUserFacts(saved = saved, skipped = invalid.size + valid.size - saved)
+    }
+
+    private fun handleAdvanceKnowledgeExtractionCursor(
+        request: PersistenceDataRequest.AdvanceKnowledgeExtractionCursor,
+    ): PersistenceDataResponse.Empty {
+        saveKnowledgeExtractionCursorPort.execute(
+            SaveKnowledgeExtractionCursorPort.Request(
+                request.peerId,
+                request.lastConversationMessageId,
+                request.completedAt,
+            ),
+        )
+        return PersistenceDataResponse.Empty
+    }
+
+    private fun handleSaveUserKnowledgeSummary(
+        request: PersistenceDataRequest.SaveUserKnowledgeSummary,
+    ): PersistenceDataResponse.Empty {
+        upsertUserKnowledgeSummaryPort.execute(
+            UpsertUserKnowledgeSummaryPort.Request(request.userId, request.summaryText),
+        )
+        return PersistenceDataResponse.Empty
+    }
+
+    private fun handleSaveChatKnowledgeSummary(
+        request: PersistenceDataRequest.SaveChatKnowledgeSummary,
+    ): PersistenceDataResponse.Empty {
+        upsertChatKnowledgeSummaryPort.execute(
+            UpsertChatKnowledgeSummaryPort.Request(
+                request.peerId,
+                request.summaryText,
+                request.firstConversationMessageId,
+                request.lastConversationMessageId,
+                request.messagesCovered,
+            ),
+        )
+        return PersistenceDataResponse.Empty
+    }
+
+    private fun handleFindChatKnowledgeSummary(
+        request: PersistenceDataRequest.FindChatKnowledgeSummary,
+    ): PersistenceDataResponse.ChatKnowledgeSummary {
+        val knowledge = findChatSummaryPort.execute(
+            FindChatSummaryPort.Request(request.peerId),
+        ).knowledge
+        return PersistenceDataResponse.ChatKnowledgeSummary(knowledge)
+    }
+
+    private fun handleFindChatSummaryMessages(
+        request: PersistenceDataRequest.FindChatSummaryMessages,
+    ): PersistenceDataResponse.Messages {
+        val messages = findChatSummaryMessagesQueryPort.execute(
+            FindChatSummaryMessagesQueryPort.Request(request.peerId, request.limit),
+        ).messages
+        return PersistenceDataResponse.Messages(messages)
+    }
+
+    private fun handleFindUserKnowledge(
+        request: PersistenceDataRequest.FindUserKnowledge,
+    ): PersistenceDataResponse.UserKnowledgeByUserIds {
+        val summaries = findUserKnowledgeSummariesByUserIdsPort.execute(
+            FindUserKnowledgeSummariesByUserIdsPort.Request(request.userIds),
+        ).summaries
+        val facts = findUserFactsByUserIdsPort.execute(
+            FindUserFactsByUserIdsPort.Request(request.userIds),
+        ).facts
+        return PersistenceDataResponse.UserKnowledgeByUserIds(
+            UserKnowledgeReadModel.assemble(request.userIds, facts, summaries),
+        )
+    }
+
+    private fun handleFindUserBirthdayFacts(
+        request: PersistenceDataRequest.FindUserBirthdayFacts,
+    ): PersistenceDataResponse.UserFacts = PersistenceDataResponse.UserFacts(
+        findUserBirthdayFactsPort.execute(
+            FindUserBirthdayFactsPort.Request(request.monthDay),
+        ).facts,
+    )
+
+    private fun handleFindUserKnowledgeSummaryState(
+        request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
+    ): PersistenceDataResponse.UserKnowledgeSummaryState {
+        val state = findUserSummaryStatePort.execute(
+            FindUserSummaryStatePort.Request(request.userId),
+        )
+        return PersistenceDataResponse.UserKnowledgeSummaryState(
+            summarizedAt = state.summarizedAt,
+            factsSinceSummary = state.factsSinceSummary,
+        )
+    }
+
     companion object {
+        private fun UserFactCandidate.isValid(): Boolean = value.isNotBlank() &&
+            value.codePointCount(0, value.length) <= UserFactCandidate.MAX_VALUE_LENGTH &&
+            UserFactCandidate.FACT_KEY_REGEX.matches(factKey)
+
         private fun MessageEntity.toStoredMessage(): StoredMessage = StoredMessage(
             id = id,
             peerId = peerId!!,

@@ -54,7 +54,7 @@
 
 - **Проблема:** сценарий координирует несколько команд и портов; он не должен жить в контроллере.
 - **Где:** `ReceiveMessageUsecase.kt:10-21`, `SaveMessageUsecase.kt:22-68`,
-  `PersistenceDataUsecase.kt:41-302`, `MessageReceivedUsecaseInput.kt:15-45`,
+  `PersistenceDataUsecase.kt:41-302`, `MessageReceivedUsecaseInput.kt:33-157`,
   `GenerateAnswerUsecase.kt:16-41`, `ProcessSummaryUsecase.kt:10-20`, `GenerateSummaryUsecase.kt:10-24`,
   `MessageSendUsecase.kt:15-44`, `VkProfileUsecase.kt:9-21`, `RunDailyGreetingsUsecase.kt`.
 - **Сила:** Information Expert — координация у того, кто владеет сценарием; адаптеры только маппят.

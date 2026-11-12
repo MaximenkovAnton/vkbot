@@ -6,7 +6,7 @@
 
 ## События и их владельцы
 
-`Event` — закрытый enum из восьми значений (`share/domain/Event.kt:3-12`). Routing key в RabbitMQ равен
+`Event` — закрытый enum из одиннадцати значений (`share/domain/Event.kt:3-15`). Routing key в RabbitMQ равен
 имени события (`PublishEventOutputAdapter.kt:20-30`), диспетчер строит карту `Event.name → EventProcessor`
 (`EventDispatcher.kt:21-24`).
 
@@ -15,10 +15,13 @@
 | `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
 | `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
 | `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
-| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:61-67,98-101`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
-| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `PROFILE_REQUESTED` | `MessageReceivedUsecaseInput.kt:74-78` (processor, ветка `profile`) | `ProfileRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:64-73,112-115`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `PROFILE_REQUESTED` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `profile`) | `ProfileRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
+| `USER_KNOWLEDGE_REQUESTED` | `RequestKnowledgeExtractionCommand.kt` (processor, триггер) | `UserKnowledgeRequestedEventProcessor.kt` (ai) | `UserKnowledgeRequestedPayload(peerId, upToConversationMessageId)` (`share/domain/event/UserKnowledgeRequestedPayload.kt`) |
+| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | `ProcessUserKnowledgeCommandImpl.kt` (ai, после успешного батча) | `UserKnowledgeSummaryRequestedEventProcessor.kt` (ai, R3a) | `UserKnowledgeSummaryRequestedPayload(userId)` (`share/domain/event/UserKnowledgeSummaryRequestedPayload.kt`) |
+| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | `ProcessUserKnowledgeCommandImpl.kt` (ai, после успешного батча) | `ChatKnowledgeSummaryRequestedEventProcessor.kt` (ai, R3b) | `ChatKnowledgeSummaryRequestedPayload(peerId)` (`share/domain/event/ChatKnowledgeSummaryRequestedPayload.kt`) |
 | `SUMMARY_READY` | `PersistenceDataUsecase.kt:238-269` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
 
 Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
@@ -124,7 +127,7 @@ IN ACCESS EXCLUSIVE MODE`, пересобирает агрегаты (`DELETE` +
 ## 4. Спам- и jailbreak-проверки, решение «нужен ли ответ» и маршрутизация интентов (processor)
 
 `MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
-(`MessageReceivedUsecaseInput.kt:31-141`).
+(`MessageReceivedUsecaseInput.kt:33-157`).
 
 Сначала — decision-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате
 (`peerId.isGroupChat()`) при включённой хотя бы одной ветке (`decision.spam-reply.enabled ||
@@ -204,7 +207,10 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
     → ProcessNewsDigestUsecase → ProcessNewsDigestCommandImpl
     → NewsPeriodParser: текст запроса → [from, to] (или период от последнего сообщения автора)
     → in-process persistence: саммари периода + свежие сообщения (≤ summary.batch-size)
-    → NewsDigestAiAdapter (3 попытки) → ANSWER_MESSAGE
+    → при непустых данных периода: два опциональных чтения знаний (R4c)
+    → FindUserKnowledgePort([FromId(message.fromId)]) — интересы автора (R4c)
+    → FindChatKnowledgeSummaryPort(message.peerId) — темы чата (R4c)
+    → NewsDigestAiAdapter (секции «Интересы автора запроса:»/«Темы чата:», 3 попытки) → ANSWER_MESSAGE
     → vk-facade/SendMessageEventProcessor → VK API messages.send
 ```
 
@@ -222,6 +228,16 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
   периода. Сообщение-запрос исключено (вопрос, а не контент), из свежих сообщений оставлены только те,
   что новее `max(lastMessageId)` саммари периода. Авторы форматируются общим `MessageAuthorFormatter` —
   теми же именами, что у саммаризации.
+- **Знания (R4c).** После проверки «данные периода есть» и до `buildData` команда опционально читает
+  `FindUserKnowledgePort([FromId(message.fromId)])` — интересы автора: свежая (`summaryFresh=true`)
+  непустая сводка профиля verbatim, иначе `INTEREST`/`CONFIRMED`/`!stale`-карточки через `- <value>`; и
+  `FindChatKnowledgeSummaryPort(message.peerId)` — сохранённый текст `chat_knowledge_summary`, если не
+  blank (свежесть не проверяется — флага в контракте нет). Каждый порт в своём `try/catch (Exception)`:
+  WARNING `News digest knowledge read failed for peerId=<peerId>, authorId=<authorId>: <SimpleClass>` без
+  значений, сбойная секция опускается, сводка всё равно генерируется. При
+  `knowledge.news-personalization.enabled=false` оба чтения пропускаются. Без знаний аргументы сервиса
+  `("", "")`, Qute рендерит пустые плейсхолдеры пустой строкой, поэтому user-сообщение побайтово прежнее;
+  system-промпт `aiNewsDigestSystemprompt` не меняется.
 - **LLM.** `NewsDigestAiService` (`@RegisterAiService` без инструментов и памяти чата, system-промпт
   `{config:aiNewsDigestSystemprompt}`) + `NewsDigestAiAdapter` — ровно три попытки, пустой или
   пробельный ответ считается неудачной попыткой. После третьей — `NewsDigestGenerationException`;
@@ -242,7 +258,9 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
         → имя среди сохранённых профилей авторов этого peer_id
     → in-process persistence: авторы чата, профиль VK, статистика, история (20 записей)
     → при отсутствии сохранённого профиля — live vk-порт (ответ VK не сохраняется)
-    → ProfileDossierFormatter → ProfileAiAdapter (3 попытки) → ANSWER_MESSAGE
+    → FindUserKnowledgePort([цель]) — знания из чата; у группы чтения нет
+    → ProfileDossierFormatter (Профиль: → Из общения: → Статистика: → История изменений: → В этом чате:)
+        → ProfileAiAdapter (3 попытки) → ANSWER_MESSAGE
     → vk-facade/SendMessageEventProcessor → VK API messages.send
 ```
 
@@ -257,38 +275,275 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
   `FindStoredUserProfilesByIdsPort`/`FindStoredGroupProfilesByIdsPort`, при отсутствии —
   `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (live VK; ответ не сохраняется);
   `FindStoredUserStatisticsPort` — материализованные агрегаты (глобальные и по чатам, включая чужие);
-  `FindStoredUserProfileHistoryPort(id, limit = 20)` — последние записи newest-first. Группа получает
-  только профиль и счётчик в этом чате.
-- **Текст.** `ProfileDossierFormatter` — чистый домен: секции `Профиль:`, `Статистика:`,
+  `FindStoredUserProfileHistoryPort(id, limit = 20)` — последние записи newest-first; знаний о цели —
+  `FindUserKnowledgePort([цель])` (порт R2b, у группы чтения нет). Группа получает только профиль и
+  счётчик в этом чате.
+- **Текст.** `ProfileDossierFormatter` — чистый домен: секции `Профиль:`, `Из общения:`, `Статистика:`,
   `История изменений:`, `В этом чате:`; пустые секции не пишутся; `details` и история рендерятся по
   allowlist (без телефонов, контактов, `counters`, `connections`, неизвестных ключей и VK-id).
+  `Из общения:` — свежая сводка профиля связным текстом, иначе список фактов через единственный
+  `UserKnowledgeSummaryFormatter` (`возможно`/`ранее`/«противоречивые данные», `stale` исключён, без
+  источников, id и дат); пустые знания — секции нет. Конфликт VK↔чат отдаётся LLM двумя версиями:
+  VK-значение в `Профиль:`, значение из чата в `Из общения:`.
 - **LLM и ответ.** `ProfileAiService` (`@RegisterAiService` без инструментов и памяти, system-промпт
   `{config:aiProfileSystemprompt}`) + `ProfileAiAdapter` — ровно три попытки, пустой ответ считается
   неудачей; после третьей — `ProfileGenerationException`. Команда публикует фиксированный текст «Не
   удалось собрать профиль. Попробуйте позже.» и пишет ERROR только с `peerId` и простым именем класса
   исключения (без текста/PII). Если профиль не получен ни из БД, ни из VK — «Профиль недоступен.» без
   LLM.
-- **Запись.** В БД ничего не пишется: у команды нет write-портов; live-профиль не сохраняется; ровно один
-  `ANSWER_MESSAGE` с `responseTo = исходное Message`. Ошибки чтения и публикации не перехватываются —
-  уходят в retry-лестницу брокера.
+- **Запись.** В БД ничего не пишется: у команды нет write-портов; live-профиль не сохраняется; знания в
+  `vk_user_profiles` не пишутся; ровно один `ANSWER_MESSAGE` с `responseTo = исходное Message`. Ошибки
+  чтения и публикации не перехватываются — уходят в retry-лестницу брокера; единственное исключение —
+  опциональное чтение знаний: сбой `FindUserKnowledgePort` даёт WARNING без значений и досье без секции
+  (ADR 2026-11-11-profile-knowledge-overlay, `Amends` ADR 2026-11-10-profile-dossier).
 
-## 7. Генерация ответа (ai)
+## 7. Извлечение знаний из чата (processor → ai)
+
+```
+MESSAGE_RECEIVED → processor/MessageReceivedUsecaseInput
+    → RequestKnowledgeExtractionCommandImpl (enabled, человек, не бот, чат не исключён, батч назрел)
+    → USER_KNOWLEDGE_REQUESTED(peerId, upToConversationMessageId)
+    → ai/UserKnowledgeRequestedEventProcessor → ProcessUserKnowledgeUsecase
+    → ProcessUserKnowledgeCommandImpl
+    → in-process persistence: FindPendingKnowledgeBatchPort (id > cursor, id ≤ upTo, ≤ batch-size)
+    → UserKnowledgeBatchFormatter → KnowledgeExtractionAiAdapter (3 попытки) → UserKnowledgeValidator
+    → SaveUserFactsPort → AdvanceExtractionCursorPort
+    → USER_KNOWLEDGE_SUMMARY_REQUESTED(userId)* + CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId)
+```
+
+- **Триггер** (`RequestKnowledgeExtractionCommand.kt`) стоит в `MessageReceivedUsecaseInput` сразу после
+  `val message = request.message` и **до** `decisionStage`/`isRequireAnswer`: батч считает все входящие
+  человеческие сообщения, а не только те, на которые бот отвечает. Политика: `knowledge.enabled` →
+  `FromId.isHuman()` → `fromId != vk.bot.id` → `peerId !in knowledge.excluded-chat-ids` →
+  `HasPendingKnowledgeBatchPort(peerId, batch-size, batch-interval)` → ровно одно
+  `USER_KNOWLEDGE_REQUESTED`. Сбой — fail-open WARNING с `peerId` и классом ошибки; маршрутизация
+  сообщения продолжается.
+- **Батч.** `ProcessUserKnowledgeCommandImpl` запрашивает `messages` с `id > cursor AND id <= upTo`
+  (`FindPendingKnowledgeBatchPort`), фильтрует человек/непустой текст/дата/id, собирает имена через
+  `FindStoredUserProfilesByIdsPort` (fallback `Пользователь <id>`), делает **один** вызов
+  `KnowledgeExtractionPort` со строками `[id|имя]: текст`. Пустой батч — LLM нет, курсор на `upTo`;
+  все сообщения отфильтрованы — LLM нет, курсор на хвост батча.
+- **Разбор и retry.** `KnowledgeExtractionAiAdapter` — три попытки; `blank`/не-JSON/`{}` — неудача,
+  `{"facts":[]}` — успех; WARNING только `attempt` и класс ошибки (PII не логируется). После третьей —
+  `KnowledgeExtractionException` (`EXTERNAL_FAILURE`) наружу в retry-лестницу брокера.
+- **Валидация и запись.** `UserKnowledgeValidator` отбрасывает черновики с чужим субъектом (не участник
+  батча по id/имени), неизвестной категорией, ключом вне `^[a-z0-9._-]{1,96}$`, пустым/длиннее 500
+  значением, отсутствующим источником; клампит confidence в `[0,1]` и по sourceKind (1.0/0.8/0.8/0.6),
+  SELF_STATEMENT чужого автора переклассифицирует в OTHER_STATEMENT, дедупит по каноническому
+  `(userId, category, factKey, normalized value)`. Затем `SaveUserFactsPort` (только при ≥1 факте) и
+  `AdvanceExtractionCursorPort` на последний id батча — **строго после** сохранения; при отказе LLM ни
+  save, ни advance не вызываются. `value_hash`, курсор и идемпотентность — persistence (`:src:persistence`).
+- **Сводки.** После успеха — по одному `USER_KNOWLEDGE_SUMMARY_REQUESTED` на пользователя и одно
+  `CHAT_KNOWLEDGE_SUMMARY_REQUESTED`; каждое в своём `try/catch`, извлечение не откатывается. Пороги и
+  сами сводки — R3a/R3b; сводку чата потребляет R3b (ниже), сводку профиля — R3a.
+
+### Сводка чата (R3b)
+
+```
+CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId) → ai/ChatKnowledgeSummaryRequestedEventProcessor
+    → ProcessChatKnowledgeSummaryUsecase → GenerateChatKnowledgeSummaryCommandImpl
+    → in-process persistence: FindChatSummaryMessagesPort(peerId, limit = порог)
+        (conversation_message_id > coalesce(last_conversation_message_id, 0), asc, ≤ limit)
+    → FindChatKnowledgeSummaryPort(peerId)
+    → гейт: size ≥ threshold ИЛИ сводки нет ИЛИ summarizedAt ≤ now − interval
+    → MessageAuthorFormatter → ChatKnowledgeSummaryAiAdapter (3 попытки) → текст ≤ 2000
+    → SaveChatKnowledgeSummaryPort(peerId, text, first, last, covered = окно.size)
+```
+
+- **Консюмер.** `ChatKnowledgeSummaryRequestedEventProcessor` разбирает JSON в
+  `ChatKnowledgeSummaryRequestedPayload` и вызывает `ProcessChatKnowledgeSummaryInputPort`; use case —
+  тонкий делегат `GenerateChatKnowledgeSummaryCommand`.
+- **Окно.** `FindChatSummaryMessagesPort` читает `messages` с `conversation_message_id` строго больше
+  `chat_knowledge_summary.last_conversation_message_id` (нет строки — с начала архива, `> 0`), по
+  возрастанию, не больше порога, без верхней границы; граница — скалярный подзапрос в
+  `JooqKnowledgeSummaryRepository.findChatSummaryWindow`, окно опирается на индекс
+  `messages(peer_id, conversation_message_id)` из changeset `010`.
+- **Гейт.** Пустое окно — DEBUG `empty window`, выход **до** чтения сводки. Иначе окно запрашивается
+  целиком, читается прежняя сводка `FindChatKnowledgeSummaryPort`; при `window.size < threshold` и
+  `summarizedAt > now − interval` — DEBUG `below threshold and interval`, без LLM и save. Первый прогон
+  (`summary == null`) генерирует при любом непустом окне.
+- **LLM и запись.** В промпт уходят строки `MessageAuthorFormatter` (`[имя]: текст`, без id), промпт
+  требует связный текст и запрещает пересказ/список; адаптер делает ровно три попытки, пустой ответ —
+  неудача, WARNING только с номером попытки и классом ошибки. Команда клипует ответ до 2000 символов и
+  пишет `summary_text`, фактический диапазон `first/last_conversation_message_id` и `messages_covered =
+  window.size`; upsert по `peer_id` перезаписывает прежнюю строку. При `ChatKnowledgeSummaryException`
+  save не вызывается, прежняя сводка и курсор остаются, исключение уходит в retry-лестницу брокера.
+- **Чтение для потребителей.** `FindChatKnowledgeSummaryPort(peerId) → ChatKnowledge(peerId, summary,
+  summarizedAt)?` — стабильная форма для R4c (темы в новостях), доставлен.
+- **PII.** INFO команды — `peerId`, `messages`, `length`; код команды не логирует текст сообщений и сводки,
+  но промпт с текстом окна и ответ модели попадают в глобальные INFO-логи и OTLP-трассировку LangChain4j —
+  принятый риск ADR 2026-11-10-news-digest. `chat_knowledge_summary` — производный PII-сток (пересказ
+  личных высказываний).
+
+### Сводка профиля (R3a)
+
+```
+USER_KNOWLEDGE_SUMMARY_REQUESTED(userId) → ai/UserKnowledgeSummaryRequestedEventProcessor
+    → ProcessUserKnowledgeSummaryUsecase → GenerateUserKnowledgeSummaryCommandImpl
+    → in-process persistence: FindUserKnowledgeSummaryStatePort(userId)
+        (summarized_at строки и count текущих user_facts с last_confirmed_at > summarized_at)
+    → гейт: сводки нет ИЛИ factsSinceSummary ≥ threshold ИЛИ summarizedAt ≤ now − interval
+    → FindUserKnowledgePort([FromId(userId)])
+    → UserKnowledgeSummaryFormatter → UserKnowledgeSummaryAiAdapter (3 попытки) → текст ≤ 2000
+    → SaveUserKnowledgeSummaryPort(userId, text) — facts_covered/last_fact_at считает SQL upsert
+```
+
+- **Консюмер.** `UserKnowledgeSummaryRequestedEventProcessor` разбирает JSON в
+  `UserKnowledgeSummaryRequestedPayload` и вызывает `ProcessUserKnowledgeSummaryInputPort`; use case —
+  тонкий делегат `GenerateUserKnowledgeSummaryCommand`. Класс с `event() =
+  USER_KNOWLEDGE_SUMMARY_REQUESTED` закрывает последний «неизвестный routing key» R2a.
+- **Гейт.** `FindUserKnowledgeSummaryStatePort` отдаёт `(summarizedAt?, factsSinceSummary)`; нет строки
+  сводки — `(null, 0)`, иначе `summarized_at` и число текущих карточек (`status <> HISTORICAL`) со строго
+  `last_confirmed_at > summarized_at`. Генерация — при `summarizedAt == null`, `factsSinceSummary >=
+  knowledge.summary-fact-threshold` (20) или `summarizedAt <= now − knowledge.summary-interval` (14d;
+  равенство — истечение). Закрытый гейт — DEBUG `below threshold and interval`, выход до чтения фактов,
+  LLM и save.
+- **Формат и LLM.** `UserKnowledgeSummaryFormatter` отдаёт блок по категориям в порядке
+  `INTEREST→HABIT→KNOWLEDGE→PROFILE_ATTRIBUTE→SOCIAL→EVENT`; `CANDIDATE` — `возможно:`, `HISTORICAL` —
+  `ранее:`, `conflict=true` — `возможно, противоречивые данные:`; `stale=true` исключён; id, `factKey`,
+  даты и источник в текст не попадают. Пустой блок — DEBUG `no fresh facts` без LLM и save. Промпт —
+  system `{config:aiKnowledgeSummarySystemprompt}` и user с блоком фактов; адаптер делает ровно три
+  попытки, `blank` — неудача, после третьей — `UserKnowledgeSummaryException` (`EXTERNAL_FAILURE`).
+  Команда клипует ответ до 2000 символов и вызывает `SaveUserKnowledgeSummaryPort(userId, text)`; при
+  сбое save не вызывается, прежняя сводка остаётся.
+- **Свежесть.** `facts_covered` (текущие карточки) и `last_fact_at = coalesce(max(last_confirmed_at),
+  now)` считает `JooqKnowledgeSummaryRepository.upsertUserSummary`, порт остаётся `(userId, summaryText)`;
+  R2b читает `summaryFresh = summarized_at >= last_fact_at`. Сводка — производная read-модель, не источник
+  истины.
+- **PII.** INFO команды — `userId`, число фактов, длина; WARNING адаптера — номер попытки и класс ошибки.
+  Ни значений фактов, ни текста сводки код R3a не логирует; промпт и ответ модели попадают в глобальные
+  INFO-логи и OTLP-трассировку LangChain4j — принятый риск ADR 2026-11-10-news-digest.
+  `user_knowledge_summary.summary_text` — производный PII-сток.
+
+## Хранение знаний (persistence)
+
+R1 хранит и считает знания без пользовательского пути; пишут консюмеры извлечения и сводок (R2a/R3a/R3b),
+читают R2b, R4a–R4c и R5. Правила записи — [ADR 2026-11-11-user-knowledge-facts](../adr/2026-11-11-user-knowledge-facts.md),
+чтения — [ADR 2026-11-11-knowledge-read-model](../adr/2026-11-11-knowledge-read-model.md); второй read-порт
+для поздравлений — [ADR 2026-11-11-hidden-birthday-greetings](../adr/2026-11-11-hidden-birthday-greetings.md).
+
+```
+SaveUserFactsPort(кандидаты) / AdvanceExtractionCursorPort(peerId, id, completedAt)
+SaveUserKnowledgeSummaryPort(userId, text) / SaveChatKnowledgeSummaryPort(peerId, text, first, last, covered)
+    → persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt (4 адаптера записи)
+    → PersistenceDataInputPort → PersistenceDataUsecase
+    → KnowledgeTemporalPolicy.classify (SAME/CONFLICT/CHANGE/REVIVAL/OLDER)
+    → FactConfidenceCalculator (кламп по source_kind, агрегат, порог)
+    → JooqUserKnowledgeRepository (ON CONFLICT … RETURNING id, state-aware UPDATE агрегатов)
+    → user_facts / user_fact_evidence / user_knowledge_summary / chat_knowledge_summary / knowledge_extraction_cursors
+```
+
+
+Чтение (R2b):
+
+```
+FindUserKnowledgePort(List<FromId>)
+    → PersistenceDataInProcessAdapter.kt (FindUserKnowledgeInProcessAdapter; пустой запрос — ответ без вызова persistence)
+    → PersistenceDataInputPort → PersistenceDataUsecase.findUserKnowledge
+    → FindUserKnowledgeSummariesByUserIdsPort → JooqKnowledgeSummaryRepository.findUserSummaries
+    → FindUserFactsByUserIdsPort → JooqUserKnowledgeRepository.findFactsByUserIds (user_facts WHERE user_id IN (…))
+    → UserKnowledgeReadModel.assemble (запись на каждый FromId, summaryFresh)
+    → Map<FromId, UserKnowledge>
+```
+
+Потребители: R3a (сводка профиля, `GenerateUserKnowledgeSummaryCommandImpl`) и R4a (досье
+`profile-dossier`: `ProcessProfileCommandImpl` кладёт `UserKnowledge` в `ProfileDossier.UserDossier`, а
+`ProfileDossierFormatter` рендерит секцию `Из общения:` — свежая сводка приоритетнее, иначе факты;
+сбой чтения — fail-open WARNING без значений и досье без секции).
+
+Birthday-факты на месяц/день для поздравлений (R5):
+
+```
+FindUserBirthdayFactsPort(MonthDay)
+    → PersistenceDataInProcessAdapter.kt (FindUserBirthdayFactsInProcessAdapter)
+    → PersistenceDataInputPort → PersistenceDataUsecase.findUserBirthdayFacts
+    → FindUserBirthdayFactsPort (persistence) → JooqUserKnowledgeRepository.findCurrentBirthdayFacts
+    → List<UserFact> (user_facts WHERE category = PROFILE_ATTRIBUTE AND fact_key = 'birthday'
+                                   AND status <> 'HISTORICAL' AND value_payload ->> 'monthDay' = 'MM-DD'
+                                   ORDER BY user_id ASC)
+```
+
+Состояние сводки профиля для гейта R3a (read-only):
+
+```
+FindUserKnowledgeSummaryStatePort(userId)
+    → PersistenceDataInProcessAdapter.kt (FindUserKnowledgeSummaryStateInProcessAdapter)
+    → PersistenceDataInputPort → PersistenceDataUsecase.findUserKnowledgeSummaryState
+    → JooqKnowledgeSummaryRepository.findUserSummaries(listOf(userId)) — нет строки → (null, 0)
+    → JooqKnowledgeSummaryRepository.countCurrentFactsNewerThan(userId, summarized_at)
+    → (summarizedAt, factsSinceSummary)
+```
+
+- **Карточка и свидетельства.** `user_facts` — одна строка на `(user_id, category, fact_key, value_hash)`;
+  `peer_id` — чат первого свидетельства и в UNIQUE не входит, поэтому одно значение из двух чатов даёт одну
+  карточку. `user_fact_evidence` — ссылки `message_id`/`conversation_message_id`/`peer_id`/`said_by_id`/
+  `observed_at` + `source_kind`/`confidence`; текста сообщения нет (FK на `messages` не ставится).
+- **Агрегаты и K.** `evidence_count` растёт только при вставке новой ссылки, повтор
+  `(fact_id, peer_id, conversation_message_id)` — no-op с `skipped=1`; хранятся не более
+  `knowledge.evidence-refs-limit` (20) последних ссылок, `max_evidence_confidence` переживает обрезку.
+- **Доверие.** `FactConfidenceCalculator`: кламп по `source_kind` (1.0/0.8/0.8/0.6), агрегат
+  `min(1.0, max + 0.1·(min(count,5)−1))` HALF_UP до 3 знаков, `CONFIRMED` при
+  `knowledge.confirm-threshold` (0.8); `KnowledgeConfig` читает оба ключа при старте.
+- **Время.** `KnowledgeTemporalPolicy`: окна изменения 180/30 дней, классы SAME/CONFLICT/CHANGE/REVIVAL/
+  OLDER; конфликт оставляет обе карточки текущими `conflict=true`/`CANDIDATE` с −0.15 и снимается
+  подтверждением до порога; за окном новое значение становится текущим, прежнее — `HISTORICAL` с
+  `superseded_at`; возврат значения реанимирует ту же строку; OLDER добавляет ссылку, не делая карточку
+  текущей; TTL и затухания нет, `stale` не хранится.
+- **Нормализация.** Возраст → `birth_year`, формы ДР («14 мая», «14.05», «14.05.1993», «в следующую
+  пятницу») → `birthday` с `monthDay`-идентичностью и годом в payload; дата — календарная дата сообщения;
+  `value_hash` — sha256 канонической формы значения.
+- **Курсор.** `knowledge_extraction_cursors`: `greatest` по `last_conversation_message_id` и
+  `last_completed_at`, `updated_at=completedAt`; батч ограничен `upToConversationMessageId`.
+- **Сводки.** `SaveUserKnowledgeSummaryPort` считает `facts_covered` (текущие карточки) и
+  `last_fact_at=max(last_confirmed_at)`, upsert по `user_id`; `SaveChatKnowledgeSummaryPort` — upsert по
+  `peer_id` с `messages_covered` и диапазоном окна. Сводку профиля пишет R3a, сводку чата — R3b;
+  `FindUserKnowledgeSummaryStatePort` считает `count` текущих карточек со строго
+  `last_confirmed_at > summarized_at` для гейта R3a (один запрос по индексу `(user_id, status)`).
+- **Схема.** changeset `010-create-user-knowledge-tables` (5 таблиц, UNIQUE, индексы, FK, CHECK) и
+  нетранзакционный `010-create-messages-knowledge-index` (`DROP INDEX CONCURRENTLY IF EXISTS` + `CREATE
+  INDEX CONCURRENTLY` на `messages(peer_id, conversation_message_id)`); jOOQ-объекты —
+  `Tables.kt:113-178`.
+- **Чтение.** `FindUserKnowledgePort` — единственный per-user вход: два batched `SELECT`
+  (`user_knowledge_summary` первым, `user_facts` последним) и `stale`, посчитанный единственной
+  `KnowledgeTemporalPolicy` на момент
+  чтения (`stale` в БД не хранится). Отдаются все карточки пользователя в порядке `category, fact_key,
+  last_confirmed_at DESC, value` — текущие и `HISTORICAL`, без выбора победителя конфликта; сводка —
+  всегда, `summaryFresh = summarized_at >= last_fact_at` (максимум строки сводки и `last_confirmed_at`
+  карточек); порядок чтений делает расчёт консервативным — факт, появившийся между запросами, попадает
+  в карточки и даёт `summaryFresh=false`; `knowledge.enabled` чтение не гейтит; своих индексов и миграций
+  R2b не добавляет; два `SELECT` не snapshot — принятый shortcut. Второй read-порт
+  `FindUserBirthdayFactsPort` читает birthday-факты по ключу «месяц/день» одним `SELECT` через
+  существующие индексы `010` и отдаёт `status`/`confidence` как есть (ADR
+  2026-11-11-hidden-birthday-greetings); миграции и новых индексов R5 не добавляет.
+- **PII.** В таблицах знаний нет текста сообщений, код хранения не логирует значения фактов; карточка
+  хранит само значение факта в `user_facts.value`/`value_payload` (производные персональные данные) и
+  ссылку на источник, а `user_knowledge_summary`/`chat_knowledge_summary` — производный PII-текст.
+  Глобальные INFO-логи и OTLP-трассировка LangChain4j пишут промпт и ответ модели (промпт извлечения
+  содержит текст сообщений, ответ — значения фактов) — принятый риск ADR 2026-11-10-news-digest.
+
+## 8. Генерация ответа (ai)
 
 `MessageRequireAnswerEventProcessor` (`MessageRequireAnswerEventProcessor.kt:17-20`) → `GenerateAnswerUsecase`
-(`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:32-47`):
+(`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:26-74`):
 
 1. **Контекст** — `ConversationContextRestAdapter` (`ConversationContextRestAdapter.kt:28-67`):
    последние 20 сообщений чата через `FindStoredMessagesBeforePort`, `from_id` из истории и текущего
    сообщения (включая forward'ы), профили пользователей/групп через in-process persistence-порты;
    `forwardedMessages` парсится из JSONB здесь же (`:88-95`).
-2. **LLM** — `GenerateAnswerOutputAdapter` (`GenerateAnswerOutputAdapter.kt:19-28`) форматирует профили,
-   историю и текущее сообщение (с forward-блоками) и вызывает `UserAnswerAiService`
-   (`UserAnswerAiService.kt:13-45`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, инструменты
-   `VaneSearchToolAdapter`). Память чата — `TransientChatMemoryProvider` (10 сообщений, только в рамках
-   запроса).
-3. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
+2. **Знания автора** — команда ровно один раз читает `FindUserKnowledgePort` для `message.fromId`
+   (`Request(listOf(fromId))`); нет записи — пустой `UserKnowledge`. Сбой чтения fail-open: один WARNING с
+   `peerId` и классом ошибки, без текста сообщения и значений, ответ продолжается; `InterruptedException`
+   восстанавливает флаг и пробрасывается (ADR 2026-11-11-knowledge-in-prompts).
+3. **LLM** — `GenerateAnswerOutputAdapter` (`GenerateAnswerOutputAdapter.kt:16-33`) форматирует профили,
+   историю и текущее сообщение (с forward-блоками), рендерит блок `[USER_KNOWLEDGE] … [/USER_KNOWLEDGE]`
+   из свежей сводки профиля (приоритет) или канонических фактов (знаний нет — блока нет, промпт прежний) и
+   вызывает `UserAnswerAiService`
+   (`UserAnswerAiService.kt:13-46`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, плейсхолдер
+   `{userKnowledge}`, инструменты `VaneSearchToolAdapter`). Память чата — `TransientChatMemoryProvider`
+   (10 сообщений, только в рамках запроса).
+4. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
 
-## 8. Отправка в VK (vk-facade)
+## 9. Отправка в VK (vk-facade)
 
 `SendMessageEventProcessor` (`SendMessageEventProcessor.kt:17-20`) читает `ResponseMessage` →
 `MessageSendUsecase` (`MessageSendUsecase.kt:17-27`):
@@ -302,7 +557,7 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
   `v=${vk.api.version}`, `disable_mentions=1`, `dont_parse_links=1` (`:12-15`);
 - ошибка VK (`response.error != null`) → `VkException` → retry через `EventDispatcher`.
 
-## 9. Саммаризация
+## 10. Саммаризация
 
 ```
 SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
@@ -330,14 +585,15 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
 - `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
 
-## 10. Поздравления по расписанию (greetings)
+## 11. Поздравления по расписанию (greetings)
 
 ```
 greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezone
   → DailyGreetingRunner (@Scheduled Quarkus)
   → RunDailyGreetingsUsecase
-  → CollectGreetingPlansCommand: групповые чаты (peer_id > 2e9) + профили по (day, month) + чаты from_id
-      → один HolidayGreeting на праздник + один BirthdayGreeting на всех именинников чата
+  → CollectGreetingPlansCommand: групповые чаты (peer_id > 2e9) + профили по (day, month)
+      + CONFIRMED birthday-факты на те же MonthDay (FindUserBirthdayFactsPort) при скрытой VK-дате
+      + чаты from_id → один HolidayGreeting на праздник + один BirthdayGreeting на всех именинников чата
   → ClaimDailyGreetingPort: один INSERT … ON CONFLICT DO NOTHING на (date, peer) до отправки
   → на каждый план: GenerateGreetingTextCommand → GenerateGreetingTextPort (ИИ; шаблон при отказе)
   → SendGreetingMessagePort → PlainMessageSendUsecase → VK API messages.send
@@ -355,6 +611,16 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
   личные переписки). На 1 марта невисокосного года запрашиваются и `(1, 3)`, и `(29, 2)`. План чата —
   один `GreetingPlan.HolidayGreeting` на каждый праздник и один `GreetingPlan.BirthdayGreeting` на всех
   именинников чата с отсортированными именами.
+- **Скрытый ДР из чата (R5).** Для тех же `MonthDay` `greetings` читает
+  `FindUserBirthdayFactsPort(MonthDay) → Response(List<UserFact>)` (текущие `PROFILE_ATTRIBUTE/birthday`
+  карточки, `status != HISTORICAL`, порядок `user_id ASC`), оставляет `CONFIRMED`, вычитает `userId`, уже
+  найденные VK-веткой, добирает профили одним `FindStoredUserProfilesByIdsPort`, берёт только
+  `birthDate.isNullOrBlank()` и раскладывает имя по чатам человека. `CANDIDATE` не поздравляется; VK-дата
+  приоритетна. Слияние атомарное: пары `(peer, name)` вливаются в план только после успешного чтения фактов,
+  профилей и чатов. Kill-switch `greetings.hidden-birthdays.enabled` (env
+  `GREETINGS_HIDDEN_BIRTHDAYS_ENABLED`, дефолт `true`) при `false` не вызывает порт; ошибка чтения
+  knowledge-ветки — WARN с классом исключения и план из VK-даты и праздников (fail-open), миграции нет
+  (ADR 2026-11-11-hidden-birthday-greetings).
 - **Текст.** `GenerateGreetingTextCommand` зовёт `GenerateGreetingTextPort` с запросом
   `Request(date, occasion, people)` (`ai`, system-промпт `aiGreetingSystemprompt`): для праздника
   `occasion = Holiday.title` и пустой `people` («все»), для именинников — `occasion = День рождения` и

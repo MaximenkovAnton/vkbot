@@ -29,7 +29,9 @@ object FakeNewsDigestProvider {
 
     fun createNewsDigestGenerationRequest(
         data: String = "digest data",
-    ) = NewsDigestGenerationRequest(data)
+        interests: String? = null,
+        chatTopics: String? = null,
+    ) = NewsDigestGenerationRequest(data, interests, chatTopics)
 
     fun createNewsDigestGenerationResponse(
         text: String = "digest text",

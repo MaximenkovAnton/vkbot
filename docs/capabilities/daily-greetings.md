@@ -8,7 +8,8 @@
 По cron-расписанию `greetings.cron` (по умолчанию `0 0 0 * * ?`, то есть 00:00) в часовом поясе
 `greetings.timezone` (по умолчанию `Europe/Minsk`, UTC+3) собирает поздравления и отправляет их в чаты VK:
 Новый год (1 января), День программиста (256-й день года: 13 сентября в невисокосный, 12 сентября в
-високосный) и дни рождения участников из `vk_user_profiles.birth_date`. Праздники уходят во все групповые
+високосный) и дни рождения участников из `vk_user_profiles.birth_date` или из подтверждённого
+(`CONFIRMED`) факта `PROFILE_ATTRIBUTE/birthday`, если VK-дата скрыта или пуста. Праздники уходят во все групповые
 чаты, где у бота есть переписка (`peer_id > 2 000 000 000`); именинник — в каждый чат, где он писал,
 включая личные переписки с ботом. На каждый праздник в чате уходит отдельное сообщение, а все именинники
 одной даты в одном чате получают одно общее сообщение; разные праздники одного дня — разные сообщения.
@@ -29,8 +30,9 @@
 | сценарий прогона: план → claim на чат → на каждый план текст и отправка | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/usecase/RunDailyGreetingsUsecase.kt` |
 | входящий порт `Request(date)` → `Response(planned, sent, failed)` | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/port/input/RunDailyGreetingsInputPort.kt` |
 | правила праздников и дней рождения | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/Holidays.kt`, `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/BirthdayDates.kt` |
+| скрытый ДР: чтение `CONFIRMED`-фактов на месяц/день, объединение с VK-датой, дедуп по `userId`, fail-open | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindUserBirthdayFactsPort.kt` |
 | план чата: отдельный праздник или все именинники даты | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/domain/GreetingPlan.kt` |
-| ключи `greetings.cron`, `greetings.timezone`, `aiGreetingSystemprompt` | `src/app/src/main/resources/application.yml` |
+| ключи `greetings.cron`, `greetings.timezone`, `greetings.hidden-birthdays.enabled`, `aiGreetingSystemprompt` | `src/app/src/main/resources/application.yml` |
 | решение | `docs/adr/2026-11-07-daily-greetings.md` |
 
 ## Данные
@@ -41,6 +43,7 @@
 | `messages` (`peer_id`, `from_id`) | `message-storage` | `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort` |
 | `vk_user_profiles.birth_date` | `message-storage` (схема), `vk-profiles` (заполняет) | `FindUserProfilesByBirthDatePort` |
 | `VkUserProfile` и правило nullable-полей | `vk-profiles` | рендер имени именинника (`NameFormatter`) |
+| `user_facts` (changeset `010-create-user-knowledge-tables.yaml`) | `knowledge-store` | `FindUserBirthdayFactsPort` — текущие `PROFILE_ATTRIBUTE/birthday`-карточки на месяц/день, `status` и `confidence` как есть |
 | LLM и ключ `aiGreetingSystemprompt` | `ai-answer`/`:src:app` | `GenerateGreetingTextPort` |
 | плоская отправка и `random_id` | `vk-message-send` | `SendGreetingMessagePort` |
 | спан `greetings.daily-run` и логи прогона | `daily-greetings` | эксплуатация |
@@ -57,6 +60,8 @@
 |---|---|---|
 | `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort` | только `daily-greetings` | `share` (контракт), `message-storage` (реализация) |
 | `FindUserProfilesByBirthDatePort` | только `daily-greetings` | `share` (контракт), `message-storage` (реализация) |
+| `FindUserBirthdayFactsPort` | только `daily-greetings` | `share` (контракт), `knowledge-store`/`persistence` (реализация) |
+| `FindStoredUserProfilesByIdsPort` | `ai-answer`, `daily-greetings` | `share` (контракт), `message-storage` (реализация) |
 | `ClaimDailyGreetingPort` и таблица `greeting_log` | только `daily-greetings` | `share` (контракт), `message-storage` (схема и реализация) |
 | `GenerateGreetingTextPort` | только `daily-greetings` | `share` (контракт), `ai-answer` (реализация) |
 | `SendGreetingMessagePort` | только `daily-greetings` | `share` (контракт), `vk-message-send` (реализация) |
@@ -65,6 +70,7 @@
 ## Зависит от
 
 - `message-storage` — in-process порты чтения чатов/профилей и claim.
+- `knowledge-store` — read-порт `FindUserBirthdayFactsPort` (текущие birthday-факты на месяц/день).
 - `ai-answer` — `GenerateGreetingTextPort` (ИИ + ключ `aiGreetingSystemprompt`).
 - `vk-message-send` — `SendGreetingMessagePort` (плоская отправка, `random_id`).
 
@@ -74,6 +80,9 @@
 - ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — in-process `share`-порты вместо loopback-REST.
 - ADR 2026-11-07-daily-greetings — расписание через `quarkus-scheduler`, at-most-once `greeting_log`, один текст на праздник и
   один на именинников чата, шаблон-фолбэк, известные ограничения.
+- ADR 2026-11-11-hidden-birthday-greetings — скрытый ДР из чата: read-порт с ключом «месяц/день»,
+  объединение источников в `greetings`, дедуп по `userId`, kill-switch `greetings.hidden-birthdays.enabled`,
+  fail-open knowledge-ветки; `Amends` ADR 2026-11-11-knowledge-read-model.
 
 ## Acceptance criteria
 
@@ -158,6 +167,35 @@
   `ERROR` и уходит вызывающему. Test:
   `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunnerTest.kt`.
 
+- **AC-BDAY-2a** — КОГДА у человека с пустой VK-датой есть `CONFIRMED` birthday-факт на 14.05 и он писал
+  в двух чатах, СИСТЕМА ДОЛЖНА один раз включить его имя в `BirthdayGreeting` каждого его чата на 14.05
+  любого года; на уровне приложения — ровно одно отправленное сообщение в дату и `0` при повторном
+  прогоне. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`,
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`.
+- **AC-BDAY-2b** — КОГДА человек есть и в VK-выдаче по дате, и в `CONFIRMED`-факте на ту же дату, СИСТЕМА
+  ДОЛЖНА добавить его имя ровно один раз и не запрашивать его профиль повторно для knowledge-ветки. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2c** — КОГДА у человека непустая VK-дата на другую дату и `CONFIRMED`-факт на дату прогона,
+  СИСТЕМА ДОЛЖНА не поздравлять его по факту, сохранив VK-поздравление на его собственную дату. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2d** — КОГДА единственный факт на дату — `CANDIDATE` (VK-даты нет), СИСТЕМА ДОЛЖНА не включать
+  человека в план и не читать его профиль. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2e** — КОГДА `greetings.hidden-birthdays.enabled=false`, СИСТЕМА ДОЛЖНА не вызывать
+  `FindUserBirthdayFactsPort` и не поздравлять по фактам, сохранив VK-именинника и праздник. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2f** — КОГДА `CONFIRMED`-факт имеет `monthDay="02-29"`, СИСТЕМА ДОЛЖНА поздравлять 29.02 в
+  високосный год и 01.03 в невисокосный, никогда 28.02, запрашивая тот же набор `MonthDay`, что и VK-ветка.
+  Test: `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2g** — КОГДА у knowledge-именинника нет сохранённого VK-профиля, СИСТЕМА ДОЛЖНА пропустить его с
+  WARN, содержащим только `user=<id>`, и не подставлять id или значение факта в план и текст. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+- **AC-BDAY-2h** — КОГДА чтение birthday-фактов или профилей knowledge-ветки бросило исключение, СИСТЕМА
+  ДОЛЖНА записать WARN с классом исключения (без имени и значения факта) и собрать план из VK-даты и
+  праздников, не роняя прогон. Test:
+  `src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommandTest.kt`.
+
 ## Известные ограничения
 
 - Ошибка VK/claim сжигает чат на день: строка claim пишется на чат до отправки всех его сообщений, retry в
@@ -172,3 +210,9 @@
   имена и текст сообщения не логируются.
 - Остаточный prompt-injection: имена — untrusted user data, у `GreetingAiService` нет tools/memory, но
   текст промпта не санитайзится.
+- Скрытый ДР: knowledge-ветка fail-open — ошибка чтения фактов/профилей даёт план из VK-даты и праздников,
+  knowledge-имена в этот прогон не попадают.
+- «VK-дата скрыта» = `birth_date` пуст или `null`; невалидная непустая VK-дата скрывает человека из
+  knowledge-ветки, парсер `birth_date` в `greetings` не дублируется.
+- Год рождения из факта хранится в payload, но в текст поздравления не попадает: поздравление — имя и
+  повод.

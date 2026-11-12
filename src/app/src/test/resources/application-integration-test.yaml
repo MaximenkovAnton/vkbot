@@ -12,6 +12,9 @@ vk:
 summary:
   enabled-chats: 1,2,3
 
+knowledge:
+  excluded-chat-ids: "0"
+
 greetings.cron: disabled
 
 mp:

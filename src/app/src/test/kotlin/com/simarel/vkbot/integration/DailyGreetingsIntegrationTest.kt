@@ -15,8 +15,12 @@ import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
+import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
+import com.simarel.vkbot.share.port.output.persistence.SaveUserFactsPort
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
+import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import io.quarkus.test.common.QuarkusTestResource
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.junit.TestProfile
@@ -52,6 +56,9 @@ class DailyGreetingsIntegrationTest {
 
     @Inject
     lateinit var messages: JooqMessageRepository
+
+    @Inject
+    lateinit var saveUserFactsPort: SaveUserFactsPort
 
     private val wireMock: WireMockServer
         get() = WireMockTestResource.wireMockServer
@@ -247,10 +254,52 @@ class DailyGreetingsIntegrationTest {
         assertEquals(1, sentMessages().size)
     }
 
+    @Test
+    fun `hidden birthday fact is congratulated once when vk date is absent`() {
+        val date = LocalDate.parse("2026-05-14")
+        seedProfile(HIDDEN_BIRTHDAY_USER, "Иван", "Петров", null)
+        seedMessage(fromId = HIDDEN_BIRTHDAY_USER, peerId = GROUP_CHAT_ONE)
+        saveBirthdayFact()
+        stubChatReply("С днём рождения, Иван Петров!")
+
+        val first = runFor(date)
+
+        assertEquals(1, first.planned)
+        assertEquals(1, first.sent)
+        assertEquals("С днём рождения, Иван Петров!", sentMessages().single().text)
+        assertTrue(chatPrompts().single().contains("Иван Петров"))
+        assertEquals(1, greetingLogRows(date, GROUP_CHAT_ONE))
+
+        val second = runFor(date)
+
+        assertEquals(0, second.sent)
+        assertEquals(1, sentMessages().size)
+        assertEquals(1, greetingLogRows(date, GROUP_CHAT_ONE))
+    }
+
+    private fun saveBirthdayFact() {
+        saveUserFactsPort.execute(
+            FakePersistencePortProvider.createSaveUserFactsRequest(
+                candidates = listOf(
+                    FakeModelProvider.createUserFactCandidate(
+                        userId = HIDDEN_BIRTHDAY_USER,
+                        peerId = GROUP_CHAT_ONE,
+                        category = UserFactCategory.PROFILE_ATTRIBUTE,
+                        factKey = "birthday",
+                        value = "14 мая",
+                        sourceKind = KnowledgeSourceKind.SELF_STATEMENT,
+                        confidence = 0.95,
+                        observedAt = OffsetDateTime.now(),
+                    ),
+                ),
+            ),
+        )
+    }
+
     private fun runFor(date: LocalDate): RunDailyGreetingsInputPort.Response = runDailyGreetings
         .execute(FakeGreetingProvider.createRunDailyGreetingsRequest(date))
 
-    private fun seedProfile(id: Long, firstName: String, lastName: String, birthDate: String) {
+    private fun seedProfile(id: Long, firstName: String, lastName: String, birthDate: String?) {
         userProfiles.persist(
             FakeModelProvider.createVkUserProfile(
                 id = id,
@@ -310,6 +359,7 @@ class DailyGreetingsIntegrationTest {
                 statement.executeUpdate("DELETE FROM greeting_log")
                 statement.executeUpdate("DELETE FROM messages")
                 statement.executeUpdate("DELETE FROM vk_user_profiles")
+                statement.executeUpdate("DELETE FROM user_facts")
             }
         }
     }
@@ -355,6 +405,7 @@ class DailyGreetingsIntegrationTest {
         const val GROUP_CHAT_ONE = 2_000_000_001L
         const val GROUP_CHAT_TWO = 2_000_000_002L
         const val DM_PEER = 101L
+        const val HIDDEN_BIRTHDAY_USER = 7_400_101L
         const val COMMUNITY_ID = 232_142_875L
         const val CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
         const val MESSAGES_SEND_PATH = "/method/messages.send"

@@ -11,8 +11,11 @@ import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
 import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.LocalDate
+import java.time.MonthDay
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -532,6 +535,317 @@ class PersistenceDataInProcessAdapterTest {
         assertEquals(entries, response.entries)
     }
 
+    @Test
+    fun `has pending knowledge batch adapter delegates thresholds`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun hasPendingKnowledgeBatch(
+                request: PersistenceDataRequest.HasPendingKnowledgeBatch,
+            ): PersistenceDataResponse.PendingStatus {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createPendingStatusResponse(hasPending = true)
+            }
+        }
+        val adapter = HasPendingKnowledgeBatchInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createHasPendingKnowledgeBatchRequest(
+                peerId = 10,
+                minCount = 25,
+                minInterval = Duration.ofMinutes(30),
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createHasPendingKnowledgeBatchRequest(10, 25, Duration.ofMinutes(30)),
+            port.requests.single(),
+        )
+        assertEquals(true, response.hasPending)
+    }
+
+    @Test
+    fun `find pending knowledge batch adapter delegates limit and returns messages`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findPendingKnowledgeBatch(
+                request: PersistenceDataRequest.FindPendingKnowledgeBatch,
+            ): PersistenceDataResponse.Messages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage))
+            }
+        }
+        val adapter = FindPendingKnowledgeBatchInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindPendingKnowledgeBatchRequest(
+                peerId = 10,
+                upToConversationMessageId = 30,
+                limit = 25,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindPendingKnowledgeBatchRequest(10, 30, 25),
+            port.requests.single(),
+        )
+        assertEquals(listOf(storedMessage), response.messages)
+    }
+
+    @Test
+    fun `save user facts adapter delegates candidates and returns counts`() {
+        val candidate = FakeModelProvider.createUserFactCandidate()
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun saveUserFacts(
+                request: PersistenceDataRequest.SaveUserFacts,
+            ): PersistenceDataResponse.SavedUserFacts {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createSavedUserFactsResponse(saved = 1, skipped = 0)
+            }
+        }
+        val adapter = SaveUserFactsInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createSaveUserFactsRequest(candidates = listOf(candidate)),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createSaveUserFactsRequest(candidates = listOf(candidate)),
+            port.requests.single(),
+        )
+        assertEquals(1, response.saved)
+        assertEquals(0, response.skipped)
+    }
+
+    @Test
+    fun `advance extraction cursor adapter delegates cursor values`() {
+        val completedAt = OffsetDateTime.parse("2026-11-01T12:00:00Z")
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun advanceKnowledgeExtractionCursor(
+                request: PersistenceDataRequest.AdvanceKnowledgeExtractionCursor,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
+        val adapter = AdvanceExtractionCursorInProcessAdapter(port)
+
+        adapter.execute(
+            FakePersistencePortProvider.createAdvanceExtractionCursorRequest(
+                peerId = 10,
+                lastConversationMessageId = 30,
+                completedAt = completedAt,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createAdvanceKnowledgeExtractionCursorRequest(10, 30, completedAt),
+            port.requests.single(),
+        )
+    }
+
+    @Test
+    fun `save user knowledge summary adapter delegates text`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun saveUserKnowledgeSummary(
+                request: PersistenceDataRequest.SaveUserKnowledgeSummary,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
+        val adapter = SaveUserKnowledgeSummaryInProcessAdapter(port)
+
+        adapter.execute(
+            FakePersistencePortProvider.createSaveUserKnowledgeSummaryRequest(userId = 10, summaryText = "summary"),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createSaveUserKnowledgeSummaryRequest(10, "summary"),
+            port.requests.single(),
+        )
+    }
+
+    @Test
+    fun `save chat knowledge summary adapter delegates covered messages`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun saveChatKnowledgeSummary(
+                request: PersistenceDataRequest.SaveChatKnowledgeSummary,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
+        val adapter = SaveChatKnowledgeSummaryInProcessAdapter(port)
+
+        adapter.execute(
+            FakePersistencePortProvider.createSaveChatKnowledgeSummaryRequest(
+                peerId = 10,
+                summaryText = "chat summary",
+                firstConversationMessageId = 10,
+                lastConversationMessageId = 70,
+                messagesCovered = 7,
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createSaveChatKnowledgeSummaryRequest(10, "chat summary", 10, 70, 7),
+            port.requests.single(),
+        )
+    }
+
+    @Test
+    fun `find chat knowledge summary forwards request and returns knowledge`() {
+        val knowledge = FakeModelProvider.createChatKnowledge(peerId = 2_000_000_001)
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findChatKnowledgeSummary(
+                request: PersistenceDataRequest.FindChatKnowledgeSummary,
+            ): PersistenceDataResponse.ChatKnowledgeSummary {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createChatKnowledgeSummaryResponse(knowledge = knowledge)
+            }
+        }
+        val adapter = FindChatKnowledgeSummaryInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindChatKnowledgeSummaryRequest(peerId = 2_000_000_001),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindChatKnowledgeSummaryRequest(peerId = 2_000_000_001),
+            port.requests.single(),
+        )
+        assertEquals(knowledge, response.knowledge)
+    }
+
+    @Test
+    fun `find chat summary messages forwards request and returns messages`() {
+        val storedMessage = FakeModelProvider.createStoredMessage(conversationMessageId = 101)
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findChatSummaryMessages(
+                request: PersistenceDataRequest.FindChatSummaryMessages,
+            ): PersistenceDataResponse.Messages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createMessagesResponse(listOf(storedMessage))
+            }
+        }
+        val adapter = FindChatSummaryMessagesInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindChatSummaryMessagesRequest(peerId = 2_000_000_001, limit = 100),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindChatSummaryMessagesRequest(peerId = 2_000_000_001, limit = 100),
+            port.requests.single(),
+        )
+        assertEquals(listOf(storedMessage), response.messages)
+    }
+
+    @Test
+    fun findUserKnowledgeWithEmptyIdsReturnsEmptyMapWithoutCallingPort() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserKnowledge(
+                request: PersistenceDataRequest.FindUserKnowledge,
+            ): PersistenceDataResponse.UserKnowledgeByUserIds {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserKnowledgeByUserIdsResponse()
+            }
+        }
+        val adapter = FindUserKnowledgeInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindUserKnowledgeRequest(userIds = emptyList()),
+        )
+
+        assertTrue(response.knowledge.isEmpty())
+        assertTrue(port.requests.isEmpty())
+    }
+
+    @Test
+    fun findUserKnowledgeMapsFromIdsBothWays() {
+        val first = FakeModelProvider.createUserKnowledge(
+            facts = listOf(FakeModelProvider.createUserFact(userId = 5)),
+            summary = "сводка",
+            summaryFresh = true,
+        )
+        val second = FakeModelProvider.createUserKnowledge()
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserKnowledge(
+                request: PersistenceDataRequest.FindUserKnowledge,
+            ): PersistenceDataResponse.UserKnowledgeByUserIds {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserKnowledgeByUserIdsResponse(
+                    knowledge = mapOf(5L to first, 6L to second),
+                )
+            }
+        }
+        val adapter = FindUserKnowledgeInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindUserKnowledgeRequest(
+                userIds = listOf(FakeVoProvider.createFromId(5), FakeVoProvider.createFromId(6)),
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserKnowledgeRequest(userIds = listOf(5, 6)),
+            port.requests.single(),
+        )
+        assertEquals(setOf(FakeVoProvider.createFromId(5), FakeVoProvider.createFromId(6)), response.knowledge.keys)
+        assertEquals(first, response.knowledge[FakeVoProvider.createFromId(5)])
+        assertEquals(second, response.knowledge[FakeVoProvider.createFromId(6)])
+    }
+
+    @Test
+    fun findUserBirthdayFactsDelegatesMonthDayAndReturnsFacts() {
+        val fact = FakeModelProvider.createUserFact(userId = 5)
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserBirthdayFacts(
+                request: PersistenceDataRequest.FindUserBirthdayFacts,
+            ): PersistenceDataResponse.UserFacts {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserFactsResponse(facts = listOf(fact))
+            }
+        }
+        val adapter = FindUserBirthdayFactsInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakeGreetingPortProvider.createFindUserBirthdayFactsRequest(monthDay = MonthDay.of(5, 14)),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserBirthdayFactsRequest(monthDay = MonthDay.of(5, 14)),
+            port.requests.single(),
+        )
+        assertEquals(listOf(fact), response.facts)
+    }
+
+    @Test
+    fun findUserKnowledgeSummaryStateDelegatesUserIdAndReturnsState() {
+        val summarizedAt = OffsetDateTime.parse("2026-10-01T00:00:00Z")
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun findUserKnowledgeSummaryState(
+                request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
+            ): PersistenceDataResponse.UserKnowledgeSummaryState {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createUserKnowledgeSummaryStateResponse(
+                    summarizedAt = summarizedAt,
+                    factsSinceSummary = 3,
+                )
+            }
+        }
+        val adapter = FindUserKnowledgeSummaryStateInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createFindUserKnowledgeSummaryStateRequest(userId = 42),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createFindUserKnowledgeSummaryStateRequest(userId = 42),
+            port.requests.single(),
+        )
+        assertEquals(summarizedAt, response.summarizedAt)
+        assertEquals(3, response.factsSinceSummary)
+    }
+
     private open class RecordingPersistenceDataInputPort : PersistenceDataInputPort {
         val requests = mutableListOf<PersistenceDataRequest>()
 
@@ -618,6 +932,50 @@ class PersistenceDataInProcessAdapterTest {
         override fun findChatAuthors(
             request: PersistenceDataRequest.FindChatAuthors,
         ): PersistenceDataResponse.ChatAuthors = unsupported()
+
+        override fun hasPendingKnowledgeBatch(
+            request: PersistenceDataRequest.HasPendingKnowledgeBatch,
+        ): PersistenceDataResponse.PendingStatus = unsupported()
+
+        override fun findPendingKnowledgeBatch(
+            request: PersistenceDataRequest.FindPendingKnowledgeBatch,
+        ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun saveUserFacts(
+            request: PersistenceDataRequest.SaveUserFacts,
+        ): PersistenceDataResponse.SavedUserFacts = unsupported()
+
+        override fun advanceKnowledgeExtractionCursor(
+            request: PersistenceDataRequest.AdvanceKnowledgeExtractionCursor,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun saveUserKnowledgeSummary(
+            request: PersistenceDataRequest.SaveUserKnowledgeSummary,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun saveChatKnowledgeSummary(
+            request: PersistenceDataRequest.SaveChatKnowledgeSummary,
+        ): PersistenceDataResponse.Empty = unsupported()
+
+        override fun findChatKnowledgeSummary(
+            request: PersistenceDataRequest.FindChatKnowledgeSummary,
+        ): PersistenceDataResponse.ChatKnowledgeSummary = unsupported()
+
+        override fun findChatSummaryMessages(
+            request: PersistenceDataRequest.FindChatSummaryMessages,
+        ): PersistenceDataResponse.Messages = unsupported()
+
+        override fun findUserKnowledge(
+            request: PersistenceDataRequest.FindUserKnowledge,
+        ): PersistenceDataResponse.UserKnowledgeByUserIds = unsupported()
+
+        override fun findUserKnowledgeSummaryState(
+            request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
+        ): PersistenceDataResponse.UserKnowledgeSummaryState = unsupported()
+
+        override fun findUserBirthdayFacts(
+            request: PersistenceDataRequest.FindUserBirthdayFacts,
+        ): PersistenceDataResponse.UserFacts = unsupported()
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }

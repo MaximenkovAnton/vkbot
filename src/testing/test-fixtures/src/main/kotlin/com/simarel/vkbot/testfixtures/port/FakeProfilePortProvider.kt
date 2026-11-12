@@ -1,5 +1,6 @@
 package com.simarel.vkbot.testfixtures.port
 
+import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
@@ -23,4 +24,8 @@ object FakeProfilePortProvider {
     fun createFindStoredGroupProfilesByIdsRequest(
         ids: List<FromId> = emptyList(),
     ) = FindStoredGroupProfilesByIdsPort.Request(ids = ids)
+
+    fun createFindStoredUserProfilesByIdsResponse(
+        profiles: List<VkUserProfile> = emptyList(),
+    ) = FindStoredUserProfilesByIdsPort.Response(profiles = profiles)
 }
