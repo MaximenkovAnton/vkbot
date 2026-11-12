@@ -67,6 +67,26 @@ class GenerateChatKnowledgeSummaryCommandImplTest {
     }
 
     @Test
+    fun `capsChatSummaryPromptToConfiguredBudget`() {
+        val findMessages = findMessages(window(THRESHOLD).map { it.copy(messageText = "я".repeat(1_000)) })
+        val findSummary = findSummary(chatKnowledge(OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)))
+        val llm = FakeChatKnowledgeSummaryPort().apply { text = SUMMARY_TEXT }
+
+        command(
+            findMessages = findMessages,
+            findSummary = findSummary,
+            llm = llm,
+            save = RecordingSaveChatKnowledgeSummaryPort(),
+            promptMaxChars = 2_000,
+        ).execute(request())
+
+        val lines = llm.executeCalls.single().messages
+        assertEquals(THRESHOLD, lines.size)
+        assertTrue(lines.sumOf { it.length + 1 } <= 2_000, "prompt chars ${lines.sumOf { it.length + 1 }}")
+        lines.forEach { line -> assertTrue(line.endsWith("…"), line) }
+    }
+
+    @Test
     fun `skipsWhenBelowThresholdAndIntervalNotElapsed`() {
         val findSummary = findSummary(chatKnowledge(OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)))
         val llm = FakeChatKnowledgeSummaryPort()
@@ -263,6 +283,7 @@ class GenerateChatKnowledgeSummaryCommandImplTest {
         findSummary: FakeFindChatKnowledgeSummaryPort,
         llm: FakeChatKnowledgeSummaryPort,
         save: RecordingSaveChatKnowledgeSummaryPort,
+        promptMaxChars: Int = 12_000,
     ) = GenerateChatKnowledgeSummaryCommandImpl(
         findChatSummaryMessagesPort = findMessages,
         findChatKnowledgeSummaryPort = findSummary,
@@ -276,6 +297,7 @@ class GenerateChatKnowledgeSummaryCommandImplTest {
         ),
         threshold = THRESHOLD,
         interval = INTERVAL,
+        promptMaxChars = promptMaxChars,
     )
 
     private fun request() = FakeKnowledgeProvider.createGenerateChatKnowledgeSummaryCommandRequest(

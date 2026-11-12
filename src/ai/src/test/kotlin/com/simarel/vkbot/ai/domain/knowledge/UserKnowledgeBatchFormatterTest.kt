@@ -9,10 +9,18 @@ private const val AUTHOR_ID = 7_600_001L
 class UserKnowledgeBatchFormatterTest {
 
     @Test
-    fun `rendersAuthorIdNameAndText`() {
+    fun `rendersConversationMessageIdAuthorIdNameAndText`() {
         val messages = listOf(
-            FakeModelProvider.createStoredMessage(fromId = AUTHOR_ID, messageText = "люблю футбол"),
-            FakeModelProvider.createStoredMessage(fromId = 7_600_002, messageText = "играю в шахматы"),
+            FakeModelProvider.createStoredMessage(
+                conversationMessageId = 101,
+                fromId = AUTHOR_ID,
+                messageText = "люблю футбол",
+            ),
+            FakeModelProvider.createStoredMessage(
+                conversationMessageId = 102,
+                fromId = 7_600_002,
+                messageText = "играю в шахматы",
+            ),
         )
 
         val lines = UserKnowledgeBatchFormatter.format(
@@ -22,8 +30,8 @@ class UserKnowledgeBatchFormatterTest {
 
         assertEquals(
             listOf(
-                "[7600001|Иван Петров]: люблю футбол",
-                "[7600002|Пользователь 7600002]: играю в шахматы",
+                "[msg=101|from=7600001|Иван Петров]: люблю футбол",
+                "[msg=102|from=7600002|Пользователь 7600002]: играю в шахматы",
             ),
             lines,
         )
@@ -32,10 +40,16 @@ class UserKnowledgeBatchFormatterTest {
     @Test
     fun `fallsBackToPlaceholderWhenNameIsMissing`() {
         val lines = UserKnowledgeBatchFormatter.format(
-            messages = listOf(FakeModelProvider.createStoredMessage(fromId = AUTHOR_ID, messageText = "привет")),
+            messages = listOf(
+                FakeModelProvider.createStoredMessage(
+                    conversationMessageId = 103,
+                    fromId = AUTHOR_ID,
+                    messageText = "привет",
+                ),
+            ),
             authorNames = emptyMap(),
         )
 
-        assertEquals(listOf("[7600001|Пользователь 7600001]: привет"), lines)
+        assertEquals(listOf("[msg=103|from=7600001|Пользователь 7600001]: привет"), lines)
     }
 }

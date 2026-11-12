@@ -1,6 +1,7 @@
 package com.simarel.vkbot.ai.command.knowledge
 
 import com.simarel.vkbot.ai.domain.exception.KnowledgeExtractionException
+import com.simarel.vkbot.ai.domain.knowledge.PromptBudget
 import com.simarel.vkbot.ai.domain.knowledge.UserKnowledgeBatchFormatter
 import com.simarel.vkbot.ai.domain.knowledge.UserKnowledgeValidator
 import com.simarel.vkbot.ai.port.output.knowledge.KnowledgeExtractionPort
@@ -24,6 +25,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
 @ApplicationScoped
+@Suppress("LongParameterList")
 class ProcessUserKnowledgeCommandImpl(
     private val findPendingKnowledgeBatchPort: FindPendingKnowledgeBatchPort,
     private val knowledgeExtractionPort: KnowledgeExtractionPort,
@@ -33,6 +35,8 @@ class ProcessUserKnowledgeCommandImpl(
     private val findStoredUserProfilesByIdsPort: FindStoredUserProfilesByIdsPort,
     @ConfigProperty(name = "knowledge.batch-size", defaultValue = "25")
     private val batchSize: Int,
+    @ConfigProperty(name = "knowledge.prompt-max-chars", defaultValue = "12000")
+    private val promptMaxChars: Int,
 ) : ProcessUserKnowledgeCommand {
 
     private val logger: System.Logger = System.getLogger(ProcessUserKnowledgeCommandImpl::class.java.name)
@@ -48,7 +52,6 @@ class ProcessUserKnowledgeCommandImpl(
             ),
         ).messages
         if (messages.isEmpty()) {
-            advance(peerId, payload.upToConversationMessageId)
             logger.log(System.Logger.Level.DEBUG, "Knowledge extraction skipped for peerId=$peerId: empty batch")
             return ProcessUserKnowledgeCommand.Response
         }
@@ -63,7 +66,7 @@ class ProcessUserKnowledgeCommandImpl(
         }
 
         val authorNames = authorNames(processable)
-        val lines = UserKnowledgeBatchFormatter.format(processable, authorNames)
+        val lines = PromptBudget.fit(UserKnowledgeBatchFormatter.format(processable, authorNames), promptMaxChars)
         val response = knowledgeExtractionPort.execute(KnowledgeExtractionRequest(lines))
         val drafts = response.facts
             ?: throw KnowledgeExtractionException("Knowledge extraction returned no facts field", null)
