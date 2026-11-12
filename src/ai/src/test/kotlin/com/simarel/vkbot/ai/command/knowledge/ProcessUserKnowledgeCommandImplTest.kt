@@ -72,6 +72,21 @@ class ProcessUserKnowledgeCommandImplTest {
     }
 
     @Test
+    fun `capsExtractionPromptToConfiguredBudget`() {
+        val longText = "я".repeat(5_000)
+        val findPending = findPending(message(FIRST_MESSAGE_ID, IVAN_ID, longText))
+        val extraction = FakeKnowledgeExtractionPort()
+
+        command(findPending = findPending, extraction = extraction, promptMaxChars = 1_000).execute(
+            request(FIRST_MESSAGE_ID),
+        )
+
+        val line = extraction.executeCalls.single().messages.single()
+        assertTrue(line.length <= 1_000, "line length ${line.length}")
+        assertTrue(line.endsWith("…"), line)
+    }
+
+    @Test
     fun `advancesCursorAndSkipsSaveWhenAllDraftsAreInvalid`() {
         val extraction = FakeKnowledgeExtractionPort().apply {
             response = FakeKnowledgeProvider.createKnowledgeExtractionResponse(
@@ -92,7 +107,7 @@ class ProcessUserKnowledgeCommandImplTest {
     }
 
     @Test
-    fun `advancesCursorToUpToWithoutCallingLlmWhenBatchIsEmpty`() {
+    fun `keepsCursorWithoutCallingLlmWhenBatchIsEmpty`() {
         val findPending = FakeFindPendingKnowledgeBatchPort()
         val extraction = FakeKnowledgeExtractionPort()
         val save = FakeSaveUserFactsPort()
@@ -104,7 +119,7 @@ class ProcessUserKnowledgeCommandImplTest {
 
         assertTrue(extraction.executeCalls.isEmpty())
         assertTrue(save.executeCalls.isEmpty())
-        assertEquals(FIRST_MESSAGE_ID, advance.executeCalls.single().lastConversationMessageId)
+        assertTrue(advance.executeCalls.isEmpty())
     }
 
     @Test
@@ -290,6 +305,7 @@ class ProcessUserKnowledgeCommandImplTest {
             FakeModelProvider.createVkUserProfile(id = IVAN_ID, firstName = "Иван", lastName = "Петров"),
             FakeModelProvider.createVkUserProfile(id = PETR_ID, firstName = "Пётр", lastName = "Иванов"),
         ),
+        promptMaxChars: Int = 12_000,
     ) = ProcessUserKnowledgeCommandImpl(
         findPendingKnowledgeBatchPort = findPending,
         knowledgeExtractionPort = extraction,
@@ -298,6 +314,7 @@ class ProcessUserKnowledgeCommandImplTest {
         publishEventCommand = publish,
         findStoredUserProfilesByIdsPort = RecordingFindStoredUserProfilesByIdsPort(profiles),
         batchSize = 25,
+        promptMaxChars = promptMaxChars,
     )
 
     private fun request(upToConversationMessageId: Long): ProcessUserKnowledgeCommand.Request {

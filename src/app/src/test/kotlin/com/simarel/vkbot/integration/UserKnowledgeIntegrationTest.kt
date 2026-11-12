@@ -8,8 +8,10 @@ import com.github.tomakehurst.wiremock.client.WireMock.containing
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
+import com.simarel.vkbot.ai.port.input.knowledge.ProcessUserKnowledgeInputPort
 import com.simarel.vkbot.ai.port.input.news.ProcessNewsDigestInputPort
 import com.simarel.vkbot.ai.port.input.profile.ProcessProfileInputPort
+import com.simarel.vkbot.ai.testfixtures.FakeKnowledgeProvider
 import com.simarel.vkbot.ai.testfixtures.FakeNewsDigestProvider
 import com.simarel.vkbot.ai.testfixtures.FakeProfileProvider
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
@@ -23,6 +25,7 @@ import com.simarel.vkbot.share.domain.model.knowledge.UserFactStatus
 import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgePort
 import com.simarel.vkbot.share.port.output.persistence.SaveUserFactsPort
+import com.simarel.vkbot.testfixtures.domain.FakeEventProvider
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
@@ -42,6 +45,7 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import javax.sql.DataSource
 
 class KnowledgeE2eTestProfile : QuarkusTestProfile {
@@ -60,6 +64,10 @@ class KnowledgeE2eTestProfile : QuarkusTestProfile {
 @QuarkusTestResource(WireMockTestResource::class)
 class UserKnowledgeIntegrationTest {
 
+    private val testId: Long = TEST_SEQUENCE.incrementAndGet()
+    private val userId: Long = USER_ID_BASE + testId
+    private val peerId: Long = PEER_ID_BASE + testId
+
     @Inject
     lateinit var dataSource: DataSource
 
@@ -74,6 +82,9 @@ class UserKnowledgeIntegrationTest {
 
     @Inject
     lateinit var processProfileInputPort: ProcessProfileInputPort
+
+    @Inject
+    lateinit var processUserKnowledgeInputPort: ProcessUserKnowledgeInputPort
 
     @Inject
     lateinit var processNewsDigestInputPort: ProcessNewsDigestInputPort
@@ -125,15 +136,35 @@ class UserKnowledgeIntegrationTest {
         assertEquals(UserFactStatus.CONFIRMED, fact.status)
         assertEquals(ONE_EVIDENCE, fact.evidenceCount)
         awaitSummaries()
-        assertEquals(USER_SUMMARY_TEXT, fixtures.summaryRow(USER_ID)["summary_text"])
+        assertEquals(USER_SUMMARY_TEXT, fixtures.summaryRow(userId)["summary_text"])
         assertEquals(CHAT_SUMMARY_TEXT, singleText(CHAT_SUMMARY_SQL))
         assertEquals(ONE_CALL, chatCallCount(EXTRACTION_RUBRIC))
         assertTrue(
-            promptFor(EXTRACTION_RUBRIC).contains("[msg=$FACT_MESSAGE_ID|from=$USER_ID|"),
+            promptFor(EXTRACTION_RUBRIC).contains("[msg=$FACT_MESSAGE_ID|from=$userId|"),
             "extraction prompt must carry the conversation message id the model has to cite",
         )
         assertEquals(ONE_CALL, chatCallCount(USER_SUMMARY_RUBRIC))
         assertEquals(ONE_CALL, chatCallCount(CHAT_SUMMARY_RUBRIC))
+    }
+
+    @Test
+    fun `extraction request without pending messages keeps the cursor for the next message`() {
+        storeProfile()
+        stubExtraction(factDraft(UserFactCategory.INTEREST, FACT_KEY, INTEREST_VALUE, FACT_MESSAGE_ID))
+
+        processUserKnowledgeInputPort.execute(
+            FakeKnowledgeProvider.createProcessUserKnowledgeInputPortRequest(
+                payload = FakeEventProvider.createUserKnowledgeRequestedPayload(
+                    peerId = peerId,
+                    upToConversationMessageId = FACT_MESSAGE_ID,
+                ),
+            ),
+        )
+
+        deliverMessage(FACT_MESSAGE_ID, FACT_MESSAGE_TEXT, FACT_DATE)
+
+        awaitFacts()
+        assertEquals(ONE_CALL, fixtures.counts(userId, peerId)["knowledge_extraction_cursors"])
     }
 
     @Test
@@ -221,11 +252,11 @@ class UserKnowledgeIntegrationTest {
         awaitFacts()
         awaitSummaries()
 
-        execute(DELETE_CURSOR_SQL, PEER_ID)
+        execute(DELETE_CURSOR_SQL, peerId)
         deliverMessage(FACT_MESSAGE_ID, FACT_MESSAGE_TEXT, FACT_DATE)
 
         awaitCursor()
-        val counts = fixtures.counts(USER_ID, PEER_ID)
+        val counts = fixtures.counts(userId, peerId)
         assertEquals(TWO_CALLS, chatCallCount(EXTRACTION_RUBRIC))
         assertEquals(ONE_CALL, counts["user_facts"], counts.toString())
         assertEquals(ONE_CALL, counts["user_fact_evidence"], counts.toString())
@@ -243,7 +274,7 @@ class UserKnowledgeIntegrationTest {
         await().atMost(AWAIT_SECONDS, TimeUnit.SECONDS).untilAsserted {
             assertTrue(chatCallCount(EXTRACTION_RUBRIC) >= ONE_CALL, "extraction was not called")
         }
-        val counts = fixtures.counts(USER_ID, PEER_ID)
+        val counts = fixtures.counts(userId, peerId)
         assertEquals(ONE_CALL, messageCount(), "the message must stay stored")
         assertEquals(0, counts["user_facts"], counts.toString())
         assertEquals(0, counts["user_fact_evidence"], counts.toString())
@@ -256,8 +287,8 @@ class UserKnowledgeIntegrationTest {
         storeProfile()
         val summarizedAt = OffsetDateTime.now().minusHours(SUMMARY_AGE_HOURS)
         val factAt = summarizedAt.plusHours(1)
-        fixtures.insertFact(USER_ID, INTEREST_VALUE, factAt, factKey = FACT_KEY, peerId = PEER_ID)
-        fixtures.insertSummary(USER_ID, STALE_SUMMARY_TEXT, factAt, summarizedAt)
+        fixtures.insertFact(userId, INTEREST_VALUE, factAt, factKey = FACT_KEY, peerId = peerId)
+        fixtures.insertSummary(userId, STALE_SUMMARY_TEXT, factAt, summarizedAt)
         stubExtraction()
 
         deliverMessage(QUESTION_MESSAGE_ID, QUESTION_MESSAGE_TEXT, QUESTION_DATE)
@@ -284,7 +315,7 @@ class UserKnowledgeIntegrationTest {
         assertTrue(prompt.contains(CHAT_HISTORY_OPEN), prompt)
         assertTrue(prompt.contains(CURRENT_MESSAGE_OPEN), prompt)
         assertTrue(prompt.substringAfter(PROFILES_CLOSE).substringBefore(CHAT_HISTORY_OPEN).isBlank(), prompt)
-        assertEquals(0, fixtures.counts(USER_ID, PEER_ID)["user_facts"])
+        assertEquals(0, fixtures.counts(userId, peerId)["user_facts"])
     }
 
     @Test
@@ -301,7 +332,7 @@ class UserKnowledgeIntegrationTest {
     private fun storeProfile() {
         userProfiles.persist(
             FakeModelProvider.createVkUserProfile(
-                id = USER_ID,
+                id = userId,
                 firstName = USER_FIRST_NAME,
                 lastName = USER_LAST_NAME,
                 screenName = USER_SCREEN_NAME,
@@ -317,8 +348,8 @@ class UserKnowledgeIntegrationTest {
             FakePersistencePortProvider.createSaveUserFactsRequest(
                 candidates = listOf(
                     FakeModelProvider.createUserFactCandidate(
-                        userId = USER_ID,
-                        peerId = PEER_ID,
+                        userId = userId,
+                        peerId = peerId,
                         category = UserFactCategory.PROFILE_ATTRIBUTE,
                         factKey = BIRTHDAY_KEY,
                         value = BIRTHDAY_VALUE,
@@ -326,7 +357,7 @@ class UserKnowledgeIntegrationTest {
                         confidence = CANDIDATE_CONFIDENCE,
                         messageId = UUID.randomUUID(),
                         conversationMessageId = CANDIDATE_MESSAGE_ID,
-                        saidById = USER_ID,
+                        saidById = userId,
                         observedAt = FACT_DATE,
                     ),
                 ),
@@ -337,9 +368,9 @@ class UserKnowledgeIntegrationTest {
     private fun deliverMessage(conversationMessageId: Long, text: String, date: OffsetDateTime) {
         val message = FakeVoProvider.createMessage(
             date = FakeVoProvider.createDate(date),
-            fromId = FakeVoProvider.createFromId(USER_ID),
+            fromId = FakeVoProvider.createFromId(userId),
             groupId = FakeVoProvider.createGroupId(COMMUNITY_ID),
-            peerId = FakeVoProvider.createPeerId(PEER_ID),
+            peerId = FakeVoProvider.createPeerId(peerId),
             conversationMessageId = FakeVoProvider.createConversationMessageId(conversationMessageId),
             messageText = FakeVoProvider.createMessageText(text),
         )
@@ -351,16 +382,16 @@ class UserKnowledgeIntegrationTest {
             INSERT_MESSAGE_SQL,
             UUID.randomUUID(),
             FACT_DATE,
-            USER_ID,
+            userId,
             COMMUNITY_ID,
-            PEER_ID,
+            peerId,
             CANDIDATE_MESSAGE_ID,
             FACT_MESSAGE_TEXT,
         )
     }
 
     private fun askForDossier() {
-        val question = "что ты знаешь о [id$USER_ID|@$USER_SCREEN_NAME]"
+        val question = "что ты знаешь о [id$userId|@$USER_SCREEN_NAME]"
         processProfileInputPort.execute(
             FakeProfileProvider.createProcessProfileInputPortRequest(
                 message = requestMessage(DOSSIER_MESSAGE_ID, question),
@@ -372,9 +403,9 @@ class UserKnowledgeIntegrationTest {
 
     private fun requestMessage(conversationMessageId: Long, text: String) = FakeVoProvider.createMessage(
         date = FakeVoProvider.createDate(OffsetDateTime.now()),
-        fromId = FakeVoProvider.createFromId(USER_ID),
+        fromId = FakeVoProvider.createFromId(userId),
         groupId = FakeVoProvider.createGroupId(COMMUNITY_ID),
-        peerId = FakeVoProvider.createPeerId(PEER_ID),
+        peerId = FakeVoProvider.createPeerId(peerId),
         conversationMessageId = FakeVoProvider.createConversationMessageId(conversationMessageId),
         messageText = FakeVoProvider.createMessageText(text),
     )
@@ -384,14 +415,14 @@ class UserKnowledgeIntegrationTest {
 
     private fun awaitFacts(): List<UserFact> {
         await().atMost(AWAIT_SECONDS, TimeUnit.SECONDS).untilAsserted {
-            assertTrue(knowledgeOf(USER_ID).facts.isNotEmpty(), "no facts stored for userId=$USER_ID")
+            assertTrue(knowledgeOf(userId).facts.isNotEmpty(), "no facts stored for userId=$userId")
         }
-        return knowledgeOf(USER_ID).facts
+        return knowledgeOf(userId).facts
     }
 
     private fun awaitSummaries() {
         await().atMost(AWAIT_SECONDS, TimeUnit.SECONDS).untilAsserted {
-            val counts = fixtures.counts(USER_ID, PEER_ID)
+            val counts = fixtures.counts(userId, peerId)
             assertEquals(ONE_CALL, counts["user_knowledge_summary"], counts.toString())
             assertEquals(ONE_CALL, counts["chat_knowledge_summary"], counts.toString())
         }
@@ -399,7 +430,7 @@ class UserKnowledgeIntegrationTest {
 
     private fun awaitCursor() {
         await().atMost(AWAIT_SECONDS, TimeUnit.SECONDS).untilAsserted {
-            assertEquals(ONE_CALL, fixtures.counts(USER_ID, PEER_ID)["knowledge_extraction_cursors"])
+            assertEquals(ONE_CALL, fixtures.counts(userId, peerId)["knowledge_extraction_cursors"])
         }
     }
 
@@ -423,15 +454,15 @@ class UserKnowledgeIntegrationTest {
     private fun greetingMessages(): Int = wireMock
         .findAll(postRequestedFor(urlPathEqualTo(MESSAGES_SEND_PATH)))
         .count { request ->
-            request.formParameter(PEER_ID_PARAM).firstValue().toLong() == PEER_ID &&
+            request.formParameter(PEER_ID_PARAM).firstValue().toLong() == peerId &&
                 request.formParameter(MESSAGE_PARAM).firstValue() == GREETING_TEXT
         }
 
-    private fun greetingLogRows(): Int = countRows(GREETING_LOG_SQL, PEER_ID)
+    private fun greetingLogRows(): Int = countRows(GREETING_LOG_SQL, peerId)
 
-    private fun messageCount(): Int = countRows(MESSAGES_COUNT_SQL, PEER_ID)
+    private fun messageCount(): Int = countRows(MESSAGES_COUNT_SQL, peerId)
 
-    private fun singleText(sql: String): String = textValue(sql, PEER_ID)
+    private fun singleText(sql: String): String = textValue(sql, peerId)
 
     private fun chatCallCount(rubric: String): Int = wireMock
         .findAll(postRequestedFor(urlPathEqualTo(CHAT_COMPLETIONS_PATH)).withRequestBody(containing(rubric)))
@@ -470,7 +501,7 @@ class UserKnowledgeIntegrationTest {
         value: String,
         sourceMessageId: Long,
         confidence: Double = SELF_STATEMENT_CONFIDENCE,
-    ): String = """{"subjectId":$USER_ID,"subjectName":null,"category":"${category.name}",""" +
+    ): String = """{"subjectId":$userId,"subjectName":null,"category":"${category.name}",""" +
         """"key":"$key","value":"$value","valuePayload":{},"confidence":$confidence,""" +
         """"sourceKind":"SELF_STATEMENT","sourceConversationMessageId":$sourceMessageId}"""
 
@@ -492,7 +523,7 @@ class UserKnowledgeIntegrationTest {
         {
             "response": [
                 {
-                    "id": $USER_ID,
+                    "id": $userId,
                     "first_name": "$USER_FIRST_NAME",
                     "last_name": "$USER_LAST_NAME",
                     "screen_name": "$USER_SCREEN_NAME",
@@ -554,21 +585,23 @@ class UserKnowledgeIntegrationTest {
     }
 
     private fun clearKnowledgeData() {
-        fixtures.deleteKnowledge(USER_ID, PEER_ID)
-        execute(DELETE_MESSAGES_SQL, PEER_ID)
-        execute(DELETE_SUMMARIES_SQL, PEER_ID)
-        execute(DELETE_STATISTICS_SQL, USER_ID)
-        execute(DELETE_CHAT_STATISTICS_SQL, USER_ID)
-        execute(DELETE_HOUR_STATISTICS_SQL, USER_ID)
-        execute(DELETE_HISTORY_SQL, USER_ID)
-        execute(DELETE_PROFILE_SQL, USER_ID)
-        execute(DELETE_GREETING_LOG_SQL, PEER_ID)
+        fixtures.deleteKnowledge(userId, peerId)
+        execute(DELETE_MESSAGES_SQL, peerId)
+        execute(DELETE_SUMMARIES_SQL, peerId)
+        execute(DELETE_STATISTICS_SQL, userId)
+        execute(DELETE_CHAT_STATISTICS_SQL, userId)
+        execute(DELETE_HOUR_STATISTICS_SQL, userId)
+        execute(DELETE_HISTORY_SQL, userId)
+        execute(DELETE_PROFILE_SQL, userId)
+        execute(DELETE_GREETING_LOG_SQL, peerId)
     }
 
     private companion object {
-        const val USER_ID = 7_910_001L
-        const val PEER_ID = 2_910_000_001L
         const val COMMUNITY_ID = 232_142_875L
+
+        val TEST_SEQUENCE = AtomicLong()
+        const val USER_ID_BASE = 7_950_000L
+        const val PEER_ID_BASE = 2_950_000_000L
 
         const val USER_FIRST_NAME = "Иван"
         const val USER_LAST_NAME = "Петров"

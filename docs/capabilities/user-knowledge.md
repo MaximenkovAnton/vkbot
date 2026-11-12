@@ -79,7 +79,9 @@ SaveUserFactsPort / AdvanceExtractionCursorPort / SaveUserKnowledgeSummaryPort /
   `010-create-messages-knowledge-index` (нетранзакционный `DROP INDEX CONCURRENTLY IF EXISTS` + `CREATE
   INDEX CONCURRENTLY` на `messages(peer_id, conversation_message_id)`); jOOQ-объекты — `Tables.kt`.
 - **Курсор.** `knowledge_extraction_cursors`: `greatest` по `last_conversation_message_id` и
-  `last_completed_at`, `updated_at=completedAt`; батч ограничен `upToConversationMessageId`.
+  `last_completed_at`, `updated_at=completedAt`; батч ограничен `upToConversationMessageId`. Пустой
+  батч курсор не двигает: событие, пришедшее раньше коммита своего сообщения (MESSAGE_RECEIVED
+  публикуется ещё внутри транзакции `SaveMessageUsecase`), иначе пометило бы это сообщение обработанным.
 - **Конфигурация.** `knowledge.confirm-threshold=0.8`, `knowledge.evidence-refs-limit=20` читает
   `KnowledgeConfig`.
 
@@ -523,10 +525,11 @@ MESSAGE_RECEIVED → извлечение LLM → user_facts → сводки п
   `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputKnowledgeTest.kt`
 - **AC-KNOW-3** — КОГДА обработан `USER_KNOWLEDGE_REQUESTED` с батчем — ровно один батч-запрос, фильтр
   сообщений, ровно один LLM-вызов, валидация, `SaveUserFactsPort` (только при ≥1 факте), курсор на
-  последний id батча (в том числе при 0 фактов; при пустом/полностью отфильтрованном батче LLM не
-  вызывается), после успеха — по одному `USER_KNOWLEDGE_SUMMARY_REQUESTED` на пользователя и одно
-  `CHAT_KNOWLEDGE_SUMMARY_REQUESTED`.
+  последний id батча (в том числе при 0 фактов; при полностью отфильтрованном батче LLM не вызывается),
+  а при пустом батче — ни LLM, ни сдвига курсора, после успеха — по одному
+  `USER_KNOWLEDGE_SUMMARY_REQUESTED` на пользователя и одно `CHAT_KNOWLEDGE_SUMMARY_REQUESTED`.
   `Test:` `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImplTest.kt`,
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserKnowledgeIntegrationTest.kt`,
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/knowledge/UserKnowledgeExtractionAiAdapterTest.kt`,
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeRequestedEventProcessorTest.kt`,
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/knowledge/UserKnowledgeValidatorTest.kt`,
@@ -576,6 +579,7 @@ MESSAGE_RECEIVED → извлечение LLM → user_facts → сводки п
 | `knowledge.batch-size` | `${KNOWLEDGE_BATCH_SIZE:25}` | `minCount` политики батча и `limit` выборки |
 | `knowledge.batch-interval` | `${KNOWLEDGE_BATCH_INTERVAL:30m}` | `minInterval` политики батча (`java.time.Duration`) |
 | `knowledge.excluded-chat-ids` | `${KNOWLEDGE_EXCLUDED_CHAT_IDS:}` | peerId через запятую, чьи сообщения не запускают извлечение |
+| `knowledge.prompt-max-chars` | `${KNOWLEDGE_PROMPT_MAX_CHARS:12000}` | общий лимит символов промптов извлечения и сводки чата: длинные сообщения усекаются поровну, чтобы окно не превысило контекст модели |
 | `knowledge.chat-summary-message-threshold` | `${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}` | размер окна сводки чата и порог сообщений для генерации |
 | `knowledge.chat-summary-interval` | `${KNOWLEDGE_CHAT_SUMMARY_INTERVAL:7d}` | интервал между сводками чата (`java.time.Duration`) |
 | `knowledge.summary-fact-threshold` | `${KNOWLEDGE_SUMMARY_FACT_THRESHOLD:20}` | порог новых фактов, после которого сводка профиля обновляется без оглядки на интервал |

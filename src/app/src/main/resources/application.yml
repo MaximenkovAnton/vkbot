@@ -41,6 +41,7 @@ knowledge:
   enabled: ${KNOWLEDGE_ENABLED:true}
   batch-size: ${KNOWLEDGE_BATCH_SIZE:25}
   batch-interval: ${KNOWLEDGE_BATCH_INTERVAL:30m}
+  prompt-max-chars: ${KNOWLEDGE_PROMPT_MAX_CHARS:12000}
   excluded-chat-ids: ${KNOWLEDGE_EXCLUDED_CHAT_IDS:}
   confirm-threshold: ${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}
   evidence-refs-limit: ${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}
