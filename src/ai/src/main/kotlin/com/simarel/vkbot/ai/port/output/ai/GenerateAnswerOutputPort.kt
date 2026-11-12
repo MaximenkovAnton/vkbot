@@ -3,6 +3,7 @@ package com.simarel.vkbot.ai.port.output.ai
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
@@ -22,6 +23,7 @@ data class GenerateAnswerOutputPortRequest(
     val chatHistory: List<ChatMessage>,
     val userProfiles: Map<FromId, VkUserProfile>,
     val groupProfiles: Map<FromId, VkGroupProfile>,
+    val userKnowledge: UserKnowledge = UserKnowledge(emptyList(), null, false),
 ) : OutputPortRequest
 
 data class ChatMessage(

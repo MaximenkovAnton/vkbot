@@ -37,16 +37,24 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile,UserStatistics,ProfileHistoryEntry,ChatAuthor}.kt`
     (`VkUserProfile.details: Map<String, Any?>` — человеческие значения полей VK без id и фото, ADR 2026-11-10-vk-profile-human-details;
     `UserStatistics.kt` содержит `UserStatistics`, `ChatStatistics`, `HourActivity`, `DayOfWeekActivity`; `ChatAuthor(fromId, messageCount)` —
-    read-модель авторов чата);
+    read-модель авторов чата; `share/domain/model/knowledge/{UserFact,UserFactEvidence,UserFactCandidate,UserKnowledge,ChatKnowledge,UserFactCategory,UserFactStatus,KnowledgeSourceKind}.kt` —
+    знания из чата, ADR 2026-11-11-user-knowledge-facts);
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
-  - события: `share/domain/Event.kt:3-12` (8 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload}.kt`;
+  - события: `share/domain/Event.kt:3-15` (11 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload,UserKnowledgeRequestedPayload,UserKnowledgeSummaryRequestedPayload,ChatKnowledgeSummaryRequestedPayload}.kt`;
   - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
     `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
     `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
-  - исходящие порты: 21 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
+  - исходящие порты: 32 `persistence`-порта (сообщения, саммари, чаты, профили по дате рождения, claim
     поздравления, три read-only порта сводки «что нового», три read-порта команды «профиль» —
-    `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`), 2 — для позиции Long Poll
+    `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`, шесть
+    портов знаний R1 — четыре write `SaveUserFactsPort`, `AdvanceExtractionCursorPort`,
+    `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort` и два read
+    `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort` — и два read-порта сводки чата
+    `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`, read-порт знаний
+    `FindUserKnowledgePort`, read-порт состояния сводки профиля
+    `FindUserKnowledgeSummaryStatePort` и read-порт birthday-фактов на месяц/день
+    `FindUserBirthdayFactsPort`), 2 — для позиции Long Poll
     (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai (`GenerateGreetingTextPort`) и 3 vk
     (`share/port/output/vk/`, включая `SendGreetingMessagePort`) — каждый `OutputPort<REQ,RESP>` с одной
     операцией;
@@ -81,7 +89,10 @@ Test-scope рёбра (не входят в production-граф, разреше�
 
 - **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари,
   истории изменений профиля, материализованной статистики автора и позиции Long Poll
-  (`long_poll_position`); публичный REST запросов
+  (`long_poll_position`); хранение знаний из чата — карточки фактов, свидетельства-ссылки, сводки профиля и
+  чата, курсор извлечения (`user_facts`, `user_fact_evidence`, `user_knowledge_summary`,
+  `chat_knowledge_summary`, `knowledge_extraction_cursors`; доверие, окна и `value_hash` считаются здесь);
+  публичный REST запросов
   (включая историю профиля и статистику автора); in-process реализация share-портов persistence;
   подтягивание профилей VK.
 - **Публичный API:**
@@ -89,16 +100,25 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `GET /persistence/statistics/users/{id}` — `PersistenceDataController.kt:21-154`, контракт —
     `PersistenceService.kt:24-97` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:99-108`);
   - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
-  - in-process: `PersistenceDataInProcessAdapter.kt` — 21 класс-адаптеров share-портов
+  - in-process: `PersistenceDataInProcessAdapter.kt` — 32 класса-адаптера share-портов
     (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
     `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`, три read-only порта
     сводки «что нового» — `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`,
     `FindStoredSummariesInPeriodPort` — и три read-порта команды «профиль»: `FindChatAuthorsPort`,
-    `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`), делегируют в `PersistenceDataInputPort`;
+    `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`, одиннадцать адаптеров знаний: шесть
+    портов знаний R1 — четыре write `SaveUserFactsPort`, `AdvanceExtractionCursorPort`,
+    `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort` и два read
+    `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort` — и два read-порта сводки чата
+    `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`, read-порт знаний
+    `FindUserKnowledgePort`, read-порт состояния сводки профиля `FindUserKnowledgeSummaryStatePort` и
+    read-порт birthday-фактов `FindUserBirthdayFactsPort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
 - **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → три upsert'а статистики →
-  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (21 операции, включая три чтения для сводки «что
-  нового», авторов чата, историю профиля и статистику автора; публикует `SUMMARY_READY` при сохранении завершённого
+  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (32 операции, включая три чтения для сводки «что
+  нового», авторов чата, историю профиля, статистику автора, шесть операций знаний, два чтения сводки
+  чата, чтение знаний `findUserKnowledge`, состояние сводки профиля `findUserKnowledgeSummaryState` и
+  чтение birthday-фактов на месяц/день `findUserBirthdayFacts`;
+  публикует `SUMMARY_READY` при сохранении завершённого
   саммари), `FetchUserProfileCommandImpl.kt:18-153` (читает сохранённые профили; отсутствующие и
   устаревшие старше месяца обновляет через in-process vk-порты, typed-поля и `details` сливает с
   сохранёнными, diff пишет в историю), `domain/profile/ProfileFieldsMerger.kt` (слияние `details` и diff
@@ -113,10 +133,21 @@ Test-scope рёбра (не входят в production-граф, разреше�
   автора, диапазон дат и саммари периода для сводки «что нового», а `JooqMessageRepository.findAuthorsByPeerId`
   — авторов чата (`group by from_id order by from_id asc`); `JooqVkUserProfileRepository` хранит
   `profile_details` и историю, `JooqUserStatisticsRepository` читает агрегаты `user_statistics`/
-  `user_chat_statistics`/`user_hour_statistics`), таблицы
-  `.../jooq/Tables.kt`, changesets `005-create-long-poll-position-table`/
+  `user_chat_statistics`/`user_hour_statistics`; `JooqUserKnowledgeRepository` пишет карточки,
+  свидетельства, сводки и курсор: `ON CONFLICT … RETURNING id` для карточки, state-aware `UPDATE`
+  агрегатов `evidence_count`/`max_evidence_confidence`/`last_confirmed_at` и обрезка ссылок до
+  `knowledge.evidence-refs-limit`, и читает все карточки пользователей одним `WHERE user_id IN (…)`;
+  `JooqKnowledgeSummaryRepository` читает сводки пользователей по `user_id IN (…)` и считает текущие
+  карточки новее сохранённой сводки (`countCurrentFactsNewerThan`) для гейта R3a;
+  `domain/knowledge/UserKnowledgeReadModel.kt` собирает карту «запись на каждый id + `summaryFresh`»), `domain/knowledge/FactConfidenceCalculator.kt` (клампы, бонус,
+  `CONFIRMED` по `knowledge.confirm-threshold`), `domain/knowledge/KnowledgeTemporalPolicy.kt` (окна,
+  `classify`, `isStale`, нормализация/`mergeBirthdayPayload`), `domain/knowledge/KnowledgeValueHash.kt`,
+  `config/KnowledgeConfig.kt` (два ключа `knowledge.*`), таблицы
+  `.../jooq/Tables.kt:6-178`, changesets `005-create-long-poll-position-table`/
   `006-create-greeting-log-table`/`007-add-user-profile-data-and-history`/
-  `008-replace-profile-data-with-human-details`/`009-create-user-statistics-tables`, ручной backfill-скрипт
+  `008-replace-profile-data-with-human-details`/`009-create-user-statistics-tables`/
+  `010-create-user-knowledge-tables` (второй нетранзакционный changeset `010-create-messages-knowledge-index`),
+  ручной backfill-скрипт
   `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`, порты
   `persistence/port/output/persistence/` (включая внутренние `FindChatAuthorsByPeerIdPort` +
   `FindChatAuthorsByPeerIdAdapter` для `findChatAuthors`) и `ForwardedMessagesSerializationPort.kt:8-16`.
@@ -138,16 +169,23 @@ Test-scope рёбра (не входят в production-граф, разреше�
   ([ADR 2026-11-09-decision-runtime-spam-policy](../adr/2026-11-09-decision-runtime-spam-policy.md),
   [ADR 2026-11-10-decision-jailbreak-detection](../adr/2026-11-10-decision-jailbreak-detection.md),
   [ADR 2026-11-10-jailbreak-rubric-and-threshold](../adr/2026-11-10-jailbreak-rubric-and-threshold.md)).
+- **Извлечение знаний:** на каждом входящем `MESSAGE_RECEIVED` сразу после `val message` и **до**
+  decision-этапа/`requiredAnswer` `RequestKnowledgeExtractionCommandImpl` проверяет `knowledge.enabled`,
+  человека, `vk.bot.id`, `knowledge.excluded-chat-ids` и `HasPendingKnowledgeBatchPort` (порог
+  `knowledge.batch-size`/интервал `knowledge.batch-interval`) и публикует ровно одно
+  `USER_KNOWLEDGE_REQUESTED(peerId, upToConversationMessageId)`; сбой — fail-open WARNING с `peerId` и
+  классом ошибки (вертикаль `user-knowledge`, ADR 2026-11-11-knowledge-extraction).
 - **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
   `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
-- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:32-145` (decision-этап с приоритетом
+- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:33-157` (decision-этап с приоритетом
   `spam → jailbreak`, `requiredAnswer`, ленивый интент-вызов, fail-open, маршрутизация и публикация
   `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
   `spamProbability >= decision.spam-threshold`), `IsJailbreakCommand.kt:9-23` (правило
   `jailbreakProbability >= decision.jailbreak-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не
   человек → нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да),
   `command/help/BuildHelpTextCommand.kt:10-36` (текст справки и `vk.bot.mention`),
-  `command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` (точные `/help`/`/помощь` и граница «с
+  `command/knowledge/RequestKnowledgeExtractionCommand.kt` (политика батча и публикация
+  `USER_KNOWLEDGE_REQUESTED`), `command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` (точные `/help`/`/помощь` и граница «с
   аргументами → `GENERAL`»). В коде есть TODO-комментарий о будущем контексте (RAG) — это не реализовано.
 - **Decision-клиент:** порт `processor/port/output/decision/AnalyzeMessageOutputPort.kt`
   (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
@@ -175,21 +213,29 @@ Test-scope рёбра (не входят в production-граф, разреше�
   статистики и истории, LLM-текст), текст поздравлений, OCR-команда,
   веб-инструменты Vane; потребление `MESSAGE_REQUIRE_ANSWER`/`SUMMARY_REQUESTED`/`NEWS_DIGEST_REQUESTED`/
   `PROFILE_REQUESTED`, публикация `ANSWER_MESSAGE`; in-process `GenerateGreetingTextPort` для
-  `greetings`. Модуль импортирует только `share`.
+  `greetings`. Вертикаль `user-knowledge` (R2a): консюмер `USER_KNOWLEDGE_REQUESTED`, батч, один
+  LLM-вызов, валидация, запись через порты R1a, курсор и события сводок. Модуль импортирует только
+  `share`.
 - **Публичный API:**
   - MQ-входы: `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28`,
     `NewsDigestRequestedEventProcessor.kt:12-22` (`NEWS_DIGEST_REQUESTED`, тело — доменный `Message`),
-    `ProfileRequestedEventProcessor.kt:12-22` (`PROFILE_REQUESTED`, тело — доменный `Message`);
+    `ProfileRequestedEventProcessor.kt:12-22` (`PROFILE_REQUESTED`, тело — доменный `Message`),
+    `UserKnowledgeRequestedEventProcessor.kt` (`USER_KNOWLEDGE_REQUESTED`, тело —
+    `UserKnowledgeRequestedPayload`), `ChatKnowledgeSummaryRequestedEventProcessor.kt`
+    (`CHAT_KNOWLEDGE_SUMMARY_REQUESTED`, тело — `ChatKnowledgeSummaryRequestedPayload`);
   - входы use case: `port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt`,
     `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`,
     `port/input/news/ProcessNewsDigestInputPort.kt`,
     `port/input/profile/ProcessProfileInputPort.kt`;
   - in-process: `adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` — `GenerateGreetingTextPort`.
 - **Ключевые классы:**
-  - ответ: `GenerateAnswerUsecase.kt:16-41` → `GenerateAnswerCommand.kt:14-48` (контекст через
-    `ConversationContextOutputPort` + LLM через `GenerateAnswerOutputPort`); контекст —
+  - ответ: `GenerateAnswerUsecase.kt:16-41` → `GenerateAnswerCommand.kt:26-74` (контекст через
+    `ConversationContextOutputPort`, знания автора через `FindUserKnowledgePort`, LLM через
+    `GenerateAnswerOutputPort`); контекст —
     `ConversationContextRestAdapter.kt:21-104` (20 последних сообщений, профили, парсинг JSONB
-    `forwardedMessages`); LLM — `UserAnswerAiService.kt:13-45` + `GenerateAnswerOutputAdapter.kt:15-120`;
+    `forwardedMessages`); LLM — `UserAnswerAiService.kt:13-46` + `GenerateAnswerOutputAdapter.kt:16-142`
+    (блок `[USER_KNOWLEDGE]` из свежей сводки профиля или канонических фактов, плейсхолдер
+    `{userKnowledge}`);
   - саммаризация: `ProcessSummaryCommandImpl.kt:11-128` (включённые чаты, порог, pending, батч),
     `GenerateSummaryCommandImpl.kt:13-61` (pending-запись → форматирование общим `MessageAuthorFormatter` →
     LLM → completed или failed), `SummarizationAiAdapter.kt:12-42` (3 попытки), `SummarizationAiService.kt:8-37`;
@@ -200,18 +246,53 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - поздравления: `GreetingAiService.kt` (`@RegisterAiService`, `@SystemMessage("{config:aiGreetingSystemprompt}")`)
     + `GreetingTextOutputAdapter.kt` (`GenerateGreetingTextPort`, формат даты и списков);
   - сводка «что нового»: `ProcessNewsDigestUsecase` → `ProcessNewsDigestCommandImpl` (период через
-    `NewsPeriodParser`/`NewsPeriod`, три read-only in-process порта к `persistence`, ровно один
-    `ANSWER_MESSAGE`), `NewsDigestAiAdapter`/`NewsDigestAiService` (`@RegisterAiService` без инструментов,
-    system-промпт `{config:aiNewsDigestSystemprompt}`, 3 попытки, `NewsDigestGenerationException`),
+    `NewsPeriodParser`/`NewsPeriod`, три read-only in-process порта к `persistence`, опциональные чтения
+    знаний `FindUserKnowledgePort([автор])`/`FindChatKnowledgeSummaryPort(peerId)` — R4c, fail-open,
+    ровно один `ANSWER_MESSAGE`), `NewsDigestAiAdapter`/`NewsDigestAiService` (`@RegisterAiService` без
+    инструментов, секции «Интересы автора запроса»/«Темы чата» и правило приоритета, system-промпт
+    `{config:aiNewsDigestSystemprompt}`, 3 попытки, `NewsDigestGenerationException`),
     `MessageAuthorFormatter` — общий форматтер авторов (`GenerateSummaryCommandImpl` и сводка);
   - досье об участнике (`profile-dossier`): `ProfileRequestedEventProcessor` →
     `ProcessProfileUsecase` → `ProcessProfileCommandImpl` (резолв через `ProfileTargetResolver`/
-    `ProfileNameNormalizer`/`ProfileNameMatcher`, текст через `ProfileDossierFormatter`, чтения через
+    `ProfileNameNormalizer`/`ProfileNameMatcher`, текст через `ProfileDossierFormatter`, знания из чата
+    через `FindUserKnowledgePort` и `UserKnowledgeSummaryFormatter` — секция `Из общения:`, чтения через
     `FindChatAuthorsPort`/`FindStoredUserStatisticsPort`/`FindStoredUserProfileHistoryPort` и live
     `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort`, ровно один `ANSWER_MESSAGE`),
     `ProfileAnswerGenerationPort` ← `ProfileAiAdapter`/`ProfileAiService` (`@RegisterAiService` без
     инструментов и памяти, system-промпт `{config:aiProfileSystemprompt}`, 3 попытки,
     `ProfileGenerationException`);
+  - ответ со знаниями (`user-knowledge`, R4b): `GenerateAnswerCommandImpl` читает
+    `FindUserKnowledgePort([FromId(message.fromId)])` (fail-open, WARNING без PII), `GenerateAnswerOutputAdapter`
+    рендерит блок `[USER_KNOWLEDGE]` из сохранённой сводки профиля (приоритет) или
+    `UserKnowledgeSummaryFormatter`, `UserAnswerAiService` подставляет `{userKnowledge}`; без знаний блока
+    нет и промпт прежний;
+  - знания из чата (`user-knowledge`): `UserKnowledgeRequestedEventProcessor` →
+    `ProcessUserKnowledgeUsecase` → `ProcessUserKnowledgeCommandImpl` (`FindPendingKnowledgeBatchPort`,
+    `KnowledgeExtractionPort`, `SaveUserFactsPort`, `AdvanceExtractionCursorPort`,
+    `FindStoredUserProfilesByIdsPort`; `UserKnowledgeBatchFormatter`;
+    `UserKnowledgeValidator`; save → advance → summary-события, INFO только со счётчиками),
+    `KnowledgeExtractionPort` ← `KnowledgeExtractionAiAdapter`/`KnowledgeExtractionAiService`
+    (`@RegisterAiService` без инструментов и памяти, system-промпт `{config:aiKnowledgeSystemprompt}`,
+    3 попытки, `KnowledgeExtractionException`, `EXTERNAL_FAILURE`);
+  - сводка чата (`user-knowledge`, R3b): `ChatKnowledgeSummaryRequestedEventProcessor` →
+    `ProcessChatKnowledgeSummaryUsecase` → `GenerateChatKnowledgeSummaryCommandImpl`
+    (`FindChatSummaryMessagesPort(peerId, limit)` — окно от `last_conversation_message_id`, гейт
+    `knowledge.chat-summary-message-threshold`/`knowledge.chat-summary-interval`, один вызов
+    `ChatKnowledgeSummaryPort`, клип 2000, `SaveChatKnowledgeSummaryPort`; INFO только со счётчиками),
+    `ChatKnowledgeSummaryPort` ← `ChatKnowledgeSummaryAiAdapter`/`ChatKnowledgeSummaryAiService`
+    (`@RegisterAiService` без инструментов и памяти, system-промпт
+    `{config:aiChatKnowledgeSummarySystemprompt}`, 3 попытки, `ChatKnowledgeSummaryException`,
+    `EXTERNAL_FAILURE`); чтение сводки — `FindChatKnowledgeSummaryPort(peerId) → ChatKnowledge?`;
+  - сводка профиля (`user-knowledge`, R3a): `UserKnowledgeSummaryRequestedEventProcessor` →
+    `ProcessUserKnowledgeSummaryUsecase` → `GenerateUserKnowledgeSummaryCommandImpl`
+    (`FindUserKnowledgeSummaryStatePort(userId)` — состояние сводки, гейт
+    `knowledge.summary-fact-threshold`/`knowledge.summary-interval`, `FindUserKnowledgePort`, один вызов
+    `UserKnowledgeSummaryPort` через `UserKnowledgeSummaryFormatter`, клип 2000,
+    `SaveUserKnowledgeSummaryPort`; INFO только с `userId`, числом фактов и длиной),
+    `UserKnowledgeSummaryPort` ← `UserKnowledgeSummaryAiAdapter`/`UserKnowledgeSummaryAiService`
+    (`@RegisterAiService` без инструментов и памяти, system-промпт
+    `{config:aiKnowledgeSummarySystemprompt}`, 3 попытки, `UserKnowledgeSummaryException`,
+    `EXTERNAL_FAILURE`);
   - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
 - **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
   провайдер (`quarkus-langchain4j-openai`, ADR 2026-11-05-llm-provider-vllm-openai) (`src/ai/build.gradle.kts:14-46`).
@@ -243,16 +324,23 @@ Test-scope рёбра (не входят в production-граф, разреше�
 
 - **Ответственность:** прогон поздравлений по cron-расписанию Quarkus (`greetings.cron`, по умолчанию
   00:00) в зоне `greetings.timezone` (по умолчанию `Europe/Minsk`); правила праздников и дней рождения;
-  отдельное сообщение на каждый праздник и одно на всех именинников чата; at-most-once через claim на чат;
-  текст ИИ с шаблоном-фолбэком; спан `greetings.daily-run`. Событий RabbitMQ и HTTP-входов нет.
+  именинники — VK `birth_date` и `CONFIRMED`-факт `PROFILE_ATTRIBUTE/birthday` при скрытой VK-дате
+  (read-порт `FindUserBirthdayFactsPort`, kill-switch `greetings.hidden-birthdays.enabled`, fail-open
+  knowledge-ветки); отдельное сообщение на каждый праздник и одно на всех именинников чата; at-most-once
+  через claim на чат; текст ИИ с шаблоном-фолбэком; спан `greetings.daily-run`. Событий RabbitMQ и
+  HTTP-входов нет.
 - **Публичный API:** `port/input/RunDailyGreetingsInputPort.kt` (`Request(date)` → `Response(planned, sent,
   failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled` с `cron = "{greetings.cron}"`,
   `timeZone = "{greetings.timezone}"`, ключи `greetings.cron`/`greetings.timezone`).
 - **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → claim на чат → generate → send по
   планам; ошибка одного сообщения/чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt`
-  (групповые чаты + профили по дате рождения, один план на праздник и один на именинников чата),
+  (групповые чаты + профили по дате рождения и CONFIRMED birthday-факты с дедупом по `userId`; один план на
+  праздник и один на именинников чата),
   `command/text/GenerateGreetingTextCommand.kt` (ИИ + детерминированный шаблон),
   `domain/{Holidays,BirthdayDates,NameFormatter,GreetingPlan,Holiday}.kt`.
+- **Порты знаний:** `FindUserBirthdayFactsPort` (share, реализация в `persistence`) и
+  `FindStoredUserProfilesByIdsPort` (share, реализация в `persistence`) — только чтение `user_facts` и
+  `vk_user_profiles`; миграции нет.
 - **Сборка:** `share`, `quarkus-scheduler`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
   (`src/greetings/build.gradle.kts`).
 
@@ -301,10 +389,13 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `MESSAGE_NEW` | receiver (`PublishVkEventCommandImpl.kt:15-23`) | persistence (`MessageNewEventProcessor.kt:12-22`) |
 | `MESSAGE_RECEIVED` | persistence (`SaveMessageUsecase.kt:33-38`) | processor (`MessageReceivedEventProcessor.kt:12-22`) |
 | `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
-| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:76-79`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
-| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`, досье — `ProcessProfileCommandImpl`), processor — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:62-69,105-112`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
-| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:76-79`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
-| `PROFILE_REQUESTED` | processor — ветка `profile` (`MessageReceivedUsecaseInput.kt:76-79`) | ai (`ProfileRequestedEventProcessor.kt:12-22`, вертикаль `profile-dossier`) |
+| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
+| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`, досье — `ProcessProfileCommandImpl`), processor — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:64-73,112-115`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
+| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
+| `PROFILE_REQUESTED` | processor — ветка `profile` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`ProfileRequestedEventProcessor.kt:12-22`, вертикаль `profile-dossier`) |
+| `USER_KNOWLEDGE_REQUESTED` | processor — триггер извлечения (`RequestKnowledgeExtractionCommand.kt`), до decision-этапа | ai (`UserKnowledgeRequestedEventProcessor.kt`, вертикаль `user-knowledge`) |
+| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча (`ProcessUserKnowledgeCommandImpl.kt`) | ai (`UserKnowledgeSummaryRequestedEventProcessor.kt`, R3a) |
+| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча (`ProcessUserKnowledgeCommandImpl.kt`) | ai (`ChatKnowledgeSummaryRequestedEventProcessor.kt`, R3b) |
 | `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:256-287`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
 
 ### In-process порты
@@ -316,6 +407,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
 | `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
 | `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
 | `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` (read-only, команда «профиль») | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (3 адаптера) | `ai` (`ProcessProfileCommandImpl`, вертикаль `profile-dossier`) |
+| `FindUserKnowledgePort` (read-only, знания из чата) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (1 адаптер) | `ai` (`ProcessProfileCommandImpl` — `profile-dossier`, `GenerateAnswerCommand` — `ai-answer`, `ProcessNewsDigestCommandImpl` — `chat-news-digest`, `GenerateUserKnowledgeSummaryCommandImpl` — `user-knowledge`) |
+| `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`, `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort` (знания из чата, R1) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (6 адаптеров) | `processor` (`RequestKnowledgeExtractionCommand`), `ai` (`ProcessUserKnowledgeCommandImpl`, `GenerateChatKnowledgeSummaryCommandImpl`) |
+| `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort` (чтение сводки чата и окна, R3b) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `ai` (`GenerateChatKnowledgeSummaryCommandImpl`) |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |
 | `GenerateGreetingTextPort` | `ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` | `greetings` (`GenerateGreetingTextCommand`) |
 | `SendGreetingMessagePort` | `vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt` | `greetings` (`RunDailyGreetingsUsecase`) |

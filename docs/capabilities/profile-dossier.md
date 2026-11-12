@@ -22,22 +22,33 @@
    | 4. Имя | остаток текста после вырезания триггеров и служебных слов | ровно один участник этого `peer_id` по сохранённому профилю — цель; несколько — уточнение; ноль — «не нашёл» |
 
 2. **Досье собирается из сохранённых источников** и передаётся LLM детерминированным русским текстом:
-   профиль VK (typed-поля и человеческие `details`), материализованная статистика (глобальные агрегаты и
-   разбивка по чатам, включая другие чаты), последние 20 записей истории изменений профиля и число
-   сообщений цели в этом чате. Секции идут строго в порядке `Профиль:`, `Статистика:`,
-   `История изменений:`, `В этом чате:`; пустые секции не пишутся. Группа получает только профиль группы и
-   счётчик в этом чате — статистики и истории у групп нет.
-3. **Форматтер — allowlist.** Рендерятся только известные ключи `details` с русскими подписями; телефоны
+   профиль VK (typed-поля и человеческие `details`), знания о человеке из чата, материализованная
+   статистика (глобальные агрегаты и разбивка по чатам, включая другие чаты), последние 20 записей истории
+   изменений профиля и число сообщений цели в этом чате. Секции идут строго в порядке `Профиль:`,
+   `Из общения:`, `Статистика:`, `История изменений:`, `В этом чате:`; пустые секции не пишутся. Группа
+   получает только профиль группы и счётчик в этом чате — статистики, истории и знаний у групп нет.
+3. **Знания из чата — overlay на чтении.** После резолва профиля команда один раз читает знания цели
+   через `FindUserKnowledgePort` и кладёт их в `ProfileDossier.UserDossier.knowledge`. Секция
+   `Из общения:` строится так: свежая сводка (`summaryFresh=true`, текст непустой) — связный сохранённый
+   текст как есть; иначе — компактный список фактов, который рендерит единственный
+   `UserKnowledgeSummaryFormatter` (`CONFIRMED` обычной строкой, `CANDIDATE` — «возможно», `HISTORICAL` —
+   «ранее:», `conflict` — «возможно, противоречивые данные», `stale` не печатается); источники, `factKey`,
+   id и даты в секцию не попадают. Пустые знания (нет фактов и нет свежей сводки) — секции нет, промпт
+   прежний. Конфликт VK↔чат отдаётся LLM двумя версиями: VK-значение остаётся в `Профиль:`, значение из
+   чата — в `Из общения:`; `vk_user_profiles` знаниями не пишется. Сбой этого опционального чтения
+   (`RuntimeException`) — один WARNING с `peerId`, `targetId` и простым именем класса исключения (без
+   значений) и досье без секции; ответ публикуется.
+4. **Форматтер — allowlist.** Рендерятся только известные ключи `details` с русскими подписями; телефоны
    (`mobile_phone`, `home_phone`), `counters`, `connections`, неизвестные ключи и VK-id не рендерятся нигде,
    кроме списка кандидатов уточнения. Записи истории без известных полей пропускаются.
-4. **LLM пишет только текст.** Один вызов `ProfileAnswerGenerationPort` с вопросом (исходный текст
+5. **LLM пишет только текст.** Один вызов `ProfileAnswerGenerationPort` с вопросом (исходный текст
    сообщения) и готовым текстом досье; system-сообщение — из `aiProfileSystemprompt`. Адаптер делает три
    попытки (пустой или пробельный ответ — неудачная попытка), после третьей бросает
    `ProfileGenerationException` со статусом `EXTERNAL_FAILURE`; команда ловит только её, публикует
    фиксированный фолбэк и пишет ERROR только с `peerId` и простым именем класса исключения.
-5. **Запись отсутствует.** Live-профиль, запрошенный через `GetUserProfilesBatchPort`/
-   `GetGroupProfilesBatchPort`, не сохраняется; `messages`, профили, история и статистика только читаются.
-   `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются.
+6. **Запись отсутствует.** Live-профиль, запрошенный через `GetUserProfilesBatchPort`/
+   `GetGroupProfilesBatchPort`, не сохраняется; `messages`, профили, история, статистика и знания только
+   читаются. `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются.
 
 Неоднозначность решается одним сообщением, состояние «жду уточнение» не запоминается: следующий запрос
 резолвится заново. Уточнение перечисляет не больше 10 кандидатов в порядке первого появления или
@@ -83,16 +94,19 @@
 
 Только читает. Досье собирается из `messages` (число сообщений цели в чате через `FindChatAuthorsPort`),
 `vk_user_profiles` и `vk_group_profiles` (typed-поля и `profile_details`), `vk_user_profile_history`
-(последние 20 записей, newest-first) и трёх таблиц материализованной статистики
-(`user_statistics`, `user_chat_statistics`, `user_hour_statistics`). Схема, jOOQ и Liquibase остаются у
-`message-storage`; новых изменений схемы нет. Live-профиль, полученный через
-`GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort`, **не сохраняется**.
+(последние 20 записей, newest-first), трёх таблиц материализованной статистики
+(`user_statistics`, `user_chat_statistics`, `user_hour_statistics`) и знаний о человеке из чата
+(`user_facts`, `user_knowledge_summary`) одним вызовом `FindUserKnowledgePort`. Схема, jOOQ и Liquibase
+остаются у `message-storage`; новых изменений схемы нет. Live-профиль, полученный через
+`GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort`, **не сохраняется**; знания не пишутся в
+`vk_user_profiles` никогда.
 
-Данные профиля, истории, статистики и исходный вопрос уходят в LLM-промпт; глобальные
+Данные профиля, истории, статистики, знаний (значения фактов и текст сводки) и исходный вопрос уходят в
+LLM-промпт; глобальные
 `quarkus.langchain4j.log-requests/log-responses: true` логируют промпт и ответ на INFO и экспортируют по
 OTLP — осознанно принятый PII-egress (ADR 2026-11-10-profile-dossier, ADR 2026-11-05-llm-provider-vllm-openai).
-Новый код значения не логирует: единственный новый лог — ERROR при отказе LLM с `peerId` и простым именем
-класса исключения. Собственных метрик и спанов нет.
+Новый код значения не логирует: логи — ERROR при отказе LLM и WARNING при сбое чтения знаний (только
+`peerId`, `targetId` и простое имя класса исключения). Собственных метрик и спанов нет.
 
 ## Journey
 
@@ -111,6 +125,9 @@ forward от бота) — named gap, а не дефект досье. В `journ
 | `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
 | `ChatAuthor`, `UserStatistics`, `ProfileHistoryEntry` | контракт чтения для `ai` | `message-storage` (модели в `share`) |
 | `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `message-storage`, `ai-answer`, `conversation-summary` | `message-storage` |
+| `FindUserKnowledgePort`, `UserKnowledge` | read-модель знаний (`knowledge-confidence`); потребители — `profile-dossier` (`ProcessProfileCommandImpl`), `ai-answer` (`GenerateAnswerCommand`), `chat-news-digest` (`ProcessNewsDigestCommandImpl`), `user-knowledge` (`GenerateUserKnowledgeSummaryCommandImpl`) | `knowledge-contracts` (форма), `knowledge-confidence` (чтение) |
+| `UserKnowledgeSummaryFormatter` | единственная реализация маркеров знаний; рендерит список фактов в секции `Из общения:` (`knowledge-summary`) | `knowledge-summary` |
+| `FindUserBirthdayFactsPort` | birthday-ветка поздравлений (`daily-greetings`) | `knowledge-confidence` |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `message-storage` (актуализация профилей), `profile-dossier` (досье без сохранённого профиля) | `vk-profiles` |
 | `ProfileAnswerGenerationPort` и `ProfileAiService`/`ProfileAiAdapter` | потребитель — только `ProcessProfileCommandImpl` | `ai` |
 | `ProfileGenerationException` | ловится только `ProcessProfileCommandImpl` | `ai` (единая иерархия `VkBotAppException`, ADR 2026-11-09-exception-hierarchy) |
@@ -120,6 +137,8 @@ forward от бота) — named gap, а не дефект досье. В `journ
 
 - `answer-decision` — producer события `PROFILE_REQUESTED` (ветка `profile` после `requiredAnswer=true`).
 - `message-storage` — in-process чтение авторов чата, статистики и истории профиля; схема и данные.
+- `user-knowledge` — `FindUserKnowledgePort` и `UserKnowledgeSummaryFormatter` для секции `Из общения:`
+  (знания только читаются, в VK-профиль не пишутся).
 - `vk-profiles` — live-порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` для отсутствующего
   сохранённого профиля (ответ не сохраняется).
 - `event-dispatch` — доставка события и публикация `ANSWER_MESSAGE`.
@@ -136,6 +155,8 @@ forward от бота) — named gap, а не дефект досье. В `journ
 - ADR 2026-11-10-vk-profile-human-details — `VkUserProfile.details` — человеческие значения VK-полей, allowlist рендера.
 - ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики, читаемые досье.
 - ADR 2026-11-10-profile-dossier — решение «досье»: детерминированный резолв, LLM только текст, один новый output-порт, PII-egress, always-on.
+- ADR 2026-11-11-knowledge-read-model — форма `FindUserKnowledgePort` и `summaryFresh`: досье читает карточки и сводку одним вызовом.
+- ADR 2026-11-11-profile-knowledge-overlay — overlay на чтении: секция `Из общения:`, приоритет свежей сводки, fail-open опционального чтения; `Amends` ADR 2026-11-10-profile-dossier.
 
 ## Acceptance criteria
 
@@ -237,6 +258,36 @@ forward от бота) — named gap, а не дефект досье. В `journ
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt` и
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`.
 
+- **AC-PROFILE-1** — КОГДА у цели есть знания из чата, СИСТЕМА ДОЛЖНА показать их секцией `Из общения:`
+  сразу после `Профиль:` и перед `Статистика:`: свежая сводка (`summaryFresh=true`, непустой текст) —
+  связным текстом как есть; иначе — списком фактов через `UserKnowledgeSummaryFormatter` (`CONFIRMED`
+  обычной строкой, `CANDIDATE` — «возможно», `HISTORICAL` — «ранее: X», `conflict` — «возможно,
+  противоречивые данные», `stale` исключён) без источников, `factKey`, id и дат; при пустых знаниях или
+  только stale-фактах без свежей сводки секции нет, а `GroupDossier` рендерится прежним текстом. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  (`rendersFreshSummaryFromChatBelowProfile`, `fallsBackToFactListWhenSummaryIsStaleOrMissing`,
+  `omitsKnowledgeSectionWithoutFreshKnowledge`, `rendersKnowledgeWithoutSourcesOrDates`); команда
+  `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"`.
+- **AC-PROFILE-2** — КОГДА цель — пользователь с профилем, СИСТЕМА ДОЛЖНА ровно один раз прочитать его
+  знания через `FindUserKnowledgePort` и отдать LLM обе версии (VK-значение в `Профиль:`, значение из чата
+  в `Из общения:`); для группы порт не вызывается; при недоступном профиле знаний нет и LLM не
+  вызывается; при сбое порта — ответ по досье без секции и один WARNING с `peerId`, `targetId` и именем
+  класса без значений; `vk_user_profiles`/`user_facts`/`user_knowledge_summary`/`messages` не пишутся.
+  Tests: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  (`feedsBothVkAndChatValuesIntoTheModelForAUser`, `doesNotReadKnowledgeForAGroup`,
+  `doesNotReadKnowledgeWhenTheProfileIsUnavailable`, `publishesTheProfileWithoutKnowledgeWhenTheReadFails`),
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  (`readsChatKnowledgeIntoThePromptWithoutWriting`); команды `./gradlew --console=plain :src:ai:test
+  --tests "*ProcessProfile*"` и `./gradlew --console=plain :src:app:test --tests
+  "*ProfileCommandIntegration*"`.
+- **AC-PROFILE-3** — КОГДА вместе с текущей карточкой того же ключа в знаниях есть `HISTORICAL` или две
+  карточки одного ключа помечены `conflict=true`, СИСТЕМА ДОЛЖНА вывести историю строкой `- ранее:
+  <значение>` без дат, а конфликт — обеими строками `- возможно, противоречивые данные: <значение>` без
+  выбора победителя и без дат. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  (`rendersHistoricalFactAsPreviously`, `rendersConflictingFactsAsContradictory`); команда
+  `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"`.
+
 ## Пробелы приёмки
 
 - **Сопоставление по имени — эвристика префикса/основы:** lowercase, `ё → е`, срезание хвоста гласных и
@@ -256,5 +307,15 @@ forward от бота) — named gap, а не дефект досье. В `journ
   бота) — следствие решения «только интент decision-модели», а не дефект резолва.
 - **PII-egress:** профиль, история, статистика (включая активность из чужих чатов) и исходный вопрос уходят
   в LLM-промпт и в INFO/OTLP-логи провайдера — принятый риск ADR 2026-11-10-profile-dossier.
-- **Наблюдаемость:** новых метрик и спанов нет; единственный новый лог — ERROR при отказе LLM (только
-  `peerId` и простое имя класса). Отдельного INFO-лога успеха нет.
+- **Наблюдаемость:** новых метрик и спанов нет; логи — ERROR при отказе LLM и WARNING при сбое чтения
+  знаний (только `peerId`, `targetId` и простое имя класса исключения). Отдельного INFO-лога успеха нет.
+- **Fail-open только для опционального чтения знаний:** сбой `FindUserKnowledgePort` не валит команду и
+  не ретраится брокером — досье публикуется без секции `Из общения:`. Ошибки профиля, статистики,
+  истории, публикации и LLM по-прежнему уходят в retry-лестницу (`Amends` ADR 2026-11-10-profile-dossier).
+- **`Из общения:` без дат гарантируется рендером, а не вырезанием:** текст свежей сводки — свободный
+  LLM-ответ, промпт сводки запрещает источники/даты/id, но программа даты из чужого текста не вырезает
+  (это портило бы связный текст); список фактов дат не содержит по построению. Апгрейд — нормализатор
+  дат, если понадобится программная гарантия.
+- **Устаревшая сводка не показывается:** при `summaryFresh=false` секция строится только из фактов; если
+  свежих фактов нет, секции нет вовсе (следствие решения «свежая сводка приоритетнее» и `summaryFresh`
+  read-модели). Апгрейд — решение человека показывать текст устаревшей сводки.

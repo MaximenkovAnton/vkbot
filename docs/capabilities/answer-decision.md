@@ -98,7 +98,7 @@ fail-open), интент-этап делает ровно один ленивы�
 | Точка входа | Где в коде |
 |---|---|
 | `MESSAGE_RECEIVED` из `all-events-queue` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22` |
-| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:32-145` |
+| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:33-157` |
 | правило порога спама | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt:9-23` |
 | правило порога jailbreak | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt:9-23` |
 | decision-порт | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt:9-13` |

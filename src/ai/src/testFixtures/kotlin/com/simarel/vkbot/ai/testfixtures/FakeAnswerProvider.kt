@@ -12,10 +12,12 @@ import com.simarel.vkbot.ai.port.output.context.ConversationContextResponse
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import java.time.OffsetDateTime
 
@@ -42,11 +44,13 @@ object FakeAnswerProvider {
         chatHistory: List<ChatMessage> = listOf(createChatMessage()),
         userProfiles: Map<FromId, VkUserProfile> = emptyMap(),
         groupProfiles: Map<FromId, VkGroupProfile> = emptyMap(),
+        userKnowledge: UserKnowledge = FakeModelProvider.createUserKnowledge(),
     ) = GenerateAnswerOutputPortRequest(
         currentMessage = currentMessage,
         chatHistory = chatHistory,
         userProfiles = userProfiles,
         groupProfiles = groupProfiles,
+        userKnowledge = userKnowledge,
     )
 
     fun createGenerateAnswerOutputPortResponse(

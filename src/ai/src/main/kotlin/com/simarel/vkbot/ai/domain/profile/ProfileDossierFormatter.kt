@@ -1,10 +1,12 @@
 package com.simarel.vkbot.ai.domain.profile
 
+import com.simarel.vkbot.ai.domain.knowledge.UserKnowledgeSummaryFormatter
 import com.simarel.vkbot.share.domain.model.ChatStatistics
 import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -29,6 +31,7 @@ private const val CASE_POSITION = 1
 private const val WEEK_OFFSET = 1
 
 private const val PROFILE_HEADER = "Профиль:"
+private const val KNOWLEDGE_HEADER = "Из общения:"
 private const val STATISTICS_HEADER = "Статистика:"
 private const val HISTORY_HEADER = "История изменений:"
 private const val CHAT_HEADER = "В этом чате:"
@@ -122,10 +125,21 @@ class ProfileDossierFormatter(private val zoneId: ZoneId) {
 
     private fun userText(dossier: ProfileDossier.UserDossier, peerId: Long): String = listOfNotNull(
         section(PROFILE_HEADER, userProfileLines(dossier.profile)),
+        knowledgeSection(dossier.knowledge),
         section(STATISTICS_HEADER, statisticsLines(dossier.statistics, peerId)),
         section(HISTORY_HEADER, historyLines(dossier.history)),
         dossier.chatMessageCount?.let { section(CHAT_HEADER, chatLines(it)) },
     ).joinToString(SECTION_SEPARATOR)
+
+    private fun knowledgeSection(knowledge: UserKnowledge): String? {
+        val summary = knowledge.summary
+        val body = if (knowledge.summaryFresh && !summary.isNullOrBlank()) {
+            summary.lines().filter(String::isNotBlank)
+        } else {
+            UserKnowledgeSummaryFormatter.format(knowledge.facts).lines().filter(String::isNotBlank)
+        }
+        return section(KNOWLEDGE_HEADER, body)
+    }
 
     private fun groupText(dossier: ProfileDossier.GroupDossier): String = listOfNotNull(
         section(PROFILE_HEADER, groupProfileLines(dossier.profile)),

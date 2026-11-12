@@ -13,6 +13,14 @@ import com.simarel.vkbot.share.domain.model.SummaryStatus
 import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
+import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
+import com.simarel.vkbot.share.domain.model.knowledge.UserFact
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactEvidence
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactStatus
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.MessageText
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -23,7 +31,7 @@ private val FIXED_DATE: OffsetDateTime = OffsetDateTime.parse("2026-01-01T00:00:
 object FakeModelProvider {
 
     fun createStoredMessage(
-        id: UUID = UUID.randomUUID(),
+        id: UUID? = UUID.randomUUID(),
         peerId: Long = 10,
         conversationMessageId: Long = 20,
         fromId: Long = 30,
@@ -167,5 +175,112 @@ object FakeModelProvider {
         profileId = profileId,
         changedAt = changedAt,
         changes = changes,
+    )
+
+    @Suppress("LongParameterList")
+    fun createUserFact(
+        id: UUID = UUID.randomUUID(),
+        userId: Long = 10,
+        peerId: Long = 20,
+        category: UserFactCategory = UserFactCategory.INTEREST,
+        factKey: String = "interest_football",
+        value: String = "футбол",
+        valuePayload: Map<String, Any?> = emptyMap(),
+        confidence: Double = 0.9,
+        status: UserFactStatus = UserFactStatus.CONFIRMED,
+        evidenceCount: Int = 1,
+        firstObservedAt: OffsetDateTime = FIXED_DATE,
+        lastConfirmedAt: OffsetDateTime = FIXED_DATE,
+        supersededAt: OffsetDateTime? = null,
+        conflict: Boolean = false,
+        stale: Boolean = false,
+    ) = UserFact(
+        id = id,
+        userId = userId,
+        peerId = peerId,
+        category = category,
+        factKey = factKey,
+        value = value,
+        valuePayload = valuePayload,
+        confidence = confidence,
+        status = status,
+        evidenceCount = evidenceCount,
+        firstObservedAt = firstObservedAt,
+        lastConfirmedAt = lastConfirmedAt,
+        supersededAt = supersededAt,
+        conflict = conflict,
+        stale = stale,
+    )
+
+    @Suppress("LongParameterList")
+    fun createUserFactEvidence(
+        id: UUID = UUID.randomUUID(),
+        factId: UUID = UUID.randomUUID(),
+        messageId: UUID = UUID.randomUUID(),
+        conversationMessageId: Long = 101,
+        peerId: Long = 20,
+        saidById: Long = 10,
+        sourceKind: KnowledgeSourceKind = KnowledgeSourceKind.SELF_STATEMENT,
+        confidence: Double = 0.9,
+        observedAt: OffsetDateTime = FIXED_DATE,
+    ) = UserFactEvidence(
+        id = id,
+        factId = factId,
+        messageId = messageId,
+        conversationMessageId = conversationMessageId,
+        peerId = peerId,
+        saidById = saidById,
+        sourceKind = sourceKind,
+        confidence = confidence,
+        observedAt = observedAt,
+    )
+
+    @Suppress("LongParameterList")
+    fun createUserFactCandidate(
+        userId: Long = 10,
+        peerId: Long = 20,
+        category: UserFactCategory = UserFactCategory.INTEREST,
+        factKey: String = "interest_football",
+        value: String = "футбол",
+        valuePayload: Map<String, Any?> = emptyMap(),
+        sourceKind: KnowledgeSourceKind = KnowledgeSourceKind.SELF_STATEMENT,
+        confidence: Double = 0.9,
+        messageId: UUID = UUID.randomUUID(),
+        conversationMessageId: Long = 101,
+        saidById: Long = 10,
+        observedAt: OffsetDateTime = FIXED_DATE,
+    ) = UserFactCandidate(
+        userId = userId,
+        peerId = peerId,
+        category = category,
+        factKey = factKey,
+        value = value,
+        valuePayload = valuePayload,
+        sourceKind = sourceKind,
+        confidence = confidence,
+        messageId = messageId,
+        conversationMessageId = conversationMessageId,
+        saidById = saidById,
+        observedAt = observedAt,
+    )
+
+    fun createUserKnowledge(
+        facts: List<UserFact> = emptyList(),
+        summary: String? = null,
+        summaryFresh: Boolean = false,
+    ) = UserKnowledge(
+        facts = facts,
+        summary = summary,
+        summaryFresh = summaryFresh,
+    )
+
+    fun createChatKnowledge(
+        peerId: Long = 20,
+        summary: String = "chat summary",
+        summarizedAt: OffsetDateTime = FIXED_DATE,
+    ) = ChatKnowledge(
+        peerId = peerId,
+        summary = summary,
+        summarizedAt = summarizedAt,
     )
 }

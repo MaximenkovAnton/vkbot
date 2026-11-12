@@ -38,6 +38,9 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}` | system-сообщение сервиса поздравлений | `ai/adapter/output/ai/greeting/GreetingAiService.kt` |
 | `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение сервиса сводки «что нового»; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/news/NewsDigestAiService.kt` |
 | `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение сервиса досье об участнике чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env, новых обязательных env нет | `ai/adapter/output/ai/profile/ProfileAiService.kt` |
+| `aiKnowledgeSystemprompt` | `${AI_KNOWLEDGE_SYSTEM_PROMPT:Ты — анализатор переписки. Извлекай факты только о людях из сообщений ниже. … Отвечай только JSON.}` (дословный дефолт — `application.yml`) | system-сообщение сервиса извлечения фактов из чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/knowledge/KnowledgeExtractionAiService.kt` |
+| `aiChatKnowledgeSummarySystemprompt` | `${AI_CHAT_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — наблюдатель чата. Сделай связную сводку чата: темы и направления, манера общения, повторяющиеся групповые факты, мемы и шутки. Не пересказывай сообщения по одному, не списком сообщений, не выдумывай. Не более ~2000 символов. Пиши по-русски.}` (дословный дефолт — `application.yml`) | system-сообщение сервиса сводки чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/knowledge/ChatKnowledgeSummaryAiService.kt` |
+| `aiKnowledgeSummarySystemprompt` | `${AI_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — составитель сводки профиля человека по фактам из чата. …}` (дословный дефолт — `application.yml`) | system-сообщение сервиса сводки профиля; требует связного текста, сведения синонимов, пометки гипотез словом «возможно» и лимита ~2000 символов; ключ объявлен в `application.yml`, старт не зависит от env | `ai/adapter/output/ai/knowledge/UserKnowledgeSummaryAiService.kt` |
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке (у саммаризации) и лимит свежих сообщений сводки «что нового» | `ai/command/summary/ProcessSummaryCommandImpl.kt:22,108-125`; `ai/command/news/ProcessNewsDigestCommandImpl.kt` |
@@ -48,15 +51,39 @@ Long Poll API с событием `message_new` и отключить Callback A
 чатов и саммаризация выключается. `SRCFG00040` на этом ключе не возникает — он появляется только у
 конвертеров, считающих пустую строку `null` (числа, списки).
 
+## Знания из чата
+
+| Ключ | Значение / env | Эффект | Где читается |
+|---|---|---|---|
+| `knowledge.enabled` | `${KNOWLEDGE_ENABLED:true}` | главный выключатель триггера извлечения фактов | `processor/command/knowledge/RequestKnowledgeExtractionCommand.kt` |
+| `knowledge.batch-size` | `${KNOWLEDGE_BATCH_SIZE:25}` | `minCount` политики батча (`HasPendingKnowledgeBatchPort`) и `limit` выборки сообщений | там же; `ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt` |
+| `knowledge.batch-interval` | `${KNOWLEDGE_BATCH_INTERVAL:30m}` | `minInterval` политики батча; читается как `java.time.Duration` (конвертер Quarkus понимает `30m`, `90s`, `1h30m`) | `processor/command/knowledge/RequestKnowledgeExtractionCommand.kt` |
+| `knowledge.excluded-chat-ids` | `${KNOWLEDGE_EXCLUDED_CHAT_IDS:}` | peerId через запятую, чьи сообщения не запускают извлечение; пусто — никого не исключаем; кривой id валит старт, а не проглатывается fail-open | там же |
+| `knowledge.confirm-threshold` | `${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}` | порог `confidence`, при котором карточка факта становится `CONFIRMED`, иначе `CANDIDATE`; читает `KnowledgeConfig` (`confirmThreshold: Double = 0.8`) | `persistence/config/KnowledgeConfig.kt` (`FactConfidenceCalculator.status`) |
+| `knowledge.evidence-refs-limit` | `${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}` | K — сколько последних свидетельств-ссылок хранить на карточку; читает `KnowledgeConfig` (`evidenceRefsLimit: Int = 20`) | `persistence/config/KnowledgeConfig.kt` (`JooqUserKnowledgeRepository.applyAggregatesAndTrim`) |
+| `knowledge.chat-summary-message-threshold` | `${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}` | `limit` окна сводки чата и порог сообщений, после которого LLM вызывается без оглядки на интервал | `ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt` |
+| `knowledge.chat-summary-interval` | `${KNOWLEDGE_CHAT_SUMMARY_INTERVAL:7d}` | интервал, после которого сводка чата обновляется даже ниже порога; читается как `java.time.Duration` (конвертер Quarkus понимает `7d`, `30m`, `1h30m`) | там же |
+| `knowledge.summary-fact-threshold` | `${KNOWLEDGE_SUMMARY_FACT_THRESHOLD:20}` | порог текущих фактов новее прошлой сводки, после которого сводка профиля обновляется без оглядки на интервал | `ai/command/knowledge/GenerateUserKnowledgeSummaryCommandImpl.kt` |
+| `knowledge.summary-interval` | `${KNOWLEDGE_SUMMARY_INTERVAL:14d}` | интервал, после которого сводка профиля обновляется даже ниже порога; читается как `java.time.Duration` (`14d` → `PT336H`) | там же |
+| `knowledge.news-personalization.enabled` | `${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}` | kill-switch персонализации «что нового»: `false` — ноль чтений `FindUserKnowledgePort`/`FindChatKnowledgeSummaryPort`, секции «Интересы автора запроса»/«Темы чата» не добавляются, промпт и ответ прежние; `true` — знания читаются на путь, где LLM и так вызывается | `ai/command/news/ProcessNewsDigestCommandImpl.kt` (`@ConfigProperty`) |
+
+`knowledge.excluded-chat-ids` биндится как `String` с `defaultValue = ""`, поэтому пустая строка не
+отвергается конвертером: приложение стартует, `split(",")` даёт пустой набор. Все ключи `knowledge.*`
+объявлены в `application.yml` со значениями по умолчанию и читаются своими потребителями; новых
+обязательных env нет.
+
 ## Поздравления
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
 | `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | cron-расписание прогона в зоне `greetings.timezone`; дефолт — 00:00; `off`/`disabled` выключает расписание (тестовые профили) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled`) |
 | `greetings.timezone` | `${GREETINGS_TIMEZONE:Europe/Minsk}` | зона cron-расписания; невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | там же |
+| `greetings.hidden-birthdays.enabled` | `${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}` | включает поздравление по подтверждённому birthday-факту из чата, когда VK-дата скрыта или пуста; `false` — порт `FindUserBirthdayFactsPort` не вызывается, VK-именинники и праздники остаются (операционный kill-switch без релиза) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt` (`@ConfigProperty`) |
 
 Дефолт `GREETINGS_CRON=0 0 0 * * ?` означает, что первый прогон после деплоя — живой; в тестовых
 ресурсах `greetings.cron: disabled`, иначе планировщик срабатывал бы в каждом `@QuarkusTest`.
+`GREETINGS_HIDDEN_BIRTHDAYS_ENABLED` тоже живёт по дефолту `true`: если знания ещё не наполнены, ветка
+ничего не находит, а «грязные» данные гасятся выключателем на первые сутки.
 
 ## Статистика активности
 

@@ -18,6 +18,11 @@
 3. LLM собирает сводку из непустых `shortSummary` завершённых саммари периода и свежих несводённых
    сообщений периода (≤ `summary.batch-size` последних), с именами авторов как у саммаризации.
 4. В `summaries` ничего не пишется, `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются.
+5. Необязательные знания из чата (R4c): у автора запроса читается свежая сводка профиля
+   (`summaryFresh=true`) или, без неё, `CONFIRMED`/не-`stale` карточки `INTEREST` (`- значение` через
+   `\n`); у чата — сохранённый текст `chat_knowledge_summary`. Обе секции идут в LLM перед данными
+   периода, темы чата приоритетнее личных интересов; без знаний или при
+   `knowledge.news-personalization.enabled=false` промпт побайтово прежний, порты знаний не вызываются.
 
 Фиксированные ответы без LLM: «Слишком длинный срок: сводка возможна максимум за неделю.» (явный срок
 длиннее 7 суток), «Нет сообщений за этот период.» (данных нет), «Не удалось собрать сводку. Попробуйте
@@ -42,9 +47,12 @@ retry-лестницу брокера.
 | Точка входа | Где в коде |
 |---|---|
 | `NEWS_DIGEST_REQUESTED` из `all-events-queue`: разбор `Message` и вызов входного порта | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt:12-23` |
-| сценарий, период, сборка данных и ровно одна публикация `ANSWER_MESSAGE` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt:31-139` |
+| сценарий, период, сборка данных и ровно одна публикация `ANSWER_MESSAGE` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt:31-205` |
 | период из текста запроса | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/news/NewsPeriodParser.kt:31-132` |
-| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiService.kt:8-24`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:10-47` |
+| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiService.kt:8-28`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:11-65` |
+| необязательные чтения знаний из чата (свежая сводка/`CONFIRMED INTEREST` автора и `chat_knowledge_summary`), fail-open и kill-switch | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt:141-204` |
+| секции «Интересы автора запроса»/«Темы чата» и правило приоритета в значениях плейсхолдеров | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:10-64`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiService.kt:14-27` |
+| два read-only `share`-порта знаний | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindUserKnowledgePort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatKnowledgeSummaryPort.kt` |
 | три read-only `share`-порта чтения | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindLastStoredMessageByAuthorPort.kt:8-20`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredMessagesBetweenDatesPort.kt:9-22`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredSummariesInPeriodPort.kt:9-21` |
 | in-process реализация чтений в `persistence` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:212-266`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:77-88` |
 | доставка ответа в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt` |
@@ -55,6 +63,7 @@ retry-лестницу брокера.
 |---|---|---|
 | `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение `NewsDigestAiService`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | лимит свежих сообщений периода (существующий ключ; читает и `ProcessSummaryCommandImpl`) |
+| `knowledge.news-personalization.enabled` | `${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}` | kill-switch R4c: `false` — ноль обращений к `FindUserKnowledgePort`/`FindChatKnowledgeSummaryPort`, обе секции пусты, промпт и ответ прежние; `true` — знания читаются на путь, где LLM и так вызывается |
 
 Новых обязательных env нет.
 
@@ -70,6 +79,14 @@ read-only in-process порта, профили авторов — через с
 (ADR 2026-11-05-llm-provider-vllm-openai, ADR 2026-11-08-decision-model-langchain4j). Новый код текст не логирует: ERROR при отказе LLM содержит только `peerId` и простое имя
 класса исключения. Собственных метрик и спанов нет.
 
+С R4c в тот же промпт идут производный PII из знаний: интересы/сводка профиля автора и текст
+`chat_knowledge_summary` (тоже попадают в INFO/OTLP провайдера — принятый риск). Чтения портов знаний
+read-only: `user_facts`, `user_knowledge_summary`, `chat_knowledge_summary` и `vk_user_profiles` не
+пишутся; схема и миграции не меняются. Сбой чтения знаний (`RuntimeException`) — WARNING только с
+`peerId`, `authorId` и простым именем класса исключения, без значений и текста сводки; сбойная секция
+опускается, ответ публикуется. `InterruptedException` восстанавливает флаг прерывания, пробрасывается
+в брокер, WARNING нет — та же политика, что у R4b/сводки профиля.
+
 ## Journey
 
 `journey-news-digest`, шаг `chat-news-digest`: триггер — ветка `news` шага `answer-decision` (событие
@@ -84,6 +101,8 @@ read-only in-process порта, профили авторов — через с
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | consumer — `vk-message-send`; producers — `ai-answer`, `answer-decision`, `chat-news-digest` | `ai-answer` (контракт/payload не меняется) |
 | `PublishEventCommand`/`PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
 | `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
+| `FindUserKnowledgePort`, `FindChatKnowledgeSummaryPort` | те же два порта читают `profile-dossier`/`ai-answer` (R4a/R4b) и birthday-ветка поздравлений (R5, отдельный порт); здесь — необязательные чтения R4c | `user-knowledge` (реализация, схема и правила свежести) |
+| `knowledge.news-personalization.enabled` | только R4c | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 | `summary.batch-size` | `ProcessSummaryCommandImpl` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 | `MessageAuthorFormatter` | `GenerateSummaryCommandImpl` | `ai` |
 
@@ -102,6 +121,7 @@ read-only in-process порта, профили авторов — через с
 - ADR 2026-11-08-decision-model-langchain4j — decision-модель: третий вопрос `intent`, из которого рождается `news`.
 - ADR 2026-11-09-exception-hierarchy — `NewsDigestGenerationException` в единой иерархии `VkBotAppException`.
 - ADR 2026-11-10-news-digest — решение «что нового»: период, три read-порта, LLM с повторами и фолбэком, публикация из команды.
+- ADR 2026-11-11-knowledge-in-prompts — знания из чата в промптах: секции «Интересы автора запроса»/«Темы чата», правило приоритета в значении плейсхолдера, fail-open, kill-switch, байт-совместимость без знаний, PII-egress и named gaps R4c.
 
 ## Acceptance criteria
 
@@ -162,9 +182,71 @@ read-only in-process порта, профили авторов — через с
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`,
   `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt`,
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestIntegrationTest.kt`.
+- **AC-NEWS-1.1** — КОГДА у автора есть непустая свежая сводка профиля и у чата есть непустая сводка,
+  СИСТЕМА ДОЛЖНА передать их как `interests`/`chatTopics` в единственный `NewsDigestGenerationRequest`,
+  вызвать LLM один раз и опубликовать ровно один `ANSWER_MESSAGE`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute passes the fresh author summary and chat topics to the request`).
+- **AC-NEWS-1.2** — КОГДА свежей сводки профиля нет, СИСТЕМА ДОЛЖНА передать в `interests` только
+  значения `CONFIRMED`/не-`stale` карточек `INTEREST`, дедуплицированные по значению, строками `- ` через
+  `\n`; остальные категории, `CANDIDATE`, `HISTORICAL`, `stale` и несвежая сводка не попадают; пустой
+  набор — `null`. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute passes confirmed interests when the profile summary is stale`,
+  `execute passes no interests when only candidate or historical interests exist`).
+- **AC-NEWS-1.3** — КОГДА знаний нет, СИСТЕМА ДОЛЖНА передать `interests=null`, `chatTopics=null`, оставить
+  `data` побайтово прежним и опубликовать ровно один `ANSWER_MESSAGE`. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute passes no knowledge and keeps the digest data byte-identical`).
+- **AC-NEWS-1.4** — КОГДА `knowledge.news-personalization.enabled=false`, СИСТЕМА ДОЛЖНА сделать ноль
+  вызовов обоих портов знаний, передать `interests=null`/`chatTopics=null` и всё равно опубликовать
+  сводку. Test: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute skips knowledge reads when personalization is disabled`).
+- **AC-NEWS-1.5** — КОГДА приложение стартует с профилем по умолчанию, ключ
+  `knowledge.news-personalization.enabled` читается как Boolean `true`. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestConfigTest.kt`
+  (`readsNewsPersonalizationFlagAsTrue`).
+- **AC-NEWS-1.6** — КОГДА оба значения знаний пусты, user-сообщение LLM побайтово равно прежнему шаблону
+  с тем же `data` и не содержит строк секций. Test:
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestIntegrationTest.kt`
+  (`digest request without knowledge sends the pre-change prompt`).
+- **AC-NEWS-1.7** — КОГДА хотя бы одна секция непуста, СИСТЕМА ДОЛЖНА передать в
+  `NewsDigestAiService.generateDigest` значения `Интересы автора запроса:\n<текст>\n` и
+  `Темы чата:\n<текст>\n` + правило приоритета; оба пусты — `("", "")` и `data` без изменений. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapterTest.kt`
+  (`execute renders interests and chat topics into the service arguments`,
+  `execute passes empty sections when knowledge is absent`).
+- **AC-NEWS-1.8** — КОГДА в БД есть свежая сводка профиля автора и сводка чата, user-сообщение содержит
+  «Интересы автора запроса» перед «Темы чата», обе перед блоком `---` данных периода, с правилом
+  приоритета. Test: `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestIntegrationTest.kt`
+  (`digest request with knowledge sends interests and chat topics`).
+- **AC-NEWS-1.9** — КОГДА чтение любого из двух портов бросает исключение, СИСТЕМА ДОЛЖНА записать
+  WARNING с `peerId`, `authorId` и простым именем класса без значений/текста сводки, опустить сбойную
+  секцию и всё равно опубликовать один `ANSWER_MESSAGE`. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute keeps the digest when the author knowledge read fails`,
+  `execute keeps the digest when the chat knowledge read fails`,
+  `execute logs no knowledge values when a knowledge read fails`).
+- **AC-NEWS-1.10** — КОГДА явный срок > 7 суток ИЛИ данных периода нет, СИСТЕМА ДОЛЖНА сделать ноль
+  вызовов обоих портов знаний и сохранить фиксированные ответы и период/лимит недели. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandTest.kt`
+  (`execute replies with the too long text for eight days and calls no ports`,
+  `execute replies with the no messages text for a future period`).
+- **AC-NEWS-1.11** — КОГДА изменение доставлено, СИСТЕМА ДОЛЖНА иметь обновлённые capability-файлы
+  `chat-news-digest`/`user-knowledge`, `configuration.md`, `data-flow.md`, `modules.md` и ADR
+  `knowledge-in-prompts` с секцией «Новости», а обе проверки документации и карты возможностей —
+  зелёными. Test: `./scripts/check-capabilities.sh && ./scripts/check-knowledge-docs.sh`.
 
 ## Пробелы приёмки
 
+- Свежесть сводки чата не проверяется: `ChatKnowledge` не несёт флага, текст — производная сводка R3b;
+  устаревшая сводка чата всё равно идёт в промпт. Апгрейд — расширение контракта/ADR.
+- Fallback-интересы из карточек без клипа (решение D25: жёсткого лимита фактов в промпте нет); при
+  упирании промпта в контекст — лимит/клип в команде с тестом длины.
+- Собственной метрики персонализации и INFO-лога успеха нет: наблюдаемость — брокер/OTLP, WARNING только
+  при сбое чтения знаний. Апгрейд — счётчик персонализированных сводок при необходимости измерять долю.
+- Kill-switch `knowledge.news-personalization.enabled` по умолчанию `true`: пользователи со знаниями
+  получают секции сразу после деплоя; отключение — env без релиза. Дефолт `false` — решение человека.
 - Нет rate limit/анти-флуда: LLM-вызов (до трёх попыток порта) на каждый запрос; at-least-once может дать
   повторный вызов и повторный ответ, собственного дедупа и outbox нет — дубли ограничивает только
   детерминированный `random_id` на стороне VK.

@@ -5,18 +5,24 @@ import com.simarel.vkbot.greetings.command.text.GenerateGreetingTextCommand
 import com.simarel.vkbot.greetings.domain.GreetingPlan
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
 import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
+import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.UserFact
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.port.output.ai.GenerateGreetingTextPort
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.share.port.output.persistence.FindGroupChatPeerIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserBirthdayFactsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.share.port.output.vk.SendGreetingMessagePort
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
+import com.simarel.vkbot.testfixtures.port.FakeProfilePortProvider
 import java.time.LocalDate
+import java.time.MonthDay
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class FakeFindGroupChatPeerIds(
@@ -52,6 +58,37 @@ class FakeFindUserProfilesByBirthDate(
             return FakeGreetingPortProvider.createFindUserProfilesByBirthDateResponse(profiles = emptyList())
         }
         return responses.removeAt(0)
+    }
+}
+
+class FakeFindUserBirthdayFacts(
+    private val factsByMonthDay: Map<MonthDay, List<UserFact>> = emptyMap(),
+    var failure: Exception? = null,
+) : FindUserBirthdayFactsPort {
+    val executeCalls = ConcurrentLinkedQueue<FindUserBirthdayFactsPort.Request>()
+
+    override fun execute(request: FindUserBirthdayFactsPort.Request): FindUserBirthdayFactsPort.Response {
+        executeCalls += request
+        failure?.let { throw it }
+        return FakeGreetingPortProvider.createFindUserBirthdayFactsResponse(
+            facts = factsByMonthDay[request.monthDay].orEmpty(),
+        )
+    }
+}
+
+class FakeFindStoredUserProfilesByIds(
+    private val profiles: List<VkUserProfile> = emptyList(),
+    var failure: Exception? = null,
+) : FindStoredUserProfilesByIdsPort {
+    val executeCalls = ConcurrentLinkedQueue<FindStoredUserProfilesByIdsPort.Request>()
+
+    override fun execute(request: FindStoredUserProfilesByIdsPort.Request): FindStoredUserProfilesByIdsPort.Response {
+        executeCalls += request
+        failure?.let { throw it }
+        val requested = request.ids.mapTo(mutableSetOf()) { it.value }
+        return FakeProfilePortProvider.createFindStoredUserProfilesByIdsResponse(
+            profiles = profiles.filter { profile -> profile.id.value in requested },
+        )
     }
 }
 

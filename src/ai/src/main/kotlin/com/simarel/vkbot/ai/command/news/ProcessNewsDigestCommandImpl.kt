@@ -11,11 +11,17 @@ import com.simarel.vkbot.share.command.publishEvent.PublishEventRequest
 import com.simarel.vkbot.share.domain.Event
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.ResponseMessage
+import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
+import com.simarel.vkbot.share.domain.model.knowledge.UserFactStatus
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.Payload
+import com.simarel.vkbot.share.port.output.persistence.FindChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindLastStoredMessageByAuthorPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredMessagesBetweenDatesPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredSummariesInPeriodPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgePort
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.config.inject.ConfigProperty
 import java.time.Duration
@@ -29,6 +35,7 @@ private const val SUMMARIES_SECTION_HEADER = "Сводки обсуждений 
 private const val MESSAGES_SECTION_HEADER = "Сообщения за период:"
 
 @ApplicationScoped
+@Suppress("LongParameterList", "TooManyFunctions")
 class ProcessNewsDigestCommandImpl(
     private val publishEventCommand: PublishEventCommand,
     private val findLastStoredMessageByAuthorPort: FindLastStoredMessageByAuthorPort,
@@ -38,6 +45,10 @@ class ProcessNewsDigestCommandImpl(
     private val messageAuthorFormatter: MessageAuthorFormatter,
     @ConfigProperty(name = "summary.batch-size", defaultValue = "100")
     private val summaryBatchSize: Int,
+    private val findUserKnowledgePort: FindUserKnowledgePort,
+    private val findChatKnowledgeSummaryPort: FindChatKnowledgeSummaryPort,
+    @ConfigProperty(name = "knowledge.news-personalization.enabled", defaultValue = "true")
+    private val newsPersonalizationEnabled: Boolean,
 ) : ProcessNewsDigestCommand {
 
     private val logger = System.getLogger(ProcessNewsDigestCommandImpl::class.java.name)
@@ -76,9 +87,12 @@ class ProcessNewsDigestCommandImpl(
             return ProcessNewsDigestCommand.ProcessNewsDigestResponse
         }
 
+        val knowledge = readKnowledge(message)
         val data = buildData(shortSummaries, messageAuthorFormatter.format(messages))
         val text = try {
-            newsDigestGenerationPort.execute(NewsDigestGenerationRequest(data)).text
+            newsDigestGenerationPort.execute(
+                NewsDigestGenerationRequest(data, knowledge.interests, knowledge.chatTopics),
+            ).text
         } catch (e: NewsDigestGenerationException) {
             logGenerationFailure(message.peerId.value, e)
             publish(GENERATION_FAILED_REPLY, message)
@@ -136,4 +150,64 @@ class ProcessNewsDigestCommandImpl(
             "News digest generation failed for peerId=$peerId: ${exception.javaClass.simpleName}",
         )
     }
+
+    private fun readKnowledge(message: Message): KnowledgeSelection {
+        if (!newsPersonalizationEnabled) {
+            return KnowledgeSelection(null, null)
+        }
+        return KnowledgeSelection(
+            selectInterests(readAuthorKnowledge(message)),
+            selectChatTopics(readChatKnowledge(message)),
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun readAuthorKnowledge(message: Message): UserKnowledge? = try {
+        findUserKnowledgePort.execute(FindUserKnowledgePort.Request(listOf(message.fromId)))
+            .knowledge[message.fromId]
+    } catch (e: InterruptedException) {
+        Thread.currentThread().interrupt()
+        throw e
+    } catch (e: RuntimeException) {
+        logKnowledgeReadFailure(message, e)
+        null
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun readChatKnowledge(message: Message): ChatKnowledge? = try {
+        findChatKnowledgeSummaryPort.execute(FindChatKnowledgeSummaryPort.Request(message.peerId.value)).knowledge
+    } catch (e: InterruptedException) {
+        Thread.currentThread().interrupt()
+        throw e
+    } catch (e: RuntimeException) {
+        logKnowledgeReadFailure(message, e)
+        null
+    }
+
+    private fun selectInterests(knowledge: UserKnowledge?): String? {
+        if (knowledge != null && knowledge.summaryFresh && !knowledge.summary.isNullOrBlank()) {
+            return knowledge.summary
+        }
+        val interests = knowledge?.facts.orEmpty()
+            .filter {
+                it.category == UserFactCategory.INTEREST && it.status == UserFactStatus.CONFIRMED && !it.stale
+            }
+            .map { it.value }
+            .distinct()
+        return interests.takeIf { it.isNotEmpty() }?.joinToString("\n") { "- $it" }
+    }
+
+    private fun selectChatTopics(
+        knowledge: ChatKnowledge?,
+    ): String? = knowledge?.summary?.takeIf { it.isNotBlank() }
+
+    private fun logKnowledgeReadFailure(message: Message, exception: Exception) {
+        logger.log(
+            System.Logger.Level.WARNING,
+            "News digest knowledge read failed for peerId=${message.peerId.value}, " +
+                "authorId=${message.fromId.value}: ${exception.javaClass.simpleName}",
+        )
+    }
+
+    private data class KnowledgeSelection(val interests: String?, val chatTopics: String?)
 }

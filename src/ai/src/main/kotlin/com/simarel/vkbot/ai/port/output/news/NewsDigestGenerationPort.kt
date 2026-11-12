@@ -12,6 +12,8 @@ interface NewsDigestGenerationPort :
 
 data class NewsDigestGenerationRequest(
     val data: String,
+    val interests: String? = null,
+    val chatTopics: String? = null,
 ) : OutputPortRequest
 
 data class NewsDigestGenerationResponse(

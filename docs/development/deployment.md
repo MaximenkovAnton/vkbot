@@ -190,10 +190,28 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   `001-create-messages-table`, `002-create-user-profiles-table`, `003-create-group-profiles-table`,
   `004-create-summaries-table`, `005-create-long-poll-position-table`, `006-create-greeting-log-table`,
   `007-add-user-profile-data-and-history`, `008-replace-profile-data-with-human-details`,
-  `009-create-user-statistics-tables`.
+  `009-create-user-statistics-tables`, `010-create-user-knowledge-tables` (пять таблиц знаний: `user_facts`,
+  `user_fact_evidence`, `user_knowledge_summary`, `chat_knowledge_summary`, `knowledge_extraction_cursors`
+  и второй нетранзакционный changeset `010-create-messages-knowledge-index`).
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
   `application.yml`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
-- Правило: **применённый changeset не редактируется**; следующий номер — 010.
+- Правило: **применённый changeset не редактируется**; следующий номер — 011.
+- Таблицы знаний `010` аддитивны: предыдущий образ их не читает и не пишет, откат образа на один релиз
+  назад проходит без изменения схемы. Знания после начала записи откатываются только из бэкапа БД
+  (Liquibase forward-only).
+- **Changeset `010-create-messages-knowledge-index` — нетранзакционный** (`runInTransaction: false`):
+  `DROP INDEX CONCURRENTLY IF EXISTS idx_messages_peer_id_conversation_message_id` + `CREATE INDEX
+  CONCURRENTLY idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_message_id)`
+  не выполняются внутри транзакции и идут при старте приложения. Таймауты в changeset не выставляются:
+  `SET LOCAL` в нетранзакционном changeset невозможен, а сессионные `SET lock_timeout`/`SET
+  statement_timeout` проект не выставляет — действуют настройки соединения и БД. Прерванная сборка
+  (рестарт, отмена, разрыв соединения) может оставить индекс недействительным: диагностика
+  `select c.relname, i.indisvalid, i.indisready from pg_class c join pg_index i on i.indexrelid = c.oid
+  where c.relname = 'idx_messages_peer_id_conversation_message_id';` — `indisvalid=f`/`indisready=f`
+  означает незавершённую сборку; планировщик такой индекс игнорирует (`EXPLAIN` — seq scan), а повторный
+  `CREATE INDEX ... IF NOT EXISTS` его не пересобирает. Восстановление вручную:
+  `drop index concurrently if exists idx_messages_peer_id_conversation_message_id;`, затем повторить
+  changeset (перезапуск приложения). Пара drop+create идемпотентна, данные не затрагиваются.
 - Rollback-команд Liquibase в проекте нет: откат приложения — предыдущий образ, схема обязана быть
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - **Исключение — changeset `008-replace-profile-data-with-human-details`.** Он удаляет колонку

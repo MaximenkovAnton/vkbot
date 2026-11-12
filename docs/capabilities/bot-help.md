@@ -38,7 +38,7 @@
 | Точка входа | Где в коде |
 |---|---|
 | `MESSAGE_RECEIVED` из `all-events-queue` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22` |
-| маршрутизация после `requiredAnswer`: точная команда, ленивый вызов модели, публикация справки | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:42-107` |
+| маршрутизация после `requiredAnswer`: точная команда, ленивый вызов модели, публикация справки | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:75-115` |
 | правило точной команды: `/help`, `/помощь`, граница «с аргументами → `GENERAL`» | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` |
 | текст справки и подстановка `vk.bot.mention` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36` |
 

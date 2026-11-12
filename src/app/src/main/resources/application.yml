@@ -15,9 +15,14 @@ aiOcrSystemPrompt: ${OCR_SYSTEM_PROMPT:Describe every image in detail and extrac
 aiGreetingSystemprompt: ${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}
 aiNewsDigestSystemprompt: ${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}
 aiProfileSystemprompt: ${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}
+aiKnowledgeSystemprompt: "${AI_KNOWLEDGE_SYSTEM_PROMPT:Ты — анализатор переписки. Извлекай факты только о людях из сообщений ниже. Шутка, эксперимент или гипотетическое «если бы» — не факт; если сомневаешься, верни INFERENCE с confidence не выше 0.6. Самоописание автора — SELF_STATEMENT; чужие слова и поздравления — OTHER_STATEMENT или CONGRATULATION. «Только начал изучать» — KNOWLEDGE с valuePayload level=novice. Категории: INTEREST, HABIT, KNOWLEDGE, PROFILE_ATTRIBUTE, SOCIAL, EVENT. Ключ — [a-z0-9._-], до 96 символов. Значение — до 500 символов. День рождения: категория PROFILE_ATTRIBUTE, ключ birthday, значение — как названо (например, «14 мая» или «14.05.1993»); месяц и день сам не нормализуй. Отвечай только JSON.}"
+aiChatKnowledgeSummarySystemprompt: "${AI_CHAT_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — наблюдатель чата. Сделай связную сводку чата: темы и направления, манера общения, повторяющиеся групповые факты, мемы и шутки. Не пересказывай сообщения по одному, не списком сообщений, не выдумывай. Не более ~2000 символов. Пиши по-русски.}"
+aiKnowledgeSummarySystemprompt: "${AI_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — составитель сводки профиля человека по фактам из чата. Напиши связный текст: интересы и темы, привычки и рутина, уровень знаний и предпочитаемая глубина, атрибуты профиля, социальные связи, события и планы. Сведи синонимы к одной формулировке, гипотезы помечай словом «возможно», не выдавай шутки за факты, не упоминай источники, даты и id, не более ~2000 символов. Пиши по-русски.}"
 greetings:
   cron: "${GREETINGS_CRON:0 0 0 * * ?}"
   timezone: "${GREETINGS_TIMEZONE:Europe/Minsk}"
+  hidden-birthdays:
+    enabled: "${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}"
 statistics:
   timezone: "${STATISTICS_TIMEZONE:Europe/Minsk}"
 summary:
@@ -32,6 +37,19 @@ decision:
   jailbreak-threshold: ${DECISION_JAILBREAK_THRESHOLD:0.85}
   jailbreak-reply:
     enabled: ${DECISION_JAILBREAK_REPLY_ENABLED:true}
+knowledge:
+  enabled: ${KNOWLEDGE_ENABLED:true}
+  batch-size: ${KNOWLEDGE_BATCH_SIZE:25}
+  batch-interval: ${KNOWLEDGE_BATCH_INTERVAL:30m}
+  excluded-chat-ids: ${KNOWLEDGE_EXCLUDED_CHAT_IDS:}
+  confirm-threshold: ${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}
+  evidence-refs-limit: ${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}
+  chat-summary-message-threshold: ${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}
+  chat-summary-interval: ${KNOWLEDGE_CHAT_SUMMARY_INTERVAL:7d}
+  summary-fact-threshold: ${KNOWLEDGE_SUMMARY_FACT_THRESHOLD:20}
+  summary-interval: ${KNOWLEDGE_SUMMARY_INTERVAL:14d}
+  news-personalization:
+    enabled: ${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}
 quarkus:
   config:
     locations: application-queues.yml
