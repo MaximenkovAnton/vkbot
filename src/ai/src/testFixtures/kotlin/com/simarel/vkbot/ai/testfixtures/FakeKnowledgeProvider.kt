@@ -27,7 +27,7 @@ import com.simarel.vkbot.testfixtures.domain.FakeEventProvider
 object FakeKnowledgeProvider {
 
     fun createKnowledgeExtractionRequest(
-        messages: List<String> = listOf("[7600001|Иван Петров]: люблю футбол"),
+        messages: List<String> = listOf("[msg=101|from=7600001|Иван Петров]: люблю футбол"),
     ) = KnowledgeExtractionRequest(messages = messages)
 
     fun createKnowledgeExtractionResponse(

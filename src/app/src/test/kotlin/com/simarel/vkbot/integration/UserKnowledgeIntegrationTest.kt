@@ -128,6 +128,10 @@ class UserKnowledgeIntegrationTest {
         assertEquals(USER_SUMMARY_TEXT, fixtures.summaryRow(USER_ID)["summary_text"])
         assertEquals(CHAT_SUMMARY_TEXT, singleText(CHAT_SUMMARY_SQL))
         assertEquals(ONE_CALL, chatCallCount(EXTRACTION_RUBRIC))
+        assertTrue(
+            promptFor(EXTRACTION_RUBRIC).contains("[msg=$FACT_MESSAGE_ID|from=$USER_ID|"),
+            "extraction prompt must carry the conversation message id the model has to cite",
+        )
         assertEquals(ONE_CALL, chatCallCount(USER_SUMMARY_RUBRIC))
         assertEquals(ONE_CALL, chatCallCount(CHAT_SUMMARY_RUBRIC))
     }

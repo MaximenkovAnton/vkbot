@@ -60,7 +60,7 @@ class ProcessUserKnowledgeCommandImplTest {
             findPending.executeCalls.single(),
         )
         assertEquals(
-            listOf("[7600001|Иван Петров]: люблю футбол"),
+            listOf("[msg=101|from=7600001|Иван Петров]: люблю футбол"),
             extraction.executeCalls.single().messages,
         )
         val candidate = save.executeCalls.single().candidates.single()

@@ -30,7 +30,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
         val response = KnowledgeExtractionAiAdapter(service, objectMapper).execute(request)
 
-        assertEquals(listOf("[7600001|Иван Петров]: люблю футбол"), service.calls.toList())
+        assertEquals(listOf("[msg=101|from=7600001|Иван Петров]: люблю футбол"), service.calls.toList())
         val draft = response.facts.orEmpty().single()
         assertEquals(7600001, draft.subjectId)
         assertEquals("INTEREST", draft.category)
@@ -100,7 +100,7 @@ class UserKnowledgeExtractionAiAdapterTest {
             assertThrows<KnowledgeExtractionException> {
                 KnowledgeExtractionAiAdapter(service, objectMapper).execute(
                     FakeKnowledgeProvider.createKnowledgeExtractionRequest(
-                        messages = listOf("[7600001|Иван Петров]: люблю футбол"),
+                        messages = listOf("[msg=101|from=7600001|Иван Петров]: люблю футбол"),
                     ),
                 )
             }
