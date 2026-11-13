@@ -12,8 +12,8 @@ import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.github.tomakehurst.wiremock.matching.StringValuePattern
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
 import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqMessageRepository
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.MessageTable
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
@@ -53,10 +53,10 @@ class DailyGreetingsIntegrationTest {
     lateinit var runDailyGreetings: RunDailyGreetingsInputPort
 
     @Inject
-    lateinit var userProfiles: JooqVkUserProfileRepository
+    lateinit var userProfiles: VkUserProfileTable
 
     @Inject
-    lateinit var messages: JooqMessageRepository
+    lateinit var messages: MessageTable
 
     @Inject
     lateinit var saveUserFactsPort: SaveUserFactsPort

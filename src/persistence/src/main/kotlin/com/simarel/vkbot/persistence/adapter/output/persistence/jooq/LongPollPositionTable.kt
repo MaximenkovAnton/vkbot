@@ -6,7 +6,7 @@ import jakarta.inject.Inject
 import org.jooq.DSLContext
 
 @ApplicationScoped
-open class JooqLongPollPositionRepository {
+open class LongPollPositionTable {
 
     @Inject
     lateinit var dsl: DSLContext

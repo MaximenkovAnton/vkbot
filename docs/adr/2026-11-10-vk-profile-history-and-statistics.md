@@ -37,7 +37,7 @@
   ADR 2026-10-28-module-boundaries-and-layer-rules/L1 запрещает `com.fasterxml..` в `..domain..`,
   поэтому это обычная `Map`, а не `JsonNode`.
   В БД — `vk_user_profiles.profile_data JSONB`; сериализация только в output-адаптере
-  `JooqVkUserProfileRepository`. Типизированные колонки остаются: `birth_date` — запрос именинников
+  `VkUserProfileTable`. Типизированные колонки остаются: `birth_date` — запрос именинников
   `daily-greetings`, `first_name`/`last_name`/`screen_name`/`city` — отображение имён и `GET /api/profiles/*`.
   Снимок и колонки пишутся одним upsert; при слиянии поле, которого VK не вернул (или вернул `null`),
   сохраняет прежнее значение — правило AC-message-storage-3 не меняется.
@@ -53,7 +53,7 @@
   `SaveUserProfilePort.SaveChanges` — `Map<String, Map<String, Any?>>?`; `null`/пустая карта — истории нет.
   Запись профиля и история — в одной транзакции `SaveUserProfileAdapter`.
 - **Статистика — из журнала сообщений, без второй копии.** `messages` — источник истины; агрегаты
-  считаются на чтении (`JooqUserStatisticsRepository`): число сообщений и `sum(length(message_text))`,
+  считаются на чтении (`UserStatisticsReader`): число сообщений и `sum(length(message_text))`,
   средняя длина, `min/max(date)`, разбивка по `peer_id` (число, длина, средняя, последнее сообщение),
   гистограммы по часу и по ISO-дню недели (`extract(hour|isodow from date at time zone ...)`).
   Дни/часы — в зоне `statistics.timezone` (env `STATISTICS_TIMEZONE`, дефолт `Europe/Minsk`), потому что

@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqUserKnowledgeRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.UserKnowledgeTable
 import com.simarel.vkbot.persistence.config.KnowledgeConfig
 import com.simarel.vkbot.persistence.port.output.persistence.PersistUserFactsPort
 import jakarta.enterprise.context.ApplicationScoped
@@ -10,13 +10,13 @@ import java.time.ZoneOffset
 
 @ApplicationScoped
 open class PersistUserFactsAdapter(
-    private val repository: JooqUserKnowledgeRepository,
+    private val table: UserKnowledgeTable,
     private val config: KnowledgeConfig,
 ) : PersistUserFactsPort {
 
     @Transactional
     override fun execute(request: PersistUserFactsPort.Request): PersistUserFactsPort.Response {
-        val saved = repository.saveFact(
+        val saved = table.saveFact(
             request.candidate,
             config.confirmThreshold,
             config.evidenceRefsLimit,

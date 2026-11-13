@@ -16,7 +16,7 @@
 строки.
 
 R1 добавляет хранение без пользовательского пути: changeset `010` (5 таблиц), доменные типы и 6 портов
-`share`, jOOQ-репозиторий `JooqUserKnowledgeRepository`, правила доверия `FactConfidenceCalculator` и
+`share`, jOOQ-доступ к таблице `UserKnowledgeTable`, правила доверия `FactConfidenceCalculator` и
 времени `KnowledgeTemporalPolicy`, `value_hash`, `KnowledgeConfig`. Исполнение (извлечение, сводки, чтение,
 досье) — R2–R6; R1 обязан заморозить форму данных, чтобы они не переписывали схему.
 

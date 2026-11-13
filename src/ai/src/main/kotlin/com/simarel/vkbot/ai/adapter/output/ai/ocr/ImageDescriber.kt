@@ -8,7 +8,7 @@ import jakarta.enterprise.context.ApplicationScoped
 
 @RegisterAiService
 @ApplicationScoped
-interface OcrAiService {
+interface ImageDescriber {
 
     @SystemMessage("{config:aiOcrSystemPrompt}")
     @UserMessage(

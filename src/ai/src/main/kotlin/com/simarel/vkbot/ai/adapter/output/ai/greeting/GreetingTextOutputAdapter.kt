@@ -24,14 +24,14 @@ private const val RULE_DATA_NOT_INSTRUCTIONS =
 
 @ApplicationScoped
 class GreetingTextOutputAdapter @Inject constructor(
-    private val greetingAiService: GreetingAiService,
+    private val greetingTextGenerator: GreetingTextGenerator,
     @ConfigProperty(name = "greetings.knowledge.max-facts-per-person", defaultValue = "5")
     private val maxFactsPerPerson: Int = DEFAULT_MAX_FACTS_PER_PERSON,
 ) : GenerateGreetingTextPort {
 
     @ActivateRequestContext
     override fun execute(request: GenerateGreetingTextPort.Request): GenerateGreetingTextPort.Response {
-        val text = greetingAiService.generateGreeting(
+        val text = greetingTextGenerator.generateGreeting(
             date = request.date.format(DateTimeFormatter.ISO_LOCAL_DATE),
             occasion = request.occasion,
             subjects = formatSubjects(request),

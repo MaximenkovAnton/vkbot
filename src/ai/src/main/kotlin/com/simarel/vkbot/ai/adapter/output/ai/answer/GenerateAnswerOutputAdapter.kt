@@ -15,12 +15,12 @@ import jakarta.enterprise.context.control.ActivateRequestContext
 
 @ApplicationScoped
 class GenerateAnswerOutputAdapter(
-    private val userAnswerAiService: UserAnswerAiService,
+    private val userAnswerGenerator: UserAnswerGenerator,
 ) : GenerateAnswerOutputPort {
 
     @ActivateRequestContext
     override fun execute(request: GenerateAnswerOutputPortRequest): GenerateAnswerOutputPortResponse {
-        val answer = userAnswerAiService.generateAnswer(
+        val answer = userAnswerGenerator.generateAnswer(
             userProfiles = formatUserProfiles(request.userProfiles),
             groupProfiles = formatGroupProfiles(request.groupProfiles),
             userKnowledge = formatUserKnowledge(request.userKnowledge),

@@ -14,7 +14,26 @@
   (`FindStoredMessagesBeforePort`, `SaveMessagePort`, …), а не «репозиторий на десять методов».
   Входной порт — `fun interface InputPort<REQ, RESP>` (`ReceiveMessageInputPort.kt:9-13`).
 - **Сила, которую снимает:** Dependency Inversion — внешний мир зависит от контракта, а не наоборот.
-  Направление проверяют L1–L5 (`LayerDependenciesTest.kt:51-116`) и L6 (`ModuleDependenciesTest.kt:49-60`).
+  Направление проверяют L1–L5 (`LayerDependenciesTest.kt:51-116`) и L6 (`ModuleDependenciesTest.kt:49-60`);
+  имена типов — L7 (`NamingConventionsTest.kt`), см. «Имя типа — ответственность».
+
+## Имя типа — ответственность, а не слой
+
+- **Проблема:** класс `*Controller`, `*Service` или `*Repository` собирает всё, что относится к теме, —
+  транспорт, правила, SQL, кеш, события; тест тянет всё окружение, SRP и ISP нарушаются молча.
+- **Правило:** в production-коде `com.simarel.vkbot..` такие суффиксы запрещены ArchUnit-правилом L7
+  (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/NamingConventionsTest.kt`);
+  `./gradlew build` падает на новом классе. Имя отвечает на «что класс делает», а не «в каком он слое»:
+  `XxxUsecase`, `XxxAdapter`, `XxxCommand`, `XxxProcessor`, `XxxTable`, `XxxReader`, `XxxWriter`,
+  `XxxGenerator`, `XxxFormatter`, `XxxPolicy`, `XxxCalculator`, `XxxMapper`.
+- **Где:** `PersistenceDataResource` (REST-адаптер) зовёт `PersistenceDataUsecase`; `MessageTable` —
+  jOOQ-доступ к `messages`; `UserStatisticsReader`/`UserStatisticsWriter` — чтение/запись агрегатов;
+  `UserAnswerGenerator`/`ConversationSummarizer`/`KnowledgeFactExtractor` — LangChain4j-интерфейсы;
+  `VkProfileResource` — REST vk-facade.
+- **Сила:** если для класса не находится имени без слова-слоя, у него нет одной ответственности — его
+  делят на операции за однооперационными портами (`OutputPort<REQ, RESP>`), как требует ISP; fake в тесте
+  остаётся один интерфейс, а не десять методов. Решение и таблица переименований —
+  [ADR 2026-11-13-responsibility-type-names](../adr/2026-11-13-responsibility-type-names.md).
 
 ## In-process Adapter (вместо loopback-REST)
 
@@ -52,7 +71,7 @@
 
 ## UseCase (реализация входящего порта)
 
-- **Проблема:** сценарий координирует несколько команд и портов; он не должен жить в контроллере.
+- **Проблема:** сценарий координирует несколько команд и портов; он не должен жить в REST-ресурсе.
 - **Где:** `ReceiveMessageUsecase.kt:10-21`, `SaveMessageUsecase.kt:22-68`,
   `PersistenceDataUsecase.kt:41-302`, `MessageReceivedUsecaseInput.kt:33-157`,
   `GenerateAnswerUsecase.kt:16-41`, `ProcessSummaryUsecase.kt:10-20`, `GenerateSummaryUsecase.kt:10-24`,
@@ -120,12 +139,15 @@
   `DlqConfig.kt:6-16` связывает YAML с кодом.
 - **Сила:** отказоустойчивость при at-least-once доставке; финальный DLQ требует ручного разбора.
 
-## Repository (collection semantics над jOOQ)
+## Table Data Gateway (collection semantics над jOOQ)
 
 - **Проблема:** SQL/jOOQ не должен протекать в use case; операции чтения/записи должны выглядеть как работа
   с коллекцией.
-- **Где:** jOOQ-репозитории `persistence/adapter/output/persistence/jooq/Jooq{Message,Summary,VkUserProfile,VkGroupProfile}Repository.kt`
-  и порты-адаптеры `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
+- **Где:** табличные шлюзы `persistence/adapter/output/persistence/jooq/*Table.kt` (`MessageTable`,
+  `SummaryTable`, `VkUserProfileTable`, `VkGroupProfileTable`, `UserKnowledgeTable`,
+  `KnowledgeSummaryTable`, `LongPollPositionTable`, `GreetingLogTable`), чтение и запись агрегатов —
+  `UserStatisticsReader.kt`/`UserStatisticsWriter.kt`; порты-адаптеры
+  `persistence/adapter/output/persistence/{Save,Find,Insert,Update,Filter,Has}*.kt`;
   таблицы — `jooq/Tables.kt:6-82` (ручные константы, кодогенерация выключена).
 - **Сила:** Dependency Inversion — бизнес-слой видит порт, а не DSLContext; замена хранилища — новый адаптер.
 

@@ -12,7 +12,7 @@ private const val EMPTY_RESPONSE_MESSAGE = "Empty profile answer response"
 
 @ApplicationScoped
 class ProfileAiAdapter(
-    private val profileAiService: ProfileAiService,
+    private val profileAnswerGenerator: ProfileAnswerGenerator,
 ) : ProfileAnswerGenerationPort {
 
     private val logger = System.getLogger(ProfileAiAdapter::class.java.name)
@@ -24,7 +24,7 @@ class ProfileAiAdapter(
 
         for (attempt in 1..MAX_RETRIES) {
             val failure: Exception = try {
-                val text = profileAiService.answer(request.question, request.data)
+                val text = profileAnswerGenerator.answer(request.question, request.data)
                 if (text.isNotBlank()) {
                     return ProfileAnswerGenerationResponse(text)
                 }

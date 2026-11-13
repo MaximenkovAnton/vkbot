@@ -48,31 +48,31 @@ class GenerateAnswerOutputAdapterTest {
 
     @Test
     fun `execute formats user and group profiles`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userProfiles = mapOf(user.id to user),
                 groupProfiles = mapOf(group.id to group),
             ),
         )
 
-        assertEquals("- id1: Ivan Petrov (@ivan_petrov)", aiService.userProfiles.single())
-        assertEquals("- id-2: Group (@group)", aiService.groupProfiles.single())
+        assertEquals("- id1: Ivan Petrov (@ivan_petrov)", generator.userProfiles.single())
+        assertEquals("- id-2: Group (@group)", generator.groupProfiles.single())
     }
 
     @Test
     fun `execute formats chat history as message blocks`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 chatHistory = listOf(FakeAnswerProvider.createChatMessage(id = 10, fromId = 1, text = "hello")),
                 userProfiles = mapOf(user.id to user),
             ),
         )
 
-        assertEquals(messageBlock(10, "Ivan Petrov (id1)", "hello"), aiService.chatHistory.single())
+        assertEquals(messageBlock(10, "Ivan Petrov (id1)", "hello"), generator.chatHistory.single())
     }
 
     @Test
@@ -92,9 +92,9 @@ class GenerateAnswerOutputAdapterTest {
             messageText = FakeVoProvider.createMessageText("current"),
             forwardedMessages = listOf(forwarded),
         )
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 currentMessage = current,
                 chatHistory = emptyList(),
@@ -118,7 +118,7 @@ class GenerateAnswerOutputAdapterTest {
                 "[END_LEVEL_1]",
                 "[MESSAGE_END]",
             ).joinToString("\n"),
-            aiService.currentMessages.single(),
+            generator.currentMessages.single(),
         )
     }
 
@@ -134,9 +134,9 @@ class GenerateAnswerOutputAdapterTest {
             messageText = FakeVoProvider.createMessageText("current"),
             forwardedMessages = listOf(nested),
         )
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 currentMessage = current,
                 chatHistory = emptyList(),
@@ -154,28 +154,28 @@ class GenerateAnswerOutputAdapterTest {
                 "[END_LEVEL_1]",
                 "[MESSAGE_END]",
             ).joinToString("\n"),
-            aiService.currentMessages.single(),
+            generator.currentMessages.single(),
         )
     }
 
     @Test
     fun `execute passes empty profile blocks when no profiles are known`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(chatHistory = emptyList()),
         )
 
-        assertEquals("", aiService.userProfiles.single())
-        assertEquals("", aiService.groupProfiles.single())
-        assertEquals("", aiService.chatHistory.single())
+        assertEquals("", generator.userProfiles.single())
+        assertEquals("", generator.groupProfiles.single())
+        assertEquals("", generator.chatHistory.single())
     }
 
     @Test
     fun `execute returns the answer produced by the ai service`() {
-        val aiService = RecordingUserAnswerAiService(answer = "model answer")
+        val generator = RecordingUserAnswerGenerator(answer = "model answer")
 
-        val response = GenerateAnswerOutputAdapter(aiService)
+        val response = GenerateAnswerOutputAdapter(generator)
             .execute(FakeAnswerProvider.createGenerateAnswerOutputPortRequest())
 
         assertEquals("model answer", response.answer)
@@ -183,9 +183,9 @@ class GenerateAnswerOutputAdapterTest {
 
     @Test
     fun `execute sends a fresh summary as the knowledge body`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     facts = listOf(FakeModelProvider.createUserFact(value = "футбол")),
@@ -202,10 +202,10 @@ class GenerateAnswerOutputAdapterTest {
                 "при высоком уровне — используй термины и глубину.\n" +
                 "Свежая сводка профиля\n" +
                 "[/USER_KNOWLEDGE]",
-            aiService.userKnowledge.single(),
+            generator.userKnowledge.single(),
         )
-        assertFalse(aiService.userKnowledge.single().contains("Интересы и увлечения:"))
-        assertFalse(aiService.userKnowledge.single().contains("- футбол"))
+        assertFalse(generator.userKnowledge.single().contains("Интересы и увлечения:"))
+        assertFalse(generator.userKnowledge.single().contains("- футбол"))
     }
 
     @ParameterizedTest(name = "summary={0}, fresh={1}")
@@ -214,9 +214,9 @@ class GenerateAnswerOutputAdapterTest {
         summary: String?,
         summaryFresh: Boolean,
     ) {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     facts = knowledgeFacts(),
@@ -226,7 +226,7 @@ class GenerateAnswerOutputAdapterTest {
             ),
         )
 
-        assertEquals(knowledgeBlock(FACTS_BODY), aiService.userKnowledge.single())
+        assertEquals(knowledgeBlock(FACTS_BODY), generator.userKnowledge.single())
     }
 
     @Test
@@ -234,9 +234,9 @@ class GenerateAnswerOutputAdapterTest {
         val facts = (1..30).map { index ->
             FakeModelProvider.createUserFact(category = UserFactCategory.INTEREST, value = "интерес $index")
         }
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     facts = facts,
@@ -246,7 +246,7 @@ class GenerateAnswerOutputAdapterTest {
             ),
         )
 
-        val block = aiService.userKnowledge.single()
+        val block = generator.userKnowledge.single()
 
         assertEquals(30, block.lines().count { it.startsWith("- ") })
         assertTrue(block.contains("- интерес 30"))
@@ -254,9 +254,9 @@ class GenerateAnswerOutputAdapterTest {
 
     @Test
     fun `execute renders one knowledge block with markers and rules`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     summary = "Свежая сводка профиля",
@@ -265,7 +265,7 @@ class GenerateAnswerOutputAdapterTest {
             ),
         )
 
-        val block = aiService.userKnowledge.single()
+        val block = generator.userKnowledge.single()
 
         assertTrue(block.startsWith("\n[USER_KNOWLEDGE]\n"))
         assertTrue(block.endsWith("\n[/USER_KNOWLEDGE]"))
@@ -281,13 +281,13 @@ class GenerateAnswerOutputAdapterTest {
         userKnowledge: UserKnowledge,
         expectedBody: String,
     ) {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(userKnowledge = userKnowledge),
         )
 
-        val block = aiService.userKnowledge.single()
+        val block = generator.userKnowledge.single()
 
         assertEquals(knowledgeBlock(expectedBody), block)
         assertEquals(1, block.split("[USER_KNOWLEDGE]").size - 1)
@@ -296,22 +296,22 @@ class GenerateAnswerOutputAdapterTest {
 
     @Test
     fun `execute sends empty knowledge when there are no facts or summary`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(),
             ),
         )
 
-        assertEquals("", aiService.userKnowledge.single())
+        assertEquals("", generator.userKnowledge.single())
     }
 
     @Test
     fun `execute sends empty knowledge when all facts are stale`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     facts = listOf(
@@ -325,14 +325,14 @@ class GenerateAnswerOutputAdapterTest {
             ),
         )
 
-        assertEquals("", aiService.userKnowledge.single())
+        assertEquals("", generator.userKnowledge.single())
     }
 
     @Test
     fun `execute sends empty knowledge when the summary is not fresh and there are no facts`() {
-        val aiService = RecordingUserAnswerAiService()
+        val generator = RecordingUserAnswerGenerator()
 
-        GenerateAnswerOutputAdapter(aiService).execute(
+        GenerateAnswerOutputAdapter(generator).execute(
             FakeAnswerProvider.createGenerateAnswerOutputPortRequest(
                 userKnowledge = FakeModelProvider.createUserKnowledge(
                     summary = "Устаревшая сводка профиля",
@@ -341,7 +341,7 @@ class GenerateAnswerOutputAdapterTest {
             ),
         )
 
-        assertEquals("", aiService.userKnowledge.single())
+        assertEquals("", generator.userKnowledge.single())
     }
 
     private fun knowledgeFacts(): List<UserFact> = listOf(
@@ -390,9 +390,9 @@ class GenerateAnswerOutputAdapterTest {
         "[MESSAGE_END]",
     ).joinToString("\n")
 
-    private class RecordingUserAnswerAiService(
+    private class RecordingUserAnswerGenerator(
         private val answer: String = "model answer",
-    ) : UserAnswerAiService {
+    ) : UserAnswerGenerator {
         val userProfiles = ConcurrentLinkedQueue<String>()
         val groupProfiles = ConcurrentLinkedQueue<String>()
         val userKnowledge = ConcurrentLinkedQueue<String>()

@@ -15,7 +15,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 @ApplicationScoped
-open class JooqMessageRepository {
+open class MessageTable {
 
     @Inject
     lateinit var dsl: DSLContext

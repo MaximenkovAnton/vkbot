@@ -67,7 +67,7 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 |---|---|---|
 | detekt | строка > 120 символов в `:src:share` | `> Task :src:share:detekt FAILED` … `[MaxLineLength]`, `BUILD FAILED`, exit 1 |
 | ktlintCheck | `val value=1` в `:src:processor` | `> Task :src:processor:ktlintMainSourceSetCheck FAILED` … `Missing spacing around "="`, `BUILD FAILED`, exit 1 |
-| ArchUnit L3 | use case `ai` ссылается на адаптер `UserAnswerAiService` | `LayerDependenciesTest > L3 … FAILED`, `BUILD FAILED`, exit 1 |
+| ArchUnit L3 | use case `ai` ссылается на адаптер `UserAnswerGenerator` | `LayerDependenciesTest > L3 … FAILED`, `BUILD FAILED`, exit 1 |
 | ArchUnit модули | класс пакета `receiver` в модуле `persistence` зависит от `persistence` | `ModuleDependenciesTest > receiver module should only depend on share() FAILED`, exit 1 |
 | Покрытие | `coverageMin = 0.99` | `Rule violated for bundle vkbot: lines covered ratio is 0.56, but expected minimum is 0.99`, exit 1 |
 | Граф сборки | вернуть `implementation(project(":src:persistence"))` в `:src:ai` | `GradleDependenciesTest > production project dependencies follow the allowlist() FAILED` (проверено стадией implement) |

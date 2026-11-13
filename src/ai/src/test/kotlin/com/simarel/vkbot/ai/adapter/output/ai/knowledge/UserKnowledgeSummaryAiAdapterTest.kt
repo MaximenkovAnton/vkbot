@@ -18,7 +18,7 @@ class UserKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `returnsModelTextOnFirstSuccess`() {
-        val service = RecordingUserKnowledgeSummaryAiService(listOf({ SUMMARY_TEXT }))
+        val service = RecordingUserKnowledgeSummarizer(listOf({ SUMMARY_TEXT }))
 
         val response = UserKnowledgeSummaryAiAdapter(service).execute(
             FakeKnowledgeProvider.createUserKnowledgeSummaryRequest(facts = FACT_LINE),
@@ -31,7 +31,7 @@ class UserKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `retriesAndSucceedsOnSecondAttempt`() {
-        val service = RecordingUserKnowledgeSummaryAiService(listOf({ "  " }, { SUMMARY_TEXT }))
+        val service = RecordingUserKnowledgeSummarizer(listOf({ "  " }, { SUMMARY_TEXT }))
 
         val response = UserKnowledgeSummaryAiAdapter(service).execute(
             FakeKnowledgeProvider.createUserKnowledgeSummaryRequest(facts = FACT_LINE),
@@ -43,7 +43,7 @@ class UserKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `failsAfterThreeAttemptsOnThrownException`() {
-        val service = RecordingUserKnowledgeSummaryAiService(
+        val service = RecordingUserKnowledgeSummarizer(
             listOf({ throw IllegalStateException("model unavailable") }),
         )
 
@@ -62,7 +62,7 @@ class UserKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `failsAfterThreeAttemptsOnBlankResponse`() {
-        val service = RecordingUserKnowledgeSummaryAiService(listOf({ " " }))
+        val service = RecordingUserKnowledgeSummarizer(listOf({ " " }))
 
         val thrown = assertThrows<UserKnowledgeSummaryException> {
             UserKnowledgeSummaryAiAdapter(service).execute(
@@ -76,7 +76,7 @@ class UserKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `logsOnlyAttemptAndErrorClass`() {
-        val service = RecordingUserKnowledgeSummaryAiService(listOf({ " " }))
+        val service = RecordingUserKnowledgeSummarizer(listOf({ " " }))
 
         SystemLoggerCapture(UserKnowledgeSummaryAiAdapter::class.java.name).use { capture ->
             assertThrows<UserKnowledgeSummaryException> {
@@ -98,9 +98,9 @@ class UserKnowledgeSummaryAiAdapterTest {
         }
     }
 
-    private class RecordingUserKnowledgeSummaryAiService(
+    private class RecordingUserKnowledgeSummarizer(
         private val outcomes: List<() -> String>,
-    ) : UserKnowledgeSummaryAiService {
+    ) : UserKnowledgeSummarizer {
         val calls = ConcurrentLinkedQueue<String>()
 
         override fun summarize(facts: String): String {

@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
-import com.simarel.vkbot.persistence.testfixtures.FakeUserStatisticsWriterRepository
+import com.simarel.vkbot.persistence.testfixtures.FakeUserStatisticsWriter
 import com.simarel.vkbot.persistence.testfixtures.StatisticsPortsProvider
 import com.simarel.vkbot.persistence.testfixtures.UserStatisticsWriterCall
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -16,8 +16,8 @@ class UpdateUserStatisticsAdapterTest {
 
     @Test
     fun `execute writes totals and chat and hour in that order`() {
-        val repository = FakeUserStatisticsWriterRepository()
-        val adapter = UpdateUserStatisticsAdapter(repository)
+        val writer = FakeUserStatisticsWriter()
+        val adapter = UpdateUserStatisticsAdapter(writer)
 
         adapter.execute(
             StatisticsPortsProvider.createUpdateUserStatisticsRequest(
@@ -28,7 +28,7 @@ class UpdateUserStatisticsAdapterTest {
             ),
         )
 
-        assertEquals(listOf("totals", "chat", "hour"), repository.recordedCalls.map { it.operation })
+        assertEquals(listOf("totals", "chat", "hour"), writer.recordedCalls.map { it.operation })
         assertEquals(
             listOf(
                 UserStatisticsWriterCall(
@@ -50,7 +50,7 @@ class UpdateUserStatisticsAdapterTest {
                     date = FIXED_DATE,
                 ),
             ),
-            repository.recordedCalls.toList(),
+            writer.recordedCalls.toList(),
         )
     }
 }

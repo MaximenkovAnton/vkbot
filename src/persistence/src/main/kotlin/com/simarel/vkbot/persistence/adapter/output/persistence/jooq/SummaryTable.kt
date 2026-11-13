@@ -15,7 +15,7 @@ import java.util.UUID
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.Tables.Messages as MessagesTable
 
 @ApplicationScoped
-open class JooqSummaryRepository {
+open class SummaryTable {
 
     @Inject
     lateinit var dsl: DSLContext

@@ -17,7 +17,7 @@ import com.simarel.vkbot.ai.testfixtures.FakeProfileProvider
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
 import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
 import com.simarel.vkbot.share.domain.model.knowledge.UserFact
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
@@ -78,7 +78,7 @@ class UserKnowledgeIntegrationTest {
     lateinit var messageNewEventProcessor: MessageNewEventProcessor
 
     @Inject
-    lateinit var userProfiles: JooqVkUserProfileRepository
+    lateinit var userProfiles: VkUserProfileTable
 
     @Inject
     lateinit var processProfileInputPort: ProcessProfileInputPort

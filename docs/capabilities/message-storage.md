@@ -42,20 +42,20 @@
 |---|---|
 | `MESSAGE_NEW` из `all-events-queue` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt:12-22` |
 | сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67` |
-| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:21-154` |
-| контракт REST-контроллера и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceService.kt:24-97` |
+| `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt:21-154` |
+| контракт REST-ресурса и DTO | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt:24-97` |
 | 29 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`), истории профиля (`FindStoredUserProfileHistoryPort`), знаний из чата (шесть портов R1: четыре write — `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort`; два read — `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`) и чтения сводки чата/окна сообщений (`FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` |
 | реализация 29 операций (включая три чтения сводки «что нового», авторов чата, историю профиля, статистику автора, шесть операций знаний и два чтения сводки чата) и публикация `SUMMARY_READY` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt` |
 | вход сохранения сообщения | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17` |
 | запросы и ответы читающего контракта | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:78-154` |
-| jOOQ: таблицы и репозитории | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-178`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqMessageRepository.kt:14-149`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqSummaryRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt` |
-| jOOQ знаний: карточки, свидетельства, сводки, курсор; правила доверия, времени и `value_hash` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserKnowledgeRepository.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/FactConfidenceCalculator.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeTemporalPolicy.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeValueHash.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt` |
-| история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqVkUserProfileRepository.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsRepository.kt:17-124` |
-| материализация статистики при сохранении сообщения: порт, адаптер и jOOQ-writer | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqUserStatisticsWriterRepository.kt` |
+| jOOQ: таблицы и доступ к ним | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-178`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt:14-149`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/SummaryTable.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsReader.kt` |
+| jOOQ знаний: карточки, свидетельства, сводки, курсор; правила доверия, времени и `value_hash` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserKnowledgeTable.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/FactConfidenceCalculator.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeTemporalPolicy.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeValueHash.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt` |
+| история профиля и статистика автора | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/VkUserProfileTable.kt:22-148`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsReader.kt:17-124` |
+| материализация статистики при сохранении сообщения: порт, адаптер и jOOQ-writer | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsWriter.kt` |
 | changeset 009 и ручной backfill-скрипт | `src/persistence/src/main/resources/db/changelog/changes/009-create-user-statistics-tables.yaml`, `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` |
 | changeset 010 (5 таблиц знаний + нетранзакционный индекс `messages`) | `src/persistence/src/main/resources/db/changelog/changes/010-create-user-knowledge-tables.yaml` |
 | сериализация пересланных сообщений в JSONB | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt:11-20` |
-| claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqGreetingLogRepository.kt` |
+| claim поздравления: один autocommit `INSERT … ON CONFLICT DO NOTHING` в `greeting_log` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/GreetingLogTable.kt` |
 | профили: подтягивание недостающих и сохранение | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:18-153` |
 
 ## Данные, которыми владеет
@@ -142,7 +142,7 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
 | читающая модель `StoredMessage` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt`) | `ai-answer`, `conversation-summary`, `chat-news-digest` | `message-storage` |
 | таблица `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary`, `daily-greetings` (профили по дате рождения) | `message-storage` — схема, jOOQ, Liquibase |
 | таблица `summaries` и статусы | `conversation-summary` (создаёт pending, завершает, помечает failed); `chat-news-digest` читает только `COMPLETED` | `message-storage` — схема, jOOQ, Liquibase |
-| `PersistenceDataInputPort` | REST-контроллер и 29 in-process адаптеров | `message-storage` |
+| `PersistenceDataInputPort` | REST-ресурс и 29 in-process адаптеров | `message-storage` |
 | читающие модели `UserStatistics`, `ProfileHistoryEntry`, `ChatAuthor` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/`) | `profile-dossier` читает статистику, историю профиля и авторов чата | `message-storage` |
 | read-порты `FindChatAuthorsPort` (авторы чата по `peer_id`, порядок `from_id asc`), `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | `profile-dossier` — авторы чата, материализованная статистика и последние записи истории профиля | `message-storage` |
 | таблица `greeting_log` и семантика claim | `daily-greetings` (вызывает `ClaimDailyGreetingPort`) | `message-storage` — схема, jOOQ, Liquibase |
@@ -224,9 +224,9 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
 
 - Сохранение сообщения в `messages` проверяется косвенно: `UserStatisticsMaterializationIntegrationTest`
   сеет сообщения production-путём и сверяет агрегаты и `count(messages)`, отдельного теста
-  `JooqMessageRepository.persist` нет.
+  `MessageTable.persist` нет.
 - REST `/persistence/*` не покрыт ни одним HTTP-тестом; новые `/profiles/users/{id}/history` и
-  `/statistics/users/{id}` проверены на уровне репозитория/БД, не HTTP.
+  `/statistics/users/{id}` проверены на уровне таблиц/БД, не HTTP.
 - `profile_details` у старых профилей пуст до первой актуализации (backfill нет); при пустом прежнем
   снимке история пишется только по типизированным полям; текстовые поля VK нельзя очистить.
 - Старые строки истории удалены changeset 008 без переноса; откат образа после 008 — только с
@@ -242,5 +242,5 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
   зависит).
 - Публикация `SUMMARY_READY` при сохранении завершённого саммари не покрыта тестом —
   `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:255-268`.
-- Запись профилей jOOQ-репозиториями не покрыта тестом: `ProfileStorageIntegrationTest` проверяет чтение
+- Запись профилей jOOQ-классами таблиц не покрыта тестом: `ProfileStorageIntegrationTest` проверяет чтение
   сохранённых строк, `FetchUserProfileCommandImplTest` — слияние и сохранение на fake-портах.

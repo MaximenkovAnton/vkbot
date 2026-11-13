@@ -37,7 +37,7 @@ import java.util.UUID
 
 @Suppress("TooManyFunctions")
 @ApplicationScoped
-open class JooqUserKnowledgeRepository {
+open class UserKnowledgeTable {
 
     @Inject
     lateinit var dsl: DSLContext

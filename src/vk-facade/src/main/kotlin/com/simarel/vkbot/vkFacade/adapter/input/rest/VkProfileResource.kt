@@ -12,7 +12,7 @@ import jakarta.ws.rs.core.MediaType
 
 @ApplicationScoped
 @Path("/api")
-class VkFacadeController(
+class VkProfileResource(
     private val vkProfileInputPort: VkProfileInputPort,
 ) {
 

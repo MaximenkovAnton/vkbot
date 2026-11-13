@@ -16,7 +16,7 @@ R2a уже публикует `CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId)` пос�
 консюмера у события нет: `EventDispatcher` пишет ERROR с payload и подтверждает доставку. R3b закрывает
 разрыв и поставляет: два read-порта (`FindChatSummaryMessagesPort`, `FindChatKnowledgeSummaryPort`),
 консюмер в `:src/ai`, `GenerateChatKnowledgeSummaryCommandImpl`, `ChatKnowledgeSummaryPort` ←
-`ChatKnowledgeSummaryAiAdapter`/`ChatKnowledgeSummaryAiService`, `ChatKnowledgeSummaryException`; запись —
+`ChatKnowledgeSummaryAiAdapter`/`ChatKnowledgeSummarizer`, `ChatKnowledgeSummaryException`; запись —
 через замороженный `SaveChatKnowledgeSummaryPort` в `chat_knowledge_summary` (таблица и changeset `010`
 созданы R1a, схема не меняется).
 
@@ -25,7 +25,7 @@ R2a уже публикует `CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId)` пос�
 - **Два read-порта, граница окна — в persistence.** `FindChatSummaryMessagesPort(peerId, limit)` отдаёт
   сообщения с `conversation_message_id > coalesce(last_conversation_message_id, 0)` по возрастанию, не
   больше `limit`, без верхней границы, `limit ≤ 0` → пусто; граница — скалярный подзапрос в
-  `JooqKnowledgeSummaryRepository.findChatSummaryWindow` (Information Expert: курсор и таблица принадлежат
+  `KnowledgeSummaryTable.findChatSummaryWindow` (Information Expert: курсор и таблица принадлежат
   persistence). `FindChatKnowledgeSummaryPort(peerId) → ChatKnowledge?` остаётся ровно
   эпик-формой `(peerId) → ChatKnowledge` (потребитель R4c), `ChatKnowledge` не расширяется. Второй
   вариант — один составной порт с `lastConversationMessageId` — смешал бы две причины изменения и

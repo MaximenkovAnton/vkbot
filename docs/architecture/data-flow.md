@@ -88,10 +88,10 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    в `vk_user_profiles.profile_details`
    ([ADR 2026-11-10-vk-profile-human-details](../adr/2026-11-10-vk-profile-human-details.md)).
    Ошибка получения профилей не валит сохранение: логируется WARNING.
-2. `SaveMessagePort` → `JooqMessageRepository.persist` (`JooqMessageRepository.kt:19-42`): insert в `messages`
+2. `SaveMessagePort` → `MessageTable.persist` (`MessageTable.kt:19-42`): insert в `messages`
    с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
 3. `UpdateUserStatisticsPort` → `UpdateUserStatisticsAdapter` (`@Transactional`) →
-   `JooqUserStatisticsWriterRepository`: в той же транзакции, что и сообщение, три upsert'а в
+   `UserStatisticsWriter`: в той же транзакции, что и сообщение, три upsert'а в
    фиксированном порядке — `user_statistics` (итоги: `message_count + 1`, `total_length` + длина в
    code points, `first_message_at = LEAST`, `last_message_at = GREATEST`, `updated_at = now()`),
    `user_chat_statistics` (автор×чат) и `user_hour_statistics` (UTC-бакет `(utc_date, utc_hour)` из
@@ -101,12 +101,12 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 ### Чтение истории профиля и статистики автора
 
-`GET /persistence/profiles/users/{id}/history` (`PersistenceDataController.kt:134-143`) →
+`GET /persistence/profiles/users/{id}/history` (`PersistenceDataResource.kt:134-143`) →
 `PersistenceDataUsecase.findUserProfileHistory` → `FindUserProfileHistoryPort` →
-`JooqVkUserProfileRepository.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
+`VkUserProfileTable.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
 
-`GET /persistence/statistics/users/{id}` (`PersistenceDataController.kt:148-153`) →
-`PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `JooqUserStatisticsRepository`
+`GET /persistence/statistics/users/{id}` (`PersistenceDataResource.kt:148-153`) →
+`PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `UserStatisticsReader`
 читает только материализованные агрегаты: итоги из `user_statistics` (`message_count`, `total_length`,
 `min/max`), разбивку по чатам из `user_chat_statistics` и гистограммы из `user_hour_statistics`,
 конвертируя UTC-бакет в зону на чтении
@@ -238,7 +238,7 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
   `knowledge.news-personalization.enabled=false` оба чтения пропускаются. Без знаний аргументы сервиса
   `("", "")`, Qute рендерит пустые плейсхолдеры пустой строкой, поэтому user-сообщение побайтово прежнее;
   system-промпт `aiNewsDigestSystemprompt` не меняется.
-- **LLM.** `NewsDigestAiService` (`@RegisterAiService` без инструментов и памяти чата, system-промпт
+- **LLM.** `NewsDigestGenerator` (`@RegisterAiService` без инструментов и памяти чата, system-промпт
   `{config:aiNewsDigestSystemprompt}`) + `NewsDigestAiAdapter` — ровно три попытки, пустой или
   пробельный ответ считается неудачной попыткой. После третьей — `NewsDigestGenerationException`;
   команда отвечает «Не удалось собрать сводку. Попробуйте позже.» и пишет ERROR только с `peerId` и
@@ -285,7 +285,7 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
   `UserKnowledgeSummaryFormatter` (`возможно`/`ранее`/«противоречивые данные», `stale` исключён, без
   источников, id и дат); пустые знания — секции нет. Конфликт VK↔чат отдаётся LLM двумя версиями:
   VK-значение в `Профиль:`, значение из чата в `Из общения:`.
-- **LLM и ответ.** `ProfileAiService` (`@RegisterAiService` без инструментов и памяти, system-промпт
+- **LLM и ответ.** `ProfileAnswerGenerator` (`@RegisterAiService` без инструментов и памяти, system-промпт
   `{config:aiProfileSystemprompt}`) + `ProfileAiAdapter` — ровно три попытки, пустой ответ считается
   неудачей; после третьей — `ProfileGenerationException`. Команда публикует фиксированный текст «Не
   удалось собрать профиль. Попробуйте позже.» и пишет ERROR только с `peerId` и простым именем класса
@@ -356,7 +356,7 @@ CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId) → ai/ChatKnowledgeSummaryRequestedEve
 - **Окно.** `FindChatSummaryMessagesPort` читает `messages` с `conversation_message_id` строго больше
   `chat_knowledge_summary.last_conversation_message_id` (нет строки — с начала архива, `> 0`), по
   возрастанию, не больше порога, без верхней границы; граница — скалярный подзапрос в
-  `JooqKnowledgeSummaryRepository.findChatSummaryWindow`, окно опирается на индекс
+  `KnowledgeSummaryTable.findChatSummaryWindow`, окно опирается на индекс
   `messages(peer_id, conversation_message_id)` из changeset `010`.
 - **Гейт.** Пустое окно — DEBUG `empty window`, выход **до** чтения сводки. Иначе окно запрашивается
   целиком, читается прежняя сводка `FindChatKnowledgeSummaryPort`; при `window.size < threshold` и
@@ -407,7 +407,7 @@ USER_KNOWLEDGE_SUMMARY_REQUESTED(userId) → ai/UserKnowledgeSummaryRequestedEve
   Команда клипует ответ до 2000 символов и вызывает `SaveUserKnowledgeSummaryPort(userId, text)`; при
   сбое save не вызывается, прежняя сводка остаётся.
 - **Свежесть.** `facts_covered` (текущие карточки) и `last_fact_at = coalesce(max(last_confirmed_at),
-  now)` считает `JooqKnowledgeSummaryRepository.upsertUserSummary`, порт остаётся `(userId, summaryText)`;
+  now)` считает `KnowledgeSummaryTable.upsertUserSummary`, порт остаётся `(userId, summaryText)`;
   R2b читает `summaryFresh = summarized_at >= last_fact_at`. Сводка — производная read-модель, не источник
   истины.
 - **PII.** INFO команды — `userId`, число фактов, длина; WARNING адаптера — номер попытки и класс ошибки.
@@ -429,7 +429,7 @@ SaveUserKnowledgeSummaryPort(userId, text) / SaveChatKnowledgeSummaryPort(peerId
     → PersistenceDataInputPort → PersistenceDataUsecase
     → KnowledgeTemporalPolicy.classify (SAME/CONFLICT/CHANGE/REVIVAL/OLDER)
     → FactConfidenceCalculator (кламп по source_kind, агрегат, порог)
-    → JooqUserKnowledgeRepository (ON CONFLICT … RETURNING id, state-aware UPDATE агрегатов)
+    → UserKnowledgeTable (ON CONFLICT … RETURNING id, state-aware UPDATE агрегатов)
     → user_facts / user_fact_evidence / user_knowledge_summary / chat_knowledge_summary / knowledge_extraction_cursors
 ```
 
@@ -440,8 +440,8 @@ SaveUserKnowledgeSummaryPort(userId, text) / SaveChatKnowledgeSummaryPort(peerId
 FindUserKnowledgePort(List<FromId>)
     → PersistenceDataInProcessAdapter.kt (FindUserKnowledgeInProcessAdapter; пустой запрос — ответ без вызова persistence)
     → PersistenceDataInputPort → PersistenceDataUsecase.findUserKnowledge
-    → FindUserKnowledgeSummariesByUserIdsPort → JooqKnowledgeSummaryRepository.findUserSummaries
-    → FindUserFactsByUserIdsPort → JooqUserKnowledgeRepository.findFactsByUserIds (user_facts WHERE user_id IN (…))
+    → FindUserKnowledgeSummariesByUserIdsPort → KnowledgeSummaryTable.findUserSummaries
+    → FindUserFactsByUserIdsPort → UserKnowledgeTable.findFactsByUserIds (user_facts WHERE user_id IN (…))
     → UserKnowledgeReadModel.assemble (запись на каждый FromId, summaryFresh)
     → Map<FromId, UserKnowledge>
 ```
@@ -461,7 +461,7 @@ Birthday-факты на месяц/день для поздравлений (R5
 FindUserBirthdayFactsPort(MonthDay)
     → PersistenceDataInProcessAdapter.kt (FindUserBirthdayFactsInProcessAdapter)
     → PersistenceDataInputPort → PersistenceDataUsecase.findUserBirthdayFacts
-    → FindUserBirthdayFactsPort (persistence) → JooqUserKnowledgeRepository.findCurrentBirthdayFacts
+    → FindUserBirthdayFactsPort (persistence) → UserKnowledgeTable.findCurrentBirthdayFacts
     → List<UserFact> (user_facts WHERE category = PROFILE_ATTRIBUTE AND fact_key = 'birthday'
                                    AND status <> 'HISTORICAL' AND value_payload ->> 'monthDay' = 'MM-DD'
                                    ORDER BY user_id ASC)
@@ -473,8 +473,8 @@ FindUserBirthdayFactsPort(MonthDay)
 FindUserKnowledgeSummaryStatePort(userId)
     → PersistenceDataInProcessAdapter.kt (FindUserKnowledgeSummaryStateInProcessAdapter)
     → PersistenceDataInputPort → PersistenceDataUsecase.findUserKnowledgeSummaryState
-    → JooqKnowledgeSummaryRepository.findUserSummaries(listOf(userId)) — нет строки → (null, 0)
-    → JooqKnowledgeSummaryRepository.countCurrentFactsNewerThan(userId, summarized_at)
+    → KnowledgeSummaryTable.findUserSummaries(listOf(userId)) — нет строки → (null, 0)
+    → KnowledgeSummaryTable.countCurrentFactsNewerThan(userId, summarized_at)
     → (summarizedAt, factsSinceSummary)
 ```
 
@@ -541,8 +541,8 @@ FindUserKnowledgeSummaryStatePort(userId)
 3. **LLM** — `GenerateAnswerOutputAdapter` (`GenerateAnswerOutputAdapter.kt:16-33`) форматирует профили,
    историю и текущее сообщение (с forward-блоками), рендерит блок `[USER_KNOWLEDGE] … [/USER_KNOWLEDGE]`
    из свежей сводки профиля (приоритет) или канонических фактов (знаний нет — блока нет, промпт прежний) и
-   вызывает `UserAnswerAiService`
-   (`UserAnswerAiService.kt:13-46`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, плейсхолдер
+   вызывает `UserAnswerGenerator`
+   (`UserAnswerGenerator.kt:13-46`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, плейсхолдер
    `{userKnowledge}`, инструменты `VaneSearchToolAdapter`). Память чата — `TransientChatMemoryProvider`
    (10 сообщений, только в рамках запроса).
 4. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
@@ -695,8 +695,8 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 - **Jailbreak-детект смотрит только `message.messageText`:** forward и вложения не проверяются; детектор
   вероятностный (состязательный текст может склонить модель к низкой вероятности), гарантий безопасности
   нет. Уведомление раскрывает точную вероятность и работает oracle'ом; модерации, бана и rate limit нет.
-- **Нет идемпотентности записи.** У `messages` нет уникального ключа, `JooqMessageRepository.persist` —
-  чистый insert (`JooqMessageRepository.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
+- **Нет идемпотентности записи.** У `messages` нет уникального ключа, `MessageTable.persist` —
+  чистый insert (`MessageTable.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
   Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.
   Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
   появятся в проде (в этом проходе не менялось, [ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) §Последствия).

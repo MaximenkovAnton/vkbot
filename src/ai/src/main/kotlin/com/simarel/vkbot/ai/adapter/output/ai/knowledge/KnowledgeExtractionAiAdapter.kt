@@ -16,7 +16,7 @@ private const val CODE_FENCE = "```"
 
 @ApplicationScoped
 class KnowledgeExtractionAiAdapter(
-    private val knowledgeExtractionAiService: KnowledgeExtractionAiService,
+    private val knowledgeFactExtractor: KnowledgeFactExtractor,
     private val objectMapper: ObjectMapper,
 ) : KnowledgeExtractionPort {
 
@@ -29,7 +29,7 @@ class KnowledgeExtractionAiAdapter(
 
         for (attempt in 1..MAX_ATTEMPTS) {
             val failure: Exception = try {
-                val text = knowledgeExtractionAiService.extract(request.messages.joinToString("\n"))
+                val text = knowledgeFactExtractor.extract(request.messages.joinToString("\n"))
                 if (text.isBlank()) {
                     KnowledgeExtractionException(EMPTY_RESPONSE_MESSAGE, null)
                 } else {

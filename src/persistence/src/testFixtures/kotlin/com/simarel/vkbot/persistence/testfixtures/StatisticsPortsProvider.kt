@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.testfixtures
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqUserStatisticsWriterRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.UserStatisticsWriter
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileCommand
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileRequest
 import com.simarel.vkbot.persistence.command.fetchuserprofile.FetchUserProfileResponse
@@ -102,7 +102,7 @@ class FakeForwardedMessagesSerializationPort : ForwardedMessagesSerializationPor
     }
 }
 
-class FakeUserStatisticsWriterRepository : JooqUserStatisticsWriterRepository() {
+class FakeUserStatisticsWriter : UserStatisticsWriter() {
 
     val recordedCalls = ConcurrentLinkedQueue<UserStatisticsWriterCall>()
 

@@ -14,31 +14,31 @@ class SummarizationAiAdapterTest {
 
     @Test
     fun `execute returns the summary on the first attempt`() {
-        val service = RecordingSummarizationAiService(
+        val summarizer = RecordingConversationSummarizer(
             listOf<() -> SummaryResponse>({ FakeSummaryProvider.createSummarizationServiceResponse("short", "full") }),
         )
 
-        val response = adapter(service).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
+        val response = adapter(summarizer).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
 
         assertEquals("short", response.shortSummary)
         assertEquals("full", response.fullSummary)
-        assertEquals(listOf(MESSAGES), service.calls.toList())
+        assertEquals(listOf(MESSAGES), summarizer.calls.toList())
     }
 
     @Test
     fun `execute retries once after a failure and returns the second response`() {
-        val service = RecordingSummarizationAiService(
+        val summarizer = RecordingConversationSummarizer(
             listOf<() -> SummaryResponse>(
                 { throw IllegalStateException("first attempt failed") },
                 { FakeSummaryProvider.createSummarizationServiceResponse("second short", "second full") },
             ),
         )
 
-        val response = adapter(service).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
+        val response = adapter(summarizer).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
 
         assertEquals("second short", response.shortSummary)
         assertEquals("second full", response.fullSummary)
-        assertEquals(2, service.calls.size)
+        assertEquals(2, summarizer.calls.size)
     }
 
     @Test
@@ -48,21 +48,21 @@ class SummarizationAiAdapterTest {
             IllegalStateException("attempt 2"),
             IllegalStateException("attempt 3"),
         )
-        val service = RecordingSummarizationAiService(failures.map { failure -> { throw failure } })
+        val summarizer = RecordingConversationSummarizer(failures.map { failure -> { throw failure } })
 
         val thrown = assertThrows(SummaryGenerationException::class.java) {
-            adapter(service).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
+            adapter(summarizer).execute(FakeSummaryProvider.createSummarizationRequest(MESSAGES))
         }
 
         assertSame(failures.last(), thrown.cause)
-        assertEquals(3, service.calls.size)
+        assertEquals(3, summarizer.calls.size)
     }
 
-    private fun adapter(service: SummarizationAiService) = SummarizationAiAdapter(service)
+    private fun adapter(summarizer: ConversationSummarizer) = SummarizationAiAdapter(summarizer)
 
-    private class RecordingSummarizationAiService(
+    private class RecordingConversationSummarizer(
         private val outcomes: List<() -> SummaryResponse>,
-    ) : SummarizationAiService {
+    ) : ConversationSummarizer {
         val calls = ConcurrentLinkedQueue<String>()
 
         override fun generateSummary(messages: String): SummaryResponse {
