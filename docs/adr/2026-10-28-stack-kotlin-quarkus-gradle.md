@@ -1,4 +1,4 @@
-# 2026-10-28: Стек и версии — Kotlin 2.3.0, Gradle 9.3.0, Quarkus 3.40.1.1, JDK 21
+# 2026-10-28: Стек и версии — Kotlin 2.3.0, Gradle 9.3.0, Quarkus 3.40.1.2, JDK 21
 
 - **Статус:** accepted
 - **Дата:** 2026-10-28
@@ -17,7 +17,7 @@
 | JDK | 21 (Temurin 21.0.5) | `kotlin { jvmToolchain(21) }` во всех 12 модулях; `.sdkmanrc`; [`.github/workflows/build-and-test.yml:16-20`](../../.github/workflows/build-and-test.yml) |
 | Gradle | 9.3.0 (wrapper, Kotlin DSL) | [`gradle/wrapper/gradle-wrapper.properties:3`](../../gradle/wrapper/gradle-wrapper.properties) |
 | Kotlin | 2.3.0 | [`settings.gradle.kts:14`](../../settings.gradle.kts) |
-| Quarkus | 3.40.1.1 (`quarkus-bom`) | [`gradle.properties:3-7`](../../gradle.properties); единственный `enforcedPlatform` в [`build.gradle.kts:44-51`](../../build.gradle.kts) |
+| Quarkus | 3.40.1.2 (`quarkus-bom`) | [`gradle.properties:3-7`](../../gradle.properties); единственный `enforcedPlatform` в [`build.gradle.kts:44-51`](../../build.gradle.kts) |
 | LangChain4j | `quarkus-langchain4j` 1.15.0 (LangChain4j 1.23.0) | [`gradle.properties:8`](../../gradle.properties); [`src/app/build.gradle.kts:40`](../../src/app/build.gradle.kts) |
 | Хранилище | PostgreSQL + Liquibase, jOOQ 3.19.10 | [`src/persistence/build.gradle.kts:41,47,55`](../../src/persistence/build.gradle.kts) |
 | Брокер | RabbitMQ (`quarkus-messaging-rabbitmq`) | [`src/infrastructure/build.gradle.kts:18-20`](../../src/infrastructure/build.gradle.kts) |
@@ -30,6 +30,10 @@
 `1.15.0`, а он требует Quarkus ≥ 3.40. Источник версий прежний — [`gradle.properties`](../../gradle.properties); полный
 `./gradlew build` после апгрейда зелёный, код не менялся.
 
+**Обновление 2026-11-13:** патч-релиз Quarkus `3.40.1.1` → `3.40.1.2`; `quarkusPluginVersion` и
+`quarkusPlatformVersion` подняты вместе, `quarkus-langchain4j` остаётся `1.15.0`, код не менялся. Полный
+`./gradlew build` после апгрейда зелёный. Строка выше — история решения 2026-11-07, а не текущая версия.
+
 ## Решение
 
 Берём текущий набор версий как есть и делаем его воспроизводимым:
@@ -41,7 +45,7 @@
 - Version catalog `gradle/libs.versions.toml` в этом проходе не вводится. Тот же эффект даёт централизация
   в [`gradle.properties`](../../gradle.properties) + конвенционный блок; каталог потребовал бы переписать 12 build-файлов без выгоды
   для целей прохода.
-- JDK 21 остаётся осознанным отклонением от «текущего LTS»: локально и в CI стоит 21, Quarkus 3.40.1.1
+- JDK 21 остаётся осознанным отклонением от «текущего LTS»: локально и в CI стоит 21, Quarkus 3.40.1.2
   на более новом JDK в этом проходе не проверялся. Условие пересмотра: отдельная задача «апгрейд JDK»,
   где сначала проверяется совместимость, затем меняются toolchain, CI и `.sdkmanrc` одновременно.
 

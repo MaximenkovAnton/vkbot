@@ -4,7 +4,7 @@
 [![coverage](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/main/.github/badges/coverage.svg)](https://github.com/MaximenkovAnton/vkbot/blob/main/.github/badges/coverage.svg)
 [![tests](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/main/.github/badges/tests.svg)](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.0-7F52FF?logo=kotlin&logoColor=white)](#technology-stack)
-[![Quarkus](https://img.shields.io/badge/Quarkus-3.40.1.1-4695EB?logo=quarkus&logoColor=white)](#technology-stack)
+[![Quarkus](https://img.shields.io/badge/Quarkus-3.40.1.2-4695EB?logo=quarkus&logoColor=white)](#technology-stack)
 [![JDK](https://img.shields.io/badge/JDK-21-007396?logo=openjdk&logoColor=white)](#technology-stack)
 
 A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
@@ -33,7 +33,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 
 | Component | Technology |
 |---|---|
-| Framework | Quarkus 3.40.1.1 |
+| Framework | Quarkus 3.40.1.2 |
 | Language / runtime | Kotlin 2.3.0 on JDK 21 |
 | Build | Gradle 9.3.0 (Kotlin DSL wrapper) |
 | Database | PostgreSQL + Liquibase + jOOQ 3.19.10 |

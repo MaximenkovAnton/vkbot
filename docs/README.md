@@ -29,11 +29,11 @@
 
 | Дата | Решение | Статус |
 |---|---|---|
-| [2026-10-28](adr/2026-10-28-stack-kotlin-quarkus-gradle.md) | Kotlin 2.3.0 + Gradle 9.3.0 + Quarkus 3.40.1.1 + JDK 21; один источник версии Quarkus | accepted |
+| [2026-10-28](adr/2026-10-28-stack-kotlin-quarkus-gradle.md) | Kotlin 2.3.0 + Gradle 9.3.0 + Quarkus 3.40.1.2 + JDK 21; один источник версии Quarkus | accepted |
 | [2026-10-28](adr/2026-10-28-single-deployable-app-module.md) | Один деплой `:src:app`; корень — агрегатор | accepted |
 | [2026-10-28](adr/2026-10-28-module-boundaries-and-layer-rules.md) | 12 модулей, правила слоёв L1–L6, CDI как composition root | accepted |
 | [2026-10-28](adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) | In-process порты вместо loopback-REST; события — RabbitMQ | accepted |
-| [2026-10-28](adr/2026-10-28-quality-gates-and-ci.md) | detekt/ktlint/JaCoCo-порог/ArchUnit и пять джобов CI | accepted |
+| [2026-10-28](adr/2026-10-28-quality-gates-and-ci.md) | detekt/ktlint/JaCoCo-порог/ArchUnit и четыре джоба CI, тесты — одним прогоном | accepted |
 | [2026-10-28](adr/2026-10-28-configuration-and-secrets.md) | Один конфиг в `:src:app`, env для секретов; дубли конфига и loopback-ключи удалены, оставшиеся мёртвые ключи — долг | accepted |
 | [2026-11-05](adr/2026-11-05-llm-provider-vllm-openai.md) | LLM-провайдер — OpenAI-совместимый API (`quarkus-langchain4j-openai`), env `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY`; в деплое — llama.cpp (`llama-server`), имя ADR историческое | accepted |
 | [2026-11-05](adr/2026-11-05-bots-long-poll-transport.md) | Приём событий VK — Bots Long Poll (`groups.getLongPollServer` + `a_check`), позиция `ts` в PostgreSQL; Callback, `vk.secret`/`vk.confirmation-code` удалены | accepted |
