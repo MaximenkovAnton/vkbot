@@ -57,6 +57,9 @@
 | [2026-11-11](adr/2026-11-11-hidden-birthday-greetings.md) | Скрытый день рождения из чата: read-порт `FindUserBirthdayFactsPort` `Request(MonthDay) → Response(List<UserFact>)` с ключом «месяц/день», объединение VK `birth_date` и CONFIRMED-факта в `greetings` с дедупом по `userId`, `CANDIDATE` не поздравляется, at-most-once на существующем `greeting_log` `(date, peer)`, kill-switch `greetings.hidden-birthdays.enabled`, fail-open knowledge-ветки, подсказка `PROFILE_ATTRIBUTE`/`birthday` в дефолтном промпте; миграции нет, `Amends` ADR 2026-11-11-knowledge-read-model | accepted |
 | [2026-11-11](adr/2026-11-11-profile-knowledge-overlay.md) | Знания из чата в досье «профиль»: секция `Из общения:` после `Профиль:` (`UserDossier.knowledge: UserKnowledge` из `FindUserKnowledgePort`), свежая сводка приоритетнее списка фактов по маркерам `UserKnowledgeSummaryFormatter`, без источников/дат, пусто — секции нет; группы без знаний; конфликт VK↔чат — обе версии в LLM, `vk_user_profiles` не пишется; fail-open опционального чтения (WARNING без PII); без миграции/конфига, `Amends` ADR 2026-11-10-profile-dossier | accepted |
 | [2026-11-11](adr/2026-11-11-knowledge-in-prompts.md) | Знания из чата в обычном ответе: `GenerateAnswerCommandImpl` читает `FindUserKnowledgePort` для автора (`Request(listOf(fromId))`, fail-open WARNING без PII, `InterruptedException` восстанавливает флаг), `GenerateAnswerOutputPortRequest` получает `userKnowledge`, `GenerateAnswerOutputAdapter` рендерит блок `[USER_KNOWLEDGE]`/`[/USER_KNOWLEDGE]` из свежей сводки (приоритет) или канонических фактов, `UserAnswerAiService` подставляет `{userKnowledge}` и правило глубины/лексики; без знаний промпт байт-идентичен, system-промпт и конфиг не меняются; PII-egress и prompt injection — принятый риск | accepted |
+| [2026-11-13](adr/2026-11-13-fact-confidence-lowered.md) | Стартовые веса фактов снижены на 0.2: `SELF_STATEMENT` 0.8, `OTHER_STATEMENT`/`CONGRATULATION` 0.6, `INFERENCE` 0.4, клампы валидатора синхронны; порог 0.8 и агрегат не меняются, без миграции и бэкфилла; одно самоописание всё ещё `CONFIRMED`, чужие слова и выводы требуют подтверждений | accepted |
+| [2026-11-13](adr/2026-11-13-profile-dossier-context.md) | Досье «профиль»: знания цели глобальны по пользователю (без фильтра `peer_id`), добавляются `Темы чата:` (`FindChatKnowledgeSummaryPort`) и контекст запрашивающего — `Кто запрашивает:`/`Знания запрашивающего:` (`FindStoredUserProfilesByIdsPort` + `FindUserKnowledgePort`), только если он человек, не бот и не цель; порядок секций, fail-open каждого чтения, без записи и конфига | accepted |
+| [2026-11-13](adr/2026-11-13-greeting-knowledge.md) | Знания в поздравлениях: `GreetingPerson(name, fromId)` вместо параллельных `people`/`peopleIds`, сводка чата для всех поздравлений и личные факты именинников (глобальные знания), один блок на человека в промпте и `Факты о чате:`, лимит `greetings.knowledge.max-facts-per-person` (5), kill-switch `greetings.knowledge.enabled`, fail-open чтений, без схемы | accepted |
 
 Исторические номера (для старых ссылок в git-истории и отчётах задач):
 
@@ -85,6 +88,9 @@
 | 0021 | `2026-11-11-hidden-birthday-greetings` |
 | 0022 | `2026-11-11-profile-knowledge-overlay` |
 | 0023 | `2026-11-11-knowledge-in-prompts` |
+| 0024 | `2026-11-13-fact-confidence-lowered` |
+| 0025 | `2026-11-13-profile-dossier-context` |
+| 0026 | `2026-11-13-greeting-knowledge` |
 
 ## Продуктовая карта
 

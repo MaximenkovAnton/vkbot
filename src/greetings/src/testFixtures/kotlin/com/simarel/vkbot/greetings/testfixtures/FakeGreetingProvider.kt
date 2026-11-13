@@ -5,8 +5,10 @@ import com.simarel.vkbot.greetings.command.text.GenerateGreetingTextCommand
 import com.simarel.vkbot.greetings.domain.GreetingPlan
 import com.simarel.vkbot.greetings.domain.Holiday
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
+import com.simarel.vkbot.share.domain.model.greeting.GreetingPerson
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
+import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import java.time.LocalDate
 
 private const val DEFAULT_GROUP_CHAT_ID = 2_000_000_001L
@@ -21,7 +23,7 @@ object FakeGreetingProvider {
 
     fun createBirthdayGreetingPlan(
         peerId: PeerId = PeerId.of(DEFAULT_GROUP_CHAT_ID),
-        people: List<String> = listOf("Иван Петров"),
+        people: List<GreetingPerson> = listOf(FakeModelProvider.createGreetingPerson()),
     ) = GreetingPlan.BirthdayGreeting(peerId = peerId, people = people)
 
     fun createRunDailyGreetingsRequest(

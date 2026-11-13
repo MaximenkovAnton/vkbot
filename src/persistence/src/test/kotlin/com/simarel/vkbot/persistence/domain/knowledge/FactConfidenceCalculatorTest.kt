@@ -10,11 +10,11 @@ class FactConfidenceCalculatorTest {
     @Test
     fun `clampsBySourceKindAndConfirmsAtThreshold`() {
         val clamps = listOf(
-            Triple(KnowledgeSourceKind.SELF_STATEMENT, 0.9, 0.900),
-            Triple(KnowledgeSourceKind.OTHER_STATEMENT, 1.0, 0.800),
-            Triple(KnowledgeSourceKind.CONGRATULATION, 1.0, 0.800),
-            Triple(KnowledgeSourceKind.INFERENCE, 1.0, 0.600),
-            Triple(KnowledgeSourceKind.INFERENCE, 0.9, 0.600),
+            Triple(KnowledgeSourceKind.SELF_STATEMENT, 0.9, 0.800),
+            Triple(KnowledgeSourceKind.OTHER_STATEMENT, 1.0, 0.600),
+            Triple(KnowledgeSourceKind.CONGRATULATION, 1.0, 0.600),
+            Triple(KnowledgeSourceKind.INFERENCE, 1.0, 0.400),
+            Triple(KnowledgeSourceKind.INFERENCE, 0.9, 0.400),
         )
         clamps.forEach { (sourceKind, confidence, expected) ->
             assertEquals(expected, FactConfidenceCalculator.clamp(sourceKind, confidence), DELTA)

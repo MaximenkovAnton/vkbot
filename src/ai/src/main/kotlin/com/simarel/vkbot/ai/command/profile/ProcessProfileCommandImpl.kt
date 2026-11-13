@@ -22,6 +22,7 @@ import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.Payload
 import com.simarel.vkbot.share.port.output.persistence.FindChatAuthorsPort
+import com.simarel.vkbot.share.port.output.persistence.FindChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfileHistoryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
@@ -48,6 +49,8 @@ private const val CLARIFICATION_HEADER = "Уточните, о ком речь:"
 private const val CLARIFICATION_FOOTER = "Напишите полное имя или упоминание."
 private const val NOT_FOUND_TEMPLATE = "Среди участников этого чата не нашёл «%s». " +
     "Напишите полное имя, @упоминание, id или перешлите сообщение."
+private const val TARGET_ID_LABEL = "targetId"
+private const val REQUESTER_ID_LABEL = "requesterId"
 private val EMPTY_KNOWLEDGE = UserKnowledge(emptyList(), null, false)
 
 @ApplicationScoped
@@ -60,6 +63,7 @@ class ProcessProfileCommandImpl(
     private val findStoredUserStatisticsPort: FindStoredUserStatisticsPort,
     private val findStoredUserProfileHistoryPort: FindStoredUserProfileHistoryPort,
     private val findUserKnowledgePort: FindUserKnowledgePort,
+    private val findChatKnowledgeSummaryPort: FindChatKnowledgeSummaryPort,
     private val getUserProfilesBatchPort: GetUserProfilesBatchPort,
     private val getGroupProfilesBatchPort: GetGroupProfilesBatchPort,
     private val profileAnswerGenerationPort: ProfileAnswerGenerationPort,
@@ -106,20 +110,28 @@ class ProcessProfileCommandImpl(
         authors: List<ChatAuthor>,
     ) {
         val chatMessageCount = authors.firstOrNull { it.fromId == resolution.target.fromId }?.messageCount
-        val dossier = when (val target = resolution.target) {
+        val target = resolution.target
+        val requesterId = requesterId(message.fromId, target.fromId)
+        val dossier = when (target) {
             is ProfileTarget.User -> userDossier(
                 target.fromId,
                 resolution.profile,
                 chatMessageCount,
                 message.peerId.value,
+                requesterId,
             )
-            is ProfileTarget.Group -> groupDossier(target.fromId, chatMessageCount)
+            is ProfileTarget.Group -> groupDossier(target.fromId, chatMessageCount, message.peerId.value, requesterId)
         }
         if (dossier == null) {
             publish(PROFILE_UNAVAILABLE_REPLY, message)
             return
         }
         generate(message, formatter.format(dossier, message.peerId.value))?.let { publish(it, message) }
+    }
+
+    private fun requesterId(fromId: FromId, targetId: FromId): FromId? {
+        val isRequester = fromId.isHuman() && fromId.value != botId && fromId != targetId
+        return fromId.takeIf { isRequester }
     }
 
     private fun generate(message: Message, data: String): String? = try {
@@ -137,15 +149,9 @@ class ProcessProfileCommandImpl(
         resolvedProfile: VkUserProfile?,
         chatMessageCount: Long?,
         peerId: Long,
+        requesterId: FromId?,
     ): ProfileDossier? {
-        val profile = resolvedProfile
-            ?: findStoredUserProfilesByIdsPort.execute(
-                FindStoredUserProfilesByIdsPort.Request(listOf(userId)),
-            ).profiles.firstOrNull()
-            ?: getUserProfilesBatchPort.execute(
-                GetUserProfilesBatchPort.Request(listOf(userId)),
-            ).profiles.firstOrNull()
-            ?: return null
+        val profile = resolveUserProfile(userId, resolvedProfile) ?: return null
         return ProfileDossier.UserDossier(
             profile = profile,
             statistics = findStoredUserStatisticsPort.execute(
@@ -155,24 +161,69 @@ class ProcessProfileCommandImpl(
                 FindStoredUserProfileHistoryPort.Request(userId, HISTORY_LIMIT),
             ).entries,
             chatMessageCount = chatMessageCount,
-            knowledge = knowledge(userId, peerId),
+            knowledge = knowledge(userId, peerId, TARGET_ID_LABEL),
+            chatTopics = chatTopics(peerId),
+            requesterProfile = requesterProfile(requesterId, peerId),
+            requesterKnowledge = requesterId?.let { knowledge(it, peerId, REQUESTER_ID_LABEL) },
         )
     }
 
+    private fun resolveUserProfile(userId: FromId, resolvedProfile: VkUserProfile?): VkUserProfile? = resolvedProfile
+        ?: findStoredUserProfilesByIdsPort.execute(
+            FindStoredUserProfilesByIdsPort.Request(listOf(userId)),
+        ).profiles.firstOrNull()
+        ?: getUserProfilesBatchPort.execute(
+            GetUserProfilesBatchPort.Request(listOf(userId)),
+        ).profiles.firstOrNull()
+
     @Suppress("TooGenericExceptionCaught")
-    private fun knowledge(userId: FromId, peerId: Long): UserKnowledge = try {
+    private fun knowledge(userId: FromId, peerId: Long, label: String): UserKnowledge = try {
         findUserKnowledgePort.execute(FindUserKnowledgePort.Request(listOf(userId)))
             .knowledge[userId] ?: EMPTY_KNOWLEDGE
     } catch (e: RuntimeException) {
         logger.log(
             System.Logger.Level.WARNING,
-            "Profile knowledge read failed for peerId=$peerId targetId=${userId.value}: " +
+            "Profile knowledge read failed for peerId=$peerId $label=${userId.value}: " +
                 e.javaClass.simpleName,
         )
         EMPTY_KNOWLEDGE
     }
 
-    private fun groupDossier(groupFromId: FromId, chatMessageCount: Long?): ProfileDossier? {
+    @Suppress("TooGenericExceptionCaught")
+    private fun chatTopics(peerId: Long): String? = try {
+        findChatKnowledgeSummaryPort.execute(FindChatKnowledgeSummaryPort.Request(peerId))
+            .knowledge?.summary?.takeIf(String::isNotBlank)
+    } catch (e: RuntimeException) {
+        logger.log(
+            System.Logger.Level.WARNING,
+            "Profile chat knowledge read failed for peerId=$peerId: ${e.javaClass.simpleName}",
+        )
+        null
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun requesterProfile(requesterId: FromId?, peerId: Long): VkUserProfile? {
+        if (requesterId == null) {
+            return null
+        }
+        return try {
+            storedUserProfiles(listOf(requesterId)).firstOrNull()
+        } catch (e: RuntimeException) {
+            logger.log(
+                System.Logger.Level.WARNING,
+                "Profile requester read failed for peerId=$peerId requesterId=${requesterId.value}: " +
+                    e.javaClass.simpleName,
+            )
+            null
+        }
+    }
+
+    private fun groupDossier(
+        groupFromId: FromId,
+        chatMessageCount: Long?,
+        peerId: Long,
+        requesterId: FromId?,
+    ): ProfileDossier? {
         val profile = findStoredGroupProfilesByIdsPort.execute(
             FindStoredGroupProfilesByIdsPort.Request(listOf(groupFromId)),
         ).profiles.firstOrNull()
@@ -180,7 +231,13 @@ class ProcessProfileCommandImpl(
                 GetGroupProfilesBatchPort.Request(listOf(groupFromId)),
             ).profiles.firstOrNull()
             ?: return null
-        return ProfileDossier.GroupDossier(profile = profile, chatMessageCount = chatMessageCount)
+        return ProfileDossier.GroupDossier(
+            profile = profile,
+            chatMessageCount = chatMessageCount,
+            chatTopics = chatTopics(peerId),
+            requesterProfile = requesterProfile(requesterId, peerId),
+            requesterKnowledge = requesterId?.let { knowledge(it, peerId, REQUESTER_ID_LABEL) },
+        )
     }
 
     private fun participants(authors: List<ChatAuthor>): List<VkUserProfile> {

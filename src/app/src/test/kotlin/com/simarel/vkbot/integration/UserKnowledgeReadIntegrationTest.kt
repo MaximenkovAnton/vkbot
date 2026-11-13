@@ -246,7 +246,7 @@ class UserKnowledgeReadIntegrationTest {
         assertEquals("1990", fact.value)
         assertEquals(mapOf("year" to 1990), fact.valuePayload)
         assertEquals(UserFactStatus.CONFIRMED, fact.status)
-        assertEquals(0.900, fact.confidence, CONFIDENCE_DELTA)
+        assertEquals(0.800, fact.confidence, CONFIDENCE_DELTA)
     }
 
     @Test

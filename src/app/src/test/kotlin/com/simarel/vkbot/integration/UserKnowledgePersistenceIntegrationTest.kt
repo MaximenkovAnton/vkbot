@@ -95,8 +95,8 @@ class UserKnowledgePersistenceIntegrationTest {
         assertEquals(0, response.skipped)
         assertEquals(2, fixtures.facts(userId).size)
         assertEquals(2, fixtures.evidence(userId).size)
-        fixtures.assertCard(userId, "футбол", 0.900, "CONFIRMED", 1, false, 0.900)
-        fixtures.assertCard(userId, "бег", 0.800, "CONFIRMED", 1, false, 0.800)
+        fixtures.assertCard(userId, "футбол", 0.800, "CONFIRMED", 1, false, 0.800)
+        fixtures.assertCard(userId, "бег", 0.600, "CANDIDATE", 1, false, 0.600)
         assertEquals(peerId, fixtures.fact(userId, "футбол").asLong("peer_id"))
         val evidence = fixtures.evidence(userId)
         assertEquals(selfMessage, evidence.single { it.asString("source_kind") == "SELF_STATEMENT" }["message_id"])
@@ -124,7 +124,7 @@ class UserKnowledgePersistenceIntegrationTest {
         assertEquals(1, second.skipped)
         assertEquals(1, fixtures.facts(userId).size)
         assertEquals(1, fixtures.evidence(userId).size)
-        fixtures.assertCard(userId, "футбол", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "футбол", 0.800, "CONFIRMED", 1, false, 0.800)
         assertEquals(updatedBefore.toInstant(), fixtures.fact(userId, "футбол").asTimestamp("updated_at").toInstant())
     }
 
@@ -154,12 +154,12 @@ class UserKnowledgePersistenceIntegrationTest {
         fixtures.message(peerId, 302, "джаз", "2026-07-15T00:00:00Z")
 
         fixtures.saveSingle(fixtures.musicCandidate(userId, peerId, "рок", 301, "2026-01-01T00:00:00Z"))
-        fixtures.assertCard(userId, "рок", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "рок", 0.800, "CONFIRMED", 1, false, 0.800)
         val rockUpdatedBefore = fixtures.fact(userId, "рок").asTimestamp("updated_at")
 
         fixtures.saveSingle(fixtures.musicCandidate(userId, peerId, "джаз", 302, "2026-07-15T00:00:00Z"))
 
-        fixtures.assertCard(userId, "джаз", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "джаз", 0.800, "CONFIRMED", 1, false, 0.800)
         val rock = fixtures.fact(userId, "рок")
         assertEquals("HISTORICAL", rock.asString("status"))
         assertTrue(rock.asTimestamp("updated_at").isAfter(rockUpdatedBefore))
@@ -193,7 +193,7 @@ class UserKnowledgePersistenceIntegrationTest {
         val fact = fixtures.fact(userId, "футбол")
         assertEquals(21, fact.asInt("evidence_count"))
         assertEquals(1.000, fact.asDouble("confidence"), DELTA)
-        assertEquals(0.900, fact.asDouble("max_evidence_confidence"), DELTA)
+        assertEquals(0.800, fact.asDouble("max_evidence_confidence"), DELTA)
         assertEquals(20, fixtures.evidence(userId).size)
         assertFalse(fixtures.evidence(userId).any { it.asLong("conversation_message_id") == 101L })
 
@@ -236,7 +236,7 @@ class UserKnowledgePersistenceIntegrationTest {
 
         val fact = fixtures.fact(userId, "футбол")
         assertEquals(9, fact.asInt("evidence_count"))
-        assertEquals(0.900, fact.asDouble("max_evidence_confidence"), DELTA)
+        assertEquals(0.800, fact.asDouble("max_evidence_confidence"), DELTA)
         assertEquals(1.000, fact.asDouble("confidence"), DELTA)
     }
 
@@ -287,7 +287,7 @@ class UserKnowledgePersistenceIntegrationTest {
         val userId = 2_000_000_851L
         val peerId = 2_000_000_851L
         fixtures.saveSingle(fixtures.ageCandidate(userId, peerId, "мне 20", 851, "2010-06-01T00:00:00Z"))
-        fixtures.assertCard(userId, "1990", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "1990", 0.800, "CONFIRMED", 1, false, 0.800)
         assertEquals("birth_year", fixtures.fact(userId, "1990").asString("fact_key"))
 
         fixtures.saveSingle(fixtures.ageCandidate(userId, peerId, "мне 30", 852, "2011-06-01T00:00:00Z"))
@@ -350,14 +350,14 @@ class UserKnowledgePersistenceIntegrationTest {
         assertEquals(3, fixtures.facts(userId).size)
         val swimming = fixtures.fact(userId, "плавание")
         assertEquals("HISTORICAL", swimming.asString("status"))
-        assertEquals(0.900, swimming.asDouble("confidence"), DELTA)
+        assertEquals(0.800, swimming.asDouble("confidence"), DELTA)
         assertEquals(1, swimming.asInt("evidence_count"))
-        assertEquals(0.900, swimming.asDouble("max_evidence_confidence"), DELTA)
+        assertEquals(0.800, swimming.asDouble("max_evidence_confidence"), DELTA)
         assertEquals(
             OffsetDateTime.parse("2026-08-01T00:00:00Z").toInstant(),
             swimming.asTimestamp("superseded_at").toInstant(),
         )
-        fixtures.assertCard(userId, "хоккей", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "хоккей", 0.800, "CONFIRMED", 1, false, 0.800)
     }
 
     @Test
@@ -488,7 +488,7 @@ class UserKnowledgePersistenceIntegrationTest {
         val mixed = fixtures.save(listOf(invalid.first(), valid))
         assertEquals(1, mixed.saved)
         assertEquals(1, mixed.skipped)
-        fixtures.assertCard(userId, "футбол", 0.900, "CONFIRMED", 1, false, 0.900)
+        fixtures.assertCard(userId, "футбол", 0.800, "CONFIRMED", 1, false, 0.800)
     }
 
     @Test

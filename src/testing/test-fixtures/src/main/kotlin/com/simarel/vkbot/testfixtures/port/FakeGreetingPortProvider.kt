@@ -1,7 +1,9 @@
 package com.simarel.vkbot.testfixtures.port
 
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.greeting.GreetingPerson
 import com.simarel.vkbot.share.domain.model.knowledge.UserFact
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
@@ -60,8 +62,16 @@ object FakeGreetingPortProvider {
     fun createGenerateGreetingTextRequest(
         date: LocalDate = GREETING_DATE,
         occasion: String = "День программиста",
-        people: List<String> = emptyList(),
-    ) = GenerateGreetingTextPort.Request(date = date, occasion = occasion, people = people)
+        people: List<GreetingPerson> = emptyList(),
+        chatFacts: String? = null,
+        personalKnowledge: Map<FromId, UserKnowledge> = emptyMap(),
+    ) = GenerateGreetingTextPort.Request(
+        date = date,
+        occasion = occasion,
+        people = people,
+        chatFacts = chatFacts,
+        personalKnowledge = personalKnowledge,
+    )
 
     fun createGenerateGreetingTextResponse(
         text: MessageText = MessageText.of(GREETING_TEXT),

@@ -64,9 +64,13 @@ SaveUserFactsPort / AdvanceExtractionCursorPort / SaveUserKnowledgeSummaryPort /
   `said_by_id`/`observed_at` без текста сообщения. `evidence_count` растёт только при вставке новой
   ссылки, хранятся не более `knowledge.evidence-refs-limit` (20) последних, `max_evidence_confidence`
   сохраняется и после обрезки; повторная доставка того же свидетельства — no-op.
-- **Доверие.** `FactConfidenceCalculator`: кламп по `source_kind` (SELF 1.0, OTHER/CONGRATULATION 0.8,
-  INFERENCE 0.6), `min(1.0, max_evidence_confidence + 0.1·(min(evidence_count,5)−1))` с HALF_UP до трёх
-  знаков; `CONFIRMED` при `knowledge.confirm-threshold` (0.8), иначе `CANDIDATE`.
+- **Доверие.** `FactConfidenceCalculator`: кламп по `source_kind` (SELF 0.8, OTHER/CONGRATULATION 0.6,
+  INFERENCE 0.4 — на 0.2 ниже прежних весов, ADR 2026-11-13-fact-confidence-lowered),
+  `min(1.0, max_evidence_confidence + 0.1·(min(evidence_count,5)−1))` с HALF_UP до трёх знаков;
+  `CONFIRMED` при `knowledge.confirm-threshold` (0.8), иначе `CANDIDATE`. Те же клампы применяет
+  `UserKnowledgeValidator` к черновикам модели (0.8/0.6/0.6/0.4). Следствие: одно самоописание с
+  confidence ≥ 0.8 даёт ровно 0.8 и `CONFIRMED`, одно чужое слово (0.6) или вывод (0.4) — `CANDIDATE`;
+  уже сохранённые карточки не пересчитываются (без бэкфилла).
 - **Время.** `KnowledgeTemporalPolicy`: окна изменения 180 дней (PROFILE_ATTRIBUTE/INTEREST/KNOWLEDGE/SOCIAL)
   и 30 (EVENT/HABIT); классы SAME/CONFLICT/CHANGE/REVIVAL/OLDER; конфликт оставляет обе карточки
   `conflict=true`/`CANDIDATE` с −0.15 и снимается подтверждением до порога; за окном новое значение
@@ -94,8 +98,10 @@ SaveUserFactsPort / AdvanceExtractionCursorPort / SaveUserKnowledgeSummaryPort /
   СИСТЕМА ДОЛЖНА не создавать дублей карточки и свидетельства, не менять агрегаты, `confidence` и
   `updated_at` и вернуть `saved=0`/`skipped=1`.
   `Test:` `src/app/src/test/kotlin/com/simarel/vkbot/integration/UserKnowledgePersistenceIntegrationTest.kt`
-- **AC-KNOW-6** — КОГДА считается доверие, СИСТЕМА ДОЛЖНА клампить confidence по `source_kind`, прибавлять
-  0.1 за независимое свидетельство до 5-го и ставить `CONFIRMED` при `confidence ≥ порога`.
+- **AC-KNOW-6** — КОГДА считается доверие, СИСТЕМА ДОЛЖНА клампить confidence по `source_kind` весами
+  SELF 0.8, OTHER/CONGRATULATION 0.6, INFERENCE 0.4 (и теми же клампами в `UserKnowledgeValidator`),
+  прибавлять 0.1 за независимое свидетельство до 5-го и ставить `CONFIRMED` при `confidence ≥ порога`;
+  уже сохранённые карточки не пересчитываются.
   `Test:` `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/knowledge/FactConfidenceCalculatorTest.kt`
 - **AC-KNOW-7** — КОГДА новое значение приходит в окне изменения, СИСТЕМА ДОЛЖНА оставить обе карточки в
   конфликте (`conflict=true`, `CANDIDATE`, −0.15) и снять конфликт подтверждением до порога; за окном —

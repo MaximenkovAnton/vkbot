@@ -92,12 +92,12 @@ class UserKnowledgeValidatorTest {
 
     @ParameterizedTest
     @CsvSource(
-        "SELF_STATEMENT, 0.95, 0.95",
-        "OTHER_STATEMENT, 0.95, 0.8",
-        "CONGRATULATION, 1.0, 0.8",
-        "INFERENCE, 0.9, 0.6",
-        "SPECULATION, 0.9, 0.6",
-        "SELF_STATEMENT, 1.5, 1.0",
+        "SELF_STATEMENT, 0.95, 0.8",
+        "OTHER_STATEMENT, 0.95, 0.6",
+        "CONGRATULATION, 1.0, 0.6",
+        "INFERENCE, 0.9, 0.4",
+        "SPECULATION, 0.9, 0.4",
+        "SELF_STATEMENT, 1.5, 0.8",
     )
     fun `clampsConfidenceBySourceKind`(sourceKind: String, confidence: Double, expected: Double) {
         val candidate = validate(
@@ -118,7 +118,7 @@ class UserKnowledgeValidatorTest {
         ).single()
 
         assertEquals(KnowledgeSourceKind.OTHER_STATEMENT, candidate.sourceKind)
-        assertEquals(0.8, candidate.confidence)
+        assertEquals(0.6, candidate.confidence)
     }
 
     @Test

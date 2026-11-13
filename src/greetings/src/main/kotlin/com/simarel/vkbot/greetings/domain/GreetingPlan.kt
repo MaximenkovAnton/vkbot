@@ -1,6 +1,7 @@
 package com.simarel.vkbot.greetings.domain
 
 import com.simarel.vkbot.share.domain.exception.ValidationException
+import com.simarel.vkbot.share.domain.model.greeting.GreetingPerson
 import com.simarel.vkbot.share.domain.vo.PeerId
 
 sealed interface GreetingPlan {
@@ -13,7 +14,7 @@ sealed interface GreetingPlan {
 
     data class BirthdayGreeting(
         override val peerId: PeerId,
-        val people: List<String>,
+        val people: List<GreetingPerson>,
     ) : GreetingPlan {
         init {
             if (people.isEmpty()) throw BirthdayGreetingPeopleEmptyValidationException()

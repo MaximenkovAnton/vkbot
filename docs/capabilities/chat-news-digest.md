@@ -101,7 +101,7 @@ read-only: `user_facts`, `user_knowledge_summary`, `chat_knowledge_summary` и `
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | consumer — `vk-message-send`; producers — `ai-answer`, `answer-decision`, `chat-news-digest` | `ai-answer` (контракт/payload не меняется) |
 | `PublishEventCommand`/`PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
 | `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
-| `FindUserKnowledgePort`, `FindChatKnowledgeSummaryPort` | те же два порта читают `profile-dossier`/`ai-answer` (R4a/R4b) и birthday-ветка поздравлений (R5, отдельный порт); здесь — необязательные чтения R4c | `user-knowledge` (реализация, схема и правила свежести) |
+| `FindUserKnowledgePort`, `FindChatKnowledgeSummaryPort` | те же два порта читают `profile-dossier`/`ai-answer` (R4a/R4b) и поздравления (`daily-greetings`: личные факты именинников и сводка чата, ADR 2026-11-13-greeting-knowledge); здесь — необязательные чтения R4c | `user-knowledge` (реализация, схема и правила свежести) |
 | `knowledge.news-personalization.enabled` | только R4c | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 | `summary.batch-size` | `ProcessSummaryCommandImpl` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 | `MessageAuthorFormatter` | `GenerateSummaryCommandImpl` | `ai` |

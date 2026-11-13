@@ -65,7 +65,7 @@ class CollectGreetingPlansCommandTest {
         assertEquals(listOf(personalChat, groupChat), response.plans.map { it.peerId })
         assertTrue(
             response.plans.all { plan ->
-                plan is GreetingPlan.BirthdayGreeting && plan.people == listOf("Иван Петров")
+                plan is GreetingPlan.BirthdayGreeting && plan.names() == listOf("Иван Петров")
             },
         )
     }
@@ -93,7 +93,7 @@ class CollectGreetingPlansCommandTest {
         assertEquals(Holiday.PROGRAMMER_DAY, (holidayPlan as GreetingPlan.HolidayGreeting).holiday)
         val birthdayPlan = response.plans[1]
         assertEquals(groupChat, birthdayPlan.peerId)
-        assertEquals(listOf("Иван Петров"), (birthdayPlan as GreetingPlan.BirthdayGreeting).people)
+        assertEquals(listOf("Иван Петров"), (birthdayPlan as GreetingPlan.BirthdayGreeting).names())
     }
 
     @Test
@@ -151,7 +151,7 @@ class CollectGreetingPlansCommandTest {
         assertEquals(listOf(1 to 3, 29 to 2), profiles.executeCalls.map { it.day to it.month })
         assertEquals(
             listOf("Ёлкин Иван", "Анна Смирнова"),
-            (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (response.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
     }
 
@@ -187,7 +187,7 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(
             listOf("Ёлкин Иван", "Анна Смирнова"),
-            (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (response.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
     }
 
@@ -214,7 +214,7 @@ class CollectGreetingPlansCommandTest {
             profileResponses = listOf(listOf(firstProfile, secondProfile)),
         ).execute(FakeGreetingProvider.createCollectGreetingPlansRequest(PLAIN_DAY))
 
-        assertEquals(listOf("Иван Петров"), (response.plans.single() as GreetingPlan.BirthdayGreeting).people)
+        assertEquals(listOf("Иван Петров"), (response.plans.single() as GreetingPlan.BirthdayGreeting).names())
     }
 
     @Test
@@ -251,14 +251,14 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(listOf(firstChat, secondChat), currentYear.plans.map { it.peerId })
         assertTrue(
-            currentYear.plans.all { plan -> (plan as GreetingPlan.BirthdayGreeting).people == listOf("Иван Петров") },
+            currentYear.plans.all { plan -> (plan as GreetingPlan.BirthdayGreeting).names() == listOf("Иван Петров") },
         )
 
         val nextYear = run(FACT_DAY_NEXT_YEAR)
 
         assertEquals(listOf(firstChat, secondChat), nextYear.plans.map { it.peerId })
         assertTrue(
-            nextYear.plans.all { plan -> (plan as GreetingPlan.BirthdayGreeting).people == listOf("Иван Петров") },
+            nextYear.plans.all { plan -> (plan as GreetingPlan.BirthdayGreeting).names() == listOf("Иван Петров") },
         )
     }
 
@@ -284,7 +284,7 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(
             listOf("Иван Петров"),
-            (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (response.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
         assertTrue(storedProfiles.executeCalls.isEmpty())
     }
@@ -320,7 +320,7 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(
             listOf("Иван Петров"),
-            (onVkDate.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (onVkDate.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
     }
 
@@ -374,7 +374,7 @@ class CollectGreetingPlansCommandTest {
         assertTrue(birthdayFacts.executeCalls.isEmpty())
         assertEquals(2, response.plans.size)
         assertEquals(Holiday.NEW_YEAR, (response.plans[0] as GreetingPlan.HolidayGreeting).holiday)
-        assertEquals(listOf("Анна Иванова"), (response.plans[1] as GreetingPlan.BirthdayGreeting).people)
+        assertEquals(listOf("Анна Иванова"), (response.plans[1] as GreetingPlan.BirthdayGreeting).names())
     }
 
     @Test
@@ -403,7 +403,7 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(
             listOf("Иван Петров"),
-            (leapDay.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (leapDay.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
 
         val marchFirstFacts = fact()
@@ -411,7 +411,7 @@ class CollectGreetingPlansCommandTest {
 
         assertEquals(
             listOf("Иван Петров"),
-            (marchFirst.plans.single() as GreetingPlan.BirthdayGreeting).people,
+            (marchFirst.plans.single() as GreetingPlan.BirthdayGreeting).names(),
         )
         assertEquals(listOf(MonthDay.of(3, 1), FEB_29), marchFirstFacts.executeCalls.map { it.monthDay })
 
@@ -459,7 +459,7 @@ class CollectGreetingPlansCommandTest {
 
             assertEquals(
                 listOf("Иван Петров"),
-                (response.plans.single() as GreetingPlan.BirthdayGreeting).people,
+                (response.plans.single() as GreetingPlan.BirthdayGreeting).names(),
             )
             val warnings = capture.messages(Level.WARNING)
             assertTrue(
@@ -504,6 +504,8 @@ class CollectGreetingPlansCommandTest {
             assertTrue(warnings.none { message -> message.contains("Иван Петров") })
         }
     }
+
+    private fun GreetingPlan.BirthdayGreeting.names(): List<String> = people.map { it.name }
 
     private fun command(
         groupPeerIds: Set<PeerId> = emptySet(),

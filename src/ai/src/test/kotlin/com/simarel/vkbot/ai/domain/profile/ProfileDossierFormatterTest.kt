@@ -17,18 +17,25 @@ import java.time.ZoneId
 private const val PEER_ID = 2_000_000_001L
 private const val OTHER_PEER_ID = 2_000_000_002L
 
+@Suppress("LongParameterList")
 private fun userDossier(
     profile: VkUserProfile = FakeModelProvider.createVkUserProfile(),
     statistics: UserStatistics = FakeModelProvider.createUserStatistics(),
     history: List<ProfileHistoryEntry> = emptyList(),
     chatMessageCount: Long? = null,
     knowledge: UserKnowledge = FakeModelProvider.createUserKnowledge(),
+    chatTopics: String? = null,
+    requesterProfile: VkUserProfile? = null,
+    requesterKnowledge: UserKnowledge? = null,
 ): ProfileDossier.UserDossier = ProfileDossier.UserDossier(
     profile = profile,
     statistics = statistics,
     history = history,
     chatMessageCount = chatMessageCount,
     knowledge = knowledge,
+    chatTopics = chatTopics,
+    requesterProfile = requesterProfile,
+    requesterKnowledge = requesterKnowledge,
 )
 
 class ProfileDossierFormatterTest {
@@ -186,6 +193,70 @@ class ProfileDossierFormatterTest {
         assertFalse(section.contains("Интересы и увлечения:"))
         assertFalse(section.contains("- футбол"))
         assertFalse(section.contains("- плавание"))
+    }
+
+    @Test
+    fun `renders chat topics and the requester context after the target knowledge`() {
+        val requester = FakeModelProvider.createVkUserProfile(
+            id = 7_600_009L,
+            firstName = "Пётр",
+            lastName = "Иванов",
+            screenName = "petr",
+            birthDate = null,
+            city = "Гомель",
+            details = mapOf("mobile_phone" to "+375291234567"),
+        )
+        val requesterKnowledge = FakeModelProvider.createUserKnowledge(
+            facts = listOf(
+                FakeModelProvider.createUserFact(
+                    category = UserFactCategory.INTEREST,
+                    value = "шахматы",
+                ),
+            ),
+        )
+
+        val text = ProfileDossierFormatter(ZoneId.of("Europe/Minsk")).format(
+            userDossier(
+                chatTopics = "Обсуждают футбол и дачу.",
+                requesterProfile = requester,
+                requesterKnowledge = requesterKnowledge,
+            ),
+            PEER_ID,
+        )
+
+        assertTrue(text.contains("Темы чата:\nОбсуждают футбол и дачу."))
+        assertTrue(text.contains("Кто запрашивает:\nИмя: Пётр Иванов\nСтраница: @petr\nГород: Гомель"))
+        assertTrue(text.contains("Знания запрашивающего:\nИнтересы и увлечения:\n- шахматы"))
+        assertTrue(text.indexOf("Из общения:") < text.indexOf("Темы чата:"))
+        assertTrue(text.indexOf("Темы чата:") < text.indexOf("Кто запрашивает:"))
+        assertTrue(text.indexOf("Кто запрашивает:") < text.indexOf("Знания запрашивающего:"))
+        assertTrue(text.indexOf("Знания запрашивающего:") < text.indexOf("Статистика:"))
+        assertFalse(text.contains("+375291234567"))
+    }
+
+    @Test
+    fun `renders requester context in a group dossier without statistics`() {
+        val requester = FakeModelProvider.createVkUserProfile(
+            id = 7_600_009L,
+            firstName = "Пётр",
+            lastName = "Иванов",
+            screenName = "petr",
+        )
+
+        val text = ProfileDossierFormatter(ZoneId.of("Europe/Minsk")).format(
+            ProfileDossier.GroupDossier(
+                profile = FakeModelProvider.createVkGroupProfile(name = "Тестовая группа", screenName = "testgroup"),
+                chatMessageCount = null,
+                chatTopics = "Темы группы.",
+                requesterProfile = requester,
+            ),
+            PEER_ID,
+        )
+
+        assertTrue(text.contains("Темы чата:\nТемы группы."))
+        assertTrue(text.contains("Кто запрашивает:\nИмя: Пётр Иванов"))
+        assertFalse(text.contains("Статистика:"))
+        assertFalse(text.contains("Из общения:"))
     }
 
     @Test

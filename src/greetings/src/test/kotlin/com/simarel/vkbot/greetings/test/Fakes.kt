@@ -6,20 +6,25 @@ import com.simarel.vkbot.greetings.domain.GreetingPlan
 import com.simarel.vkbot.greetings.port.input.RunDailyGreetingsInputPort
 import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
 import com.simarel.vkbot.share.domain.model.knowledge.UserFact
+import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.share.port.output.ai.GenerateGreetingTextPort
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
+import com.simarel.vkbot.share.port.output.persistence.FindChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindGroupChatPeerIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserBirthdayFactsPort
 import com.simarel.vkbot.share.port.output.persistence.FindUserChatPeerIdsPort
+import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgePort
 import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDatePort
 import com.simarel.vkbot.share.port.output.vk.SendGreetingMessagePort
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
+import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import com.simarel.vkbot.testfixtures.port.FakeProfilePortProvider
 import java.time.LocalDate
 import java.time.MonthDay
@@ -174,5 +179,33 @@ class FakeRunDailyGreetingsInputPort(
     override fun execute(request: RunDailyGreetingsInputPort.Request): RunDailyGreetingsInputPort.Response {
         executeCalls += request
         return handler(request)
+    }
+}
+
+class FakeFindChatKnowledgeSummary(
+    var knowledge: ChatKnowledge? = null,
+    var failure: RuntimeException? = null,
+) : FindChatKnowledgeSummaryPort {
+    val executeCalls = ConcurrentLinkedQueue<FindChatKnowledgeSummaryPort.Request>()
+
+    override fun execute(
+        request: FindChatKnowledgeSummaryPort.Request,
+    ): FindChatKnowledgeSummaryPort.Response {
+        executeCalls += request
+        failure?.let { throw it }
+        return FakePersistencePortProvider.createFindChatKnowledgeSummaryResponse(knowledge = knowledge)
+    }
+}
+
+class FakeFindUserKnowledge(
+    var knowledge: Map<FromId, UserKnowledge> = emptyMap(),
+    var failure: RuntimeException? = null,
+) : FindUserKnowledgePort {
+    val executeCalls = ConcurrentLinkedQueue<FindUserKnowledgePort.Request>()
+
+    override fun execute(request: FindUserKnowledgePort.Request): FindUserKnowledgePort.Response {
+        executeCalls += request
+        failure?.let { throw it }
+        return FakePersistencePortProvider.createFindUserKnowledgeResponse(knowledge = knowledge)
     }
 }
