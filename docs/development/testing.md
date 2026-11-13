@@ -29,8 +29,8 @@
 историю изменений и материализованную статистику (ADR 2026-11-10-vk-profile-history-and-statistics,
 ADR 2026-11-10-user-statistics-materialization) и доработку фильтра взлома ИИ
 (ADR 2026-11-10-jailbreak-rubric-and-threshold). Состав тестов по классам — в таблице «Где лежат тесты»;
-число классов и тестов печатает сам прогон (`./gradlew test`), отдельного сводного числа здесь не держим,
-чтобы инвентарь не расходился с прогоном.
+число классов и тестов печатает сам прогон (`./gradlew test`), общий счётчик публикует бейдж `tests`,
+отдельного сводного числа здесь не держим, чтобы инвентарь не расходился с прогоном.
 
 `./gradlew capabilitiesCheck` запускает [`scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) через bash; тот же скрипт
 выполняется в CI-джобе `docs`.
@@ -42,18 +42,18 @@ ADR 2026-11-10-user-statistics-materialization) и доработку фильт
 
 ## Где лежат тесты
 
-| Модуль | Классы и тесты (свежий прогон 2026-11-13) |
+| Модуль | Классы |
 |---|---|
-| `app` | 25 классов / 130 тестов: `InitTest`, `HealthTest`, `integration/*` — Long Poll (`VkLongPollIntegrationTest`, `LongPollPositionIntegrationTest`), `AiIntegrationTest`, decision-модель, «что нового», досье «профиль», знания (извлечение, хранение, чтение, сводки), статистика, поздравления; инфраструктура — `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
-| `ai` | 37 классов / 304 теста: usecase/command (answer, summary, news, profile, knowledge, vane), домен (`NewsPeriodParserTest` — 43, `ProfileNameMatcherTest`, `UserKnowledgeValidatorTest`, форматтеры), адаптеры answer/news/summarization/greeting/profile/knowledge/Vane, event-процессоры |
-| `receiver` | 5 классов / 22 теста: `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2), `VkLongPollCheckOutputAdapterTest` (3), `ReceiveMessageUsecaseTest` (2), `PublishVkEventCommandImplTest` (1) |
-| `persistence` | 16 классов / 93 теста: in-process адаптер, профили/история/статистика, знания (`KnowledgeTemporalPolicyTest`, `FactConfidenceCalculatorTest`, `UserKnowledgeReadModelTest`, `UserKnowledgeMigrationChangesetTest`), backfill, миграции 008/009/010, `BirthDateMatcherTest` (17), `FetchUserProfileCommandImplTest` (8) |
-| `processor` | 9 классов / 138 тестов: `MessageReceivedUsecaseInputTest` (39), `DecisionModelOutputAdapterTest` (53 — ответы и ошибки decision-модели, рубрика взлома и порог), `IsSpamCommandTest`, `IsJailbreakCommandTest`, `ResolveMessageIntentCommandTest`, `BuildHelpTextCommandTest`, `DecisionAnalysisTest`, `MessageTextNormalizerTest`, `RequestKnowledgeExtractionCommandImplTest` |
-| `vk-facade` | 11 классов / 24 теста: профили VK (`VkGetUserProfilesBatchAdapterTest`, `VkUserProfileMapperTest`, `VkProfileInProcessAdapterTest`), отправка сообщений (`VkSendMessageOutputAdapterTest`, `MessageSendUsecaseTest`, `PlainMessageSendUsecaseTest`, `SendVkMessageCommandImplTest`, `RandomIdTest`), `SummaryReadyEventProcessorTest`, `SendGreetingMessageInProcessAdapterTest` |
-| `greetings` | 7 классов / 59 тестов: `HolidaysTest` (7), `BirthdayDatesTest` (4), `NameFormatterTest` (5), `CollectGreetingPlansCommandTest` (18), `GenerateGreetingTextCommandTest` (13), `RunDailyGreetingsUsecaseTest` (8), `DailyGreetingRunnerTest` (4) |
-| `share` | 3 класса / 9 тестов: `MessageTextTest`, `ConversationMessageIdTest`, `KnowledgeEnumLiteralsTest` |
-| `infrastructure` | 1 класс / 2 теста: `CommandLoggingDecoratorTest` |
-| `testing/arch-tests` | 7 классов / 26 тестов: `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1), `NamingConventionsTest` (2 — L7: `*Controller`/`*Service`/`*Repository` запрещены), `ExceptionHandlingTest` (2 — бросаются только `VkBotAppException` и наследники; `require` запрещён) |
+| `app` | `InitTest`, `HealthTest`, `integration/*` — Long Poll (`VkLongPollIntegrationTest`, `LongPollPositionIntegrationTest`), `AiIntegrationTest`, decision-модель, «что нового», досье «профиль», знания (извлечение, хранение, чтение, сводки), статистика, поздравления; инфраструктура — `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
+| `ai` | usecase/command (answer, summary, news, profile, knowledge, vane), домен (`NewsPeriodParserTest` — 43, `ProfileNameMatcherTest`, `UserKnowledgeValidatorTest`, форматтеры), адаптеры answer/news/summarization/greeting/profile/knowledge/Vane, event-процессоры |
+| `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2), `VkLongPollCheckOutputAdapterTest` (3), `ReceiveMessageUsecaseTest` (2), `PublishVkEventCommandImplTest` (1) |
+| `persistence` | in-process адаптер, профили/история/статистика, знания (`KnowledgeTemporalPolicyTest`, `FactConfidenceCalculatorTest`, `UserKnowledgeReadModelTest`, `UserKnowledgeMigrationChangesetTest`), backfill, миграции 008/009/010, `BirthDateMatcherTest` (17), `FetchUserProfileCommandImplTest` (8) |
+| `processor` | `MessageReceivedUsecaseInputTest` (39), `DecisionModelOutputAdapterTest` (53 — ответы и ошибки decision-модели, рубрика взлома и порог), `IsSpamCommandTest`, `IsJailbreakCommandTest`, `ResolveMessageIntentCommandTest`, `BuildHelpTextCommandTest`, `DecisionAnalysisTest`, `MessageTextNormalizerTest`, `RequestKnowledgeExtractionCommandImplTest` |
+| `vk-facade` | профили VK (`VkGetUserProfilesBatchAdapterTest`, `VkUserProfileMapperTest`, `VkProfileInProcessAdapterTest`), отправка сообщений (`VkSendMessageOutputAdapterTest`, `MessageSendUsecaseTest`, `PlainMessageSendUsecaseTest`, `SendVkMessageCommandImplTest`, `RandomIdTest`), `SummaryReadyEventProcessorTest`, `SendGreetingMessageInProcessAdapterTest` |
+| `greetings` | `HolidaysTest` (7), `BirthdayDatesTest` (4), `NameFormatterTest` (5), `CollectGreetingPlansCommandTest` (18), `GenerateGreetingTextCommandTest` (13), `RunDailyGreetingsUsecaseTest` (8), `DailyGreetingRunnerTest` (4) |
+| `share` | `MessageTextTest`, `ConversationMessageIdTest`, `KnowledgeEnumLiteralsTest` |
+| `infrastructure` | `CommandLoggingDecoratorTest` |
+| `testing/arch-tests` | `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1), `NamingConventionsTest` (2 — L7: `*Controller`/`*Service`/`*Repository` запрещены), `ExceptionHandlingTest` (2 — бросаются только `VkBotAppException` и наследники; `require` запрещён) |
 
 Тестовые ресурсы: [`src/app/src/test/resources/application.yaml`](../../src/app/src/test/resources/application.yaml) (базовый профиль `@QuarkusTest`),
 [`src/app/src/test/resources/application-integration-test.yaml`](../../src/app/src/test/resources/application-integration-test.yaml) (профиль `integration-test`), [`src/app/src/test/resources/application.yml`](../../src/app/src/test/resources/application.yml) (`%test`-настройки),
@@ -295,14 +295,15 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 ## Покрытие
 
 - Агрегат по 9 модулям (`ai, app, greetings, infrastructure, persistence, processor, receiver, share,
-  vk-facade`), `src/testing/*` исключён ([`build.gradle.kts:22-32`](../../build.gradle.kts#L22-L32)).
-- Измерено 2026-11-13: **line ratio 0.6951** (4333 покрытых строк из 6234, 69.51% LINE);
-  `coverageMin = 0.40`, `measuredLineCoverage = 0.6951` ([`build.gradle.kts:19-20`](../../build.gradle.kts#L19-L20)).
-- Порог включён в `check` → `build` ([`build.gradle.kts:131-134`](../../build.gradle.kts#L131-L134)) и в CI-джоб `coverage`.
-- Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), целевой порог 0.60
-  достигнут; повышение порога — отдельное решение (ADR 2026-10-28-quality-gates-and-ci). Покрытие меряется по бизнес-коду, а не по glue.
-- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.69,
-  but expected minimum is 0.99`, exit 1.
+  vk-facade`), `src/testing/*` исключён ([`build.gradle.kts:21-31`](../../build.gradle.kts#L21-L31)).
+- Порог `coverageMin = 0.40` ([`build.gradle.kts:19`](../../build.gradle.kts#L19)) включён в `check` → `build`
+  ([`build.gradle.kts:130-133`](../../build.gradle.kts#L130-L133)) и в CI-джоб `coverage`.
+- Живое покрытие и число тестов в документации не хардкодим: CI-джоб `coverage` публикует бейджи
+  ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py)) в ветку `badges`, README их показывает.
+  Локально — `./gradlew coverageReport` → `build/reports/jacoco/coverageReport/html`.
+- Политика: порог не понижается; повышение порога — отдельное решение (ADR 2026-10-28-quality-gates-and-ci).
+  Покрытие меряется по бизнес-коду, а не по glue.
+- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: ...`, exit 1.
 
 ## Ограничения
 
@@ -311,4 +312,4 @@ REST-триггера нет. Покрыты: дни рождения в гру�
   проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
   plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`
-  ([`build.gradle.kts:70-73`](../../build.gradle.kts#L70-L73)) — новый модуль без тестов не упадёт, но и не будет проверен.
+  ([`build.gradle.kts:69-72`](../../build.gradle.kts#L69-L72)) — новый модуль без тестов не упадёт, но и не будет проверен.

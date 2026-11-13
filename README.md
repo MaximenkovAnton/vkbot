@@ -1,5 +1,12 @@
 # VK Bot Application
 
+[![CI](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml/badge.svg?branch=main)](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml)
+[![coverage](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/badges/coverage.svg)](https://github.com/MaximenkovAnton/vkbot/tree/badges)
+[![tests](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/badges/tests.svg)](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.3.0-7F52FF?logo=kotlin&logoColor=white)](#technology-stack)
+[![Quarkus](https://img.shields.io/badge/Quarkus-3.40.1.1-4695EB?logo=quarkus&logoColor=white)](#technology-stack)
+[![JDK](https://img.shields.io/badge/JDK-21-007396?logo=openjdk&logoColor=white)](#technology-stack)
+
 A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
 stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a llama.cpp
 OpenAI-compatible API, sends them back to the VK API, and summarizes long conversations. The code follows
@@ -203,8 +210,8 @@ calls inside the deployable go through `share` ports (ADR 2026-10-28-in-process-
 ```
 
 Fake Objects (not mocks) live in [`src/testing/test-fixtures`](./src/testing/test-fixtures) and module-local `testFixtures`; the coverage
-threshold is `0.40` (measured `0.6951` line coverage on 2026-11-13; the documented next target `0.60` is
-already met, raising the threshold is a separate decision). Philosophy and examples:
+threshold is `0.40` — live line coverage and test count are the badges above, updated by the CI `coverage` job
+into the [`badges`](https://github.com/MaximenkovAnton/vkbot/tree/badges) branch. Philosophy and examples:
 [`docs/development/testing.md`](./docs/development/testing.md).
 
 ## Observability

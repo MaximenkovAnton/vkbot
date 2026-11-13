@@ -25,7 +25,7 @@
 | Покрытие-порог | `./gradlew coverageVerification` | LINE ratio < `coverageMin` | `check` → `build`; CI job `coverage` |
 | Архитектура | `./gradlew :src:testing:arch-tests:test` | L1–L6, allowlist build-графа | `check` → `build`; CI job `test` |
 
-Конвенции — в корневом [`build.gradle.kts:34-74`](../../build.gradle.kts): `subprojects {}` применяет Kotlin/JVM (toolchain 21),
+Конвенции — в корневом [`build.gradle.kts:33-73`](../../build.gradle.kts): `subprojects {}` применяет Kotlin/JVM (toolchain 21),
 detekt, ktlint, jacoco и единственный `enforcedPlatform(quarkus-bom)` (`:45-52`). Detekt: `buildUponDefaultConfig`,
 `autoCorrect = false` (линтер не правит код), конфиг — [`detekt-config.yml`](../../detekt-config.yml) (`:54-68`), baseline подключается,
 только если `${projectDir}/detekt-baseline.xml` существует. Baseline один раз сгенерирован и закоммичен:
@@ -52,12 +52,13 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 
 ### Покрытие
 
-Агрегат собирается из `src/*/build/jacoco/test.exec` девяти модулей ([`build.gradle.kts:22-32`](../../build.gradle.kts)), `src/testing/*`
-исключены. Измерено: **`coverageMin = 0.40`, `measuredLineCoverage = 0.5687`**
-(1478 покрытых строк из 2599; [`build.gradle.kts:19-20`](../../build.gradle.kts)). Формула первого порога —
+Агрегат собирается из `src/*/build/jacoco/test.exec` девяти модулей ([`build.gradle.kts:21-31`](../../build.gradle.kts)), `src/testing/*`
+исключены. На момент решения: **`coverageMin = 0.40`; `measuredLineCoverage = 0.5687`**
+(1478 покрытых строк из 2599; [`build.gradle.kts:19`](../../build.gradle.kts)). Формула первого порога —
 `max(0.10, floor(L * 20) / 20)`; при L = 0.5687 она дала бы 0.55, а 0.40 — цель ратчета (см. «Ратчет»).
-Значение записано константой, а не выведено в рантайме.
-`check` зависит от `coverageVerification` ([`build.gradle.kts:131-134`](../../build.gradle.kts)), поэтому `./gradlew build` включает порог.
+Живое значение в тексте не держим: константа `measuredLineCoverage` удалена 2026-11-13, покрытие публикует
+бейдж (см. «Обновление»).
+`check` зависит от `coverageVerification` ([`build.gradle.kts:130-133`](../../build.gradle.kts)), поэтому `./gradlew build` включает порог.
 
 Ратчет 0.40 выполнен в задаче `tests: ai module`; после доставки `daily-greetings` измерено `L = 0.5687`, порог не понижен.
 
@@ -79,7 +80,8 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 
 [`.github/workflows/build-and-test.yml`](../../.github/workflows/build-and-test.yml) — триггеры `push`/`pull_request` в `main`, JDK 21 temurin,
 `gradle/actions/setup-gradle@v4`; пять джобов: `build` (артефакт деплоя + отсутствие второго раннера),
-`test`, `lint` (`detekt ktlintCheck`), `coverage` (`test coverageReport coverageVerification` + upload отчёта),
+`test`, `lint` (`detekt ktlintCheck`), `coverage` (`test coverageReport coverageVerification`, upload отчёта и
+бейджи покрытия и тестов в ветку `badges`),
 `docs` ([`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh)). `--scan` убран.
 
 ### Ратчет
@@ -88,16 +90,16 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 целевой порог 0.60 — отдельная задача с новыми тестами, не порог этого прохода.
 `coverageMin` поднимается только вместе с измеренным `L`.
 
-**Обновление 2026-11-13:** на дереве `2336ae1` `./gradlew coverageReport` даёт `L = 0.6951` (4333 покрытых
-строки из 6234); целевой порог 0.60 достигнут, `coverageMin` остаётся 0.40 — повышение порога отдельное
-решение. Живые числа — [`docs/development/testing.md`](../development/testing.md) §«Покрытие».
+**Обновление 2026-11-13:** константа `measuredLineCoverage` удалена — живое покрытие и число тестов
+публикует CI-джоб `coverage` бейджами в ветку `badges` ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py));
+README их показывает. `coverageMin` остаётся 0.40; повышение порога — по-прежнему отдельное решение.
+Исторические числа этого ADR — измерение на момент решения, новые в тексте не хардкодим.
 
 ## Последствия
 
 - `./gradlew build` — единственная локальная команда «всё разом»: тесты, линт, формат и порог покрытия
   входят через `check`; она зелёная (`./gradlew build` → `BUILD SUCCESSFUL in 1m 43s`, 180 задач,
-  docs-гейт `capabilitiesCheck` внутри, 243 теста в 53 классах — прогон на момент решения; на 2026-11-13
-  прогон даёт 807 тестов в 121 классе).
+  docs-гейт `capabilitiesCheck` внутри, 243 теста в 53 классах — прогон на момент решения).
 - Модульный `./gradlew jacocoTestReport` не является гейтом и в `:src:app` падает на Gradle validation
   (`:src:app:jandex` output не объявлен входом задачи); поддерживаемые команды покрытия —
   `coverageReport` и `coverageVerification`.

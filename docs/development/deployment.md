@@ -269,8 +269,12 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 | `build` | `./gradlew :src:app:quarkusBuild`, наличие [`src/app/build/quarkus-app/quarkus-run.jar`](../../src/app/build/quarkus-app/quarkus-run.jar), отсутствие `build/quarkus-app` |
 | `test` | `./gradlew test` (нужен Docker для DevServices) |
 | `lint` | `./gradlew detekt ktlintCheck` |
-| `coverage` | `./gradlew test coverageReport coverageVerification` + upload HTML-отчёта |
+| `coverage` | `./gradlew test coverageReport coverageVerification`, upload HTML-отчёта; на push в `main` — бейджи покрытия и тестов в ветку `badges` |
 | `docs` | [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) (карта возможностей существует, чек зелёный) |
+
+Публикация бейджей — единственный шаг CI, который пишет в репозиторий: джобу `coverage` нужен
+`contents: write` (задано в workflow), а репозиторий должен разрешать GitHub Actions писать
+(`Settings → Actions → General → Workflow permissions`).
 
 ## Локальный запуск
 

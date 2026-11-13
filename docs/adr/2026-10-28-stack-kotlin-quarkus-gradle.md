@@ -17,7 +17,7 @@
 | JDK | 21 (Temurin 21.0.5) | `kotlin { jvmToolchain(21) }` во всех 12 модулях; `.sdkmanrc`; [`.github/workflows/build-and-test.yml:16-20`](../../.github/workflows/build-and-test.yml) |
 | Gradle | 9.3.0 (wrapper, Kotlin DSL) | [`gradle/wrapper/gradle-wrapper.properties:3`](../../gradle/wrapper/gradle-wrapper.properties) |
 | Kotlin | 2.3.0 | [`settings.gradle.kts:14`](../../settings.gradle.kts) |
-| Quarkus | 3.40.1.1 (`quarkus-bom`) | [`gradle.properties:3-7`](../../gradle.properties); единственный `enforcedPlatform` в [`build.gradle.kts:45-52`](../../build.gradle.kts) |
+| Quarkus | 3.40.1.1 (`quarkus-bom`) | [`gradle.properties:3-7`](../../gradle.properties); единственный `enforcedPlatform` в [`build.gradle.kts:44-51`](../../build.gradle.kts) |
 | LangChain4j | `quarkus-langchain4j` 1.15.0 (LangChain4j 1.23.0) | [`gradle.properties:8`](../../gradle.properties); [`src/app/build.gradle.kts:40`](../../src/app/build.gradle.kts) |
 | Хранилище | PostgreSQL + Liquibase, jOOQ 3.19.10 | [`src/persistence/build.gradle.kts:41,47,55`](../../src/persistence/build.gradle.kts) |
 | Брокер | RabbitMQ (`quarkus-messaging-rabbitmq`) | [`src/infrastructure/build.gradle.kts:18-20`](../../src/infrastructure/build.gradle.kts) |
@@ -34,7 +34,7 @@
 
 Берём текущий набор версий как есть и делаем его воспроизводимым:
 
-- Один `enforcedPlatform(quarkus-bom)` на все подпроекты — только [`build.gradle.kts:45-52`](../../build.gradle.kts); строки BOM
+- Один `enforcedPlatform(quarkus-bom)` на все подпроекты — только [`build.gradle.kts:44-51`](../../build.gradle.kts); строки BOM
   удалены из модульных build-файлов. Второй точки изменения версии Quarkus нет.
 - Плавающих версий нет: `jackson-module-kotlin` без `:latest` (версия из BOM) во всех четырёх модулях;
   `grep -rn ":latest"` по build-файлам пуст.
