@@ -23,7 +23,7 @@
     <ID>MaxLineLength:HasPendingSummaryAdapter.kt$HasPendingSummaryAdapter$override fun execute(request: HasPendingSummaryPort.HasPendingSummaryRequest): HasPendingSummaryPort.HasPendingSummaryResponse</ID>
     <ID>MaxLineLength:HasPendingSummaryPort.kt$HasPendingSummaryPort$interface</ID>
     <ID>MaxLineLength:InsertSummaryPort.kt$InsertSummaryPort$interface</ID>
-    <ID>MaxLineLength:JooqSummaryRepository.kt$JooqSummaryRepository$open</ID>
+    <ID>MaxLineLength:SummaryTable.kt$SummaryTable$open</ID>
     <ID>MaxLineLength:PersistenceDataUsecase.kt$PersistenceDataUsecase$private</ID>
     <ID>MaxLineLength:SaveGroupProfileAdapter.kt$SaveGroupProfileAdapter$override</ID>
     <ID>MaxLineLength:SaveGroupProfilePort.kt$SaveGroupProfilePort$interface</ID>

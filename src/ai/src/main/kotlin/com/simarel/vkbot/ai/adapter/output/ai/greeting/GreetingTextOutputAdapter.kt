@@ -10,12 +10,12 @@ private const val EVERYONE = "все"
 
 @ApplicationScoped
 class GreetingTextOutputAdapter(
-    private val greetingAiService: GreetingAiService,
+    private val greetingTextGenerator: GreetingTextGenerator,
 ) : GenerateGreetingTextPort {
 
     @ActivateRequestContext
     override fun execute(request: GenerateGreetingTextPort.Request): GenerateGreetingTextPort.Response {
-        val text = greetingAiService.generateGreeting(
+        val text = greetingTextGenerator.generateGreeting(
             date = request.date.format(DateTimeFormatter.ISO_LOCAL_DATE),
             occasion = request.occasion,
             people = formatPeople(request.people),

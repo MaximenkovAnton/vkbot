@@ -33,7 +33,7 @@ WARN), `2` — новая сессия с тем же `ts`, `3` — новая �
 | входной контракт use case `VkUpdateInputPortRequest(type, message)` | `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/port/input/ReceiveMessageInputPort.kt` |
 | маршрутизация обновления и публикация `MESSAGE_NEW` | `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecase.kt`, `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/command/sendVkEvent/PublishVkEventCommandImpl.kt:15-23` |
 | DMZ-маппинг VK JSON → `Message` (fwd, reply, wall) | `src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58` |
-| позиция `ts`: репозиторий одной строки `long_poll_position` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/JooqLongPollPositionRepository.kt` |
+| позиция `ts`: таблица одной строки `long_poll_position` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/LongPollPositionTable.kt` |
 | порты позиции `ts` | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindLongPollTsPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/SaveLongPollTsPort.kt` |
 | VO позиции | `src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/LongPollTs.kt` |
 

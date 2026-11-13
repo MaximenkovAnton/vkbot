@@ -8,7 +8,7 @@
 
 До прохода внутри одного деплоя работали два синхронных HTTP-контура на `http://localhost:8080`:
 `ai -> persistence` (`configKey = "persistence"`) и `persistence -> vk-facade` (`configKey = "vk-facade"`).
-Контракт был продублирован дословно: интерфейс `PersistenceService` с девятью методами существовал на
+Контракт был продублирован дословно: интерфейс `PersistenceResource` с девятью методами существовал на
 сервере и клиентской копией, DTO запросов — в двух файлах. Изменение одной стороны не ломало сборку другой,
 а каждый вызов платил за JSON-раундтрип, URL и таймауты.
 
@@ -22,7 +22,7 @@ in-process:
 
 | Порт (`share`) | Реализация | Делегирует в |
 |---|---|---|
-| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:24-149` (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-контроллера |
+| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:24-149` (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-ресурса |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` (2 класса) | `VkProfileInputPort` |
 
 Потребители держат только `share`-порты:
@@ -30,13 +30,14 @@ in-process:
 `ai/command/summary/GenerateSummaryCommandImpl.kt:7-12`,
 `persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:9-10,20-21`.
 
-Удалены: клиентские интерфейсы `PersistenceService`/`VkFacadeService`, REST-адаптеры
+Удалены: клиентские копии REST-контрактов (на тот момент `PersistenceService`/`VkFacadeService`),
+REST-адаптеры
 `PersistenceDataRestAdapter`/`SummaryPersistenceRestAdapter`/`VkFacadeRestAdapter`, девять внутренних
 портов `ai/port/output/persistence/*` и `quarkus.rest-client.persistence`/`vk-facade` из конфига.
 
 REST-эндпоинты остаются публичным API модулей и единственной копией контракта:
-`persistence/adapter/input/rest/PersistenceService.kt:18-79` + `PersistenceDataController.kt:21-126`;
-`vkFacade/adapter/input/rest/VkFacadeController.kt:14-32`. Контроллер и in-process адаптер — два входных
+`persistence/adapter/input/rest/PersistenceResource.kt:18-79` + `PersistenceDataResource.kt:21-126`;
+`vkFacade/adapter/input/rest/VkProfileResource.kt:14-32`. Контроллер и in-process адаптер — два входных
 адаптера к одному `port.input` (Information Expert: логика в use case, адаптеры только маппят).
 
 Асинхронный поток остаётся на RabbitMQ: приём событий VK не должен ждать AI. Публикация —

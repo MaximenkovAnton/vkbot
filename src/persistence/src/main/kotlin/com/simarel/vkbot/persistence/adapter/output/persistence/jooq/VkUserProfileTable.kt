@@ -19,7 +19,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 @ApplicationScoped
-open class JooqVkUserProfileRepository {
+open class VkUserProfileTable {
 
     @Inject
     lateinit var dsl: DSLContext
@@ -27,7 +27,7 @@ open class JooqVkUserProfileRepository {
     @Inject
     lateinit var objectMapper: ObjectMapper
 
-    private val logger = System.getLogger(JooqVkUserProfileRepository::class.java.name)
+    private val logger = System.getLogger(VkUserProfileTable::class.java.name)
 
     open fun persist(profile: VkUserProfile, changes: Map<String, Map<String, Any?>>? = null) {
         dsl.insertInto(VkUserProfiles.TABLE)

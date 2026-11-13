@@ -11,7 +11,7 @@ private const val ATTEMPT_FAILED_MESSAGE = "User knowledge summary generation fa
 
 @ApplicationScoped
 class UserKnowledgeSummaryAiAdapter(
-    private val userKnowledgeSummaryAiService: UserKnowledgeSummaryAiService,
+    private val userKnowledgeSummarizer: UserKnowledgeSummarizer,
 ) : UserKnowledgeSummaryPort {
 
     private val logger: System.Logger = System.getLogger(UserKnowledgeSummaryAiAdapter::class.java.name)
@@ -23,7 +23,7 @@ class UserKnowledgeSummaryAiAdapter(
 
         for (attempt in 1..MAX_ATTEMPTS) {
             val failure: Exception = try {
-                val text = userKnowledgeSummaryAiService.summarize(request.facts)
+                val text = userKnowledgeSummarizer.summarize(request.facts)
                 if (text.isBlank()) {
                     UserKnowledgeSummaryException(EMPTY_RESPONSE_MESSAGE, null)
                 } else {

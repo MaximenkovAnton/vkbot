@@ -31,7 +31,7 @@
 | команда: контекст → знания автора → LLM → текст | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/answer/GenerateAnswerCommand.kt:26-74` |
 | сборка контекста (20 сообщений, профили, JSONB) | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt:28-103` |
 | форматирование промпта, блок `[USER_KNOWLEDGE]` и вызов AI-сервиса | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/GenerateAnswerOutputAdapter.kt:16-142` |
-| LangChain4j AI-сервис, плейсхолдер `{userKnowledge}`, память, инструменты | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-46` |
+| LangChain4j AI-сервис, плейсхолдер `{userKnowledge}`, память, инструменты | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-46` |
 | транзиентная память чата | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/TransientChatMemoryProvider.kt:11-18` |
 
 Конфигурация: `aiUseranswerSystemprompt`, `quarkus.langchain4j.openai.*` (env `AI_BASE_URL`,
@@ -59,7 +59,7 @@ LLM может вызвать веб-поиск — это возможност�
 | `ANSWER_MESSAGE` и payload `ResponseMessage` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/ResponseMessage.kt`) | `vk-message-send` (consumer) | `ai-answer` |
 | чтение `messages` и профилей через `share`-порты | `conversation-summary` (те же порты) | `message-storage` |
 | `FindUserKnowledgePort` (`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindUserKnowledgePort.kt`) | `user-knowledge` сводка профиля (R3a), досье (R4a), новости (R4c) | `user-knowledge` / read-модель ADR 2026-11-11-knowledge-read-model |
-| слот инструментов `UserAnswerAiService.tools` | `ai-tools-vane` | `ai-answer` |
+| слот инструментов `UserAnswerGenerator.tools` | `ai-tools-vane` | `ai-answer` |
 | `PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
 
 ## Зависит от

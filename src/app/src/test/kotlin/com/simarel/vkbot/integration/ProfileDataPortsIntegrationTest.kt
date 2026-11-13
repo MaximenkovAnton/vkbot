@@ -2,7 +2,7 @@ package com.simarel.vkbot.integration
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.share.domain.model.ChatAuthor
 import com.simarel.vkbot.share.domain.model.ProfileHistoryEntry
 import com.simarel.vkbot.share.domain.model.UserStatistics
@@ -46,7 +46,7 @@ class ProfileDataPortsIntegrationTest {
     lateinit var messageNewEventProcessor: MessageNewEventProcessor
 
     @Inject
-    lateinit var profileRepository: JooqVkUserProfileRepository
+    lateinit var userProfileTable: VkUserProfileTable
 
     @Inject
     lateinit var findChatAuthorsPort: FindChatAuthorsPort
@@ -154,7 +154,7 @@ class ProfileDataPortsIntegrationTest {
         if (!seededProfiles.add(userId)) {
             return
         }
-        profileRepository.persist(
+        userProfileTable.persist(
             FakeModelProvider.createVkUserProfile(id = userId, lastUpdated = OffsetDateTime.now()),
         )
     }

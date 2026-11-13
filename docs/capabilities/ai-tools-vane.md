@@ -19,7 +19,7 @@
 | Точка входа | Где в коде |
 |---|---|
 | `@Tool search_web` / `search_academic` / `search_discussions` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt:10-32` |
-| регистрация инструментов в AI-сервисе ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-16` |
+| регистрация инструментов в AI-сервисе ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-16` |
 | команда: источники, режим, формат ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt:31-77` |
 | выходной адаптер: выбор провайдера, маппинг источников | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt:15-58` |
 | REST-клиент Vane: `POST /api/search`, `GET /api/providers` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25` |
@@ -39,7 +39,7 @@
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| слот инструментов `UserAnswerAiService.tools` | `ai-answer` | `ai-answer` |
+| слот инструментов `UserAnswerGenerator.tools` | `ai-answer` | `ai-answer` |
 | контракт `VaneSearchOutputPort` (`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/vane/VaneSearchOutputPort.kt`) | только этот шаг | `ai-tools-vane` |
 | `VANE_URL` и таймауты клиента | конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) | `ai-tools-vane` |
 
@@ -73,7 +73,7 @@
 
 - Выбор инструментов самой моделью не проверен: в `AiIntegrationTest` модель подменена WireMock-заглушкой,
   которая `@Tool`-методы не вызывает. Делегирование каждого `@Tool`-метода в команду проверено
-  `VaneSearchToolAdapterTest`; регистрация класса в `UserAnswerAiService.tools` тестом не покрыта — её
+  `VaneSearchToolAdapterTest`; регистрация класса в `UserAnswerGenerator.tools` тестом не покрыта — её
   проверяет только сборка/старт приложения.
 - Поведение, которого нет в AC, не тестировалось: форматирование пустого `message`, поля `history`/`stream`
   запроса клиента (адаптер их не заполняет) — названы пробелами, а не pass.

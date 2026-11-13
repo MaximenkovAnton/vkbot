@@ -24,7 +24,7 @@ class NewsDigestAiAdapterTest {
 
     @Test
     fun `execute returns the digest on the first attempt`() {
-        val service = RecordingNewsDigestAiService(listOf({ "digest from model" }))
+        val service = RecordingNewsDigestGenerator(listOf({ "digest from model" }))
 
         val response = NewsDigestAiAdapter(service).execute(request())
 
@@ -34,7 +34,7 @@ class NewsDigestAiAdapterTest {
 
     @Test
     fun `execute retries after a failure and returns the second response`() {
-        val service = RecordingNewsDigestAiService(
+        val service = RecordingNewsDigestGenerator(
             listOf(
                 { throw IllegalStateException("first attempt failed") },
                 { "second attempt digest" },
@@ -54,7 +54,7 @@ class NewsDigestAiAdapterTest {
             IllegalStateException("attempt 2"),
             IllegalStateException("attempt 3"),
         )
-        val service = RecordingNewsDigestAiService(failures.map { failure -> { throw failure } })
+        val service = RecordingNewsDigestGenerator(failures.map { failure -> { throw failure } })
 
         val thrown = assertThrows(NewsDigestGenerationException::class.java) {
             NewsDigestAiAdapter(service).execute(request())
@@ -66,7 +66,7 @@ class NewsDigestAiAdapterTest {
 
     @Test
     fun `execute treats a blank digest as a failed attempt`() {
-        val service = RecordingNewsDigestAiService(listOf({ "   " }, { "second attempt digest" }))
+        val service = RecordingNewsDigestGenerator(listOf({ "   " }, { "second attempt digest" }))
 
         val response = NewsDigestAiAdapter(service).execute(request())
 
@@ -76,7 +76,7 @@ class NewsDigestAiAdapterTest {
 
     @Test
     fun `execute renders interests and chat topics into the service arguments`() {
-        val service = RecordingNewsDigestAiService(listOf({ "digest from model" }))
+        val service = RecordingNewsDigestGenerator(listOf({ "digest from model" }))
 
         NewsDigestAiAdapter(service).execute(request(interests = INTERESTS, chatTopics = CHAT_TOPICS))
 
@@ -88,7 +88,7 @@ class NewsDigestAiAdapterTest {
 
     @Test
     fun `execute passes empty sections when knowledge is absent`() {
-        val service = RecordingNewsDigestAiService(listOf({ "digest from model" }))
+        val service = RecordingNewsDigestGenerator(listOf({ "digest from model" }))
 
         NewsDigestAiAdapter(service).execute(request(interests = null, chatTopics = null))
 
@@ -103,7 +103,7 @@ class NewsDigestAiAdapterTest {
         expectedInterests: String,
         expectedChatTopics: String,
     ) {
-        val service = RecordingNewsDigestAiService(listOf({ "digest from model" }))
+        val service = RecordingNewsDigestGenerator(listOf({ "digest from model" }))
 
         NewsDigestAiAdapter(service).execute(request(interests = interests, chatTopics = chatTopics))
 
@@ -125,9 +125,9 @@ class NewsDigestAiAdapterTest {
 
     private data class Call(val data: String, val interests: String, val chatTopics: String)
 
-    private class RecordingNewsDigestAiService(
+    private class RecordingNewsDigestGenerator(
         private val outcomes: List<() -> String>,
-    ) : NewsDigestAiService {
+    ) : NewsDigestGenerator {
         val calls = ConcurrentLinkedQueue<Call>()
 
         override fun generateDigest(data: String, interests: String, chatTopics: String): String {

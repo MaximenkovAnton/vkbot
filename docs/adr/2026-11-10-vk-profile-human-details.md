@@ -96,7 +96,7 @@ JSONB `profile_details`. Типизированные колонки профи�
 - REST обоих модулей и история меняют JSON-контракт: `profileData` нет, есть `details`; ключ `birth_date`
   вместо `bdate`; значения человеческие. Внешние потребители переключаются на новое имя.
 - **Откат образа после 008 — только с восстановлением БД из бэкапа до 008**: предыдущий образ читает и
-  пишет `profile_data` (`JooqVkUserProfileRepository`) и падает на `findByIds`/`persist`
+  пишет `profile_data` (`VkUserProfileTable`) и падает на `findByIds`/`persist`
   (`FetchUserProfileCommandImpl`). Это осознанное исключение из правила аддитивности, зафиксированное в
   `docs/development/deployment.md`.
 - Новых модулей, зависимостей, REST-эндпоинтов, событий, конфига и прав нет; состав PII в `details` тот же,

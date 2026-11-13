@@ -23,9 +23,9 @@ import java.util.UUID
 @ApplicationScoped
 @Path("/persistence")
 @Suppress("TooManyFunctions")
-class PersistenceDataController(
+class PersistenceDataResource(
     private val persistenceDataInputPort: PersistenceDataInputPort,
-) : PersistenceService {
+) : PersistenceResource {
 
     @GET
     @Path("/messages/before")

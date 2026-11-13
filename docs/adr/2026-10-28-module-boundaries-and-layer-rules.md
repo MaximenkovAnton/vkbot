@@ -3,6 +3,8 @@
 - **Статус:** accepted
 - **Дата:** 2026-10-28
 - **Supersedes:** —
+- **Amended by:** ADR 2026-11-13-responsibility-type-names — правило L7 (имена типов) и
+  переименование `Jooq*Repository.kt`/`*Service`/`*Controller` в имена по ответственности
 
 ## Контекст
 
@@ -78,7 +80,7 @@ test, и не создаёт деплоев на фичу — деплой од�
 - Нарушение направления зависимости валит `./gradlew build` (L1–L6 + allowlist входят в `check`).
 - Новый модуль обязан войти в allowlist `GradleDependenciesTest` и в `ModuleDependenciesTest`.
 - `domain` persistence — это entity без фреймворка; jOOQ-типы живут в `adapter/output/persistence/jooq`
-  (`Tables.kt`, `Jooq*Repository.kt`). Сериализация `forwardedMessages` ушла за порт
+  (`Tables.kt`, `*Table.kt`). Сериализация `forwardedMessages` ушла за порт
   `persistence/port/output/ForwardedMessagesSerializationPort.kt`, реализация —
   `persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt`.
 - Логирование в бизнес-слое — `java.lang.System.Logger` (JDK), а не `io.quarkus.logging.Log`

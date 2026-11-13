@@ -11,7 +11,7 @@ private const val ATTEMPT_FAILED_MESSAGE = "Chat knowledge summary generation fa
 
 @ApplicationScoped
 class ChatKnowledgeSummaryAiAdapter(
-    private val chatKnowledgeSummaryAiService: ChatKnowledgeSummaryAiService,
+    private val chatKnowledgeSummarizer: ChatKnowledgeSummarizer,
 ) : ChatKnowledgeSummaryPort {
 
     private val logger: System.Logger = System.getLogger(ChatKnowledgeSummaryAiAdapter::class.java.name)
@@ -23,7 +23,7 @@ class ChatKnowledgeSummaryAiAdapter(
 
         for (attempt in 1..MAX_ATTEMPTS) {
             val failure: Exception = try {
-                val text = chatKnowledgeSummaryAiService.summarize(request.messages.joinToString("\n"))
+                val text = chatKnowledgeSummarizer.summarize(request.messages.joinToString("\n"))
                 if (text.isBlank()) {
                     ChatKnowledgeSummaryException(EMPTY_RESPONSE_MESSAGE, null)
                 } else {

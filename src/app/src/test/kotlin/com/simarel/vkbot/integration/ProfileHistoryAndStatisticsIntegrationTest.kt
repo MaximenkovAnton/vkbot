@@ -1,6 +1,6 @@
 package com.simarel.vkbot.integration
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.persistence.domain.profile.ProfileFieldsMerger
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import io.quarkus.test.junit.QuarkusTest
@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 class ProfileHistoryAndStatisticsIntegrationTest {
 
     @Inject
-    lateinit var profileRepository: JooqVkUserProfileRepository
+    lateinit var userProfileTable: VkUserProfileTable
 
     @Test
     fun `profile details are stored as jsonb and read back`() {
@@ -31,8 +31,8 @@ class ProfileHistoryAndStatisticsIntegrationTest {
             details = mapOf("about" to "about me", "followers_count" to 42),
         )
 
-        profileRepository.persist(saved, null)
-        val actualized = profileRepository.findByIds(listOf(profileId)).single()
+        userProfileTable.persist(saved, null)
+        val actualized = userProfileTable.findByIds(listOf(profileId)).single()
 
         assertEquals("about me", actualized.details["about"])
         assertEquals(42, actualized.details["followers_count"])
@@ -58,10 +58,10 @@ class ProfileHistoryAndStatisticsIntegrationTest {
             details = mapOf("about" to "about me"),
         )
 
-        profileRepository.persist(stored, null)
-        profileRepository.persist(current, ProfileFieldsMerger.diff(stored, current))
+        userProfileTable.persist(stored, null)
+        userProfileTable.persist(current, ProfileFieldsMerger.diff(stored, current))
 
-        val history = profileRepository.findHistory(profileId, limit = 10, offset = 0)
+        val history = userProfileTable.findHistory(profileId, limit = 10, offset = 0)
 
         assertEquals(1, history.size)
         val entry = history.single()

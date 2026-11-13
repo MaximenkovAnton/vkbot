@@ -19,7 +19,7 @@ class ProfileAiAdapterTest {
     @Test
     fun `execute retries three times and rethrows`() {
         val failure = RuntimeException("boom")
-        val service = RecordingProfileAiService(failure = failure)
+        val service = RecordingProfileAnswerGenerator(failure = failure)
 
         val thrown = assertThrows<ProfileGenerationException> {
             ProfileAiAdapter(service).execute(request())
@@ -33,7 +33,7 @@ class ProfileAiAdapterTest {
     @ParameterizedTest
     @ValueSource(strings = ["   ", "", "\t\n"])
     fun `execute treats a blank answer as a failed attempt`(blankAnswer: String) {
-        val service = RecordingProfileAiService(
+        val service = RecordingProfileAnswerGenerator(
             listOf(
                 { blankAnswer },
                 { blankAnswer },
@@ -51,7 +51,7 @@ class ProfileAiAdapterTest {
 
     @Test
     fun `execute returns the first non blank answer without retrying`() {
-        val service = RecordingProfileAiService(listOf({ "досье" }))
+        val service = RecordingProfileAnswerGenerator(listOf({ "досье" }))
         val request = request()
 
         val response = ProfileAiAdapter(service).execute(request)
@@ -66,10 +66,10 @@ class ProfileAiAdapterTest {
         data = DATA,
     )
 
-    private class RecordingProfileAiService(
+    private class RecordingProfileAnswerGenerator(
         private val outcomes: List<() -> String> = emptyList(),
         private val failure: Exception? = null,
-    ) : ProfileAiService {
+    ) : ProfileAnswerGenerator {
         val calls = ConcurrentLinkedQueue<Pair<String, String>>()
 
         override fun answer(question: String, data: String): String {

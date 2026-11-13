@@ -16,7 +16,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 
 @ApplicationScoped
-open class JooqUserStatisticsRepository {
+open class UserStatisticsReader {
 
     @Inject
     lateinit var dsl: DSLContext

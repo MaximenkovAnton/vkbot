@@ -29,7 +29,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 | Точка входа | Где в коде |
 |---|---|
-| `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkFacadeController.kt:14-32` |
+| `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt:14-32` |
 | use case профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt:9-21` |
 | команда: пользователи и группы раздельно | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt:12-30` |
 | VK API: `users.get` (35 полей `USER_FIELDS`), `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:16-43` |
@@ -37,7 +37,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 | REST-клиент VK для профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt:27-38` |
 | in-process порты для других модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` |
 | контракт портов в `share` | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
-| чтение сохранённых профилей (`message-storage`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataController.kt:108-126` |
+| чтение сохранённых профилей (`message-storage`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt:108-126` |
 
 Конфигурация: `vk.api.token`, `vk.api.version`, `quarkus.rest-client.vk.*` в
 `src/app/src/main/resources/application.yml`.
@@ -99,7 +99,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 - Нормализация групп к отрицательному id не покрыта тестом; маппинг человеческих полей и allowlist покрыты
   `VkUserProfileMapperTest` и `VkGetUserProfilesBatchAdapterTest`.
 - REST `/api/profiles/*` не покрыт ни одним HTTP-тестом.
-- Сохранение профилей jOOQ-репозиториями (`SaveUserProfilePort`/`SaveGroupProfilePort`) не покрыто тестом:
+- Сохранение профилей jOOQ-классами таблиц (`SaveUserProfilePort`/`SaveGroupProfilePort`) не покрыто тестом:
   `FetchUserProfileCommandImplTest` проверяет слияние на fake-портах, `ProfileHistoryAndStatisticsIntegrationTest`
   — запись профиля и истории в PostgreSQL, `ProfileStorageIntegrationTest` — чтение сохранённых строк.
 - `profile_details` у старых профилей пуст до первой актуализации (до месяца, backfill нет); при пустом

@@ -28,10 +28,10 @@ system-промпты), а документация обещала env `DATABASE
 | `vk.api.version` | `5.199` | `VkClient.kt:13`, `VkLongPollOutputAdapter.kt:106` (`v=` в каждом запросе VK) |
 | `vk.bot.id` | `${VK_BOT_ID}` | `IsRequireAnswerCommand.kt:17` |
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | `IsRequireAnswerCommand.kt:19` |
-| `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:…}` | `UserAnswerAiService.kt:17` |
-| `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | `SummarizationAiService.kt:11` |
-| `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:…}` | `OcrAiService.kt:13` |
-| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:…}` | `GreetingAiService.kt:11` (`@SystemMessage`, ADR 2026-11-07-daily-greetings) |
+| `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:…}` | `UserAnswerGenerator.kt:17` |
+| `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | `ConversationSummarizer.kt:11` |
+| `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:…}` | `ImageDescriber.kt:13` |
+| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:…}` | `GreetingTextGenerator.kt:11` (`@SystemMessage`, ADR 2026-11-07-daily-greetings) |
 | `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | `DailyGreetingRunner.kt:21` (`@Scheduled`; `off`/`disabled` выключает) |
 | `greetings.timezone` | `${GREETINGS_TIMEZONE:Europe/Minsk}` | `DailyGreetingRunner.kt:17,19,21` (`@Scheduled`/`ZoneId.of`) |
 | `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | `ProcessSummaryCommandImpl.kt:18`; `String` с пустым дефолтом — пустое значение выключает саммаризацию, но старт не валит |

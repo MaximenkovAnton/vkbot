@@ -72,7 +72,7 @@
 | резолв адресата: mentions, пересылка, «обо мне» | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt:15-111` |
 | вырезание фразы имени и сопоставление с участниками | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt:3-59`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt:11-45` |
 | досье и детерминированный русский текст, allowlist `details` и истории | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossier.kt:8-20`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatter.kt:60-221` |
-| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiService.kt:8-26`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/exception/ProfileGenerationException.kt:6-8`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapter.kt:14-47` |
+| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt:8-26`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/exception/ProfileGenerationException.kt:6-8`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapter.kt:14-47` |
 | новый output-порт `ProfileAnswerGenerationPort` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/profile/ProfileAnswerGenerationPort.kt:7-16` |
 | три read-only `share`-порта чтения | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatAuthorsPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserStatisticsPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserProfileHistoryPort.kt` |
 | live-профили при отсутствии сохранённого | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
@@ -83,7 +83,7 @@
 
 | Ключ | Значение / env | Эффект |
 |---|---|---|
-| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение `ProfileAiService`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
+| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение `ProfileAnswerGenerator`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
 | `vk.bot.id`, `vk.bot.mention`, `vk.group.id` | `${VK_BOT_ID}`, `${VK_BOT_MENTION:@simarel}`, `${VK_GROUP_ID}` | отбрасывание упоминания бота и его пересылок при резолве |
 | `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона дат в тексте досье (существующий ключ; тот же, что у статистики) |
 
@@ -129,9 +129,9 @@ forward от бота) — named gap, а не дефект досье. В `journ
 | `UserKnowledgeSummaryFormatter` | единственная реализация маркеров знаний; рендерит список фактов в секции `Из общения:` (`knowledge-summary`) | `knowledge-summary` |
 | `FindUserBirthdayFactsPort` | birthday-ветка поздравлений (`daily-greetings`) | `knowledge-confidence` |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `message-storage` (актуализация профилей), `profile-dossier` (досье без сохранённого профиля) | `vk-profiles` |
-| `ProfileAnswerGenerationPort` и `ProfileAiService`/`ProfileAiAdapter` | потребитель — только `ProcessProfileCommandImpl` | `ai` |
+| `ProfileAnswerGenerationPort` и `ProfileAnswerGenerator`/`ProfileAiAdapter` | потребитель — только `ProcessProfileCommandImpl` | `ai` |
 | `ProfileGenerationException` | ловится только `ProcessProfileCommandImpl` | `ai` (единая иерархия `VkBotAppException`, ADR 2026-11-09-exception-hierarchy) |
-| `aiProfileSystemprompt` | читает `ProfileAiService` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
+| `aiProfileSystemprompt` | читает `ProfileAnswerGenerator` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
 

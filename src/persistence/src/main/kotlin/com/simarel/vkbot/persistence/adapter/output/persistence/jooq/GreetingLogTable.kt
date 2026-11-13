@@ -8,7 +8,7 @@ import java.sql.Date
 import java.time.LocalDate
 
 @ApplicationScoped
-open class JooqGreetingLogRepository {
+open class GreetingLogTable {
 
     @Inject
     lateinit var dsl: DSLContext

@@ -23,7 +23,7 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 @ApplicationScoped
-open class JooqKnowledgeSummaryRepository {
+open class KnowledgeSummaryTable {
 
     @Inject
     lateinit var dsl: DSLContext

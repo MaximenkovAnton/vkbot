@@ -11,7 +11,7 @@ import java.sql.Timestamp
 import java.time.OffsetDateTime
 
 @ApplicationScoped
-open class JooqVkGroupProfileRepository {
+open class VkGroupProfileTable {
 
     @Inject
     lateinit var dsl: DSLContext

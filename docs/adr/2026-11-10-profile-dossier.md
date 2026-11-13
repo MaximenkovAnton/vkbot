@@ -58,11 +58,11 @@
   нет, он запрашивается live через `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` и **не
   сохраняется**; если VK не отдал профиль и там — «Профиль недоступен.» без LLM.
 - **Один новый output-порт.** `ProfileAnswerGenerationPort` (`OutputPort<Request(question, data),
-  Response(text)>`) + `ProfileAiService` — `@RegisterAiService` без инструментов и без памяти чата,
+  Response(text)>`) + `ProfileAnswerGenerator` — `@RegisterAiService` без инструментов и без памяти чата,
   `@SystemMessage("{config:aiProfileSystemprompt}")` — + `ProfileAiAdapter`: ровно три попытки, пустой
   или пробельный ответ считается неудачной, после третьей — `ProfileGenerationException` со статусом
   `EXTERNAL_FAILURE` в единой иерархии `VkBotAppException` (ADR 2026-11-09-exception-hierarchy).
-  Переиспользовать `GenerateAnswerOutputPort`/`UserAnswerAiService` отклонено: у того сервиса память чата
+  Переиспользовать `GenerateAnswerOutputPort`/`UserAnswerGenerator` отклонено: у того сервиса память чата
   и Vane-инструменты, другой system-промпт, риск выдумок и расширение PII-egress, а свой ретрай поверх
   чужого адаптера — скрытая связность.
 - **Ровно одна публикация `ANSWER_MESSAGE` из команды.** `ProcessProfileCommandImpl` инжектит
@@ -94,7 +94,7 @@
 | Альтернатива | Почему нет |
 |---|---|
 | Отдельный `/профиль` и состояние «жду уточнение» | Решение человека: точка входа — только интент decision-модели, без состояния и памяти; естественные фразы ловит модель |
-| Переиспользовать `GenerateAnswerOutputPort`/`UserAnswerAiService` | Память чата и Vane-инструменты чужого сервиса, другой system-промпт, риск выдумок; понадобился бы свой ретрай поверх чужого адаптера |
+| Переиспользовать `GenerateAnswerOutputPort`/`UserAnswerGenerator` | Память чата и Vane-инструменты чужого сервиса, другой system-промпт, риск выдумок; понадобился бы свой ретрай поверх чужого адаптера |
 | Отдельный модуль/сервис на досье | Нет требования независимого деплоя/масштабирования; новый модуль = allowlist arch-тестов, ADR и второй деплой (ADR 2026-10-28-single-deployable-app-module) |
 | Искать по всей базе профилей, а не по авторам чата | Раскрывало бы людей из других чатов; решение человека — только авторы этого `peer_id` |
 | Пусть LLM определяет адресата по тексту | Недетерминированно и дороже: резолв, матчинг и уточнение — чистый домен с табличными тестами |

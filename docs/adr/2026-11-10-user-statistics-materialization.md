@@ -12,7 +12,7 @@
 ## Контекст
 
 [ADR 2026-11-10-vk-profile-history-and-statistics](2026-11-10-vk-profile-history-and-statistics.md) считал
-статистику на чтении: `JooqUserStatisticsRepository` агрегировал `messages` по `from_id` при каждом
+статистику на чтении: `UserStatisticsReader` агрегировал `messages` по `from_id` при каждом
 запросе `GET /persistence/statistics/users/{id}` — `count`, `sum(length(message_text))`, `min/max(date)`,
 разбивку по `peer_id` и гистограммы `extract(hour|isodow ...)`.
 
@@ -37,13 +37,13 @@
   CHECK `chk_user_hour_statistics_utc_hour` (`utc_hour BETWEEN 0 AND 23`). Схема аддитивна, ретенции нет.
 - **Запись — в транзакции сообщения.** `SaveMessageUsecase` после вставки в `messages` вызывает порт
   `UpdateUserStatisticsPort` (`UpdateUserStatisticsAdapter`, `@Transactional`) →
-  `JooqUserStatisticsWriterRepository`; фиксированный порядок upsert'ов `user_statistics` →
+  `UserStatisticsWriter`; фиксированный порядок upsert'ов `user_statistics` →
   `user_chat_statistics` → `user_hour_statistics` (+1 к `message_count`, +длина в code points к
   `total_length`, `first_message_at = LEAST`, `last_message_at = GREATEST`, UTC-бакет
   `(utc_date, utc_hour)` из `date.withOffsetSameInstant(UTC)`). Сбой любого upsert'а откатывает всю
   транзакцию: сообщение и все три инкремента неразделимы. Длина считается в code points
   (`String.codePointCount`), чтобы совпасть с `length(text)` Postgres.
-- **Чтение — только из агрегатов.** `JooqUserStatisticsRepository.findByUser` читает итоги, чаты и
+- **Чтение — только из агрегатов.** `UserStatisticsReader.findByUser` читает итоги, чаты и
   бакеты из трёх таблиц; гистограммы конвертируются в `statistics.timezone` на чтении
   (`(utc_date + utc_hour * interval '1 hour') AT TIME ZONE 'UTC' AT TIME ZONE {zone}`). Смена
   `STATISTICS_TIMEZONE` не требует пересборки агрегатов. При отсутствии строк — нули и пустые списки.
