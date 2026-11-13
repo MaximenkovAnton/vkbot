@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate shields-style SVG badges from the JaCoCo and JUnit XML reports.
 
-The CI `coverage` job runs this script and publishes the two files to the `badges`
-branch, so README shows live numbers instead of a value hardcoded in the docs.
+The CI `coverage` job runs this script and commits the two files to `.github/badges/`
+on push to `main`, so README shows live numbers instead of a value hardcoded in the docs.
 """
 
 import argparse

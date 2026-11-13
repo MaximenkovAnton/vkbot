@@ -69,31 +69,24 @@ jobs:
             --coverage-xml build/reports/jacoco/coverageReport/coverageReport.xml \
             --test-results 'src/**/build/test-results/test/*.xml' \
             --output-dir build/badges
-      - name: Publish badges to the badges branch
+      - name: Commit coverage and test badges
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          workdir="$(mktemp -d)"
-          if git clone --depth 1 --branch badges "$remote" "$workdir/badges"; then
-            :
-          else
-            git clone --depth 1 "$remote" "$workdir/badges"
-            git -C "$workdir/badges" checkout --orphan badges
-            git -C "$workdir/badges" rm -rf .
-          fi
-          cp build/badges/*.svg "$workdir/badges/"
-          git -C "$workdir/badges" config user.name "github-actions[bot]"
-          git -C "$workdir/badges" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "$workdir/badges" add --all
-          if git -C "$workdir/badges" diff --cached --quiet; then
+          mkdir -p .github/badges
+          cp build/badges/*.svg .github/badges/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/badges
+          if git diff --cached --quiet; then
             echo "Badges are unchanged"
             exit 0
           fi
-          git -C "$workdir/badges" commit -m "chore: update coverage and test badges"
-          git -C "$workdir/badges" push origin badges
+          git commit -m "chore: update coverage and test badges [skip ci]"
+          if ! git push origin HEAD:main; then
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
   docs:
     runs-on: ubuntu-latest

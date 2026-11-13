@@ -81,7 +81,7 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 [`.github/workflows/build-and-test.yml`](../../.github/workflows/build-and-test.yml) — триггеры `push`/`pull_request` в `main`, JDK 21 temurin,
 `gradle/actions/setup-gradle@v4`; четыре джоба: `build` (артефакт деплоя + отсутствие второго раннера),
 `lint` (`detekt ktlintCheck`), `coverage` (`test coverageReport coverageVerification` — единственный прогон
-тестов в CI, upload отчёта и бейджи покрытия и тестов в ветку `badges`),
+тестов в CI, upload отчёта и бот-коммит бейджей покрытия и тестов в `.github/badges/`),
 `docs` ([`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh)). `--scan` убран.
 
 ### Ратчет
@@ -91,10 +91,11 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 `coverageMin` поднимается только вместе с измеренным `L`.
 
 **Обновление 2026-11-13:** константа `measuredLineCoverage` удалена — живое покрытие и число тестов
-публикует CI-джоб `coverage` бейджами в ветку `badges` ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py));
-README их показывает. Тесты в CI гоняются одним прогоном: отдельного джоба `test` больше нет, его работу
-делает `coverage`, и тот же прогон даёт данные для обоих бейджей. `coverageMin` остаётся 0.40; повышение
-порога — по-прежнему отдельное решение.
+публикует CI-джоб `coverage` бейджами в `.github/badges/` ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py));
+README их показывает. Бейджи лежат в репозитории рядом с кодом и обновляются бот-коммитом на push в `main`,
+отдельной ветки `badges` нет — её удаление больше не ломает README. Тесты в CI гоняются одним прогоном:
+отдельного джоба `test` больше нет, его работу делает `coverage`, и тот же прогон даёт данные для обоих
+бейджей. `coverageMin` остаётся 0.40; повышение порога — по-прежнему отдельное решение.
 Исторические числа этого ADR — измерение на момент решения, новые в тексте не хардкодим.
 
 ## Последствия
