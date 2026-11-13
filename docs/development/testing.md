@@ -297,10 +297,11 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 - Агрегат по 9 модулям (`ai, app, greetings, infrastructure, persistence, processor, receiver, share,
   vk-facade`), `src/testing/*` исключён ([`build.gradle.kts:21-31`](../../build.gradle.kts#L21-L31)).
 - Порог `coverageMin = 0.40` ([`build.gradle.kts:19`](../../build.gradle.kts#L19)) включён в `check` → `build`
-  ([`build.gradle.kts:130-133`](../../build.gradle.kts#L130-L133)) и в CI-джоб `coverage`.
+  ([`build.gradle.kts:130-133`](../../build.gradle.kts#L130-L133)) и в CI-джоб `coverage` — тот же прогон
+  остаётся единственным прогоном тестов, отчёта и порога в CI.
 - Живое покрытие и число тестов в документации не хардкодим: CI-джоб `coverage` публикует бейджи
-  ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py)) в ветку `badges`, README их показывает.
-  Локально — `./gradlew coverageReport` → `build/reports/jacoco/coverageReport/html`.
+  ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py)) в ветку `badges` из этого же прогона,
+  README их показывает. Локально — `./gradlew coverageReport` → `build/reports/jacoco/coverageReport/html`.
 - Политика: порог не понижается; повышение порога — отдельное решение (ADR 2026-10-28-quality-gates-and-ci).
   Покрытие меряется по бизнес-коду, а не по glue.
 - Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: ...`, exit 1.

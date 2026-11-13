@@ -18,12 +18,12 @@
 | Гейт | Команда | Как падает | Где включён |
 |---|---|---|---|
 | Сборка | `./gradlew build` | ошибка компиляции, падение теста, любой гейт ниже | локально; CI job `build` |
-| Тесты | `./gradlew test` | падение/ошибка любого теста | `check` → `build`; CI job `test` |
+| Тесты | `./gradlew test` | падение/ошибка любого теста | `check` → `build`; CI job `coverage` |
 | Линт | `./gradlew detekt` | новое нарушение сверх baseline, `maxIssues: 0` ([`detekt-config.yml:2`](../../detekt-config.yml)) | `check` → `build`; CI job `lint` |
 | Формат | `./gradlew ktlintCheck` | расхождение с `.editorconfig` | `check` → `build`; CI job `lint` |
 | Покрытие-отчёт | `./gradlew coverageReport` | — (отчёт), агрегирует 9 модулей | `check` (через порог) |
 | Покрытие-порог | `./gradlew coverageVerification` | LINE ratio < `coverageMin` | `check` → `build`; CI job `coverage` |
-| Архитектура | `./gradlew :src:testing:arch-tests:test` | L1–L6, allowlist build-графа | `check` → `build`; CI job `test` |
+| Архитектура | `./gradlew :src:testing:arch-tests:test` | L1–L6, allowlist build-графа | `check` → `build`; CI job `coverage` |
 
 Конвенции — в корневом [`build.gradle.kts:33-73`](../../build.gradle.kts): `subprojects {}` применяет Kotlin/JVM (toolchain 21),
 detekt, ktlint, jacoco и единственный `enforcedPlatform(quarkus-bom)` (`:45-52`). Detekt: `buildUponDefaultConfig`,
@@ -79,9 +79,9 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 ### CI
 
 [`.github/workflows/build-and-test.yml`](../../.github/workflows/build-and-test.yml) — триггеры `push`/`pull_request` в `main`, JDK 21 temurin,
-`gradle/actions/setup-gradle@v4`; пять джобов: `build` (артефакт деплоя + отсутствие второго раннера),
-`test`, `lint` (`detekt ktlintCheck`), `coverage` (`test coverageReport coverageVerification`, upload отчёта и
-бейджи покрытия и тестов в ветку `badges`),
+`gradle/actions/setup-gradle@v4`; четыре джоба: `build` (артефакт деплоя + отсутствие второго раннера),
+`lint` (`detekt ktlintCheck`), `coverage` (`test coverageReport coverageVerification` — единственный прогон
+тестов в CI, upload отчёта и бейджи покрытия и тестов в ветку `badges`),
 `docs` ([`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh)). `--scan` убран.
 
 ### Ратчет
@@ -92,7 +92,9 @@ Detekt сопоставляет глобы `excludes` с абсолютным п
 
 **Обновление 2026-11-13:** константа `measuredLineCoverage` удалена — живое покрытие и число тестов
 публикует CI-джоб `coverage` бейджами в ветку `badges` ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py));
-README их показывает. `coverageMin` остаётся 0.40; повышение порога — по-прежнему отдельное решение.
+README их показывает. Тесты в CI гоняются одним прогоном: отдельного джоба `test` больше нет, его работу
+делает `coverage`, и тот же прогон даёт данные для обоих бейджей. `coverageMin` остаётся 0.40; повышение
+порога — по-прежнему отдельное решение.
 Исторические числа этого ADR — измерение на момент решения, новые в тексте не хардкодим.
 
 ## Последствия
