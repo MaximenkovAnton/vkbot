@@ -22,13 +22,18 @@
    | 4. Имя | остаток текста после вырезания триггеров и служебных слов | ровно один участник этого `peer_id` по сохранённому профилю — цель; несколько — уточнение; ноль — «не нашёл» |
 
 2. **Досье собирается из сохранённых источников** и передаётся LLM детерминированным русским текстом:
-   профиль VK (typed-поля и человеческие `details`), знания о человеке из чата, материализованная
-   статистика (глобальные агрегаты и разбивка по чатам, включая другие чаты), последние 20 записей истории
-   изменений профиля и число сообщений цели в этом чате. Секции идут строго в порядке `Профиль:`,
-   `Из общения:`, `Статистика:`, `История изменений:`, `В этом чате:`; пустые секции не пишутся. Группа
-   получает только профиль группы и счётчик в этом чате — статистики, истории и знаний у групп нет.
+   профиль VK (typed-поля и человеческие `details`), знания о человеке из чата, сводка этого чата
+   (`Темы чата:`), профиль и знания того, кто спрашивает (`Кто запрашивает:`, `Знания запрашивающего:`),
+   материализованная статистика (глобальные агрегаты и разбивка по чатам, включая другие чаты), последние
+   20 записей истории изменений профиля и число сообщений цели в этом чате. Секции идут строго в порядке
+   `Профиль:`, `Из общения:`, `Темы чата:`, `Кто запрашивает:`, `Знания запрашивающего:`, `Статистика:`,
+   `История изменений:`, `В этом чате:`; пустые секции не пишутся. Группа получает профиль группы, сводку
+   чата, контекст запрашивающего и счётчик в этом чате — статистики, истории и знаний о самой группе у
+   групп нет.
 3. **Знания из чата — overlay на чтении.** После резолва профиля команда один раз читает знания цели
-   через `FindUserKnowledgePort` и кладёт их в `ProfileDossier.UserDossier.knowledge`. Секция
+   через `FindUserKnowledgePort` и кладёт их в `ProfileDossier.UserDossier.knowledge`. Знания глобальны
+   по пользователю: порт не фильтрует по `peer_id`, `peer_id` карточки — чат первого свидетельства,
+   поэтому факт из другого чата виден в досье из этого чата (ADR 2026-11-13-profile-dossier-context). Секция
    `Из общения:` строится так: свежая сводка (`summaryFresh=true`, текст непустой) — связный сохранённый
    текст как есть; иначе — компактный список фактов, который рендерит единственный
    `UserKnowledgeSummaryFormatter` (`CONFIRMED` обычной строкой, `CANDIDATE` — «возможно», `HISTORICAL` —
@@ -38,15 +43,24 @@
    чата — в `Из общения:`; `vk_user_profiles` знаниями не пишется. Сбой этого опционального чтения
    (`RuntimeException`) — один WARNING с `peerId`, `targetId` и простым именем класса исключения (без
    значений) и досье без секции; ответ публикуется.
-4. **Форматтер — allowlist.** Рендерятся только известные ключи `details` с русскими подписями; телефоны
+4. **Контекст чата и автора запроса — тоже overlay на чтении.** Команда читает сводку чата
+   `FindChatKnowledgeSummaryPort(peerId)` в `chatTopics` и, если `message.fromId` — человек, не бот и не
+   цель, читает его сохранённый профиль (`FindStoredUserProfilesByIdsPort`) и знания
+   (`FindUserKnowledgePort`) в `requesterProfile`/`requesterKnowledge`. `Темы чата:` рендерятся как есть,
+   `Кто запрашивает:` — тем же allowlist-рендером профиля, `Знания запрашивающего:` — тем же правилом
+   «свежая сводка либо список фактов», что и `Из общения:`. Каждое из этих чтений fail-open: сбой —
+   один WARNING без значений (`Profile chat knowledge read failed for peerId=<peerId>`,
+   `Profile requester read failed for peerId=<peerId> requesterId=<id>`) и досье без секции; при
+   отсутствии новых данных промпт байт-идентичен прежнему.
+5. **Форматтер — allowlist.** Рендерятся только известные ключи `details` с русскими подписями; телефоны
    (`mobile_phone`, `home_phone`), `counters`, `connections`, неизвестные ключи и VK-id не рендерятся нигде,
    кроме списка кандидатов уточнения. Записи истории без известных полей пропускаются.
-5. **LLM пишет только текст.** Один вызов `ProfileAnswerGenerationPort` с вопросом (исходный текст
+6. **LLM пишет только текст.** Один вызов `ProfileAnswerGenerationPort` с вопросом (исходный текст
    сообщения) и готовым текстом досье; system-сообщение — из `aiProfileSystemprompt`. Адаптер делает три
    попытки (пустой или пробельный ответ — неудачная попытка), после третьей бросает
    `ProfileGenerationException` со статусом `EXTERNAL_FAILURE`; команда ловит только её, публикует
    фиксированный фолбэк и пишет ERROR только с `peerId` и простым именем класса исключения.
-6. **Запись отсутствует.** Live-профиль, запрошенный через `GetUserProfilesBatchPort`/
+7. **Запись отсутствует.** Live-профиль, запрошенный через `GetUserProfilesBatchPort`/
    `GetGroupProfilesBatchPort`, не сохраняется; `messages`, профили, история, статистика и знания только
    читаются. `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются.
 
@@ -96,12 +110,19 @@
 `vk_user_profiles` и `vk_group_profiles` (typed-поля и `profile_details`), `vk_user_profile_history`
 (последние 20 записей, newest-first), трёх таблиц материализованной статистики
 (`user_statistics`, `user_chat_statistics`, `user_hour_statistics`) и знаний о человеке из чата
-(`user_facts`, `user_knowledge_summary`) одним вызовом `FindUserKnowledgePort`. Схема, jOOQ и Liquibase
+(`user_facts`, `user_knowledge_summary`) одним вызовом `FindUserKnowledgePort`; сводку чата
+(`chat_knowledge_summary`) — `FindChatKnowledgeSummaryPort`; профиль и знания запрашивающего —
+`FindStoredUserProfilesByIdsPort`/`FindUserKnowledgePort`. Схема, jOOQ и Liquibase
 остаются у `message-storage`; новых изменений схемы нет. Live-профиль, полученный через
 `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort`, **не сохраняется**; знания не пишутся в
 `vk_user_profiles` никогда.
 
-Данные профиля, истории, статистики, знаний (значения фактов и текст сводки) и исходный вопрос уходят в
+Источник `Темы чата:` — `chat_knowledge_summary` через `FindChatKnowledgeSummaryPort(peerId)`; контекст
+запрашивающего — `vk_user_profiles` и `user_facts`/`user_knowledge_summary` через
+`FindStoredUserProfilesByIdsPort`/`FindUserKnowledgePort`. Все четыре чтения только читают.
+
+Данные профиля, истории, статистики, знаний (значения фактов и текст сводки), сводки чата, профиля и
+знаний запрашивающего, а также исходный вопрос уходят в
 LLM-промпт; глобальные
 `quarkus.langchain4j.log-requests/log-responses: true` логируют промпт и ответ на INFO и экспортируют по
 OTLP — осознанно принятый PII-egress (ADR 2026-11-10-profile-dossier, ADR 2026-11-05-llm-provider-vllm-openai).
@@ -125,7 +146,8 @@ forward от бота) — named gap, а не дефект досье. В `journ
 | `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
 | `ChatAuthor`, `UserStatistics`, `ProfileHistoryEntry` | контракт чтения для `ai` | `message-storage` (модели в `share`) |
 | `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `message-storage`, `ai-answer`, `conversation-summary` | `message-storage` |
-| `FindUserKnowledgePort`, `UserKnowledge` | read-модель знаний (`knowledge-confidence`); потребители — `profile-dossier` (`ProcessProfileCommandImpl`), `ai-answer` (`GenerateAnswerCommand`), `chat-news-digest` (`ProcessNewsDigestCommandImpl`), `user-knowledge` (`GenerateUserKnowledgeSummaryCommandImpl`) | `knowledge-contracts` (форма), `knowledge-confidence` (чтение) |
+| `FindUserKnowledgePort`, `UserKnowledge` | read-модель знаний (`knowledge-confidence`); потребители — `profile-dossier` (`ProcessProfileCommandImpl`, для цели и для запрашивающего), `ai-answer` (`GenerateAnswerCommand`), `chat-news-digest` (`ProcessNewsDigestCommandImpl`), `user-knowledge` (`GenerateUserKnowledgeSummaryCommandImpl`), `daily-greetings` (`GenerateGreetingTextCommandImpl`) | `knowledge-contracts` (форма), `knowledge-confidence` (чтение) |
+| `FindChatKnowledgeSummaryPort`, `ChatKnowledge` | `profile-dossier` (темы чата), `chat-news-digest`, `daily-greetings`, `ai-answer` (по решению) | `knowledge-contracts` (форма), `knowledge-confidence` (чтение) |
 | `UserKnowledgeSummaryFormatter` | единственная реализация маркеров знаний; рендерит список фактов в секции `Из общения:` (`knowledge-summary`) | `knowledge-summary` |
 | `FindUserBirthdayFactsPort` | birthday-ветка поздравлений (`daily-greetings`) | `knowledge-confidence` |
 | `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `message-storage` (актуализация профилей), `profile-dossier` (досье без сохранённого профиля) | `vk-profiles` |
@@ -137,8 +159,9 @@ forward от бота) — named gap, а не дефект досье. В `journ
 
 - `answer-decision` — producer события `PROFILE_REQUESTED` (ветка `profile` после `requiredAnswer=true`).
 - `message-storage` — in-process чтение авторов чата, статистики и истории профиля; схема и данные.
-- `user-knowledge` — `FindUserKnowledgePort` и `UserKnowledgeSummaryFormatter` для секции `Из общения:`
-  (знания только читаются, в VK-профиль не пишутся).
+- `user-knowledge` — `FindUserKnowledgePort`, `FindChatKnowledgeSummaryPort` и
+  `UserKnowledgeSummaryFormatter` для секций `Из общения:`, `Темы чата:`, `Знания запрашивающего:` (знания
+  и сводка только читаются, в VK-профиль не пишутся).
 - `vk-profiles` — live-порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` для отсутствующего
   сохранённого профиля (ответ не сохраняется).
 - `event-dispatch` — доставка события и публикация `ANSWER_MESSAGE`.
@@ -157,6 +180,10 @@ forward от бота) — named gap, а не дефект досье. В `journ
 - ADR 2026-11-10-profile-dossier — решение «досье»: детерминированный резолв, LLM только текст, один новый output-порт, PII-egress, always-on.
 - ADR 2026-11-11-knowledge-read-model — форма `FindUserKnowledgePort` и `summaryFresh`: досье читает карточки и сводку одним вызовом.
 - ADR 2026-11-11-profile-knowledge-overlay — overlay на чтении: секция `Из общения:`, приоритет свежей сводки, fail-open опционального чтения; `Amends` ADR 2026-11-10-profile-dossier.
+- ADR 2026-11-13-profile-dossier-context — знания цели глобальны по пользователю, `Темы чата:` и контекст
+  запрашивающего (`Кто запрашивает:`, `Знания запрашивающего:`) с правилом «только человек, не бот, не
+  цель» и fail-open каждого чтения; `Amends` ADR 2026-11-10-profile-dossier и ADR
+  2026-11-11-profile-knowledge-overlay.
 
 ## Acceptance criteria
 
@@ -288,6 +315,35 @@ forward от бота) — named gap, а не дефект досье. В `journ
   (`rendersHistoricalFactAsPreviously`, `rendersConflictingFactsAsContradictory`); команда
   `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"`.
 
+- **AC-PROFILE-4** — КОГДА у цели есть знания, а у чата — сохранённая сводка, СИСТЕМА ДОЛЖНА читать
+  знания цели глобально по `userId` (без фильтра `peer_id`), добавить секцию `Темы чата:` со сводкой чата
+  как есть и не менять `Из общения:`; при пустой сводке секции нет. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  (`renders chat topics and the requester context after the target knowledge`),
+  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  (`answer includes facts learned in another chat and the chat topics`); команды
+  `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"` и
+  `./gradlew --console=plain :src:app:test --tests "*ProfileCommandIntegration*"`.
+- **AC-PROFILE-5** — КОГДА запрос пришёл от человека, который не является целью, СИСТЕМА ДОЛЖНА добавить
+  секции `Кто запрашивает:` (allowlist-рендер его профиля) и `Знания запрашивающего:` (свежая сводка либо
+  список фактов) после `Темы чата:`; КОГДА запрашивающий — бот или совпадает с целью, контекст не
+  читается и секций нет; для группы контекст запрашивающего рендерится тем же правилом. Tests:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  (`renders chat topics and the requester context after the target knowledge`,
+  `renders requester context in a group dossier without statistics`),
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  (`readsRequesterProfileAndKnowledgeForAUser`, `doesNotReadRequesterContextForTheTarget`,
+  `doesNotReadRequesterContextForTheBot`).
+- **AC-PROFILE-6** — КОГДА чтение сводки чата или контекста запрашивающего бросило `RuntimeException`,
+  СИСТЕМА ДОЛЖНА записать ровно один WARNING без значений (соответственно
+  `Profile chat knowledge read failed for peerId=<peerId>` и
+  `Profile requester read failed for peerId=<peerId> requesterId=<id>`) и опубликовать досье без
+  соответствующей секции; `InterruptedException` восстанавливает флаг и пробрасывается. Test:
+  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  (`publishesTheProfileWithoutChatTopicsWhenTheReadFails`,
+  `publishesTheProfileWithoutRequesterContextWhenTheReadFails`,
+  `publishesTheProfileWithoutKnowledgeWhenTheReadFails`).
+
 ## Пробелы приёмки
 
 - **Сопоставление по имени — эвристика префикса/основы:** lowercase, `ё → е`, срезание хвоста гласных и
@@ -309,6 +365,11 @@ forward от бота) — named gap, а не дефект досье. В `journ
   в LLM-промпт и в INFO/OTLP-логи провайдера — принятый риск ADR 2026-11-10-profile-dossier.
 - **Наблюдаемость:** новых метрик и спанов нет; логи — ERROR при отказе LLM и WARNING при сбое чтения
   знаний (только `peerId`, `targetId` и простое имя класса исключения). Отдельного INFO-лога успеха нет.
+- **Контекст запрашивающего — это его собственные данные в чужом чате:** в групповом чате ответ читают
+  все, поэтому профиль и знания автора запроса видны участникам; это осознанный компромисс «ответ под
+  автора», а не утечка. Апгрейд — не показывать контекст запрашивающего в групповых чатах, если понадобится.
+- **Сводка чата — свободный LLM-текст:** запрет инструкций — правило промпта, а не структурная изоляция;
+  prompt-injection через тело сводки не исключён (как и у остальных знаний).
 - **Fail-open только для опционального чтения знаний:** сбой `FindUserKnowledgePort` не валит команду и
   не ретраится брокером — досье публикуется без секции `Из общения:`. Ошибки профиля, статистики,
   истории, публикации и LLM по-прежнему уходят в retry-лестницу (`Amends` ADR 2026-11-10-profile-dossier).

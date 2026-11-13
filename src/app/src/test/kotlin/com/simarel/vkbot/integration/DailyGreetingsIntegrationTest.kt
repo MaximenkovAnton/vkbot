@@ -17,6 +17,7 @@ import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfi
 import com.simarel.vkbot.persistence.domain.entity.MessageEntity
 import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
+import com.simarel.vkbot.share.port.output.persistence.SaveChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.SaveUserFactsPort
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.objectProvider.ObjectMapperProvider
@@ -59,6 +60,9 @@ class DailyGreetingsIntegrationTest {
 
     @Inject
     lateinit var saveUserFactsPort: SaveUserFactsPort
+
+    @Inject
+    lateinit var saveChatKnowledgeSummaryPort: SaveChatKnowledgeSummaryPort
 
     private val wireMock: WireMockServer
         get() = WireMockTestResource.wireMockServer
@@ -277,6 +281,68 @@ class DailyGreetingsIntegrationTest {
         assertEquals(1, greetingLogRows(date, GROUP_CHAT_ONE))
     }
 
+    @Test
+    fun `new year greeting prompt carries the chat facts`() {
+        seedMessage(fromId = 201, peerId = GROUP_CHAT_ONE)
+        saveChatSummary(GROUP_CHAT_ONE, "В чате обсуждают футбол и дачу.")
+        stubChatReply("С Новым годом!")
+
+        val response = runFor(LocalDate.parse("2026-01-01"))
+
+        assertEquals(1, response.sent)
+        val prompt = chatPrompts().single()
+        assertTrue(prompt.contains("Факты о чате:"), prompt)
+        assertTrue(prompt.contains("В чате обсуждают футбол и дачу."), prompt)
+        assertTrue(!prompt.contains("Факты о человеке:"), prompt)
+    }
+
+    @Test
+    fun `birthday greeting prompt carries the chat facts and the personal facts`() {
+        seedProfile(102, "Анна", "Иванова", "12.09.1990")
+        seedMessage(fromId = 102, peerId = GROUP_CHAT_ONE)
+        saveChatSummary(GROUP_CHAT_ONE, "В чате обсуждают футбол.")
+        saveUserFact(userId = 102, factKey = "interest_chess", value = "шахматы")
+        stubChatReply("С днём рождения, Анна Иванова!")
+
+        val response = runFor(LocalDate.parse("2026-09-12"))
+
+        assertEquals(1, response.sent)
+        val prompt = chatPrompts().single()
+        assertTrue(prompt.contains("- Анна Иванова"), prompt)
+        assertTrue(prompt.contains("Факты о человеке:"), prompt)
+        assertTrue(prompt.contains("шахматы"), prompt)
+        assertTrue(prompt.contains("Факты о чате:"), prompt)
+        assertTrue(prompt.contains("В чате обсуждают футбол."), prompt)
+    }
+
+    private fun saveChatSummary(peerId: Long, summary: String) {
+        saveChatKnowledgeSummaryPort.execute(
+            FakePersistencePortProvider.createSaveChatKnowledgeSummaryRequest(
+                peerId = peerId,
+                summaryText = summary,
+            ),
+        )
+    }
+
+    private fun saveUserFact(userId: Long, factKey: String, value: String) {
+        saveUserFactsPort.execute(
+            FakePersistencePortProvider.createSaveUserFactsRequest(
+                candidates = listOf(
+                    FakeModelProvider.createUserFactCandidate(
+                        userId = userId,
+                        peerId = GROUP_CHAT_ONE,
+                        category = UserFactCategory.INTEREST,
+                        factKey = factKey,
+                        value = value,
+                        sourceKind = KnowledgeSourceKind.SELF_STATEMENT,
+                        confidence = 0.95,
+                        observedAt = OffsetDateTime.now(),
+                    ),
+                ),
+            ),
+        )
+    }
+
     private fun saveBirthdayFact() {
         saveUserFactsPort.execute(
             FakePersistencePortProvider.createSaveUserFactsRequest(
@@ -360,6 +426,8 @@ class DailyGreetingsIntegrationTest {
                 statement.executeUpdate("DELETE FROM messages")
                 statement.executeUpdate("DELETE FROM vk_user_profiles")
                 statement.executeUpdate("DELETE FROM user_facts")
+                statement.executeUpdate("DELETE FROM user_knowledge_summary")
+                statement.executeUpdate("DELETE FROM chat_knowledge_summary")
             }
         }
     }

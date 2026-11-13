@@ -8,6 +8,7 @@ import com.simarel.vkbot.greetings.domain.NameFormatter
 import com.simarel.vkbot.share.command.Command
 import com.simarel.vkbot.share.command.CommandRequest
 import com.simarel.vkbot.share.command.CommandResponse
+import com.simarel.vkbot.share.domain.model.greeting.GreetingPerson
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactStatus
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.PeerId
@@ -53,8 +54,7 @@ open class CollectGreetingPlansCommandImpl(
             .flatMap { peerId ->
                 val holidayGreetings = holidaysByPeer[peerId].orEmpty()
                     .map { holiday -> GreetingPlan.HolidayGreeting(peerId, holiday) }
-                val birthdayGreeting = birthdaysByPeer[peerId]
-                    ?.let { names -> GreetingPlan.BirthdayGreeting(peerId, names.sorted()) }
+                val birthdayGreeting = birthdaysByPeer[peerId]?.let { people -> birthdayPlan(peerId, people) }
                 holidayGreetings + listOfNotNull(birthdayGreeting)
             }
 
@@ -69,8 +69,16 @@ open class CollectGreetingPlansCommandImpl(
             .associateWith { holidays }
     }
 
-    private fun birthdaysByPeer(date: LocalDate): Map<PeerId, Set<String>> {
-        val birthdaysByPeer = mutableMapOf<PeerId, MutableSet<String>>()
+    private fun birthdayPlan(peerId: PeerId, people: Map<Long, String>): GreetingPlan.BirthdayGreeting {
+        val sorted = people.entries.sortedBy { it.value }.distinctBy { (_, name) -> name }
+        return GreetingPlan.BirthdayGreeting(
+            peerId = peerId,
+            people = sorted.map { (userId, name) -> GreetingPerson(name = name, fromId = FromId.of(userId)) },
+        )
+    }
+
+    private fun birthdaysByPeer(date: LocalDate): Map<PeerId, Map<Long, String>> {
+        val birthdaysByPeer = mutableMapOf<PeerId, MutableMap<Long, String>>()
         val vkUserIds = mutableSetOf<Long>()
         BirthdayDates.monthDaysFor(date).forEach { monthDay ->
             findUserProfilesByBirthDate.execute(
@@ -84,7 +92,7 @@ open class CollectGreetingPlansCommandImpl(
                     return@forEach
                 }
                 chats.forEach { peerId ->
-                    birthdaysByPeer.getOrPut(peerId) { mutableSetOf() }.add(name)
+                    birthdaysByPeer.getOrPut(peerId) { mutableMapOf() }[profile.id.value] = name
                 }
             }
         }
@@ -97,7 +105,7 @@ open class CollectGreetingPlansCommandImpl(
     private fun mergeHiddenBirthdays(
         date: LocalDate,
         vkUserIds: Set<Long>,
-        birthdaysByPeer: MutableMap<PeerId, MutableSet<String>>,
+        birthdaysByPeer: MutableMap<PeerId, MutableMap<Long, String>>,
     ) {
         val hiddenByPeer = try {
             hiddenBirthdaysByPeer(date, vkUserIds)
@@ -108,12 +116,12 @@ open class CollectGreetingPlansCommandImpl(
             logger.log(Level.WARNING, "Hidden birthday facts read failed (${exception.javaClass.name})")
             return
         }
-        hiddenByPeer.forEach { (peerId, names) ->
-            birthdaysByPeer.getOrPut(peerId) { mutableSetOf() }.addAll(names)
+        hiddenByPeer.forEach { (peerId, people) ->
+            birthdaysByPeer.getOrPut(peerId) { mutableMapOf() }.putAll(people)
         }
     }
 
-    private fun hiddenBirthdaysByPeer(date: LocalDate, vkUserIds: Set<Long>): Map<PeerId, Set<String>> {
+    private fun hiddenBirthdaysByPeer(date: LocalDate, vkUserIds: Set<Long>): Map<PeerId, Map<Long, String>> {
         val hiddenByUser = BirthdayDates.monthDaysFor(date)
             .flatMap { monthDay ->
                 findUserBirthdayFacts.execute(FindUserBirthdayFactsPort.Request(monthDay)).facts
@@ -126,7 +134,7 @@ open class CollectGreetingPlansCommandImpl(
         val profilesById = findStoredUserProfiles.execute(
             FindStoredUserProfilesByIdsPort.Request(hiddenByUser.keys.map { userId -> FromId.of(userId) }),
         ).profiles.associateBy { profile -> profile.id.value }
-        val hiddenByPeer = mutableMapOf<PeerId, MutableSet<String>>()
+        val hiddenByPeer = mutableMapOf<PeerId, MutableMap<Long, String>>()
         hiddenByUser.forEach { (userId, _) ->
             val profile = profilesById[userId]
             if (profile == null) {
@@ -142,7 +150,7 @@ open class CollectGreetingPlansCommandImpl(
                 return@forEach
             }
             val name = NameFormatter.format(profile)
-            chats.forEach { peerId -> hiddenByPeer.getOrPut(peerId) { mutableSetOf() }.add(name) }
+            chats.forEach { peerId -> hiddenByPeer.getOrPut(peerId) { mutableMapOf() }[userId] = name }
         }
         return hiddenByPeer
     }

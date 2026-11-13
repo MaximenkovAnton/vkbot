@@ -6,6 +6,7 @@ import com.simarel.vkbot.ai.port.output.profile.ProfileAnswerGenerationRequest
 import com.simarel.vkbot.ai.port.output.profile.ProfileAnswerGenerationResponse
 import com.simarel.vkbot.ai.testfixtures.FakeConversationContextPortProvider
 import com.simarel.vkbot.ai.testfixtures.FakeProfileProvider
+import com.simarel.vkbot.ai.testfixtures.port.knowledge.FakeFindChatKnowledgeSummaryPort
 import com.simarel.vkbot.ai.testfixtures.port.knowledge.FakeFindUserKnowledgePort
 import com.simarel.vkbot.share.command.publishEvent.PublishEventCommand
 import com.simarel.vkbot.share.domain.Event
@@ -19,6 +20,7 @@ import com.simarel.vkbot.share.domain.model.VkUserProfile
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactStatus
 import com.simarel.vkbot.share.port.output.persistence.FindChatAuthorsPort
+import com.simarel.vkbot.share.port.output.persistence.FindChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredGroupProfilesByIdsPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfileHistoryPort
 import com.simarel.vkbot.share.port.output.persistence.FindStoredUserProfilesByIdsPort
@@ -57,6 +59,7 @@ private const val ANSWER_TEXT = "profile answer"
 private const val NO_TARGET_REPLY = "Уточните, о ком речь: имя, @упоминание, id или пересланное сообщение."
 private val REQUEST_DATE: OffsetDateTime = OffsetDateTime.parse("2026-11-10T12:00:00Z")
 
+@Suppress("LargeClass")
 class ProcessProfileCommandImplTest {
 
     @Test
@@ -72,7 +75,8 @@ class ProcessProfileCommandImplTest {
             generation = generation,
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-        assertEquals(listOf(FakeVoProvider.createFromId(7600001)), storedUserProfiles.requests.single().ids)
+        assertEquals(listOf(FakeVoProvider.createFromId(7600001)), storedUserProfiles.requests.first().ids)
+        assertEquals(listOf(FakeVoProvider.createFromId(AUTHOR_ID)), storedUserProfiles.requests.last().ids)
         assertEquals(1, generation.requests.size)
         assertEquals(message.messageText.value, generation.requests.single().question)
         assertSingleAnswer(publish, ANSWER_TEXT, message)
@@ -127,7 +131,7 @@ class ProcessProfileCommandImplTest {
                 generation = generation,
             ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-            assertEquals(listOf(FakeVoProvider.createFromId(7000002)), storedUserProfiles.requests.single().ids)
+            assertEquals(listOf(FakeVoProvider.createFromId(7000002)), storedUserProfiles.requests.first().ids)
             assertEquals(1, generation.requests.size)
             assertSingleAnswer(publish, ANSWER_TEXT, message)
         }
@@ -148,7 +152,7 @@ class ProcessProfileCommandImplTest {
             generation = generation,
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-        assertEquals(listOf(FakeVoProvider.createFromId(7000003)), storedUserProfiles.requests.single().ids)
+        assertEquals(listOf(FakeVoProvider.createFromId(7000003)), storedUserProfiles.requests.first().ids)
         assertEquals(1, generation.requests.size)
         assertSingleAnswer(publish, ANSWER_TEXT, message)
     }
@@ -175,7 +179,7 @@ class ProcessProfileCommandImplTest {
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
         assertEquals(listOf(FakeVoProvider.createFromId(-232142876)), storedGroupProfiles.requests.single().ids)
-        assertTrue(storedUserProfiles.requests.isEmpty())
+        assertEquals(listOf(FakeVoProvider.createFromId(AUTHOR_ID)), storedUserProfiles.requests.single().ids)
         assertTrue(statistics.requests.isEmpty())
         assertTrue(history.requests.isEmpty())
         assertEquals(1, generation.requests.size)
@@ -432,8 +436,9 @@ class ProcessProfileCommandImplTest {
             knowledge = knowledgePort,
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-        assertEquals(1, knowledgePort.executeCalls.size)
-        assertEquals(listOf(FakeVoProvider.createFromId(7600001)), knowledgePort.executeCalls.single().userIds)
+        assertEquals(2, knowledgePort.executeCalls.size)
+        assertEquals(listOf(FakeVoProvider.createFromId(7600001)), knowledgePort.executeCalls.first().userIds)
+        assertEquals(listOf(FakeVoProvider.createFromId(AUTHOR_ID)), knowledgePort.executeCalls.last().userIds)
         val data = generation.requests.single().data
         assertTrue(data.contains("Город: Москва"))
         assertTrue(data.contains("Из общения:"))
@@ -458,7 +463,8 @@ class ProcessProfileCommandImplTest {
             knowledge = knowledgePort,
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-        assertTrue(knowledgePort.executeCalls.isEmpty())
+        assertEquals(1, knowledgePort.executeCalls.size)
+        assertEquals(listOf(FakeVoProvider.createFromId(AUTHOR_ID)), knowledgePort.executeCalls.single().userIds)
         assertFalse(generation.requests.single().data.contains("Из общения:"))
         assertEquals(1, generation.requests.size)
     }
@@ -480,7 +486,7 @@ class ProcessProfileCommandImplTest {
 
     @Test
     fun `publishesTheProfileWithoutKnowledgeWhenTheReadFails`() {
-        val message = message("что ты знаешь о [id7600001|@pasha]")
+        val message = message("что ты знаешь о [id7600001|@pasha]", fromId = 7600001)
         val publish = FakePublishEventCommand()
         val generation = RecordingProfileAnswerGenerationPort()
         val knowledgePort = FakeFindUserKnowledgePort().apply {
@@ -514,6 +520,151 @@ class ProcessProfileCommandImplTest {
         val data = generation.requests.single().data
         assertFalse(data.contains("Из общения:"))
         assertFalse(data.contains("футбол"))
+    }
+
+    @Test
+    fun `readsRequesterProfileAndKnowledgeForAUser`() {
+        val message = message("что ты знаешь о [id7600001|@pasha]")
+        val publish = FakePublishEventCommand()
+        val generation = RecordingProfileAnswerGenerationPort()
+        val storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(
+            listOf(
+                userProfile(7600001),
+                userProfile(AUTHOR_ID, firstName = "Анна", lastName = "Смирнова"),
+            ),
+        )
+        val knowledgePort = FakeFindUserKnowledgePort().apply {
+            knowledge = mapOf(
+                FakeVoProvider.createFromId(7600001) to FakeModelProvider.createUserKnowledge(
+                    facts = listOf(FakeModelProvider.createUserFact(value = "футбол")),
+                ),
+                FakeVoProvider.createFromId(AUTHOR_ID) to FakeModelProvider.createUserKnowledge(
+                    facts = listOf(FakeModelProvider.createUserFact(value = "шахматы")),
+                ),
+            )
+        }
+        val chatKnowledge = FakeFindChatKnowledgeSummaryPort().apply {
+            knowledge = FakeModelProvider.createChatKnowledge(peerId = PEER_ID, summary = "В чате обсуждают дачу")
+        }
+
+        command(
+            publish = publish,
+            storedUserProfiles = storedUserProfiles,
+            knowledge = knowledgePort,
+            chatKnowledge = chatKnowledge,
+            generation = generation,
+        ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+        assertEquals(
+            listOf(listOf(7600001L), listOf(AUTHOR_ID)),
+            knowledgePort.executeCalls.map { request -> request.userIds.map { id -> id.value } },
+        )
+        assertEquals(
+            listOf(listOf(7600001L), listOf(AUTHOR_ID)),
+            storedUserProfiles.requests.map { request -> request.ids.map { id -> id.value } },
+        )
+        val data = generation.requests.single().data
+        assertTrue(data.contains("Темы чата:"), data)
+        assertTrue(data.contains("В чате обсуждают дачу"), data)
+        assertTrue(data.contains("Кто запрашивает:"), data)
+        assertTrue(data.contains("Анна Смирнова"), data)
+        assertTrue(data.contains("Знания запрашивающего:"), data)
+        assertTrue(data.contains("шахматы"), data)
+    }
+
+    @Test
+    fun `doesNotReadRequesterContextForTheTarget`() {
+        val message = message("что ты знаешь о [id7600001|@pasha]", fromId = 7600001)
+        val generation = RecordingProfileAnswerGenerationPort()
+        val storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(listOf(userProfile(7600001)))
+        val knowledgePort = FakeFindUserKnowledgePort()
+
+        command(
+            storedUserProfiles = storedUserProfiles,
+            knowledge = knowledgePort,
+            generation = generation,
+        ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+        assertEquals(1, storedUserProfiles.requests.size)
+        assertEquals(1, knowledgePort.executeCalls.size)
+        assertFalse(generation.requests.single().data.contains("Кто запрашивает:"))
+        assertFalse(generation.requests.single().data.contains("Знания запрашивающего:"))
+    }
+
+    @Test
+    fun `doesNotReadRequesterContextForTheBot`() {
+        val message = message("что ты знаешь о [id7600001|@pasha]", fromId = BOT_ID)
+        val generation = RecordingProfileAnswerGenerationPort()
+        val storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(listOf(userProfile(7600001)))
+        val knowledgePort = FakeFindUserKnowledgePort()
+
+        command(
+            storedUserProfiles = storedUserProfiles,
+            knowledge = knowledgePort,
+            generation = generation,
+        ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+        assertEquals(1, storedUserProfiles.requests.size)
+        assertEquals(1, knowledgePort.executeCalls.size)
+        assertFalse(generation.requests.single().data.contains("Кто запрашивает:"))
+    }
+
+    @Test
+    fun `publishesTheProfileWithoutChatTopicsWhenTheReadFails`() {
+        val message = message("что ты знаешь о [id7600001|@pasha]")
+        val publish = FakePublishEventCommand()
+        val generation = RecordingProfileAnswerGenerationPort()
+        val chatKnowledge = FakeFindChatKnowledgeSummaryPort().apply {
+            failure = IllegalStateException("boom")
+        }
+
+        JulCapture(ProcessProfileCommandImpl::class.java.name).use { logs ->
+            command(
+                publish = publish,
+                storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(listOf(userProfile(7600001))),
+                chatKnowledge = chatKnowledge,
+                generation = generation,
+            ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+            val logged = logs.records.single()
+            assertEquals(Level.WARNING, logged.level)
+            assertEquals(
+                "Profile chat knowledge read failed for peerId=2600000001: IllegalStateException",
+                logged.message,
+            )
+        }
+
+        assertEquals(ANSWER_TEXT, publishedText(publish))
+        assertFalse(generation.requests.single().data.contains("Темы чата:"))
+    }
+
+    @Test
+    fun `publishesTheProfileWithoutRequesterContextWhenTheReadFails`() {
+        val message = message("что ты знаешь о [id7600001|@pasha]")
+        val publish = FakePublishEventCommand()
+        val generation = RecordingProfileAnswerGenerationPort()
+        val storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(
+            listOf(userProfile(7600001)),
+            failureFor = setOf(AUTHOR_ID),
+        )
+
+        JulCapture(ProcessProfileCommandImpl::class.java.name).use { logs ->
+            command(
+                publish = publish,
+                storedUserProfiles = storedUserProfiles,
+                generation = generation,
+            ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+            val logged = logs.records.single()
+            assertEquals(Level.WARNING, logged.level)
+            assertEquals(
+                "Profile requester read failed for peerId=2600000001 requesterId=7600009: IllegalStateException",
+                logged.message,
+            )
+        }
+
+        assertEquals(ANSWER_TEXT, publishedText(publish))
+        assertFalse(generation.requests.single().data.contains("Кто запрашивает:"))
     }
 
     @Test
@@ -710,6 +861,7 @@ class ProcessProfileCommandImplTest {
         statistics: FindStoredUserStatisticsPort = RecordingFindStoredUserStatisticsPort(),
         history: FindStoredUserProfileHistoryPort = RecordingFindStoredUserProfileHistoryPort(),
         knowledge: FindUserKnowledgePort = FakeFindUserKnowledgePort(),
+        chatKnowledge: FindChatKnowledgeSummaryPort = FakeFindChatKnowledgeSummaryPort(),
         userProfilesBatch: GetUserProfilesBatchPort = RecordingGetUserProfilesBatchPort(),
         groupProfilesBatch: GetGroupProfilesBatchPort = RecordingGetGroupProfilesBatchPort(),
         generation: ProfileAnswerGenerationPort = RecordingProfileAnswerGenerationPort(),
@@ -721,6 +873,7 @@ class ProcessProfileCommandImplTest {
         findStoredUserStatisticsPort = statistics,
         findStoredUserProfileHistoryPort = history,
         findUserKnowledgePort = knowledge,
+        findChatKnowledgeSummaryPort = chatKnowledge,
         getUserProfilesBatchPort = userProfilesBatch,
         getGroupProfilesBatchPort = groupProfilesBatch,
         profileAnswerGenerationPort = generation,
@@ -743,6 +896,7 @@ class ProcessProfileCommandImplTest {
 
     private class RecordingFindStoredUserProfilesByIdsPort(
         private val profiles: List<VkUserProfile> = emptyList(),
+        private val failureFor: Set<Long> = emptySet(),
     ) : FindStoredUserProfilesByIdsPort {
         val requests = ConcurrentLinkedQueue<FindStoredUserProfilesByIdsPort.Request>()
 
@@ -750,7 +904,13 @@ class ProcessProfileCommandImplTest {
             request: FindStoredUserProfilesByIdsPort.Request,
         ): FindStoredUserProfilesByIdsPort.Response {
             requests.add(request)
-            return FakeConversationContextPortProvider.createFindUserProfilesByIdsResponse(profiles)
+            if (request.ids.any { id -> id.value in failureFor }) {
+                error("boom")
+            }
+            val requested = request.ids.map { id -> id.value }.toSet()
+            return FakeConversationContextPortProvider.createFindUserProfilesByIdsResponse(
+                profiles.filter { profile -> profile.id.value in requested },
+            )
         }
     }
 

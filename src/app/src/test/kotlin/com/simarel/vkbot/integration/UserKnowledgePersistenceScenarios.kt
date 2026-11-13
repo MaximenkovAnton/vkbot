@@ -135,14 +135,14 @@ fun UserKnowledgePersistenceFixtures.conflictWindowStart(userId: Long, peerId: L
             KnowledgeSourceKind.SELF_STATEMENT, 0.9, 201, "2026-01-01T00:00:00Z",
         ),
     )
-    assertCard(userId, "футбол", 0.900, "CONFIRMED", 1, false, 0.900)
+    assertCard(userId, "футбол", 0.800, "CONFIRMED", 1, false, 0.800)
     val footballUpdatedBefore = fact(userId, "футбол").asTimestamp("updated_at")
 
     saveSingle(
         sportCandidate(userId, peerId, "теннис", KnowledgeSourceKind.SELF_STATEMENT, 0.9, 202, "2026-06-01T00:00:00Z"),
     )
-    assertCard(userId, "футбол", 0.750, "CANDIDATE", 1, true, 0.900)
-    assertCard(userId, "теннис", 0.750, "CANDIDATE", 1, true, 0.900)
+    assertCard(userId, "футбол", 0.650, "CANDIDATE", 1, true, 0.800)
+    assertCard(userId, "теннис", 0.650, "CANDIDATE", 1, true, 0.800)
     assertTrue(fact(userId, "футбол").asTimestamp("updated_at").isAfter(footballUpdatedBefore))
 }
 
@@ -152,20 +152,20 @@ fun UserKnowledgePersistenceFixtures.conflictWindowConfirmation(userId: Long, pe
     saveSingle(
         sportCandidate(userId, peerId, "теннис", KnowledgeSourceKind.SELF_STATEMENT, 0.9, 203, "2026-06-02T00:00:00Z"),
     )
-    assertCard(userId, "теннис", 1.000, "CONFIRMED", 2, false, 0.900)
-    assertCard(userId, "футбол", 0.750, "CANDIDATE", 1, true, 0.900)
+    assertCard(userId, "теннис", 0.900, "CONFIRMED", 2, false, 0.800)
+    assertCard(userId, "футбол", 0.650, "CANDIDATE", 1, true, 0.800)
     assertTrue(fact(userId, "теннис").asTimestamp("updated_at").isAfter(tennisUpdatedBefore))
 
     saveSingle(
         sportCandidate(userId, peerId, "шахматы", KnowledgeSourceKind.INFERENCE, 0.6, 204, "2026-06-03T00:00:00Z"),
     )
-    assertCard(userId, "шахматы", 0.450, "CANDIDATE", 1, true, 0.600)
-    assertCard(userId, "теннис", 0.850, "CANDIDATE", 2, true, 0.900)
+    assertCard(userId, "шахматы", 0.250, "CANDIDATE", 1, true, 0.400)
+    assertCard(userId, "теннис", 0.750, "CANDIDATE", 2, true, 0.800)
 
     saveSingle(
         sportCandidate(userId, peerId, "шахматы", KnowledgeSourceKind.INFERENCE, 0.1, 205, "2026-06-04T00:00:00Z"),
     )
-    assertCard(userId, "шахматы", 0.550, "CANDIDATE", 2, true, 0.600)
+    assertCard(userId, "шахматы", 0.350, "CANDIDATE", 2, true, 0.400)
 }
 
 fun UserKnowledgePersistenceFixtures.revivalOlderStep(userId: Long, peerId: Long) {
@@ -183,7 +183,7 @@ fun UserKnowledgePersistenceFixtures.revivalOlderStep(userId: Long, peerId: Long
     val older = fact(userId, "футбол")
     assertEquals("HISTORICAL", older.asString("status"))
     assertEquals(2, older.asInt("evidence_count"))
-    assertEquals(1.000, older.asDouble("confidence"), 0.0000001)
+    assertEquals(0.900, older.asDouble("confidence"), 0.0000001)
     assertEquals(
         OffsetDateTime.parse("2026-08-01T00:00:00Z").toInstant(),
         older.asTimestamp("superseded_at").toInstant(),
@@ -214,12 +214,12 @@ fun UserKnowledgePersistenceFixtures.repeatedDeliveryKeepsSecondCardStable(userI
         KnowledgeSourceKind.SELF_STATEMENT, 0.9, 201, "2026-06-02T00:00:00Z",
     )
     assertEquals(1, saveSingle(second).saved)
-    assertCard(userId, "бег", 0.900, "CONFIRMED", 1, false, 0.900)
+    assertCard(userId, "бег", 0.800, "CONFIRMED", 1, false, 0.800)
     val repeated = saveSingle(second)
     assertEquals(0, repeated.saved)
     assertEquals(1, repeated.skipped)
     assertEquals(1, fact(userId, "бег").asInt("evidence_count"))
-    assertEquals(0.900, fact(userId, "бег").asDouble("confidence"), 0.0000001)
+    assertEquals(0.800, fact(userId, "бег").asDouble("confidence"), 0.0000001)
     assertFalse(fact(userId, "бег").asBoolean("conflict"))
 }
 

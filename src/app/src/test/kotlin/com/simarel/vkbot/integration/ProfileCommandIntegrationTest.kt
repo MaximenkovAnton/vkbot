@@ -15,8 +15,10 @@ import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcesso
 import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
+import com.simarel.vkbot.share.port.output.persistence.SaveChatKnowledgeSummaryPort
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
+import com.simarel.vkbot.testfixtures.port.FakePersistencePortProvider
 import io.quarkus.test.common.QuarkusTestResource
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.junit.QuarkusTestProfile
@@ -66,6 +68,9 @@ class ProfileCommandIntegrationTest {
 
     @Inject
     lateinit var processProfileInputPort: ProcessProfileInputPort
+
+    @Inject
+    lateinit var saveChatKnowledgeSummaryPort: SaveChatKnowledgeSummaryPort
 
     private val knowledgeFixtures: UserKnowledgeReadFixtures by lazy { UserKnowledgeReadFixtures(dataSource) }
 
@@ -141,6 +146,39 @@ class ProfileCommandIntegrationTest {
         assertEquals(messagesBefore, countRows(MESSAGES_TABLE))
         assertEquals(knowledgeBefore, knowledgeFixtures.counts(DOSSIER_USER_ID, DOSSIER_PEER_ID))
         assertEquals("Минск", userProfileTable.findByIds(listOf(DOSSIER_USER_ID)).single().city)
+    }
+
+    @Test
+    fun `answer includes facts learned in another chat and the chat topics`() {
+        seedDossier()
+        knowledgeFixtures.insertFact(
+            userId = DOSSIER_USER_ID,
+            value = "Хоккей",
+            lastConfirmedAt = SEEDED_DATE,
+            factKey = "hockey",
+            peerId = OTHER_CHAT_PEER_ID,
+        )
+        saveChatKnowledge(DOSSIER_PEER_ID, "В чате обсуждают дачу")
+        stubChatReply(DOSSIER_REPLY)
+
+        askAbout(DOSSIER_PEER_ID, DOSSIER_USER_ID, DOSSIER_LABEL, DOSSIER_REQUEST_MESSAGE_ID)
+
+        awaitSentMessage(DOSSIER_PEER_ID, DOSSIER_REPLY)
+        val prompt = userPrompt()
+        assertTrue(prompt.contains(KNOWLEDGE_HEADER), prompt)
+        assertTrue(prompt.contains("- Хоккей"), prompt)
+        assertTrue(prompt.contains(TOPICS_HEADER), prompt)
+        assertTrue(prompt.contains("В чате обсуждают дачу"), prompt)
+        assertFalse(prompt.contains(REQUESTER_HEADER), prompt)
+    }
+
+    private fun saveChatKnowledge(peerId: Long, summary: String) {
+        saveChatKnowledgeSummaryPort.execute(
+            FakePersistencePortProvider.createSaveChatKnowledgeSummaryRequest(
+                peerId = peerId,
+                summaryText = summary,
+            ),
+        )
     }
 
     @Test
@@ -403,6 +441,7 @@ class ProfileCommandIntegrationTest {
         const val PROMPT_USER_ID = 7_620_003L
 
         const val DOSSIER_PEER_ID = 2_620_000_001L
+        const val OTHER_CHAT_PEER_ID = 2_620_000_009L
         const val PROMPT_PEER_ID = 2_620_000_002L
         const val LIVE_PEER_ID = 2_620_000_003L
 
@@ -422,6 +461,8 @@ class ProfileCommandIntegrationTest {
 
         const val PROFILE_HEADER = "Профиль:"
         const val KNOWLEDGE_HEADER = "Из общения:"
+        const val TOPICS_HEADER = "Темы чата:"
+        const val REQUESTER_HEADER = "Кто запрашивает:"
         const val STATISTICS_HEADER = "Статистика:"
         const val HISTORY_HEADER = "История изменений:"
         const val CHAT_HEADER = "В этом чате:"

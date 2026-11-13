@@ -15,14 +15,16 @@ interface GreetingTextGenerator {
         """
         Дата: {date}
         Повод: {occasion}
-        Кого поздравляем: {people}
+        Кого поздравляем:
+        {subjects}
 
-        Напиши одно короткое поздравление по-русски: 1–3 предложения, без markdown и списков.
+        Напиши короткое поздравление по-русски, без markdown и списков. Если человек один — 1–3 предложения;
+        если несколько — по одному предложению каждому, с именем.
     """,
     )
     fun generateGreeting(
         @V("date") date: String,
         @V("occasion") occasion: String,
-        @V("people") people: String,
+        @V("subjects") subjects: String,
     ): String
 }

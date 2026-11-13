@@ -13,10 +13,16 @@ sealed interface ProfileDossier {
         val history: List<ProfileHistoryEntry>,
         val chatMessageCount: Long?,
         val knowledge: UserKnowledge,
+        val chatTopics: String? = null,
+        val requesterProfile: VkUserProfile? = null,
+        val requesterKnowledge: UserKnowledge? = null,
     ) : ProfileDossier
 
     data class GroupDossier(
         val profile: VkGroupProfile,
         val chatMessageCount: Long?,
+        val chatTopics: String? = null,
+        val requesterProfile: VkUserProfile? = null,
+        val requesterKnowledge: UserKnowledge? = null,
     ) : ProfileDossier
 }

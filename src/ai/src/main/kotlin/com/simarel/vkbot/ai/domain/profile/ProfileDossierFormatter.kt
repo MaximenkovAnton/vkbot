@@ -32,6 +32,9 @@ private const val WEEK_OFFSET = 1
 
 private const val PROFILE_HEADER = "Профиль:"
 private const val KNOWLEDGE_HEADER = "Из общения:"
+private const val CHAT_TOPICS_HEADER = "Темы чата:"
+private const val REQUESTER_HEADER = "Кто запрашивает:"
+private const val REQUESTER_KNOWLEDGE_HEADER = "Знания запрашивающего:"
 private const val STATISTICS_HEADER = "Статистика:"
 private const val HISTORY_HEADER = "История изменений:"
 private const val CHAT_HEADER = "В этом чате:"
@@ -125,24 +128,40 @@ class ProfileDossierFormatter(private val zoneId: ZoneId) {
 
     private fun userText(dossier: ProfileDossier.UserDossier, peerId: Long): String = listOfNotNull(
         section(PROFILE_HEADER, userProfileLines(dossier.profile)),
-        knowledgeSection(dossier.knowledge),
+        knowledgeSection(KNOWLEDGE_HEADER, dossier.knowledge),
+        chatTopicsSection(dossier.chatTopics),
+        requesterSection(dossier.requesterProfile),
+        dossier.requesterKnowledge?.let { knowledgeSection(REQUESTER_KNOWLEDGE_HEADER, it) },
         section(STATISTICS_HEADER, statisticsLines(dossier.statistics, peerId)),
         section(HISTORY_HEADER, historyLines(dossier.history)),
         dossier.chatMessageCount?.let { section(CHAT_HEADER, chatLines(it)) },
     ).joinToString(SECTION_SEPARATOR)
 
-    private fun knowledgeSection(knowledge: UserKnowledge): String? {
+    private fun knowledgeSection(header: String, knowledge: UserKnowledge): String? {
         val summary = knowledge.summary
         val body = if (knowledge.summaryFresh && !summary.isNullOrBlank()) {
             summary.lines().filter(String::isNotBlank)
         } else {
             UserKnowledgeSummaryFormatter.format(knowledge.facts).lines().filter(String::isNotBlank)
         }
-        return section(KNOWLEDGE_HEADER, body)
+        return section(header, body)
+    }
+
+    private fun chatTopicsSection(topics: String?): String? {
+        val body = topics?.lines()?.filter(String::isNotBlank).orEmpty()
+        return section(CHAT_TOPICS_HEADER, body)
+    }
+
+    private fun requesterSection(profile: VkUserProfile?): String? {
+        val body = profile?.let(::userProfileLines).orEmpty()
+        return section(REQUESTER_HEADER, body)
     }
 
     private fun groupText(dossier: ProfileDossier.GroupDossier): String = listOfNotNull(
         section(PROFILE_HEADER, groupProfileLines(dossier.profile)),
+        chatTopicsSection(dossier.chatTopics),
+        requesterSection(dossier.requesterProfile),
+        dossier.requesterKnowledge?.let { knowledgeSection(REQUESTER_KNOWLEDGE_HEADER, it) },
         dossier.chatMessageCount?.let { section(CHAT_HEADER, chatLines(it)) },
     ).joinToString(SECTION_SEPARATOR)
 

@@ -13,6 +13,7 @@ import com.simarel.vkbot.share.domain.model.SummaryStatus
 import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.share.domain.model.VkGroupProfile
 import com.simarel.vkbot.share.domain.model.VkUserProfile
+import com.simarel.vkbot.share.domain.model.greeting.GreetingPerson
 import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
 import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
 import com.simarel.vkbot.share.domain.model.knowledge.UserFact
@@ -102,6 +103,14 @@ object FakeModelProvider {
         name = name,
         screenName = screenName,
         lastUpdated = lastUpdated,
+    )
+
+    fun createGreetingPerson(
+        name: String = "Иван Петров",
+        fromId: Long? = null,
+    ) = GreetingPerson(
+        name = name,
+        fromId = FakeVoProvider.createFromId(fromId),
     )
 
     fun createResponseMessage(

@@ -9,6 +9,7 @@ import com.simarel.vkbot.greetings.test.FakeSendGreetingMessage
 import com.simarel.vkbot.greetings.test.SystemLoggerCapture
 import com.simarel.vkbot.greetings.testfixtures.FakeGreetingProvider
 import com.simarel.vkbot.share.domain.vo.MessageText
+import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,7 +24,10 @@ class RunDailyGreetingsUsecaseTest {
     fun `one plan is sent as one message`() {
         val peerId = FakeVoProvider.createPeerId(2_000_000_001)
         val send = FakeSendGreetingMessage()
-        val plan = FakeGreetingProvider.createBirthdayGreetingPlan(peerId = peerId, people = listOf("Иван Петров"))
+        val plan = FakeGreetingProvider.createBirthdayGreetingPlan(
+            peerId = peerId,
+            people = listOf(FakeModelProvider.createGreetingPerson(name = "Иван Петров")),
+        )
 
         val response = usecase(plans = listOf(plan), send = send)
             .execute(FakeGreetingProvider.createRunDailyGreetingsRequest(DATE))

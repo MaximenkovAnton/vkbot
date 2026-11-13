@@ -12,9 +12,9 @@ object FactConfidenceCalculator {
     const val MAX_CONFIDENCE = 1.0
     const val SCALE = 3
 
-    private const val SELF_WEIGHT = 1.0
-    private const val OTHER_WEIGHT = 0.8
-    private const val INFERENCE_WEIGHT = 0.6
+    private const val SELF_WEIGHT = 0.8
+    private const val OTHER_WEIGHT = 0.6
+    private const val INFERENCE_WEIGHT = 0.4
 
     fun clamp(sourceKind: KnowledgeSourceKind, confidence: Double): Double {
         val weight = when (sourceKind) {

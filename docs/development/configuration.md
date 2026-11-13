@@ -60,7 +60,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `knowledge.batch-interval` | `${KNOWLEDGE_BATCH_INTERVAL:30m}` | `minInterval` политики батча; читается как `java.time.Duration` (конвертер Quarkus понимает `30m`, `90s`, `1h30m`) | `processor/command/knowledge/RequestKnowledgeExtractionCommand.kt` |
 | `knowledge.excluded-chat-ids` | `${KNOWLEDGE_EXCLUDED_CHAT_IDS:}` | peerId через запятую, чьи сообщения не запускают извлечение; пусто — никого не исключаем; кривой id валит старт, а не проглатывается fail-open | там же |
 | `knowledge.prompt-max-chars` | `${KNOWLEDGE_PROMPT_MAX_CHARS:12000}` | общий лимит символов промпта извлечения фактов и сводки чата: длинные сообщения усекаются поровну, чтобы окно не превысило контекст модели; `0` — без ограничения | `ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt`, `ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt` |
-| `knowledge.confirm-threshold` | `${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}` | порог `confidence`, при котором карточка факта становится `CONFIRMED`, иначе `CANDIDATE`; читает `KnowledgeConfig` (`confirmThreshold: Double = 0.8`) | `persistence/config/KnowledgeConfig.kt` (`FactConfidenceCalculator.status`) |
+| `knowledge.confirm-threshold` | `${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}` | порог `confidence`, при котором карточка факта становится `CONFIRMED`, иначе `CANDIDATE`; веса источников — SELF 0.8, OTHER/CONGRATULATION 0.6, INFERENCE 0.4 (ADR 2026-11-13-fact-confidence-lowered), поэтому одно самоописание даёт ровно порог, а чужие слова и выводы требуют подтверждений; читает `KnowledgeConfig` (`confirmThreshold: Double = 0.8`) | `persistence/config/KnowledgeConfig.kt` (`FactConfidenceCalculator.status`) |
 | `knowledge.evidence-refs-limit` | `${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}` | K — сколько последних свидетельств-ссылок хранить на карточку; читает `KnowledgeConfig` (`evidenceRefsLimit: Int = 20`) | `persistence/config/KnowledgeConfig.kt` (`UserKnowledgeTable.applyAggregatesAndTrim`) |
 | `knowledge.chat-summary-message-threshold` | `${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}` | `limit` окна сводки чата и порог сообщений, после которого LLM вызывается без оглядки на интервал | `ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt` |
 | `knowledge.chat-summary-interval` | `${KNOWLEDGE_CHAT_SUMMARY_INTERVAL:7d}` | интервал, после которого сводка чата обновляется даже ниже порога; читается как `java.time.Duration` (конвертер Quarkus понимает `7d`, `30m`, `1h30m`) | там же |
@@ -80,11 +80,15 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | cron-расписание прогона в зоне `greetings.timezone`; дефолт — 00:00; `off`/`disabled` выключает расписание (тестовые профили) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled`) |
 | `greetings.timezone` | `${GREETINGS_TIMEZONE:Europe/Minsk}` | зона cron-расписания; невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | там же |
 | `greetings.hidden-birthdays.enabled` | `${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}` | включает поздравление по подтверждённому birthday-факту из чата, когда VK-дата скрыта или пуста; `false` — порт `FindUserBirthdayFactsPort` не вызывается, VK-именинники и праздники остаются (операционный kill-switch без релиза) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt` (`@ConfigProperty`) |
+| `greetings.knowledge.enabled` | `${GREETINGS_KNOWLEDGE_ENABLED:true}` | включает знания в поздравлениях: сводка чата для всех планов и личные факты именинников; `false` — ноль чтений `FindChatKnowledgeSummaryPort`/`FindUserKnowledgePort`, промпт байт-идентичен прежнему (операционный kill-switch без релиза) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt` (`@ConfigProperty`) |
+| `greetings.knowledge.max-facts-per-person` | `${GREETINGS_KNOWLEDGE_MAX_FACTS_PER_PERSON:5}` | сколько не-stale фактов именинника попадает в промпт поздравления (`CONFIRMED` раньше `CANDIDATE`, затем по `confidence`, без лимита на свежую сводку); `0` — без личных фактов | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` (`@ConfigProperty`) |
 
 Дефолт `GREETINGS_CRON=0 0 0 * * ?` означает, что первый прогон после деплоя — живой; в тестовых
 ресурсах `greetings.cron: disabled`, иначе планировщик срабатывал бы в каждом `@QuarkusTest`.
-`GREETINGS_HIDDEN_BIRTHDAYS_ENABLED` тоже живёт по дефолту `true`: если знания ещё не наполнены, ветка
-ничего не находит, а «грязные» данные гасятся выключателем на первые сутки.
+`GREETINGS_HIDDEN_BIRTHDAYS_ENABLED` и `GREETINGS_KNOWLEDGE_ENABLED` тоже живут по дефолту `true`: если
+знания ещё не наполнены, ветки ничего не находят, а «грязные» данные гасятся выключателем на первые сутки.
+`GREETINGS_KNOWLEDGE_MAX_FACTS_PER_PERSON` ограничивает промпт: сводка чата не режется, личные факты
+сортируются «`CONFIRMED` раньше `CANDIDATE`, затем по `confidence`».
 
 ## Статистика активности
 

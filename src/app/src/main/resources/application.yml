@@ -23,6 +23,9 @@ greetings:
   timezone: "${GREETINGS_TIMEZONE:Europe/Minsk}"
   hidden-birthdays:
     enabled: "${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}"
+  knowledge:
+    enabled: "${GREETINGS_KNOWLEDGE_ENABLED:true}"
+    max-facts-per-person: "${GREETINGS_KNOWLEDGE_MAX_FACTS_PER_PERSON:5}"
 statistics:
   timezone: "${STATISTICS_TIMEZONE:Europe/Minsk}"
 summary:

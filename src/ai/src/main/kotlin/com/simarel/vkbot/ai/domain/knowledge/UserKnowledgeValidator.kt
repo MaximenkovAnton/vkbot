@@ -5,10 +5,10 @@ import com.simarel.vkbot.share.domain.model.knowledge.KnowledgeSourceKind
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
 
-private const val SELF_STATEMENT_CAP = 1.0
-private const val OTHER_STATEMENT_CAP = 0.8
-private const val CONGRATULATION_CAP = 0.8
-private const val INFERENCE_CAP = 0.6
+private const val SELF_STATEMENT_CAP = 0.8
+private const val OTHER_STATEMENT_CAP = 0.6
+private const val CONGRATULATION_CAP = 0.6
+private const val INFERENCE_CAP = 0.4
 
 object UserKnowledgeValidator {
 

@@ -38,7 +38,8 @@ Test-scope рёбра (не входят в production-граф, разреше�
     (`VkUserProfile.details: Map<String, Any?>` — человеческие значения полей VK без id и фото, ADR 2026-11-10-vk-profile-human-details;
     `UserStatistics.kt` содержит `UserStatistics`, `ChatStatistics`, `HourActivity`, `DayOfWeekActivity`; `ChatAuthor(fromId, messageCount)` —
     read-модель авторов чата; `share/domain/model/knowledge/{UserFact,UserFactEvidence,UserFactCandidate,UserKnowledge,ChatKnowledge,UserFactCategory,UserFactStatus,KnowledgeSourceKind}.kt` —
-    знания из чата, ADR 2026-11-11-user-knowledge-facts);
+    знания из чата, ADR 2026-11-11-user-knowledge-facts; `greeting/GreetingPerson.kt` — поздравляемый
+    «имя + `FromId`», ADR 2026-11-13-greeting-knowledge);
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
     `@JvmInline value class`, например `MessageText.kt:3-12`;
   - события: `share/domain/Event.kt:3-15` (11 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload,UserKnowledgeRequestedPayload,UserKnowledgeSummaryRequestedPayload,ChatKnowledgeSummaryRequestedPayload}.kt`;
@@ -328,20 +329,23 @@ Test-scope рёбра (не входят в production-граф, разреше�
   именинники — VK `birth_date` и `CONFIRMED`-факт `PROFILE_ATTRIBUTE/birthday` при скрытой VK-дате
   (read-порт `FindUserBirthdayFactsPort`, kill-switch `greetings.hidden-birthdays.enabled`, fail-open
   knowledge-ветки); отдельное сообщение на каждый праздник и одно на всех именинников чата; at-most-once
-  через claim на чат; текст ИИ с шаблоном-фолбэком; спан `greetings.daily-run`. Событий RabbitMQ и
-  HTTP-входов нет.
+  через claim на чат; текст ИИ с шаблоном-фолбэком; знания в промпте — сводка чата для любого плана и
+  личные факты именинников (`FindChatKnowledgeSummaryPort`/`FindUserKnowledgePort`, лимит
+  `greetings.knowledge.max-facts-per-person`, kill-switch `greetings.knowledge.enabled`, fail-open);
+  спан `greetings.daily-run`. Событий RabbitMQ и HTTP-входов нет.
 - **Публичный API:** `port/input/RunDailyGreetingsInputPort.kt` (`Request(date)` → `Response(planned, sent,
   failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled` с `cron = "{greetings.cron}"`,
   `timeZone = "{greetings.timezone}"`, ключи `greetings.cron`/`greetings.timezone`).
 - **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → claim на чат → generate → send по
   планам; ошибка одного сообщения/чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt`
   (групповые чаты + профили по дате рождения и CONFIRMED birthday-факты с дедупом по `userId`; один план на
-  праздник и один на именинников чата),
-  `command/text/GenerateGreetingTextCommand.kt` (ИИ + детерминированный шаблон),
-  `domain/{Holidays,BirthdayDates,NameFormatter,GreetingPlan,Holiday}.kt`.
-- **Порты знаний:** `FindUserBirthdayFactsPort` (share, реализация в `persistence`) и
-  `FindStoredUserProfilesByIdsPort` (share, реализация в `persistence`) — только чтение `user_facts` и
-  `vk_user_profiles`; миграции нет.
+  праздник и один на именинников чата), `command/text/GenerateGreetingTextCommand.kt` (знания + ИИ +
+  детерминированный шаблон), `domain/{Holidays,BirthdayDates,NameFormatter,GreetingPlan,Holiday}.kt`;
+  `share/domain/model/greeting/GreetingPerson.kt` — пара «имя + `FromId`» вместо параллельных списков.
+- **Порты знаний:** `FindUserBirthdayFactsPort`, `FindUserKnowledgePort`,
+  `FindChatKnowledgeSummaryPort` и `FindStoredUserProfilesByIdsPort` (share, реализация в `persistence`) —
+  только чтение `user_facts`, `user_knowledge_summary`, `chat_knowledge_summary` и `vk_user_profiles`;
+  миграции нет (ADR 2026-11-13-greeting-knowledge).
 - **Сборка:** `share`, `quarkus-scheduler`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
   (`src/greetings/build.gradle.kts`).
 
