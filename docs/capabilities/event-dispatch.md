@@ -16,7 +16,7 @@
 `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `SUMMARY_REQUESTED`, `SUMMARY_READY`,
 `NEWS_DIGEST_REQUESTED`, `PROFILE_REQUESTED`, `USER_KNOWLEDGE_REQUESTED`,
 `USER_KNOWLEDGE_SUMMARY_REQUESTED`, `CHAT_KNOWLEDGE_SUMMARY_REQUESTED`. У всех одиннадцати имён есть `EventProcessor`;
-`PROFILE_REQUESTED` потребляет `ProfileRequestedEventProcessor` в `ai` (ветка `profile` возможности
+`PROFILE_REQUESTED` потребляет [`ProfileRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22) в `ai` (ветка `profile` возможности
 `profile-dossier`).
 
 ## Точки входа
@@ -48,7 +48,7 @@
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | `Event` (каталог из одиннадцати имён и routing key) | все producer/consumer возможностей | `event-dispatch` |
-| `EventProcessor` | `MessageNewEventProcessor`, `MessageReceivedEventProcessor`, `MessageRequireAnswerEventProcessor`, `SummaryRequestedEventProcessor`, `SendMessageEventProcessor`, `SummaryReadyEventProcessor`, `NewsDigestRequestedEventProcessor`, `ProfileRequestedEventProcessor`, `UserKnowledgeRequestedEventProcessor`, `UserKnowledgeSummaryRequestedEventProcessor`, `ChatKnowledgeSummaryRequestedEventProcessor` | `event-dispatch` |
+| `EventProcessor` | [`MessageNewEventProcessor`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22), [`MessageReceivedEventProcessor`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22), [`MessageRequireAnswerEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt#L12-L22), [`SummaryRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessor.kt#L12-L28), [`SendMessageEventProcessor`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L12-L22), [`SummaryReadyEventProcessor`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L19-L60), [`NewsDigestRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt#L12-L22), [`ProfileRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22), [`UserKnowledgeRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeRequestedEventProcessor.kt#L12-L22), [`UserKnowledgeSummaryRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeSummaryRequestedEventProcessor.kt#L12-L22), [`ChatKnowledgeSummaryRequestedEventProcessor`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ChatKnowledgeSummaryRequestedEventProcessor.kt#L12-L22) | `event-dispatch` |
 | `PublishEventOutputPort` | `vk-long-poll`, `message-storage`, `answer-decision`, `ai-answer`, `chat-news-digest`, `profile-dossier`, `conversation-summary` | `event-dispatch` |
 | `PublishEventCommand` и его реализация | все публикующие возможности | `event-dispatch` |
 | payload каждого события | producer соответствующего события (см. `message-storage`, `ai-answer`, `vk-message-send`, `conversation-summary`) | producer события |

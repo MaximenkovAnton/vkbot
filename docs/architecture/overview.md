@@ -56,7 +56,7 @@ VK Bot — **гексагональный монолит в одном депл�
   VK API (Long Poll)         -> receiver/adapter/output/vk/VkLongPollOutputAdapter.kt (configKey "vk")
   VK API (сообщения, профили) -> vk-facade/adapter/output/vk/VkClient.kt:12-39 (configKey "vk")
   Vane (search)              -> ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25 (configKey "vane")
-  LLM (OpenAI API, vLLM)     -> ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-19 (LangChain4j)
+  LLM (llama.cpp)            -> ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-19 (LangChain4j)
 
 In-process (без HTTP):
   ai -> persistence          -> share/port/output/persistence/*  <-  PersistenceDataInProcessAdapter.kt
@@ -177,7 +177,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 - нет Prometheus-эндпоинта `/metrics` и пути `/health`; health — `/q/health`;
 - нет публичного HTTP-входа для VK: `/vk/callback` отсутствует, события приходят опросом Bots Long Poll;
 - нет отдельного «AI-клиента»: AI вызывается через LangChain4j AI-сервисы (`@RegisterAiService`) к
-  OpenAI-совместимому endpoint, в деплое — vLLM ([ADR 2026-11-05-llm-provider-vllm-openai](../adr/2026-11-05-llm-provider-vllm-openai.md)).
+  OpenAI-совместимому endpoint, в деплое — llama.cpp (`llama-server`) ([ADR 2026-11-05-llm-provider-vllm-openai](../adr/2026-11-05-llm-provider-vllm-openai.md)).
 
 ## Связанные решения
 
@@ -189,5 +189,5 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
 | [0004](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) | in-process порты, события RabbitMQ |
 | [0005](../adr/2026-10-28-quality-gates-and-ci.md) | гейты и CI |
 | [0006](../adr/2026-10-28-configuration-and-secrets.md) | конфигурация и секреты |
-| [0007](../adr/2026-11-05-llm-provider-vllm-openai.md) | LLM-провайдер — vLLM через OpenAI-совместимый API |
+| [0007](../adr/2026-11-05-llm-provider-vllm-openai.md) | LLM-провайдер — OpenAI-совместимый API (в деплое — llama.cpp, `llama-server`) |
 | [0008](../adr/2026-11-05-bots-long-poll-transport.md) | приём событий VK — Bots Long Poll, позиция `ts` в PostgreSQL |

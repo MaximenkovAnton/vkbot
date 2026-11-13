@@ -74,7 +74,7 @@ LLM может вызвать веб-поиск — это возможност�
 - ADR 2026-10-28-module-boundaries-and-layer-rules — `command`/`usecase` не видят LangChain4j: AI-сервис и адаптер только в `adapter/output`.
 - ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — контекст и профили приходят in-process портами, а не HTTP-вызовом к `persistence`.
 - ADR 2026-10-28-configuration-and-secrets — промпты и endpoint LLM — конфигурация, не код.
-- ADR 2026-11-05-llm-provider-vllm-openai — провайдер один: OpenAI-совместимый API (vLLM); одна chat-модель на ответ, саммари и OCR.
+- ADR 2026-11-05-llm-provider-vllm-openai — провайдер один: OpenAI-совместимый API (в деплое llama.cpp, `llama-server`); одна chat-модель на ответ, саммари и OCR.
 - ADR 2026-11-11-knowledge-in-prompts — знания из чата в обычном ответе: чтение в команде с fail-open, блок `[USER_KNOWLEDGE]` в адаптере, плейсхолдер `{userKnowledge}` и правило глубины, байт-идентичный промпт без знаний, PII-egress и prompt injection как принятый риск.
 - ADR 2026-11-11-knowledge-read-model — форма `FindUserKnowledgePort`, `UserKnowledge` и `summaryFresh`.
 

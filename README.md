@@ -1,7 +1,7 @@
 # VK Bot Application
 
 A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
-stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM
+stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a llama.cpp
 OpenAI-compatible API, sends them back to the VK API, and summarizes long conversations. The code follows
 hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 2026-10-28-module-boundaries-and-layer-rules).
 
@@ -10,7 +10,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - VK Bots Long Poll receiver (`groups.getLongPollServer` + `a_check`, `ts` position in PostgreSQL) with a DMZ mapper for VK JSON
 - Event-driven pipeline on RabbitMQ with a retry ladder and a final dead-letter queue
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
-- AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
+- AI answers via LangChain4j against a llama.cpp OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
 - Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
 - Decision stage: one System One call answers four questions (`spam`, `class`, `intent`, `jailbreak`); spam and prompt-injection notices are sent when their thresholds are reached, with per-branch kill-switches and fail-open behaviour
@@ -66,7 +66,7 @@ them; `share` depends on nobody. The build fails on a wrong import ([`docs/adr/2
 - JDK 21 (the build pins a 21 toolchain)
 - Docker (DevServices for PostgreSQL and RabbitMQ; also required by `@QuarkusTest` app tests)
 - A VK community with the Bots Long Poll API enabled and an API token
-- A vLLM OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
+- A llama.cpp (`llama-server`) OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
 - Optional: a Vane (Perplexica) instance for web-search tools
 
 ## Configuration

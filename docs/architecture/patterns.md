@@ -164,7 +164,7 @@
 |---|---|
 | Event Sourcing / CQRS | События не сохраняются, event store отсутствует; чтение и запись — одни и те же модели |
 | Circuit Breaker | Расширение fault-tolerance объявлено ([`src/vk-facade/build.gradle.kts:21`](../../src/vk-facade/build.gradle.kts#L21)), пакет `adapter/output/vk/circuitbreaker`, но аннотаций `@CircuitBreaker`/`@Retry` нет; блок `circuit-breaker.vk-profile` ([`application.yml:236-240`](../../src/app/src/main/resources/application.yml#L236-L240)) никем не читается |
-| Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (vLLM) через LangChain4j, ADR 2026-11-05-llm-provider-vllm-openai; выбор модели — конфиг, а не рантайм-стратегия |
+| Strategy для AI-провайдеров | Провайдер один — OpenAI-совместимый API (в деплое llama.cpp, `llama-server`) через LangChain4j, ADR 2026-11-05-llm-provider-vllm-openai; выбор модели — конфиг, а не рантайм-стратегия |
 | Chain of Responsibility | Валидация не выстроена в цепочку; правила решения — один `when` в [`IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33) |
 | Observer / fan-out | Один процессор на событие; множество подписчиков не поддерживается картой диспетчера |
 | Saga / Outbox | Согласованность между БД и RabbitMQ не гарантируется; сообщение сохраняется и публикуется в одном use case без outbox ([`SaveMessageUsecase.kt:30-54`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L30-L54)) |

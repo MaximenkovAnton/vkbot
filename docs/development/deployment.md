@@ -69,7 +69,7 @@ docker run -p 8080:8080 \
 | `VK_API_TOKEN` | токен группы VK |
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
-| `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — vLLM) |
+| `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — llama.cpp, `llama-server`) |
 | `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари, OCR, поздравления и «что нового» |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
@@ -82,7 +82,7 @@ docker run -p 8080:8080 \
 
 | Переменная | Назначение |
 |---|---|
-| `DECISION_URL` | голый корень System One-сервера (без `/v1` и без `/v1/systemone`) |
+| `DECISION_URL` | голый корень System One-сервера `llama-server` (без `/v1` и без `/v1/systemone`) |
 
 Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
 `VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
@@ -109,7 +109,7 @@ PII-egress при включённой jailbreak-ветке продолжают
 Замечания:
 
 - `DECISION_URL` — обязательное значение контракта деплоя: `quarkus.langchain4j.ollama.base-url:
-  ${DECISION_URL}` (голый корень System One-сервера, без `/v1`). Порядок раскатки — **сначала env и
+  ${DECISION_URL}` (голый корень System One-сервера `llama-server`, без `/v1`). Порядок раскатки — **сначала env и
   decision-сервер, принимающий и отвечающий на четыре вопроса `spam`, `class`, `intent`, `jailbreak`,
   затем образ**. Старый образ (`DECISION_URL` он читает и шлёт туда трёхвопросный запрос) в окне между
   выкатами работает с новым сервером, поэтому новый сервер обязан принимать и старый трёхвопросный

@@ -151,12 +151,12 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.rest-client.vane.connect-timeout` | `30000` | таймаут соединения Vane |
 | `quarkus.rest-client.vane.read-timeout` | `120000` | таймаут чтения Vane |
 | `quarkus.langchain4j.openai.base-url` | `${AI_BASE_URL}` | корень OpenAI-совместимого API вместе с `/v1`; без него приложение не стартует |
-| `quarkus.langchain4j.openai.api-key` | `${AI_API_KEY:dummy}` | ключ авторизации; дефолт `dummy` vLLM без `--api-key` игнорирует |
+| `quarkus.langchain4j.openai.api-key` | `${AI_API_KEY:dummy}` | ключ авторизации; дефолт `dummy` `llama-server` без `--api-key` игнорирует |
 | `quarkus.langchain4j.openai.max-retries` | `2` | повторы после первой попытки — три попытки провайдера на вызов |
 | `quarkus.langchain4j.openai.chat-model.model-name` | `${AI_CHAT_MODEL}` | имя chat-модели для ответа, саммаризации и OCR |
 | `quarkus.langchain4j.chat-model.provider` | `openai` | build-time выбор провайдера chat-модели; с двумя LangChain4j-расширениями обязателен, иначе сборка падает на ambiguity |
 | `quarkus.langchain4j.decision-model.provider` | `ollama` | build-time выбор провайдера decision-модели; второй обязательный ключ выбора |
-| `quarkus.langchain4j.ollama.base-url` | `${DECISION_URL}` | голый корень System One-сервера (без `/v1`, без `/v1/systemone`); `DECISION_URL` обязателен, дефолта нет; расширение дописывает `v1/systemone` |
+| `quarkus.langchain4j.ollama.base-url` | `${DECISION_URL}` | голый корень System One-сервера `llama-server` (без `/v1`, без `/v1/systemone`); `DECISION_URL` обязателен, дефолта нет; расширение дописывает `v1/systemone` |
 | `quarkus.langchain4j.ollama.timeout` | `5s` | таймаут HTTP-вызова decision-модели (дефолт расширения — `10s`) |
 | `quarkus.langchain4j.ollama.decision-model.model-id` | `decision` | `model-id: decision` — имя модели в теле запроса; дефолт расширения `nimble`, сервер поле `model` игнорирует |
 | `decision.spam-threshold` | `${DECISION_SPAM_THRESHOLD:0.9}` | порог спама: `spamProbability >= threshold` даёт спам-уведомление; читает `IsSpamCommandImpl` |
@@ -164,7 +164,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `decision.jailbreak-threshold` | `${DECISION_JAILBREAK_THRESHOLD:0.85}` | порог попытки взлома ИИ: `jailbreakProbability >= threshold` даёт jailbreak-уведомление; читает `IsJailbreakCommandImpl` |
 | `decision.jailbreak-reply.enabled` | `${DECISION_JAILBREAK_REPLY_ENABLED:true}` | kill-switch jailbreak-ветки decision-этапа: `false` гасит только jailbreak-уведомление; читает `MessageReceivedUsecaseInput` |
 
-LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 2026-11-05-llm-provider-vllm-openai). Кроме провайдера в
+LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое — llama.cpp (`llama-server`); ADR 2026-11-05-llm-provider-vllm-openai. Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
 `log-responses: true`, `tracing.include-prompt/completion`, [`application.yml`](../../src/app/src/main/resources/application.yml)).
 Ловушка миграции: `base-url` — корень OpenAI API вместе с `/v1`, расширение само дописывает
@@ -177,7 +177,7 @@ Decision-модель ([ADR 2026-11-08-decision-model-langchain4j](../adr/2026-1
 [ADR 2026-11-09-decision-runtime-spam-policy](../adr/2026-11-09-decision-runtime-spam-policy.md),
 [ADR 2026-11-10-decision-jailbreak-detection](../adr/2026-11-10-decision-jailbreak-detection.md),
 [ADR 2026-11-10-jailbreak-rubric-and-threshold](../adr/2026-11-10-jailbreak-rubric-and-threshold.md)) — второй LangChain4j-провайдер:
-`decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера, `timeout: 5s`,
+`decision-model.provider: ollama`, `DECISION_URL` — голый корень System One-сервера `llama-server`, `timeout: 5s`,
 `model-id: decision`. Расширение само дописывает `v1/systemone`; `api-key` не нужен. Клиент вызывается
 из runtime в `MessageReceivedUsecaseInput` в два этапа. Decision-этап: для сообщения человека в групповом
 чате при включённой хотя бы одной ветке (`decision.spam-reply.enabled` или
