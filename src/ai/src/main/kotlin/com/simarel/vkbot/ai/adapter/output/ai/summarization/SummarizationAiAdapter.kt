@@ -12,7 +12,7 @@ private const val MAX_RETRIES = 3
 
 @ApplicationScoped
 class SummarizationAiAdapter(
-    private val summarizationAiService: SummarizationAiService,
+    private val conversationSummarizer: ConversationSummarizer,
 ) : SummarizationOutputPort {
 
     @ActivateRequestContext
@@ -22,7 +22,7 @@ class SummarizationAiAdapter(
 
         for (attempt in 1..MAX_RETRIES) {
             try {
-                val response = summarizationAiService.generateSummary(request.messages)
+                val response = conversationSummarizer.generateSummary(request.messages)
                 Log.debugf("Successfully generated summary on attempt %d", attempt)
                 return SummarizationResponse(
                     shortSummary = response.shortSummary,

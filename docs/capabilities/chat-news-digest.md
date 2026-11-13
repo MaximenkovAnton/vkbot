@@ -49,9 +49,9 @@ retry-лестницу брокера.
 | `NEWS_DIGEST_REQUESTED` из `all-events-queue`: разбор `Message` и вызов входного порта | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt:12-23` |
 | сценарий, период, сборка данных и ровно одна публикация `ANSWER_MESSAGE` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt:31-205` |
 | период из текста запроса | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/news/NewsPeriodParser.kt:31-132` |
-| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiService.kt:8-28`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:11-65` |
+| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestGenerator.kt:8-28`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:11-65` |
 | необязательные чтения знаний из чата (свежая сводка/`CONFIRMED INTEREST` автора и `chat_knowledge_summary`), fail-open и kill-switch | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt:141-204` |
-| секции «Интересы автора запроса»/«Темы чата» и правило приоритета в значениях плейсхолдеров | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:10-64`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiService.kt:14-27` |
+| секции «Интересы автора запроса»/«Темы чата» и правило приоритета в значениях плейсхолдеров | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapter.kt:10-64`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestGenerator.kt:14-27` |
 | два read-only `share`-порта знаний | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindUserKnowledgePort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatKnowledgeSummaryPort.kt` |
 | три read-only `share`-порта чтения | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindLastStoredMessageByAuthorPort.kt:8-20`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredMessagesBetweenDatesPort.kt:9-22`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredSummariesInPeriodPort.kt:9-21` |
 | in-process реализация чтений в `persistence` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:212-266`, `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt:77-88` |
@@ -61,7 +61,7 @@ retry-лестницу брокера.
 
 | Ключ | Значение / env | Эффект |
 |---|---|---|
-| `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение `NewsDigestAiService`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
+| `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение `NewsDigestGenerator`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
 | `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | лимит свежих сообщений периода (существующий ключ; читает и `ProcessSummaryCommandImpl`) |
 | `knowledge.news-personalization.enabled` | `${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}` | kill-switch R4c: `false` — ноль обращений к `FindUserKnowledgePort`/`FindChatKnowledgeSummaryPort`, обе секции пусты, промпт и ответ прежние; `true` — знания читаются на путь, где LLM и так вызывается |
 
@@ -211,7 +211,7 @@ read-only: `user_facts`, `user_knowledge_summary`, `chat_knowledge_summary` и `
   `src/app/src/test/kotlin/com/simarel/vkbot/integration/NewsDigestIntegrationTest.kt`
   (`digest request without knowledge sends the pre-change prompt`).
 - **AC-NEWS-1.7** — КОГДА хотя бы одна секция непуста, СИСТЕМА ДОЛЖНА передать в
-  `NewsDigestAiService.generateDigest` значения `Интересы автора запроса:\n<текст>\n` и
+  `NewsDigestGenerator.generateDigest` значения `Интересы автора запроса:\n<текст>\n` и
   `Темы чата:\n<текст>\n` + правило приоритета; оба пусты — `("", "")` и `data` без изменений. Tests:
   `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestAiAdapterTest.kt`
   (`execute renders interests and chat topics into the service arguments`,

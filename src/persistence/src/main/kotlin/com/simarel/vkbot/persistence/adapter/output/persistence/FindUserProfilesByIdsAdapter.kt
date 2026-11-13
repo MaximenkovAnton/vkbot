@@ -1,13 +1,13 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.persistence.port.output.persistence.FindUserProfilesByIdsPort
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 
 @ApplicationScoped
 open class FindUserProfilesByIdsAdapter(
-    private val repository: JooqVkUserProfileRepository,
+    private val table: VkUserProfileTable,
 ) : FindUserProfilesByIdsPort {
 
     @Transactional
@@ -16,6 +16,6 @@ open class FindUserProfilesByIdsAdapter(
             return FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse(emptyList())
         }
         val idValues = request.fromIds.map { it.value }
-        return FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse(repository.findByIds(idValues))
+        return FindUserProfilesByIdsPort.FindUserProfilesByIdsResponse(table.findByIds(idValues))
     }
 }

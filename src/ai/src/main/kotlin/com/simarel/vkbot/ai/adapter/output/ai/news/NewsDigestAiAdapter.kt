@@ -16,7 +16,7 @@ private const val KNOWLEDGE_RULE =
 
 @ApplicationScoped
 class NewsDigestAiAdapter(
-    private val newsDigestAiService: NewsDigestAiService,
+    private val newsDigestGenerator: NewsDigestGenerator,
 ) : NewsDigestGenerationPort {
 
     private val logger = System.getLogger(NewsDigestAiAdapter::class.java.name)
@@ -35,7 +35,7 @@ class NewsDigestAiAdapter(
 
         for (attempt in 1..MAX_RETRIES) {
             val failure: Exception = try {
-                val text = newsDigestAiService.generateDigest(
+                val text = newsDigestGenerator.generateDigest(
                     request.data,
                     knowledgeSections.first,
                     knowledgeSections.second,

@@ -18,7 +18,7 @@ class ChatKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `returnsModelTextOnFirstSuccess`() {
-        val service = RecordingChatKnowledgeSummaryAiService(listOf({ SUMMARY_TEXT }))
+        val service = RecordingChatKnowledgeSummarizer(listOf({ SUMMARY_TEXT }))
 
         val response = ChatKnowledgeSummaryAiAdapter(service).execute(
             FakeKnowledgeProvider.createChatKnowledgeSummaryRequest(messages = listOf(AUTHOR_LINE)),
@@ -31,7 +31,7 @@ class ChatKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `retriesAndSucceedsOnSecondAttempt`() {
-        val service = RecordingChatKnowledgeSummaryAiService(listOf({ "  " }, { SUMMARY_TEXT }))
+        val service = RecordingChatKnowledgeSummarizer(listOf({ "  " }, { SUMMARY_TEXT }))
 
         val response = ChatKnowledgeSummaryAiAdapter(service).execute(
             FakeKnowledgeProvider.createChatKnowledgeSummaryRequest(),
@@ -43,7 +43,7 @@ class ChatKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `failsAfterThreeAttemptsOnBlankResponse`() {
-        val service = RecordingChatKnowledgeSummaryAiService(listOf({ " " }))
+        val service = RecordingChatKnowledgeSummarizer(listOf({ " " }))
 
         val thrown = assertThrows<ChatKnowledgeSummaryException> {
             ChatKnowledgeSummaryAiAdapter(service).execute(
@@ -57,7 +57,7 @@ class ChatKnowledgeSummaryAiAdapterTest {
 
     @Test
     fun `logsOnlyAttemptAndErrorClass`() {
-        val service = RecordingChatKnowledgeSummaryAiService(listOf({ " " }))
+        val service = RecordingChatKnowledgeSummarizer(listOf({ " " }))
 
         SystemLoggerCapture(ChatKnowledgeSummaryAiAdapter::class.java.name).use { capture ->
             assertThrows<ChatKnowledgeSummaryException> {
@@ -79,9 +79,9 @@ class ChatKnowledgeSummaryAiAdapterTest {
         }
     }
 
-    private class RecordingChatKnowledgeSummaryAiService(
+    private class RecordingChatKnowledgeSummarizer(
         private val outcomes: List<() -> String>,
-    ) : ChatKnowledgeSummaryAiService {
+    ) : ChatKnowledgeSummarizer {
         val calls = ConcurrentLinkedQueue<String>()
 
         override fun summarize(messages: String): String {

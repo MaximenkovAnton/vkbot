@@ -1,6 +1,6 @@
 package com.simarel.vkbot.persistence.adapter.output.persistence
 
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqKnowledgeSummaryRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.KnowledgeSummaryTable
 import com.simarel.vkbot.persistence.port.output.persistence.UpsertChatKnowledgeSummaryPort
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
@@ -9,14 +9,14 @@ import java.time.ZoneOffset
 
 @ApplicationScoped
 open class UpsertChatKnowledgeSummaryAdapter(
-    private val repository: JooqKnowledgeSummaryRepository,
+    private val table: KnowledgeSummaryTable,
 ) : UpsertChatKnowledgeSummaryPort {
 
     @Transactional
     override fun execute(
         request: UpsertChatKnowledgeSummaryPort.Request,
     ): UpsertChatKnowledgeSummaryPort.Response {
-        repository.upsertChatSummary(
+        table.upsertChatSummary(
             request.peerId,
             request.summaryText,
             request.firstConversationMessageId,

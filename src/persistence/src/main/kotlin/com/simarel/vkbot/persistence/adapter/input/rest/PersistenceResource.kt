@@ -21,7 +21,7 @@ import java.util.UUID
 @Path("/persistence")
 @ApplicationScoped
 @Suppress("TooManyFunctions")
-interface PersistenceService {
+interface PersistenceResource {
 
     @GET
     @Path("/messages/before")

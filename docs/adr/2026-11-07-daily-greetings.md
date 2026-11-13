@@ -37,7 +37,7 @@
   с сохранённым флагом. Генерация тотальна: при любом другом исключении порта или пустом/пробельном ответе
   возвращается детерминированный шаблон и пишется WARN; `InterruptedException` не подменяется шаблоном.
 - **At-most-once.** `ClaimDailyGreetingPort` пишет строку `greeting_log` (PK `(greeting_date, peer_id)`,
-  changeset `006-create-greeting-log-table.yaml`) один раз на чат до отправки; `JooqGreetingLogRepository.claim`
+  changeset `006-create-greeting-log-table.yaml`) один раз на чат до отправки; `GreetingLogTable.claim`
   — один autocommit `INSERT … ON CONFLICT DO NOTHING`. Повторный прогон даты получает `claimed = false` и
   не отправляет ни одного сообщения этого чата; два экземпляра проигрывают конфликт. Цена: ошибка
   отправки не повторяется, оставшиеся сообщения чата теряются до следующих суток.
@@ -89,5 +89,5 @@
     OTel-трейсах); собственные sink'и прогона — user id на WARN профиля без чатов, peer id и класс
     исключения на INFO/ERROR, message исключения в статусе спана; имена и текст сообщения не логируются,
     конфиг логирования в этом проходе не меняется;
-  - остаточный prompt-injection: имена — untrusted user data, у `GreetingAiService` нет tools/memory, но
+  - остаточный prompt-injection: имена — untrusted user data, у `GreetingTextGenerator` нет tools/memory, но
     текст промпта не санитайзится.

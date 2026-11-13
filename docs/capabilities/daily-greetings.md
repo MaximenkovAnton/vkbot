@@ -208,7 +208,7 @@
   OTel-трейсах в `src/app/src/main/resources/application.yml`); собственные sink'и прогона — user id на
   WARN профиля без чатов, peer id и класс исключения на INFO/ERROR, message исключения в статусе спана;
   имена и текст сообщения не логируются.
-- Остаточный prompt-injection: имена — untrusted user data, у `GreetingAiService` нет tools/memory, но
+- Остаточный prompt-injection: имена — untrusted user data, у `GreetingTextGenerator` нет tools/memory, но
   текст промпта не санитайзится.
 - Скрытый ДР: knowledge-ветка fail-open — ошибка чтения фактов/профилей даёт план из VK-даты и праздников,
   knowledge-имена в этот прогон не попадают.

@@ -15,7 +15,7 @@
 ./gradlew :src:greetings:test                   # юнит-тесты поздравлений: правила, оркестрация, спан
 ./gradlew :src:app:test --tests "*AiIntegrationTest*"  # Quarkus-проводка ai (нужен Docker)
 ./gradlew :src:app:test --tests "*DailyGreetingsIntegrationTest*"  # поздравления на WireMock + PostgreSQL (нужен Docker)
-./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (24 теста)
+./gradlew :src:testing:arch-tests:test          # архитектурные правила и сторож тестовых данных (26 тестов)
 ./gradlew coverageReport                        # агрегированный HTML+XML отчёт
 ./gradlew coverageVerification                  # порог покрытия (входит в ./gradlew build)
 ```
@@ -53,7 +53,7 @@ ADR 2026-11-10-user-statistics-materialization) и доработку фильт
 | `greetings` | `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (8), `usecase/RunDailyGreetingsUsecaseTest` (8), `adapter/input/schedule/DailyGreetingRunnerTest` (4) |
 | `share` | `MessageTextTest`, `ConversationMessageIdTest` |
 | `infrastructure` | `CommandLoggingDecoratorTest` |
-| `testing/arch-tests` | `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1), `ExceptionHandlingTest` (2 — бросаются только `VkBotAppException` и наследники; `require` запрещён) |
+| `testing/arch-tests` | `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1), `NamingConventionsTest` (2 — L7: `*Controller`/`*Service`/`*Repository` запрещены), `ExceptionHandlingTest` (2 — бросаются только `VkBotAppException` и наследники; `require` запрещён) |
 
 Тестовые ресурсы: `src/app/src/test/resources/application.yaml` (базовый профиль `@QuarkusTest`),
 `application-integration-test.yaml` (профиль `integration-test`), `application.yml` (`%test`-настройки),
@@ -260,7 +260,7 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 
 `DailyGreetingsIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`) —
 10 тестов реальной проводки `daily-greetings`: PostgreSQL (DevServices) с профилями и сообщениями,
-засиженными через `JooqVkUserProfileRepository`/`JooqMessageRepository`, LLM (`/v1/chat/completions`) и VK API
+засиженными через `VkUserProfileTable`/`MessageTable`, LLM (`/v1/chat/completions`) и VK API
 (`/method/messages.send`) под WireMock, прогон вызывается напрямую через `RunDailyGreetingsInputPort` — ручного
 REST-триггера нет. Покрыты: дни рождения в групповом чате и в личной переписке, Новый год только в групповых
 чатах, 256-й день для невисокосного и високосного года, отдельное сообщение на каждый праздник и одно на
@@ -283,6 +283,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 |---|---|
 | `ModuleDependenciesTest` | каждый бизнес-модуль зависит только от `share`; `share` — ни от кого |
 | `LayerDependenciesTest` | L1 `domain`, L2 `port`, L3 `usecase`/`command`, L4 входные адаптеры, L5 выходные адаптеры |
+| `NamingConventionsTest` | L7: имя типа — ответственность, а не слой; `*Controller`/`*Service`/`*Repository` запрещены, правило видит production-типы всех модулей (ADR 2026-11-13-responsibility-type-names) |
 | `GradleDependenciesTest` | найдено 13 build-файлов; обязательные рёбра `:src:app`/`:src:testing:arch-tests` → `:src:greetings` и membership в `coverageModules`; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
 | `TestDataFactoriesTest` | сторож правила тестовых данных: прямое создание в тестах и дефолты параметров фабрик (см. «Сторож правила») |
 | `DetektExcludesPathTest` | глобы `excludes` из `detekt-config.yml` не матчат main-исходники даже при чек-ауте в каталоге с именем `test` |

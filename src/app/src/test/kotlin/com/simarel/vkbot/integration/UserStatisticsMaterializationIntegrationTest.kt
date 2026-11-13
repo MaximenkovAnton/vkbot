@@ -2,8 +2,8 @@ package com.simarel.vkbot.integration
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqUserStatisticsRepository
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.UserStatisticsReader
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.share.domain.model.UserStatistics
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
@@ -38,10 +38,10 @@ class UserStatisticsMaterializationIntegrationTest {
     lateinit var messageNewEventProcessor: MessageNewEventProcessor
 
     @Inject
-    lateinit var profileRepository: JooqVkUserProfileRepository
+    lateinit var userProfileTable: VkUserProfileTable
 
     @Inject
-    lateinit var statisticsRepository: JooqUserStatisticsRepository
+    lateinit var userStatisticsReader: UserStatisticsReader
 
     private val seededProfiles = mutableSetOf<Long>()
 
@@ -105,7 +105,7 @@ class UserStatisticsMaterializationIntegrationTest {
         saveMessage(userId, peerId = 111, text = "abcdef", date = "2026-01-05T11:00:00+03:00", messageId = 2)
         saveMessage(userId, peerId = 222, text = "", date = "2026-01-06T23:30:00+03:00", messageId = 3)
 
-        val minsk = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
+        val minsk = userStatisticsReader.findByUser(userId, ZoneId.of("Europe/Minsk"))
 
         assertEquals(3L, minsk.messageCount)
         assertEquals(9L, minsk.totalLength)
@@ -132,7 +132,7 @@ class UserStatisticsMaterializationIntegrationTest {
             minsk.activityByDayOfWeek,
         )
 
-        val utc = statisticsRepository.findByUser(userId, ZoneId.of("UTC"))
+        val utc = userStatisticsReader.findByUser(userId, ZoneId.of("UTC"))
 
         assertEquals(
             listOf(
@@ -157,7 +157,7 @@ class UserStatisticsMaterializationIntegrationTest {
 
         saveMessage(userId, peerId = 111, text = "abc", date = "2026-01-06T00:30:00+03:00", messageId = 1)
 
-        val minsk = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
+        val minsk = userStatisticsReader.findByUser(userId, ZoneId.of("Europe/Minsk"))
         assertEquals(
             listOf(
                 FakeModelProvider.createHourActivity(0, 1),
@@ -171,7 +171,7 @@ class UserStatisticsMaterializationIntegrationTest {
             minsk.activityByDayOfWeek,
         )
 
-        val utc = statisticsRepository.findByUser(userId, ZoneId.of("UTC"))
+        val utc = userStatisticsReader.findByUser(userId, ZoneId.of("UTC"))
         assertEquals(
             listOf(
                 FakeModelProvider.createHourActivity(21, 1),
@@ -193,7 +193,7 @@ class UserStatisticsMaterializationIntegrationTest {
         insertRawMessage(userId, peerId = 111, text = "abc", date = "2026-01-05T10:00:00+03:00", messageId = 1)
         insertRawMessage(userId, peerId = 111, text = "abcdef", date = "2026-01-05T11:00:00+03:00", messageId = 2)
 
-        val statistics = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
+        val statistics = userStatisticsReader.findByUser(userId, ZoneId.of("Europe/Minsk"))
 
         assertZeroStatistics(statistics, userId)
         assertEquals(2L, messagesCount(userId))
@@ -207,9 +207,9 @@ class UserStatisticsMaterializationIntegrationTest {
         saveMessage(userId, peerId = 111, text = "abcdef", date = "2026-01-05T11:00:00+03:00", messageId = 2)
         saveMessage(userId, peerId = 222, text = "", date = "2026-01-06T23:30:00+03:00", messageId = 3)
 
-        val before = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
+        val before = userStatisticsReader.findByUser(userId, ZoneId.of("Europe/Minsk"))
         execute("DELETE FROM messages WHERE from_id = $userId")
-        val after = statisticsRepository.findByUser(userId, ZoneId.of("Europe/Minsk"))
+        val after = userStatisticsReader.findByUser(userId, ZoneId.of("Europe/Minsk"))
 
         assertEquals(before, after)
         assertEquals(0L, messagesCount(userId))
@@ -369,7 +369,7 @@ class UserStatisticsMaterializationIntegrationTest {
             return
         }
         val profile = FakeModelProvider.createVkUserProfile(id = userId, lastUpdated = OffsetDateTime.now())
-        profileRepository.persist(profile)
+        userProfileTable.persist(profile)
     }
 
     private fun insertRawMessage(fromId: Long, peerId: Long, text: String, date: String, messageId: Long) {

@@ -35,6 +35,9 @@ VK Bot — **гексагональный монолит в одном депл�
 | `adapter/output` | `<module>/adapter/output/` | jOOQ, VK API, AI, Vane, JSON | не ходит во входные адаптеры и usecase (L5) |
 | `config` | `<module>/config/` | CDI-продюсеры, конфигурация модуля | видит всё только здесь |
 
+Имена типов — правило L7: `*Controller`, `*Service`, `*Repository` запрещены, имя описывает
+ответственность класса ([patterns.md](patterns.md), [ADR 2026-11-13-responsibility-type-names](../adr/2026-11-13-responsibility-type-names.md)).
+
 Модульная карта и публичные входы — [modules.md](modules.md). Пошаговые правила — [AGENTS.md](../../AGENTS.md) §4.
 
 ## Runtime-топология
@@ -42,8 +45,8 @@ VK Bot — **гексагональный монолит в одном депл�
 ```
 Вход:
   Bots Long Poll (groups.getLongPollServer, a_check) -> receiver/adapter/input/vk/LongPollRunner.kt
-  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataController.kt:21-154
-  GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkFacadeController.kt:14-32
+  GET/POST /persistence/*    -> persistence/adapter/input/rest/PersistenceDataResource.kt:21-154
+  GET /api/profiles/*        -> vk-facade/adapter/input/rest/VkProfileResource.kt:14-32
   RabbitMQ all-events-queue  -> infrastructure/mq/adapter/input/EventDispatcher.kt:63-85
   Расписание greetings.cron (Quarkus @Scheduled, зона greetings.timezone) -> greetings/adapter/input/schedule/DailyGreetingRunner.kt
 
@@ -53,7 +56,7 @@ VK Bot — **гексагональный монолит в одном депл�
   VK API (Long Poll)         -> receiver/adapter/output/vk/VkLongPollOutputAdapter.kt (configKey "vk")
   VK API (сообщения, профили) -> vk-facade/adapter/output/vk/VkClient.kt:12-39 (configKey "vk")
   Vane (search)              -> ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25 (configKey "vane")
-  LLM (OpenAI API, vLLM)     -> ai/adapter/output/ai/answer/UserAnswerAiService.kt:13-19 (LangChain4j)
+  LLM (OpenAI API, vLLM)     -> ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-19 (LangChain4j)
 
 In-process (без HTTP):
   ai -> persistence          -> share/port/output/persistence/*  <-  PersistenceDataInProcessAdapter.kt
@@ -137,9 +140,9 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   `RecognizeImagesCommand` (реализована, ни к одному use case не подключена), `SendVkMessageCommand`,
   `GetProfileCommand`, `VaneSearchCommand`, `CollectGreetingPlansCommand`, `GenerateGreetingTextCommand`.
 - **Адаптеры**: входные — `LongPollRunner` (опрос VK), `DailyGreetingRunner` (cron-расписание Quarkus),
-  REST-контроллеры, `@Incoming`-процессоры (включая `NewsDigestRequestedEventProcessor` и
-  `ProfileRequestedEventProcessor`), in-process адаптеры; выходные — jOOQ-репозитории, VK REST client,
-  LangChain4j AI-сервисы (включая `NewsDigestAiService` и `ProfileAiService`), Vane client,
+  REST-ресурсы, `@Incoming`-процессоры (включая `NewsDigestRequestedEventProcessor` и
+  `ProfileRequestedEventProcessor`), in-process адаптеры; выходные — jOOQ-доступ к таблицам, VK REST client,
+  LangChain4j AI-сервисы (включая `NewsDigestGenerator` и `ProfileAnswerGenerator`), Vane client,
   Jackson-сериализация.
 - **Инфраструктура**: `EventDispatcher` (маршрутизация по routing key = имя события, retry, DLQ),
   `PublishEventOutputAdapter`, logging-декораторы, `DlqConfig`, `MapperConfig`.
@@ -158,7 +161,7 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   (`ValidationException → <ValueObject>ValidationException → <проверка>Exception`), а `require` и
   `requireNotNull` запрещены архитектурным тестом
   (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`, [ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md));
-  HTTP-маппинг в деплое остался только у REST-контроллеров `persistence` и `vk-facade`.
+  HTTP-маппинг в деплое остался только у REST-ресурсов `persistence` и `vk-facade`.
 
 ## Что здесь не реализовано
 

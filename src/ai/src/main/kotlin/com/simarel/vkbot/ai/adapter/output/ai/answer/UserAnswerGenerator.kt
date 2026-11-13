@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter
 )
 @SystemMessage("{config:aiUseranswerSystemprompt}")
 @ApplicationScoped
-interface UserAnswerAiService {
+interface UserAnswerGenerator {
 
     @UserMessage(
         """

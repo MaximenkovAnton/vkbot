@@ -10,7 +10,7 @@ import jakarta.enterprise.context.control.ActivateRequestContext
 
 @ApplicationScoped
 class ImageRecognitionOutputAdapter(
-    private val ocrAiService: OcrAiService,
+    private val imageDescriber: ImageDescriber,
 ) : ImageRecognitionOutputPort {
 
     @ActivateRequestContext
@@ -23,7 +23,7 @@ class ImageRecognitionOutputAdapter(
             Image.builder().url(url).build()
         }
 
-        val ocrResults = ocrAiService.recognize(images)
+        val ocrResults = imageDescriber.recognize(images)
 
         return ImageRecognitionResponse(
             results = ocrResults.results.map { result ->

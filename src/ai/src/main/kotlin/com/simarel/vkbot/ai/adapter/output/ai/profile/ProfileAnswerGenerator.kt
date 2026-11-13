@@ -9,7 +9,7 @@ import io.quarkiverse.langchain4j.RegisterAiService
     chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier::class,
 )
 @SystemMessage("{config:aiProfileSystemprompt}")
-interface ProfileAiService {
+interface ProfileAnswerGenerator {
 
     @UserMessage(
         """

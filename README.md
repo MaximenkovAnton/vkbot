@@ -135,8 +135,8 @@ Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` 
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/persistence/messages/*`, `/persistence/summaries/*`, `/persistence/profiles/*` | GET/POST | Query/storage API (`PersistenceDataController`) |
-| `/api/profiles/users/batch`, `/api/profiles/groups/batch` | GET | VK profile lookup (`VkFacadeController`) |
+| `/persistence/messages/*`, `/persistence/summaries/*`, `/persistence/profiles/*` | GET/POST | Query/storage API (`PersistenceDataResource`) |
+| `/api/profiles/users/batch`, `/api/profiles/groups/batch` | GET | VK profile lookup (`VkProfileResource`) |
 | `/q/health`, `/q/health/ready`, `/q/health/live` | GET | Quarkus health checks |
 
 `receiver` has no HTTP endpoint: VK events arrive through Bots Long Poll polling, and `POST /vk/callback`

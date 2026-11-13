@@ -53,7 +53,7 @@ payload. Факты пользователя копятся, но связног
   Команда клипует ответ до 2000 символов и вызывает `SaveUserKnowledgeSummaryPort(userId, text)`.
   Прошлая сводка в промпт не идёт: rolling snapshot, как у сводки чата.
 - **Свежесть считает SQL upsert, порт не расширяется.** `SaveUserKnowledgeSummaryPort.Request` остаётся
-  `(userId, summaryText)`; `JooqKnowledgeSummaryRepository.upsertUserSummary` сам считает
+  `(userId, summaryText)`; `KnowledgeSummaryTable.upsertUserSummary` сам считает
   `facts_covered` (текущие карточки) и `last_fact_at = coalesce(max(last_confirmed_at), now)` (решение
   человека «Считать в SQL при upsert»). Читатели видят `summaryFresh = summarized_at >= last_fact_at`
   через R2b.

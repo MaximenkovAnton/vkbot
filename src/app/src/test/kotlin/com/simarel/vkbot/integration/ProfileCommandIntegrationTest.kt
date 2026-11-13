@@ -12,7 +12,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
 import com.simarel.vkbot.ai.port.input.profile.ProcessProfileInputPort
 import com.simarel.vkbot.ai.testfixtures.FakeProfileProvider
 import com.simarel.vkbot.persistence.adapter.input.event.MessageNewEventProcessor
-import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.JooqVkUserProfileRepository
+import com.simarel.vkbot.persistence.adapter.output.persistence.jooq.VkUserProfileTable
 import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCategory
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
@@ -62,7 +62,7 @@ class ProfileCommandIntegrationTest {
     lateinit var messageNewEventProcessor: MessageNewEventProcessor
 
     @Inject
-    lateinit var profileRepository: JooqVkUserProfileRepository
+    lateinit var userProfileTable: VkUserProfileTable
 
     @Inject
     lateinit var processProfileInputPort: ProcessProfileInputPort
@@ -140,7 +140,7 @@ class ProfileCommandIntegrationTest {
         assertEquals(summariesBefore, countRows(USER_KNOWLEDGE_SUMMARY_TABLE))
         assertEquals(messagesBefore, countRows(MESSAGES_TABLE))
         assertEquals(knowledgeBefore, knowledgeFixtures.counts(DOSSIER_USER_ID, DOSSIER_PEER_ID))
-        assertEquals("Минск", profileRepository.findByIds(listOf(DOSSIER_USER_ID)).single().city)
+        assertEquals("Минск", userProfileTable.findByIds(listOf(DOSSIER_USER_ID)).single().city)
     }
 
     @Test
@@ -203,7 +203,7 @@ class ProfileCommandIntegrationTest {
         screenName: String,
         city: String,
     ) {
-        profileRepository.persist(
+        userProfileTable.persist(
             FakeModelProvider.createVkUserProfile(
                 id = userId,
                 firstName = firstName,

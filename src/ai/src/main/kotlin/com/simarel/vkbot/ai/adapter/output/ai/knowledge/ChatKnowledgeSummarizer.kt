@@ -9,7 +9,7 @@ import io.quarkiverse.langchain4j.RegisterAiService
     chatMemoryProviderSupplier = RegisterAiService.NoChatMemoryProviderSupplier::class,
 )
 @SystemMessage("{config:aiChatKnowledgeSummarySystemprompt}")
-interface ChatKnowledgeSummaryAiService {
+interface ChatKnowledgeSummarizer {
 
     @UserMessage(
         """

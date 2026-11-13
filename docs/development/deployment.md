@@ -216,7 +216,7 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - **Исключение — changeset `008-replace-profile-data-with-human-details`.** Он удаляет колонку
   `vk_user_profiles.profile_data` (и очищает старую историю), а предыдущий образ её читает и пишет
-  (`JooqVkUserProfileRepository.kt:41-63`) и падает на `findByIds`/`persist`
+  (`VkUserProfileTable.kt:41-63`) и падает на `findByIds`/`persist`
   (`FetchUserProfileCommandImpl.kt:36`). Поэтому 008 применяется только вместе с новым образом; откат
   образа после 008 — только с восстановлением БД из бэкапа до 008, иначе сохранение сообщений ломается.
 - **Backfill статистики — ручной ops-шаг, не миграция.** Changeset 009 создаёт только пустые таблицы;

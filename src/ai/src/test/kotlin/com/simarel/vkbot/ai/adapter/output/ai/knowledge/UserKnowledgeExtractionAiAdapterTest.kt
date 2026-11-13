@@ -25,7 +25,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `parsesJsonFactsIntoDrafts`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ JSON_FACTS }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ JSON_FACTS }))
         val request = FakeKnowledgeProvider.createKnowledgeExtractionRequest()
 
         val response = KnowledgeExtractionAiAdapter(service, objectMapper).execute(request)
@@ -43,7 +43,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `stripsOneJsonCodeFence`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ "```json\n$JSON_FACTS\n```" }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ "```json\n$JSON_FACTS\n```" }))
 
         val response = KnowledgeExtractionAiAdapter(service, objectMapper).execute(
             FakeKnowledgeProvider.createKnowledgeExtractionRequest(),
@@ -55,7 +55,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `acceptsEmptyFactsArrayAsSuccess`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ JSON_NO_FACTS }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ JSON_NO_FACTS }))
 
         val response = KnowledgeExtractionAiAdapter(service, objectMapper).execute(
             FakeKnowledgeProvider.createKnowledgeExtractionRequest(),
@@ -67,7 +67,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `failsAfterThreeAttemptsOnInvalidJson`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ NOT_JSON }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ NOT_JSON }))
 
         val thrown = assertThrows<KnowledgeExtractionException> {
             KnowledgeExtractionAiAdapter(service, objectMapper).execute(
@@ -81,7 +81,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `failsAfterThreeAttemptsWhenFactsFieldIsMissing`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ "{}" }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ "{}" }))
 
         assertThrows<KnowledgeExtractionException> {
             KnowledgeExtractionAiAdapter(service, objectMapper).execute(
@@ -94,7 +94,7 @@ class UserKnowledgeExtractionAiAdapterTest {
 
     @Test
     fun `logsOnlyAttemptAndErrorClass`() {
-        val service = RecordingKnowledgeExtractionAiService(listOf({ NOT_JSON }))
+        val service = RecordingKnowledgeFactExtractor(listOf({ NOT_JSON }))
 
         SystemLoggerCapture(KnowledgeExtractionAiAdapter::class.java.name).use { capture ->
             assertThrows<KnowledgeExtractionException> {
@@ -117,9 +117,9 @@ class UserKnowledgeExtractionAiAdapterTest {
         }
     }
 
-    private class RecordingKnowledgeExtractionAiService(
+    private class RecordingKnowledgeFactExtractor(
         private val outcomes: List<() -> String>,
-    ) : KnowledgeExtractionAiService {
+    ) : KnowledgeFactExtractor {
         val calls = ConcurrentLinkedQueue<String>()
 
         override fun extract(messages: String): String {
