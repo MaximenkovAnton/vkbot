@@ -268,11 +268,13 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 |---|---|
 | `build` | `./gradlew :src:app:quarkusBuild`, наличие [`src/app/build/quarkus-app/quarkus-run.jar`](../../src/app/build/quarkus-app/quarkus-run.jar), отсутствие `build/quarkus-app` |
 | `lint` | `./gradlew detekt ktlintCheck` |
-| `coverage` | `./gradlew test coverageReport coverageVerification` — единственный прогон тестов в CI (нужен Docker для DevServices), upload HTML-отчёта; на push в `main` — бейджи покрытия и тестов в ветку `badges` |
+| `coverage` | `./gradlew test coverageReport coverageVerification` — единственный прогон тестов в CI (нужен Docker для DevServices), upload HTML-отчёта; на push в `main` — бейджи покрытия и тестов коммитятся в [`.github/badges/`](../../.github/badges) |
 | `docs` | [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) (карта возможностей существует, чек зелёный) |
 
-Публикация бейджей — единственный шаг CI, который пишет в репозиторий: джобу `coverage` нужен
-`contents: write` (задано в workflow), а репозиторий должен разрешать GitHub Actions писать
+Бейджи лежат в [`.github/badges/`](../../.github/badges) рядом с кодом, отдельной ветки нет: на push в `main`
+джоб `coverage` перегенерирует SVG и коммитит их бот-коммитом с `[skip ci]`, поэтому удалить бейджи вместе с
+веткой нельзя. Это единственный шаг CI, который пишет в репозиторий: джобу `coverage` нужен `contents: write`
+(задано в workflow), а репозиторий должен разрешать GitHub Actions писать
 (`Settings → Actions → General → Workflow permissions`).
 
 ## Локальный запуск
