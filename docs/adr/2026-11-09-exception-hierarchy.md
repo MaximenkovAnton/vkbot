@@ -30,7 +30,7 @@ Production-код бросал `IllegalArgumentException`, `IllegalStateExceptio
   `DecisionModelResponseException` (`processor`), `SummaryNotFoundException` (`persistence`),
   `MessageEmitterNotConfiguredException` (`infrastructure`), `VkApiException`, `VkEventPublishException`,
   `VkLongPollServerException`. Придуманные `IllegalArgumentException`-cause удалены.
-- **Архитектурные тесты.** `ExceptionHandlingTest` в `src/testing/arch-tests`:
+- **Архитектурные тесты.** `ExceptionHandlingTest` в [`src/testing/arch-tests`](../../src/testing/arch-tests):
   1. ArchUnit-правило по конструкторам `Throwable` в импортированных main-классах: разрешены
      наследники `VkBotAppException`, super-вызовы `RuntimeException`/`Exception`/`Throwable` внутри
      самой иерархии и исключения, которые генерирует Kotlin (`NoWhenBranchMatchedException`,

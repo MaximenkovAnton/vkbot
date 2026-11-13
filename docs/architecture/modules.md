@@ -1,6 +1,6 @@
 # Модульная структура
 
-12 Gradle-модулей (`settings.gradle.kts:22-33`), один деплой — `:src:app`
+12 Gradle-модулей ([`settings.gradle.kts:22-33`](../../settings.gradle.kts#L22-L33)), один деплой — `:src:app`
 ([ADR 2026-10-28-single-deployable-app-module](../adr/2026-10-28-single-deployable-app-module.md)). Модули — горизонтальные бизнес-модули вокруг
 общего ядра `share`; фичи (приём событий VK, ответ, саммари, сводка «что нового», досье об участнике, профили, поздравления) — вертикали внутри них. Компилятор делает
 неправильный импорт ошибкой сборки, а ArchUnit-тесты проверяют правила слоёв
@@ -36,16 +36,16 @@ Test-scope рёбра (не входят в production-граф, разреше�
 - **Публичный API:**
   - модели: `share/domain/model/{Message,StoredMessage,ResponseMessage,Summary,VkUserProfile,VkGroupProfile,UserStatistics,ProfileHistoryEntry,ChatAuthor}.kt`
     (`VkUserProfile.details: Map<String, Any?>` — человеческие значения полей VK без id и фото, ADR 2026-11-10-vk-profile-human-details;
-    `UserStatistics.kt` содержит `UserStatistics`, `ChatStatistics`, `HourActivity`, `DayOfWeekActivity`; `ChatAuthor(fromId, messageCount)` —
+    [`UserStatistics.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/UserStatistics.kt) содержит `UserStatistics`, `ChatStatistics`, `HourActivity`, `DayOfWeekActivity`; `ChatAuthor(fromId, messageCount)` —
     read-модель авторов чата; `share/domain/model/knowledge/{UserFact,UserFactEvidence,UserFactCandidate,UserKnowledge,ChatKnowledge,UserFactCategory,UserFactStatus,KnowledgeSourceKind}.kt` —
-    знания из чата, ADR 2026-11-11-user-knowledge-facts; `greeting/GreetingPerson.kt` — поздравляемый
+    знания из чата, ADR 2026-11-11-user-knowledge-facts; [`greeting/GreetingPerson.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/greeting/GreetingPerson.kt) — поздравляемый
     «имя + `FromId`», ADR 2026-11-13-greeting-knowledge);
   - VO: `share/domain/vo/{MessageText,PeerId,FromId,Date,ConversationMessageId,GroupId,Payload,LongPollTs}.kt` —
-    `@JvmInline value class`, например `MessageText.kt:3-12`;
-  - события: `share/domain/Event.kt:3-15` (11 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload,UserKnowledgeRequestedPayload,UserKnowledgeSummaryRequestedPayload,ChatKnowledgeSummaryRequestedPayload}.kt`;
-  - контракты: `share/port/Port.kt:3-9`, `share/port/input/InputPort.kt:7-13`, `share/port/output/OutputPort.kt:7-13`,
-    `share/command/Command.kt:3-8`, `share/command/publishEvent/PublishEventCommand.kt:9-13`,
-    `share/port/input/EventProcessor.kt:5-8`, `share/port/output/PublishEventOutputPort.kt:6-10`;
+    `@JvmInline value class`, например [`MessageText.kt:3-12`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/MessageText.kt#L3-L12);
+  - события: [`share/domain/Event.kt:3-15`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt#L3-L15) (11 значений) и payload'ы `share/domain/event/{SummaryRequestedPayload,SummaryReadyPayload,UserKnowledgeRequestedPayload,UserKnowledgeSummaryRequestedPayload,ChatKnowledgeSummaryRequestedPayload}.kt`;
+  - контракты: [`share/port/Port.kt:3-9`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/Port.kt#L3-L9), [`share/port/input/InputPort.kt:7-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/InputPort.kt#L7-L13), [`share/port/output/OutputPort.kt:7-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/OutputPort.kt#L7-L13),
+    [`share/command/Command.kt:3-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/command/Command.kt#L3-L8), [`share/command/publishEvent/PublishEventCommand.kt:9-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/command/publishEvent/PublishEventCommand.kt#L9-L13),
+    [`share/port/input/EventProcessor.kt:5-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/EventProcessor.kt#L5-L8), [`share/port/output/PublishEventOutputPort.kt:6-10`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/PublishEventOutputPort.kt#L6-L10);
   - исходящие порты: 32 `persistence`-порта (сообщения, саммари, чаты, профили по дате рождения, claim
     поздравления, три read-only порта сводки «что нового», три read-порта команды «профиль» —
     `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`, шесть
@@ -63,7 +63,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
     иерархия: `ValidationException` наследует `VkBotAppException`, доменная ошибка добавляет класс на
     value object и лист на конкретную проверку ([ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md)).
 - **Зависимости:** нет проектных (только библиотеки: Jakarta CDI, Quarkus core/arc, RabbitMQ messaging,
-  Jackson, REST client — `src/share/build.gradle.kts:16-33`).
+  Jackson, REST client — [`src/share/build.gradle.kts:16-33`](../../src/share/build.gradle.kts#L16-L33)).
 
 ## `receiver` — вход событий VK (Bots Long Poll)
 
@@ -73,18 +73,18 @@ Test-scope рёбра (не входят в production-граф, разреше�
   отвечает 404. Исходящие вызовы VK API (`messages.send`, профили) остаются за `vk-facade`
   ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
 - **Публичный API:**
-  - цикл опроса — `receiver/adapter/input/vk/LongPollRunner.kt` (виртуальный поток, старт по
+  - цикл опроса — [`receiver/adapter/input/vk/LongPollRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt) (виртуальный поток, старт по
     `StartupEvent`, стоп по `ShutdownEvent`, включение ключом `vk.longpoll.enabled`);
-  - `ReceiveMessageInputPort` — `receiver/port/input/ReceiveMessageInputPort.kt`
+  - `ReceiveMessageInputPort` — [`receiver/port/input/ReceiveMessageInputPort.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/port/input/ReceiveMessageInputPort.kt)
     (`VkUpdateInputPortRequest(type, message)`);
-  - порты Long Poll — `receiver/port/output/LongPollPort.kt` (сессия и `a_check`), выходной адаптер —
-    `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` (REST-клиент `configKey = "vk"`,
+  - порты Long Poll — [`receiver/port/output/LongPollPort.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/port/output/LongPollPort.kt) (сессия и `a_check`), выходной адаптер —
+    [`receiver/adapter/output/vk/VkLongPollOutputAdapter.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapter.kt) (REST-клиент `configKey = "vk"`,
     read-timeout 60 с).
-- **Ключевые классы:** `ReceiveMessageUsecase.kt` (тип обновления → `MESSAGE_NEW`),
-  `PublishVkEventCommandImpl.kt:10-23` (публикует `MESSAGE_NEW`), `MessageMapper.kt:13-58` (DMZ, включая
-  forward/reply/wall), `VkUpdateType.kt` (`MESSAGE_NEW`, `MESSAGE_REPLY`, `UNKNOWN`), DTO
+- **Ключевые классы:** [`ReceiveMessageUsecase.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecase.kt) (тип обновления → `MESSAGE_NEW`),
+  [`PublishVkEventCommandImpl.kt:10-23`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/command/sendVkEvent/PublishVkEventCommandImpl.kt#L10-L23) (публикует `MESSAGE_NEW`), [`MessageMapper.kt:13-58`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt#L13-L58) (DMZ, включая
+  forward/reply/wall), [`VkUpdateType.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/domain/vo/VkUpdateType.kt) (`MESSAGE_NEW`, `MESSAGE_REPLY`, `UNKNOWN`), DTO
   `adapter/input/dto/{MessageDto,WallAttachmentDto}.kt`.
-- **Сборка:** `implementation(project(":src:share"))` (`src/receiver/build.gradle.kts:16`).
+- **Сборка:** `implementation(project(":src:share"))` ([`src/receiver/build.gradle.kts:13`](../../src/receiver/build.gradle.kts#L13)).
 
 ## `persistence` — хранение и запросы
 
@@ -98,10 +98,10 @@ Test-scope рёбра (не входят в production-граф, разреше�
   подтягивание профилей VK.
 - **Публичный API:**
   - REST: `POST/GET /persistence/*`, включая `GET /persistence/profiles/users/{id}/history` и
-    `GET /persistence/statistics/users/{id}` — `PersistenceDataResource.kt:21-154`, контракт —
-    `PersistenceResource.kt:24-97` (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:99-108`);
-  - MQ-вход: `MessageNewEventProcessor.kt:12-22` (`MESSAGE_NEW`);
-  - in-process: `PersistenceDataInProcessAdapter.kt` — 32 класса-адаптера share-портов
+    `GET /persistence/statistics/users/{id}` — [`PersistenceDataResource.kt:21-154`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L21-L154), контракт —
+    [`PersistenceResource.kt:24-97`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt#L24-L97) (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:99-108`);
+  - MQ-вход: [`MessageNewEventProcessor.kt:12-22`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22) (`MESSAGE_NEW`);
+  - in-process: [`PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) — 32 класса-адаптера share-портов
     (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
     `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`, три read-only порта
     сводки «что нового» — `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`,
@@ -113,23 +113,23 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`, read-порт знаний
     `FindUserKnowledgePort`, read-порт состояния сводки профиля `FindUserKnowledgeSummaryStatePort` и
     read-порт birthday-фактов `FindUserBirthdayFactsPort`), делегируют в `PersistenceDataInputPort`;
-  - вход сохранения: `SaveMessageInputPort` (`persistence/port/input/SaveMessageInputPort.kt`).
-- **Ключевые классы:** `SaveMessageUsecase.kt:22-68` (профили → сохранение → три upsert'а статистики →
-  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), `PersistenceDataUsecase.kt` (32 операции, включая три чтения для сводки «что
+  - вход сохранения: `SaveMessageInputPort` ([`persistence/port/input/SaveMessageInputPort.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt)).
+- **Ключевые классы:** [`SaveMessageUsecase.kt:22-68`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L22-L68) (профили → сохранение → три upsert'а статистики →
+  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), [`PersistenceDataUsecase.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt) (32 операции, включая три чтения для сводки «что
   нового», авторов чата, историю профиля, статистику автора, шесть операций знаний, два чтения сводки
   чата, чтение знаний `findUserKnowledge`, состояние сводки профиля `findUserKnowledgeSummaryState` и
   чтение birthday-фактов на месяц/день `findUserBirthdayFacts`;
   публикует `SUMMARY_READY` при сохранении завершённого
-  саммари), `FetchUserProfileCommandImpl.kt:18-153` (читает сохранённые профили; отсутствующие и
+  саммари), [`FetchUserProfileCommandImpl.kt:18-153`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L18-L153) (читает сохранённые профили; отсутствующие и
   устаревшие старше месяца обновляет через in-process vk-порты, typed-поля и `details` сливает с
-  сохранёнными, diff пишет в историю), `domain/profile/ProfileFieldsMerger.kt` (слияние `details` и diff
+  сохранёнными, diff пишет в историю), [`domain/profile/ProfileFieldsMerger.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/profile/ProfileFieldsMerger.kt) (слияние `details` и diff
   typed-полей и `details` без Jackson),
-  `StatisticsConfig.kt` (`statistics.timezone`), `JooqConfig.kt:11-20`,
-  `port/output/persistence/UpdateUserStatisticsPort.kt` + `adapter/output/persistence/UpdateUserStatisticsAdapter.kt`
+  [`StatisticsConfig.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt) (`statistics.timezone`), [`JooqConfig.kt:11-20`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/JooqConfig.kt#L11-L20),
+  [`port/output/persistence/UpdateUserStatisticsPort.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/persistence/UpdateUserStatisticsPort.kt) + [`adapter/output/persistence/UpdateUserStatisticsAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/UpdateUserStatisticsAdapter.kt)
   (`@Transactional`) + `UserStatisticsWriter` — материализация агрегатов в транзакции
   сообщения в порядке итоги → чаты → часы,
-  jOOQ-доступ к таблицам `adapter/output/persistence/jooq/*Table.kt`, `UserStatisticsReader.kt` и
-  `UserStatisticsWriter.kt` (включая
+  jOOQ-доступ к таблицам `adapter/output/persistence/jooq/*Table.kt`, [`UserStatisticsReader.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsReader.kt) и
+  [`UserStatisticsWriter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsWriter.kt) (включая
   `LongPollPositionTable` — одна строка `long_poll_position`, и `GreetingLogTable` —
   claim `greeting_log`; `MessageTable`/`SummaryTable` читают последнее сообщение
   автора, диапазон дат и саммари периода для сводки «что нового», а `MessageTable.findAuthorsByPeerId`
@@ -141,19 +141,19 @@ Test-scope рёбра (не входят в production-граф, разреше�
   `knowledge.evidence-refs-limit`, и читает все карточки пользователей одним `WHERE user_id IN (…)`;
   `KnowledgeSummaryTable` читает сводки пользователей по `user_id IN (…)` и считает текущие
   карточки новее сохранённой сводки (`countCurrentFactsNewerThan`) для гейта R3a;
-  `domain/knowledge/UserKnowledgeReadModel.kt` собирает карту «запись на каждый id + `summaryFresh`»), `domain/knowledge/FactConfidenceCalculator.kt` (клампы, бонус,
-  `CONFIRMED` по `knowledge.confirm-threshold`), `domain/knowledge/KnowledgeTemporalPolicy.kt` (окна,
-  `classify`, `isStale`, нормализация/`mergeBirthdayPayload`), `domain/knowledge/KnowledgeValueHash.kt`,
-  `config/KnowledgeConfig.kt` (два ключа `knowledge.*`), таблицы
+  [`domain/knowledge/UserKnowledgeReadModel.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/UserKnowledgeReadModel.kt) собирает карту «запись на каждый id + `summaryFresh`»), [`domain/knowledge/FactConfidenceCalculator.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/FactConfidenceCalculator.kt) (клампы, бонус,
+  `CONFIRMED` по `knowledge.confirm-threshold`), [`domain/knowledge/KnowledgeTemporalPolicy.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeTemporalPolicy.kt) (окна,
+  `classify`, `isStale`, нормализация/`mergeBirthdayPayload`), [`domain/knowledge/KnowledgeValueHash.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/domain/knowledge/KnowledgeValueHash.kt),
+  [`config/KnowledgeConfig.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt) (два ключа `knowledge.*`), таблицы
   `.../jooq/Tables.kt:6-178`, changesets `005-create-long-poll-position-table`/
   `006-create-greeting-log-table`/`007-add-user-profile-data-and-history`/
   `008-replace-profile-data-with-human-details`/`009-create-user-statistics-tables`/
   `010-create-user-knowledge-tables` (второй нетранзакционный changeset `010-create-messages-knowledge-index`),
   ручной backfill-скрипт
-  `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`, порты
+  [`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql), порты
   `persistence/port/output/persistence/` (включая внутренние `FindChatAuthorsByPeerIdPort` +
-  `FindChatAuthorsByPeerIdAdapter` для `findChatAuthors`) и `ForwardedMessagesSerializationPort.kt:8-16`.
-- **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST (`src/persistence/build.gradle.kts:13-55`).
+  `FindChatAuthorsByPeerIdAdapter` для `findChatAuthors`) и [`ForwardedMessagesSerializationPort.kt:8-16`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/ForwardedMessagesSerializationPort.kt#L8-L16).
+- **Сборка:** `share`, jOOQ 3.19.10, Liquibase, Agroal, PostgreSQL, REST ([`src/persistence/build.gradle.kts:13-55`](../../src/persistence/build.gradle.kts#L13-L55)).
   Кодогенерация jOOQ выключена без `JOOQ_JDBC_URL` (`:89-125`), таблицы описаны вручную.
 
 ## `processor` — решение об ответе, маршрутизация интентов, спам/jailbreak-уведомления и клиент decision-модели
@@ -177,21 +177,21 @@ Test-scope рёбра (не входят в production-граф, разреше�
   `knowledge.batch-size`/интервал `knowledge.batch-interval`) и публикует ровно одно
   `USER_KNOWLEDGE_REQUESTED(peerId, upToConversationMessageId)`; сбой — fail-open WARNING с `peerId` и
   классом ошибки (вертикаль `user-knowledge`, ADR 2026-11-11-knowledge-extraction).
-- **Публичный API:** `MessageReceivedEventProcessor.kt:12-22` (`MESSAGE_RECEIVED`), вход —
-  `processor/port/input/messageReceived/MessageReceivedInputPort.kt`.
-- **Ключевые классы:** `MessageReceivedUsecaseInput.kt:33-157` (decision-этап с приоритетом
+- **Публичный API:** [`MessageReceivedEventProcessor.kt:12-22`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22) (`MESSAGE_RECEIVED`), вход —
+  [`processor/port/input/messageReceived/MessageReceivedInputPort.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/input/messageReceived/MessageReceivedInputPort.kt).
+- **Ключевые классы:** [`MessageReceivedUsecaseInput.kt:33-157`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L33-L157) (decision-этап с приоритетом
   `spam → jailbreak`, `requiredAnswer`, ленивый интент-вызов, fail-open, маршрутизация и публикация
-  `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER`), `IsSpamCommand.kt:9-23` (правило
-  `spamProbability >= decision.spam-threshold`), `IsJailbreakCommand.kt:9-23` (правило
-  `jailbreakProbability >= decision.jailbreak-threshold`), `IsRequireAnswerCommand.kt:10-34` (правила: не
+  `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER`), [`IsSpamCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt#L9-L23) (правило
+  `spamProbability >= decision.spam-threshold`), [`IsJailbreakCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt#L9-L23) (правило
+  `jailbreakProbability >= decision.jailbreak-threshold`), [`IsRequireAnswerCommand.kt:10-34`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L10-L34) (правила: не
   человек → нет; личный чат → да; `!`/`\` → нет; упоминание бота или forward от бота → да),
-  `command/help/BuildHelpTextCommand.kt:10-36` (текст справки и `vk.bot.mention`),
-  `command/knowledge/RequestKnowledgeExtractionCommand.kt` (политика батча и публикация
-  `USER_KNOWLEDGE_REQUESTED`), `command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` (точные `/help`/`/помощь` и граница «с
+  [`command/help/BuildHelpTextCommand.kt:10-36`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt#L10-L36) (текст справки и `vk.bot.mention`),
+  [`command/knowledge/RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt) (политика батча и публикация
+  `USER_KNOWLEDGE_REQUESTED`), [`command/resolveIntent/ResolveMessageIntentCommand.kt:10-35`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt#L10-L35) (точные `/help`/`/помощь` и граница «с
   аргументами → `GENERAL`»). В коде есть TODO-комментарий о будущем контексте (RAG) — это не реализовано.
-- **Decision-клиент:** порт `processor/port/output/decision/AnalyzeMessageOutputPort.kt`
+- **Decision-клиент:** порт [`processor/port/output/decision/AnalyzeMessageOutputPort.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt)
   (`OutputPort<AnalyzeMessageRequest, AnalyzeMessageResponse>`), адаптер
-  `processor/adapter/output/decision/DecisionModelOutputAdapter.kt` над библиотечным
+  [`processor/adapter/output/decision/DecisionModelOutputAdapter.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt) над библиотечным
   `dev.langchain4j.model.decision.DecisionModel`, доменные `MessageClass`, `MessageIntent`,
   `DecisionAnalysis` (включая `jailbreakProbability`) и `MessageTextNormalizer`
   (`processor/domain/decision/`), отказ —
@@ -205,7 +205,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   только `message.messageText` — forward/вложения не анализируются (named gap `answer-decision`).
 - **Сборка:** `share`; внешняя зависимость `quarkus-langchain4j-ollama` для decision-модели (как у `ai` —
   `quarkus-langchain4j-openai`); `testImplementation` infrastructure для декораторов
-  (`src/processor/build.gradle.kts:13`). Project-рёбра при этом не меняются.
+  ([`src/processor/build.gradle.kts:43`](../../src/processor/build.gradle.kts#L43)). Project-рёбра при этом не меняются.
 
 ## `ai` — ответы, саммаризация, сводка «что нового», досье об участнике, OCR, Vane
 
@@ -219,34 +219,34 @@ Test-scope рёбра (не входят в production-граф, разреше�
   LLM-вызов, валидация, запись через порты R1a, курсор и события сводок. Модуль импортирует только
   `share`.
 - **Публичный API:**
-  - MQ-входы: `MessageRequireAnswerEventProcessor.kt:12-22`, `SummaryRequestedEventProcessor.kt:12-28`,
-    `NewsDigestRequestedEventProcessor.kt:12-22` (`NEWS_DIGEST_REQUESTED`, тело — доменный `Message`),
-    `ProfileRequestedEventProcessor.kt:12-22` (`PROFILE_REQUESTED`, тело — доменный `Message`),
-    `UserKnowledgeRequestedEventProcessor.kt` (`USER_KNOWLEDGE_REQUESTED`, тело —
-    `UserKnowledgeRequestedPayload`), `ChatKnowledgeSummaryRequestedEventProcessor.kt`
+  - MQ-входы: [`MessageRequireAnswerEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt#L12-L22), [`SummaryRequestedEventProcessor.kt:12-28`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessor.kt#L12-L28),
+    [`NewsDigestRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt#L12-L22) (`NEWS_DIGEST_REQUESTED`, тело — доменный `Message`),
+    [`ProfileRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22) (`PROFILE_REQUESTED`, тело — доменный `Message`),
+    [`UserKnowledgeRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeRequestedEventProcessor.kt) (`USER_KNOWLEDGE_REQUESTED`, тело —
+    `UserKnowledgeRequestedPayload`), [`ChatKnowledgeSummaryRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ChatKnowledgeSummaryRequestedEventProcessor.kt)
     (`CHAT_KNOWLEDGE_SUMMARY_REQUESTED`, тело — `ChatKnowledgeSummaryRequestedPayload`);
-  - входы use case: `port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt`,
+  - входы use case: [`port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/messageRequireAnswer/MessageRequireAnswerInputPort.kt),
     `port/input/summary/{GenerateSummaryInputPort,ProcessSummaryInputPort}.kt`,
-    `port/input/news/ProcessNewsDigestInputPort.kt`,
-    `port/input/profile/ProcessProfileInputPort.kt`;
-  - in-process: `adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` — `GenerateGreetingTextPort`.
+    [`port/input/news/ProcessNewsDigestInputPort.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/news/ProcessNewsDigestInputPort.kt),
+    [`port/input/profile/ProcessProfileInputPort.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt);
+  - in-process: [`adapter/output/ai/greeting/GreetingTextOutputAdapter.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt) — `GenerateGreetingTextPort`.
 - **Ключевые классы:**
-  - ответ: `GenerateAnswerUsecase.kt:16-41` → `GenerateAnswerCommand.kt:26-74` (контекст через
+  - ответ: [`GenerateAnswerUsecase.kt:16-41`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/message/requireAnswer/GenerateAnswerUsecase.kt#L16-L41) → [`GenerateAnswerCommand.kt:26-74`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/answer/GenerateAnswerCommand.kt#L26-L74) (контекст через
     `ConversationContextOutputPort`, знания автора через `FindUserKnowledgePort`, LLM через
     `GenerateAnswerOutputPort`); контекст —
-    `ConversationContextRestAdapter.kt:21-104` (20 последних сообщений, профили, парсинг JSONB
-    `forwardedMessages`); LLM — `UserAnswerGenerator.kt:13-46` + `GenerateAnswerOutputAdapter.kt:16-142`
+    [`ConversationContextRestAdapter.kt:21-104`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt#L21-L104) (20 последних сообщений, профили, парсинг JSONB
+    `forwardedMessages`); LLM — [`UserAnswerGenerator.kt:13-46`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt#L13-L46) + [`GenerateAnswerOutputAdapter.kt:16-142`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/GenerateAnswerOutputAdapter.kt#L16-L142)
     (блок `[USER_KNOWLEDGE]` из свежей сводки профиля или канонических фактов, плейсхолдер
     `{userKnowledge}`);
-  - саммаризация: `ProcessSummaryCommandImpl.kt:11-128` (включённые чаты, порог, pending, батч),
-    `GenerateSummaryCommandImpl.kt:13-61` (pending-запись → форматирование общим `MessageAuthorFormatter` →
-    LLM → completed или failed), `SummarizationAiAdapter.kt:12-42` (3 попытки), `ConversationSummarizer.kt:8-37`;
-  - Vane: `VaneSearchToolAdapter.kt:10-32` (`@Tool search_web/search_academic/search_discussions`),
-    `VaneSearchCommand` → `VaneSearchOutputAdapter.kt:10-72` (выбор провайдера) →
-    `VaneSearchClient.kt:11-25` (`/api/search`, `/api/providers`);
-  - OCR: `RecognizeImagesCommandImpl.kt:8-27`, `ImageRecognitionOutputAdapter.kt:12-38`, `ImageDescriber.kt:9-46`;
-  - поздравления: `GreetingTextGenerator.kt` (`@RegisterAiService`, `@SystemMessage("{config:aiGreetingSystemprompt}")`)
-    + `GreetingTextOutputAdapter.kt` (`GenerateGreetingTextPort`, формат даты и списков);
+  - саммаризация: [`ProcessSummaryCommandImpl.kt:11-128`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt#L11-L128) (включённые чаты, порог, pending, батч),
+    [`GenerateSummaryCommandImpl.kt:13-61`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt#L13-L61) (pending-запись → форматирование общим `MessageAuthorFormatter` →
+    LLM → completed или failed), [`SummarizationAiAdapter.kt:12-42`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt#L12-L42) (3 попытки), [`ConversationSummarizer.kt:8-37`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/ConversationSummarizer.kt#L8-L37);
+  - Vane: [`VaneSearchToolAdapter.kt:10-32`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt#L10-L32) (`@Tool search_web/search_academic/search_discussions`),
+    `VaneSearchCommand` → [`VaneSearchOutputAdapter.kt:10-72`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt#L10-L72) (выбор провайдера) →
+    [`VaneSearchClient.kt:11-25`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt#L11-L25) (`/api/search`, `/api/providers`);
+  - OCR: [`RecognizeImagesCommandImpl.kt:8-27`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/ocr/RecognizeImagesCommandImpl.kt#L8-L27), [`ImageRecognitionOutputAdapter.kt:12-38`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/ocr/ImageRecognitionOutputAdapter.kt#L12-L38), [`ImageDescriber.kt:9-46`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/ocr/ImageDescriber.kt#L9-L46);
+  - поздравления: [`GreetingTextGenerator.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextGenerator.kt) (`@RegisterAiService`, `@SystemMessage("{config:aiGreetingSystemprompt}")`)
+    + [`GreetingTextOutputAdapter.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt) (`GenerateGreetingTextPort`, формат даты и списков);
   - сводка «что нового»: `ProcessNewsDigestUsecase` → `ProcessNewsDigestCommandImpl` (период через
     `NewsPeriodParser`/`NewsPeriod`, три read-only in-process порта к `persistence`, опциональные чтения
     знаний `FindUserKnowledgePort([автор])`/`FindChatKnowledgeSummaryPort(peerId)` — R4c, fail-open,
@@ -295,9 +295,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
     (`@RegisterAiService` без инструментов и памяти, system-промпт
     `{config:aiKnowledgeSummarySystemprompt}`, 3 попытки, `UserKnowledgeSummaryException`,
     `EXTERNAL_FAILURE`);
-  - память чата: `TransientChatMemoryProvider.kt:10-17` (in-memory, 10 сообщений, не персистится).
+  - память чата: [`TransientChatMemoryProvider.kt:10-17`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/TransientChatMemoryProvider.kt#L10-L17) (in-memory, 10 сообщений, не персистится).
 - **Сборка:** `share`, `quarkus-arc`, `quarkus-rest-client-jackson`, LangChain4j OpenAI-совместимый
-  провайдер (`quarkus-langchain4j-openai`, ADR 2026-11-05-llm-provider-vllm-openai) (`src/ai/build.gradle.kts:14-46`).
+  провайдер (`quarkus-langchain4j-openai`, ADR 2026-11-05-llm-provider-vllm-openai) ([`src/ai/build.gradle.kts:14-46`](../../src/ai/build.gradle.kts#L14-L46)).
 
 ## `vk-facade` — выход в VK API и профили
 
@@ -305,22 +305,22 @@ Test-scope рёбра (не входят в production-граф, разреше�
   публичный REST профилей, in-process реализация share-портов vk; потребление `ANSWER_MESSAGE`/
   `SUMMARY_READY`.
 - **Публичный API:**
-  - REST: `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` — `VkProfileResource.kt:14-32`;
-  - MQ-входы: `SendMessageEventProcessor.kt:12-22` (`ANSWER_MESSAGE`),
-    `SummaryReadyEventProcessor.kt:18-57` (`SUMMARY_READY`, формирует forward-блок);
-  - in-process: `VkProfileInProcessAdapter.kt:8-36` — 2 адаптера `GetUserProfilesBatchPort`/
-    `GetGroupProfilesBatchPort` через `VkProfileInputPort`; `SendGreetingMessageInProcessAdapter.kt` —
+  - REST: `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` — [`VkProfileResource.kt:14-32`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt#L14-L32);
+  - MQ-входы: [`SendMessageEventProcessor.kt:12-22`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L12-L22) (`ANSWER_MESSAGE`),
+    [`SummaryReadyEventProcessor.kt:18-57`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L18-L57) (`SUMMARY_READY`, формирует forward-блок);
+  - in-process: [`VkProfileInProcessAdapter.kt:8-36`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt#L8-L36) — 2 адаптера `GetUserProfilesBatchPort`/
+    `GetGroupProfilesBatchPort` через `VkProfileInputPort`; [`SendGreetingMessageInProcessAdapter.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt) —
     `SendGreetingMessagePort` через `VkSendPlainMessageInputPort`;
   - входы: `port/input/vk/{VkSendMessageInputPort,VkSendPlainMessageInputPort,VkProfileInputPort}.kt`.
-- **Ключевые классы:** `MessageSendUsecase.kt:15-44` (peer_id/message/forward/random_id),
-  `PlainMessageSendUsecase.kt` (плоская отправка: `forwardedMessages = null`, `random_id` от текста и peer),
-  `RandomId.kt` (две формулы: ответ — текст+peer+дата, плоская — текст+peer),
-  `VkProfileUsecase.kt:9-21`, `SendVkMessageCommandImpl.kt:8-19`, `VkSendMessageOutputAdapter.kt:12-29`
-  (ошибка VK → `VkException`), `GetProfileAdapter.kt:20-78` (VK `users.get` со всеми полями пользователя,
+- **Ключевые классы:** [`MessageSendUsecase.kt:15-44`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L15-L44) (peer_id/message/forward/random_id),
+  [`PlainMessageSendUsecase.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/PlainMessageSendUsecase.kt) (плоская отправка: `forwardedMessages = null`, `random_id` от текста и peer),
+  [`RandomId.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/domain/RandomId.kt) (две формулы: ответ — текст+peer+дата, плоская — текст+peer),
+  [`VkProfileUsecase.kt:9-21`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt#L9-L21), [`SendVkMessageCommandImpl.kt:8-19`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/sendVkMessage/SendVkMessageCommandImpl.kt#L8-L19), [`VkSendMessageOutputAdapter.kt:12-29`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapter.kt#L12-L29)
+  (ошибка VK → `VkException`), [`GetProfileAdapter.kt:12-70`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt#L12-L70) (VK `users.get` со всеми полями пользователя,
   кроме фото/аватарки, и `groups.getById`; группы хранятся с отрицательным id),
-  `VkClient.kt:12-39` (`configKey = "vk"`, `v=${vk.api.version}`,
+  [`VkClient.kt:12-39`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt#L12-L39) (`configKey = "vk"`, `v=${vk.api.version}`,
   `disable_mentions`, `dont_parse_links`).
-- **Сборка:** `share`, REST/REST client, fault-tolerance, RabbitMQ (`src/vk-facade/build.gradle.kts:13-23`).
+- **Сборка:** `share`, REST/REST client, fault-tolerance, RabbitMQ ([`src/vk-facade/build.gradle.kts:13-23`](../../src/vk-facade/build.gradle.kts#L13-L23)).
 
 ## `greetings` — поздравления по cron-расписанию
 
@@ -333,48 +333,48 @@ Test-scope рёбра (не входят в production-граф, разреше�
   личные факты именинников (`FindChatKnowledgeSummaryPort`/`FindUserKnowledgePort`, лимит
   `greetings.knowledge.max-facts-per-person`, kill-switch `greetings.knowledge.enabled`, fail-open);
   спан `greetings.daily-run`. Событий RabbitMQ и HTTP-входов нет.
-- **Публичный API:** `port/input/RunDailyGreetingsInputPort.kt` (`Request(date)` → `Response(planned, sent,
-  failed)`), `adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled` с `cron = "{greetings.cron}"`,
+- **Публичный API:** [`port/input/RunDailyGreetingsInputPort.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/port/input/RunDailyGreetingsInputPort.kt) (`Request(date)` → `Response(planned, sent,
+  failed)`), [`adapter/input/schedule/DailyGreetingRunner.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt) (`@Scheduled` с `cron = "{greetings.cron}"`,
   `timeZone = "{greetings.timezone}"`, ключи `greetings.cron`/`greetings.timezone`).
-- **Ключевые классы:** `usecase/RunDailyGreetingsUsecase.kt` (план → claim на чат → generate → send по
-  планам; ошибка одного сообщения/чата не роняет остальные), `command/collect/CollectGreetingPlansCommand.kt`
+- **Ключевые классы:** [`usecase/RunDailyGreetingsUsecase.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/usecase/RunDailyGreetingsUsecase.kt) (план → claim на чат → generate → send по
+  планам; ошибка одного сообщения/чата не роняет остальные), [`command/collect/CollectGreetingPlansCommand.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt)
   (групповые чаты + профили по дате рождения и CONFIRMED birthday-факты с дедупом по `userId`; один план на
-  праздник и один на именинников чата), `command/text/GenerateGreetingTextCommand.kt` (знания + ИИ +
+  праздник и один на именинников чата), [`command/text/GenerateGreetingTextCommand.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt) (знания + ИИ +
   детерминированный шаблон), `domain/{Holidays,BirthdayDates,NameFormatter,GreetingPlan,Holiday}.kt`;
-  `share/domain/model/greeting/GreetingPerson.kt` — пара «имя + `FromId`» вместо параллельных списков.
+  [`share/domain/model/greeting/GreetingPerson.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/greeting/GreetingPerson.kt) — пара «имя + `FromId`» вместо параллельных списков.
 - **Порты знаний:** `FindUserBirthdayFactsPort`, `FindUserKnowledgePort`,
   `FindChatKnowledgeSummaryPort` и `FindStoredUserProfilesByIdsPort` (share, реализация в `persistence`) —
   только чтение `user_facts`, `user_knowledge_summary`, `chat_knowledge_summary` и `vk_user_profiles`;
   миграции нет (ADR 2026-11-13-greeting-knowledge).
 - **Сборка:** `share`, `quarkus-scheduler`, `quarkus-arc`, `jakarta.enterprise.cdi-api`, `opentelemetry-api`
-  (`src/greetings/build.gradle.kts`).
+  ([`src/greetings/build.gradle.kts`](../../src/greetings/build.gradle.kts)).
 
 ## `infrastructure` — брокер и декораторы
 
 - **Ответственность:** диспетчер RabbitMQ, retry-лестница и финальный DLQ, публикация событий, logging
   декораторы, Jackson-конфигурация.
 - **Публичный API:**
-  - MQ-вход: `@Incoming("all-events-queue")` — `EventDispatcher.kt:63-85`;
-  - реализация `PublishEventOutputPort` — `PublishEventOutputAdapter.kt:15-33` (JSON + routing key = `Event.name`);
-  - CDI-декораторы: `CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`.
+  - MQ-вход: `@Incoming("all-events-queue")` — [`EventDispatcher.kt:63-85`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L63-L85);
+  - реализация `PublishEventOutputPort` — [`PublishEventOutputAdapter.kt:15-33`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt#L15-L33) (JSON + routing key = `Event.name`);
+  - CDI-декораторы: [`CommandLoggingDecorator.kt:12-28`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/CommandLoggingDecorator.kt#L12-L28), [`UsecaseLoggingDecorator.kt:12-28`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/UsecaseLoggingDecorator.kt#L12-L28).
 - **Ключевые классы:** `EventDispatcher` (карта `Event.name → EventProcessor`, `@RunOnVirtualThread`,
-  retry по заголовку `x-retry-count`, `:91-113`), `DlqConfig.kt:6-16` (`dlq.levels[]`),
-  `MapperConfig.kt:9-18` (Kotlin-модуль Jackson).
+  retry по заголовку `x-retry-count`, `:91-113`), [`DlqConfig.kt:6-16`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/DlqConfig.kt#L6-L16) (`dlq.levels[]`),
+  [`MapperConfig.kt:9-18`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/MapperConfig.kt#L9-L18) (Kotlin-модуль Jackson).
 - **Сборка:** `share`, Quarkus arc/jackson/messaging-rabbitmq/logging-json, SmallRye RabbitMQ
-  (`src/infrastructure/build.gradle.kts:13-26`).
+  ([`src/infrastructure/build.gradle.kts:13-26`](../../src/infrastructure/build.gradle.kts#L13-L26)).
 
 ## `app` — деплой и composition root
 
 - **Ответственность:** единственный Quarkus-деплой, runtime-конфигурация, интеграционные тесты.
-- **Публичный API:** `@QuarkusMain` — `app/Application.kt:6-12`; конфиги
+- **Публичный API:** `@QuarkusMain` — [`app/Application.kt:6-12`](../../src/app/src/main/kotlin/com/simarel/vkbot/app/Application.kt#L6-L12); конфиги
   `src/app/src/main/resources/{application.yml,application-queues.yml}`.
-- **Сборка:** все 7 бизнес-модулей + share (`src/app/build.gradle.kts:16-23`), deployable-расширения
+- **Сборка:** все 7 бизнес-модулей + share ([`src/app/build.gradle.kts:16-23`](../../src/app/build.gradle.kts#L16-L23)), deployable-расширения
   (`:26-37`).
 
 ## `testing/test-fixtures`, `testing/test-common`, `testing/arch-tests`
 
 - **`test-fixtures`** — общие fake-объекты и провайдеры данных:
-  `testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`, `.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`,
+  [`testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/adapter/output/vk/FakeVkClient.kt#L9-L41), `.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`,
   `.../command/vkFacade/FakePublishEventCommand.kt:8-16`, `.../domain/FakeVoProvider.kt:18-69`.
   Модуль зависит от `share` и `vk-facade`, но подключается только в test-конфигурациях.
 - **`test-common`** — общий тестовый `application.yaml` (`vk.*`, `vane.url`, DevServices off).
@@ -387,41 +387,41 @@ Test-scope рёбра (не входят в production-граф, разреше�
 
 ### События RabbitMQ
 
-Обменник `all-events`; routing key = имя события (`PublishEventOutputAdapter.kt:20-30`), консьюмеры
-маршрутизируются по `EventProcessor.event()` (`EventDispatcher.kt:21-24`).
+Обменник `all-events`; routing key = имя события ([`PublishEventOutputAdapter.kt:20-30`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt#L20-L30)), консьюмеры
+маршрутизируются по `EventProcessor.event()` ([`EventDispatcher.kt:21-25`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L21-L25)).
 
 | Событие | Публикует | Потребляет |
 |---|---|---|
-| `MESSAGE_NEW` | receiver (`PublishVkEventCommandImpl.kt:15-23`) | persistence (`MessageNewEventProcessor.kt:12-22`) |
-| `MESSAGE_RECEIVED` | persistence (`SaveMessageUsecase.kt:33-38`) | processor (`MessageReceivedEventProcessor.kt:12-22`) |
-| `SUMMARY_REQUESTED` | persistence (`SaveMessageUsecase.kt:39-49`) | ai (`SummaryRequestedEventProcessor.kt:12-28`) |
-| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`MessageRequireAnswerEventProcessor.kt:12-22`) |
-| `ANSWER_MESSAGE` | ai (`GenerateAnswerUsecase.kt:28-38`, сводка «что нового» — `ProcessNewsDigestCommandImpl`, досье — `ProcessProfileCommandImpl`), processor — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:64-73,112-115`) | vk-facade (`SendMessageEventProcessor.kt:12-22`) |
-| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`NewsDigestRequestedEventProcessor.kt:12-22`) |
-| `PROFILE_REQUESTED` | processor — ветка `profile` (`MessageReceivedUsecaseInput.kt:78-82`) | ai (`ProfileRequestedEventProcessor.kt:12-22`, вертикаль `profile-dossier`) |
-| `USER_KNOWLEDGE_REQUESTED` | processor — триггер извлечения (`RequestKnowledgeExtractionCommand.kt`), до decision-этапа | ai (`UserKnowledgeRequestedEventProcessor.kt`, вертикаль `user-knowledge`) |
-| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча (`ProcessUserKnowledgeCommandImpl.kt`) | ai (`UserKnowledgeSummaryRequestedEventProcessor.kt`, R3a) |
-| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча (`ProcessUserKnowledgeCommandImpl.kt`) | ai (`ChatKnowledgeSummaryRequestedEventProcessor.kt`, R3b) |
-| `SUMMARY_READY` | persistence (`PersistenceDataUsecase.kt:256-287`) | vk-facade (`SummaryReadyEventProcessor.kt:18-57`) |
+| `MESSAGE_NEW` | receiver ([`PublishVkEventCommandImpl.kt:15-23`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/command/sendVkEvent/PublishVkEventCommandImpl.kt#L15-L23)) | persistence ([`MessageNewEventProcessor.kt:12-22`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22)) |
+| `MESSAGE_RECEIVED` | persistence ([`SaveMessageUsecase.kt:33-38`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L38)) | processor ([`MessageReceivedEventProcessor.kt:12-22`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22)) |
+| `SUMMARY_REQUESTED` | persistence ([`SaveMessageUsecase.kt:39-49`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L39-L49)) | ai ([`SummaryRequestedEventProcessor.kt:12-28`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessor.kt#L12-L28)) |
+| `MESSAGE_REQUIRE_ANSWER` | processor — ветка `general` ([`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82)) | ai ([`MessageRequireAnswerEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt#L12-L22)) |
+| `ANSWER_MESSAGE` | ai ([`GenerateAnswerUsecase.kt:28-38`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/message/requireAnswer/GenerateAnswerUsecase.kt#L28-L38), сводка «что нового» — `ProcessNewsDigestCommandImpl`, досье — `ProcessProfileCommandImpl`), processor — спам-ветка, jailbreak-ветка и справка ([`MessageReceivedUsecaseInput.kt:64-73,112-115`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt)) | vk-facade ([`SendMessageEventProcessor.kt:12-22`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L12-L22)) |
+| `NEWS_DIGEST_REQUESTED` | processor — ветка `news` ([`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82)) | ai ([`NewsDigestRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt#L12-L22)) |
+| `PROFILE_REQUESTED` | processor — ветка `profile` ([`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82)) | ai ([`ProfileRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22), вертикаль `profile-dossier`) |
+| `USER_KNOWLEDGE_REQUESTED` | processor — триггер извлечения ([`RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt)), до decision-этапа | ai ([`UserKnowledgeRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeRequestedEventProcessor.kt), вертикаль `user-knowledge`) |
+| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча ([`ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt)) | ai ([`UserKnowledgeSummaryRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeSummaryRequestedEventProcessor.kt), R3a) |
+| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | ai — после успешного батча ([`ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt)) | ai ([`ChatKnowledgeSummaryRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ChatKnowledgeSummaryRequestedEventProcessor.kt), R3b) |
+| `SUMMARY_READY` | persistence ([`PersistenceDataUsecase.kt:326-357`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt#L326-L357)) | vk-facade ([`SummaryReadyEventProcessor.kt:18-57`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L18-L57)) |
 
 ### In-process порты
 
 | Порт (`share`) | Реализация | Потребитель |
 |---|---|---|
-| `port/output/persistence/*` (сообщения, саммари, профили) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`GenerateSummaryCommandImpl.kt:14-19`, `ConversationContextRestAdapter.kt:22-26`) |
-| `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` (read-only, сводка «что нового») | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` | `ai` (`ProcessNewsDigestCommandImpl`) |
-| `FindLongPollTsPort`, `SaveLongPollTsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
-| `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
-| `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` (read-only, команда «профиль») | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (3 адаптера) | `ai` (`ProcessProfileCommandImpl`, вертикаль `profile-dossier`) |
-| `FindUserKnowledgePort` (read-only, знания из чата) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (1 адаптер) | `ai` (`ProcessProfileCommandImpl` — `profile-dossier`, `GenerateAnswerCommand` — `ai-answer`, `ProcessNewsDigestCommandImpl` — `chat-news-digest`, `GenerateUserKnowledgeSummaryCommandImpl` — `user-knowledge`) |
-| `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`, `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort` (знания из чата, R1) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (6 адаптеров) | `processor` (`RequestKnowledgeExtractionCommand`), `ai` (`ProcessUserKnowledgeCommandImpl`, `GenerateChatKnowledgeSummaryCommandImpl`) |
-| `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort` (чтение сводки чата и окна, R3b) | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt` (2 адаптера) | `ai` (`GenerateChatKnowledgeSummaryCommandImpl`) |
-| `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` | `persistence` (`FetchUserProfileCommandImpl.kt:20-21`) |
-| `GenerateGreetingTextPort` | `ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` | `greetings` (`GenerateGreetingTextCommand`) |
-| `SendGreetingMessagePort` | `vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt` | `greetings` (`RunDailyGreetingsUsecase`) |
+| `port/output/persistence/*` (сообщения, саммари, профили) | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) | `ai` ([`GenerateSummaryCommandImpl.kt:14-19`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt#L14-L19), [`ConversationContextRestAdapter.kt:22-26`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt#L22-L26)) |
+| `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`, `FindStoredSummariesInPeriodPort` (read-only, сводка «что нового») | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) | `ai` (`ProcessNewsDigestCommandImpl`) |
+| `FindLongPollTsPort`, `SaveLongPollTsPort` | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (2 адаптера) | `receiver` (`LongPollRunner`) — позиция опроса `ts` |
+| `FindGroupChatPeerIdsPort`, `FindUserChatPeerIdsPort`, `FindUserProfilesByBirthDatePort`, `ClaimDailyGreetingPort` | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (4 адаптера) | `greetings` (`CollectGreetingPlansCommand`, `RunDailyGreetingsUsecase`) |
+| `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` (read-only, команда «профиль») | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (3 адаптера) | `ai` (`ProcessProfileCommandImpl`, вертикаль `profile-dossier`) |
+| `FindUserKnowledgePort` (read-only, знания из чата) | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (1 адаптер) | `ai` (`ProcessProfileCommandImpl` — `profile-dossier`, `GenerateAnswerCommand` — `ai-answer`, `ProcessNewsDigestCommandImpl` — `chat-news-digest`, `GenerateUserKnowledgeSummaryCommandImpl` — `user-knowledge`) |
+| `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`, `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort` (знания из чата, R1) | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (6 адаптеров) | `processor` (`RequestKnowledgeExtractionCommand`), `ai` (`ProcessUserKnowledgeCommandImpl`, `GenerateChatKnowledgeSummaryCommandImpl`) |
+| `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort` (чтение сводки чата и окна, R3b) | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (2 адаптера) | `ai` (`GenerateChatKnowledgeSummaryCommandImpl`) |
+| `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | [`vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt#L8-L36) | `persistence` ([`FetchUserProfileCommandImpl.kt:24-25`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L24-L25)) |
+| `GenerateGreetingTextPort` | [`ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt) | `greetings` (`GenerateGreetingTextCommand`) |
+| `SendGreetingMessagePort` | [`vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt) | `greetings` (`RunDailyGreetingsUsecase`) |
 
 Проводка валидируется ArC на этапе сборки деплоя и полным интеграционным тестом
-(`VkLongPollIntegrationTest.kt`).
+([`VkLongPollIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt)).
 
 ### Публичный REST
 
@@ -439,4 +439,4 @@ use case, адаптеры только маппят). Удаление этих
   `command` + адаптеры одной ответственности.
 - **Один владелец данных.** Схема и jOOQ — только в `persistence`; `share` не владеет JSONB
   (`StoredMessage.forwardedMessages: String?` — известный долг, парсится на границе в
-  `ConversationContextRestAdapter.kt:88-95`).
+  [`ConversationContextRestAdapter.kt:88-95`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt#L88-L95)).

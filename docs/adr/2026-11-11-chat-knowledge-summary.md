@@ -73,7 +73,7 @@ R2a уже публикует `CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId)` пос�
 
 - Событие `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` получает консюмера, разрыв «событие без консюмера» из R2a
   закрыт; R2 и R3 по-прежнему выходят одним релизом.
-- Схема, миграции, `Event`/payload, 6 write-портов R1a и `Tables.kt` не меняются; откат — предыдущий
+- Схема, миграции, `Event`/payload, 6 write-портов R1a и [`Tables.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt) не меняются; откат — предыдущий
   образ (старый образ не публикует событие и не читает `chat_knowledge_summary`, восстановление БД не
   требуется).
 - Первый прогон по большому архиву идёт от старых сообщений, по одному окну на событие извлечения:

@@ -80,24 +80,24 @@
 
 | Точка входа | Где в коде |
 |---|---|
-| `PROFILE_REQUESTED` из `all-events-queue`: разбор `Message` и вызов входного порта | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt:12-22` |
-| сценарий, резолв адресата, сборка досье и ровно одна публикация `ANSWER_MESSAGE` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt:52-247` |
-| входной порт и тонкий use case | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt:8-18`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/profile/ProcessProfileUsecase.kt:10-20` |
-| резолв адресата: mentions, пересылка, «обо мне» | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt:15-111` |
-| вырезание фразы имени и сопоставление с участниками | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt:3-59`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt:11-45` |
-| досье и детерминированный русский текст, allowlist `details` и истории | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossier.kt:8-20`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatter.kt:60-221` |
-| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt:8-26`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/exception/ProfileGenerationException.kt:6-8`, `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapter.kt:14-47` |
-| новый output-порт `ProfileAnswerGenerationPort` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/profile/ProfileAnswerGenerationPort.kt:7-16` |
-| три read-only `share`-порта чтения | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatAuthorsPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserStatisticsPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserProfileHistoryPort.kt` |
-| live-профили при отсутствии сохранённого | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
-| in-process реализация чтений в `persistence` | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:284-318` |
-| доставка ответа в VK | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt` |
+| `PROFILE_REQUESTED` из `all-events-queue`: разбор `Message` и вызов входного порта | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22) |
+| сценарий, резолв адресата, сборка досье и ровно одна публикация `ANSWER_MESSAGE` | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt:52-247`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt#L52-L247) |
+| входной порт и тонкий use case | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt:8-18`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt#L8-L18), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/profile/ProcessProfileUsecase.kt:10-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/profile/ProcessProfileUsecase.kt#L10-L20) |
+| резолв адресата: mentions, пересылка, «обо мне» | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt:15-111`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt#L15-L111) |
+| вырезание фразы имени и сопоставление с участниками | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt:3-59`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt#L3-L59), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt:11-45`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt#L11-L45) |
+| досье и детерминированный русский текст, allowlist `details` и истории | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossier.kt:8-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossier.kt#L8-L20), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatter.kt:60-221`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatter.kt#L60-L221) |
+| LLM: `@RegisterAiService` без инструментов и памяти + 3 попытки и фолбэк-исключение | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt:8-26`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt#L8-L26), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/exception/ProfileGenerationException.kt:6-8`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/exception/ProfileGenerationException.kt#L6-L8), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapter.kt:14-47`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapter.kt#L14-L47) |
+| новый output-порт `ProfileAnswerGenerationPort` | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/profile/ProfileAnswerGenerationPort.kt:7-16`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/profile/ProfileAnswerGenerationPort.kt#L7-L16) |
+| три read-only `share`-порта чтения | [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatAuthorsPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindChatAuthorsPort.kt), [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserStatisticsPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserStatisticsPort.kt), [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserProfileHistoryPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/persistence/FindStoredUserProfileHistoryPort.kt) |
+| live-профили при отсутствии сохранённого | [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt), [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt) |
+| in-process реализация чтений в `persistence` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:284-318`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt#L284-L318) |
+| доставка ответа в VK | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt) |
 
 ## Конфигурация
 
 | Ключ | Значение / env | Эффект |
 |---|---|---|
-| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение `ProfileAnswerGenerator`; ключ объявлен в `src/app/src/main/resources/application.yml`, поэтому старт не зависит от env |
+| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение `ProfileAnswerGenerator`; ключ объявлен в [`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml), поэтому старт не зависит от env |
 | `vk.bot.id`, `vk.bot.mention`, `vk.group.id` | `${VK_BOT_ID}`, `${VK_BOT_MENTION:@simarel}`, `${VK_GROUP_ID}` | отбрасывание упоминания бота и его пересылок при резолве |
 | `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона дат в тексте досье (существующий ключ; тот же, что у статистики) |
 
@@ -122,10 +122,8 @@
 `FindStoredUserProfilesByIdsPort`/`FindUserKnowledgePort`. Все четыре чтения только читают.
 
 Данные профиля, истории, статистики, знаний (значения фактов и текст сводки), сводки чата, профиля и
-знаний запрашивающего, а также исходный вопрос уходят в
-LLM-промпт; глобальные
-`quarkus.langchain4j.log-requests/log-responses: true` логируют промпт и ответ на INFO и экспортируют по
-OTLP — осознанно принятый PII-egress (ADR 2026-11-10-profile-dossier, ADR 2026-11-05-llm-provider-vllm-openai).
+знаний запрашивающего, а также исходный вопрос уходят в LLM-промпт — общий PII-контур (§«PII и логи» в
+[`docs/development/configuration.md`](../development/configuration.md); ADR 2026-11-10-profile-dossier, ADR 2026-11-05-llm-provider-vllm-openai).
 Новый код значения не логирует: логи — ERROR при отказе LLM и WARNING при сбое чтения знаний (только
 `peerId`, `targetId` и простое имя класса исключения). Собственных метрик и спанов нет.
 
@@ -191,34 +189,34 @@ forward от бота) — named gap, а не дефект досье. В `journ
   N ≠ `vk.bot.id`, label ≠ `vk.bot.mention`) и нет пересылки и «обо мне», СИСТЕМА ДОЛЖНА взять
   `ProfileTarget.User(N)`, собрать досье, вызвать LLM один раз и опубликовать ровно один `ANSWER_MESSAGE` с
   текстом модели и `responseTo = исходное Message`. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`resolves a single user mention and publishes one answer`),
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolverTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolverTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolverTest.kt)
   (`resolves a bare mention token`, `ignores the zero id token`, `collapses duplicate mentions of the same id`).
 - **AC-profile-dossier-2** — КОГДА в тексте ровно один групповой mention `[clubN|label]` или
   `[publicN|label]` (N ≠ `vk.group.id`, label ≠ `vk.bot.mention`) и нет пересылки и «обо мне», СИСТЕМА
   ДОЛЖНА взять `ProfileTarget.Group(-N)`, собрать досье о группе (без статистики и истории) и опубликовать
   ровно один `ANSWER_MESSAGE`. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`resolves a group mention to a negative group id` — обе формы, `club` и `public`).
 - **AC-profile-dossier-3** — КОГДА явного mention нет и `forwardedMessages` не пуст, СИСТЕМА ДОЛЖНА взять
   последнее по списку пересланное сообщение с `fromId ≠ vk.bot.id` (`User` при `fromId > 0`, `Group` при
   `fromId < 0`); если все пересылки от бота — перейти к следующим шагам. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`uses the top forwarded message author when no mention is present`,
   `uses the last forwarded message author`,
   `uses a forwarded group message author as a group`,
   `skips a forwarded bot message`).
 - **AC-profile-dossier-4** — КОГДА цели ещё нет и нормализованный текст содержит `обо мне` или
   `про меня`, СИСТЕМА ДОЛЖНА взять `ProfileTarget.User(message.fromId)`. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`resolves the phrase about me to the message author`).
 - **AC-profile-dossier-5** — КОГДА после вырезания триггеров остаётся фраза имени и она однозначно
   совпадает с одним участником (полное имя, падежная форма, `screen_name` без `@`), СИСТЕМА ДОЛЖНА взять
   этого `User`. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`matches a unique participant by full name and case form`),
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcherTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcherTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcherTest.kt)
   (`matches a full name written in another case form`, `matches the screen name without at sign`,
   `does not match a diminutive outside the prefix`).
 - **AC-profile-dossier-6** — КОГДА фраза имени совпадает с 2 и более участниками, СИСТЕМА ДОЛЖНА
@@ -227,36 +225,36 @@ forward от бота) — named gap, а не дефект досье. В `journ
   «Среди участников этого чата не нашёл «<фраза>». Напишите полное имя, @упоминание, id или перешлите
   сообщение.»; КОГДА цели нет вообще — «Уточните, о ком речь: имя, @упоминание, id или пересланное
   сообщение.»; оба раза без LLM. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`asks to clarify when several participants match`, `lists at most ten candidates`,
   `reports not found for an unknown name`, `asks for a target when nothing is resolvable`).
 - **AC-profile-dossier-7** — КОГДА цель определена и профиль есть, СИСТЕМА ДОЛЖНА собрать LLM-вход из
   профиля (typed + `details`), статистики, последних 20 записей истории и числа сообщений цели в этом чате,
   вызвать LLM один раз, опубликовать ровно один `ANSWER_MESSAGE` и не писать в БД (в команде нет
   write-порта). Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`feeds profile, statistics and history into the model and publishes its answer`,
   `the command constructor has no write port`),
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt)
   (`answer is built from the stored dossier and writes nothing`).
 - **AC-profile-dossier-8** — КОГДА LLM-порт отказал после 3 попыток (включая пустой ответ), СИСТЕМА
   ДОЛЖНА опубликовать «Не удалось собрать профиль. Попробуйте позже.», записать ERROR только с `peerId` и
   простым именем класса и не пробрасывать исключение в брокер; `ProfileAiAdapter` после 3 неудач ДОЛЖЕН
   бросить `ProfileGenerationException` со статусом `EXTERNAL_FAILURE`. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`publishes the fallback when the model fails and logs no PII`),
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAiAdapterTest.kt)
   (`execute retries three times and rethrows`, `execute treats a blank answer as a failed attempt`).
 - **AC-profile-dossier-9** — КОГДА у определённого пользователя нет сохранённого профиля, СИСТЕМА ДОЛЖНА
   запросить `GetUserProfilesBatchPort` и не сохранять ответ; КОГДА профиль не получен и оттуда —
   «Профиль недоступен.» без LLM; то же для группы через `GetGroupProfilesBatchPort`. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`fetches a missing profile through the vk port and reports when it is unavailable`,
   `fetches a missing group profile through the vk port`).
 - **AC-profile-dossier-10** — КОГДА конверт `PROFILE_REQUESTED` получен из очереди, СИСТЕМА ДОЛЖНА
   разобрать JSON-payload в доменный `Message` и ровно один раз вызвать `ProcessProfileInputPort`;
   `event()` ДОЛЖЕН вернуть `Event.PROFILE_REQUESTED`. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessorTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessorTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessorTest.kt)
   (`parses the message payload and calls the input port`, `declares the PROFILE_REQUESTED event`).
 - **AC-profile-dossier-11** — КОГДА единственный mention в тексте — собственный mention бота (label равен
   `vk.bot.mention`, или id равен `vk.bot.id`, или `-id` равен `vk.group.id`), СИСТЕМА ДОЛЖНА отбросить его
@@ -264,26 +262,26 @@ forward от бота) — named gap, а не дефект досье. В `journ
   вызова LLM; КОГДА форматтер собирает текст досье, СИСТЕМА ДОЛЖНА рендерить только allowlist-ключи
   `details` с русскими подписями и НЕ рендерить `mobile_phone`, `home_phone`, `counters`, `connections`,
   неизвестные ключи и VK-id, пропускать пустые секции и записи истории без известных полей. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`ignores a mention of the bot itself`),
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt)
   (`renders allowlisted details and skips phones and unknown keys`, `omits empty sections`).
 - **AC-profile-dossier-12** — КОГДА изменение доставлено, СИСТЕМА ДОЛЖНА содержать этот capability-файл со
   статусом `delivered` и id `profile-dossier` (AC с путями тестов), строку и journey `journey-profile` в
-  `docs/capabilities/index.md`, ADR 2026-11-10-profile-dossier и строку в `docs/README.md`, обновлённые
-  `docs/capabilities/answer-decision.md`, `docs/capabilities/event-dispatch.md`,
-  `docs/capabilities/message-storage.md`, `docs/architecture/modules.md`, `docs/architecture/data-flow.md`,
-  `docs/architecture/overview.md`, `docs/development/configuration.md`,
-  `docs/development/deployment.md`, `README.md` и ключ `aiProfileSystemprompt` в
-  `src/app/src/main/resources/application.yml`; проверка — `./scripts/check-capabilities.sh` exit 0, а
+  [`docs/capabilities/index.md`](./index.md), ADR 2026-11-10-profile-dossier и строку в [`docs/README.md`](../README.md), обновлённые
+  [`docs/capabilities/answer-decision.md`](./answer-decision.md), [`docs/capabilities/event-dispatch.md`](./event-dispatch.md),
+  [`docs/capabilities/message-storage.md`](./message-storage.md), [`docs/architecture/modules.md`](../architecture/modules.md), [`docs/architecture/data-flow.md`](../architecture/data-flow.md),
+  [`docs/architecture/overview.md`](../architecture/overview.md), [`docs/development/configuration.md`](../development/configuration.md),
+  [`docs/development/deployment.md`](../development/deployment.md), [`README.md`](../../README.md) и ключ `aiProfileSystemprompt` в
+  [`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml); проверка — [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) exit 0, а
   проводка и конфигурация на реальном деплое — Test:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt)
   (`sends the configured system prompt with the dossier data`).
 - **AC-profile-dossier-13** — КОГДА изменение доставлено целиком, СИСТЕМА ДОЛЖНА пройти полный гейт
   `./gradlew build` (compile, tests, detekt, ktlint, coverage, capabilities, quarkusBuild) с exit 0 при
   доступном Docker; гейт прогоняет все тесты изменения, включая
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt` и
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`.
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt) и
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt).
 
 - **AC-PROFILE-1** — КОГДА у цели есть знания из чата, СИСТЕМА ДОЛЖНА показать их секцией `Из общения:`
   сразу после `Профиль:` и перед `Статистика:`: свежая сводка (`summaryFresh=true`, непустой текст) —
@@ -291,7 +289,7 @@ forward от бота) — named gap, а не дефект досье. В `journ
   обычной строкой, `CANDIDATE` — «возможно», `HISTORICAL` — «ранее: X», `conflict` — «возможно,
   противоречивые данные», `stale` исключён) без источников, `factKey`, id и дат; при пустых знаниях или
   только stale-фактах без свежей сводки секции нет, а `GroupDossier` рендерится прежним текстом. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt)
   (`rendersFreshSummaryFromChatBelowProfile`, `fallsBackToFactListWhenSummaryIsStaleOrMissing`,
   `omitsKnowledgeSectionWithoutFreshKnowledge`, `rendersKnowledgeWithoutSourcesOrDates`); команда
   `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"`.
@@ -300,10 +298,10 @@ forward от бота) — named gap, а не дефект досье. В `journ
   в `Из общения:`); для группы порт не вызывается; при недоступном профиле знаний нет и LLM не
   вызывается; при сбое порта — ответ по досье без секции и один WARNING с `peerId`, `targetId` и именем
   класса без значений; `vk_user_profiles`/`user_facts`/`user_knowledge_summary`/`messages` не пишутся.
-  Tests: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  Tests: [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`feedsBothVkAndChatValuesIntoTheModelForAUser`, `doesNotReadKnowledgeForAGroup`,
   `doesNotReadKnowledgeWhenTheProfileIsUnavailable`, `publishesTheProfileWithoutKnowledgeWhenTheReadFails`),
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt)
   (`readsChatKnowledgeIntoThePromptWithoutWriting`); команды `./gradlew --console=plain :src:ai:test
   --tests "*ProcessProfile*"` и `./gradlew --console=plain :src:app:test --tests
   "*ProfileCommandIntegration*"`.
@@ -311,16 +309,16 @@ forward от бота) — named gap, а не дефект досье. В `journ
   карточки одного ключа помечены `conflict=true`, СИСТЕМА ДОЛЖНА вывести историю строкой `- ранее:
   <значение>` без дат, а конфликт — обеими строками `- возможно, противоречивые данные: <значение>` без
   выбора победителя и без дат. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt)
   (`rendersHistoricalFactAsPreviously`, `rendersConflictingFactsAsContradictory`); команда
   `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"`.
 
 - **AC-PROFILE-4** — КОГДА у цели есть знания, а у чата — сохранённая сводка, СИСТЕМА ДОЛЖНА читать
   знания цели глобально по `userId` (без фильтра `peer_id`), добавить секцию `Темы чата:` со сводкой чата
   как есть и не менять `Из общения:`; при пустой сводке секции нет. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt)
   (`renders chat topics and the requester context after the target knowledge`),
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileCommandIntegrationTest.kt)
   (`answer includes facts learned in another chat and the chat topics`); команды
   `./gradlew --console=plain :src:ai:test --tests "*ProfileDossierFormatter*"` и
   `./gradlew --console=plain :src:app:test --tests "*ProfileCommandIntegration*"`.
@@ -328,10 +326,10 @@ forward от бота) — named gap, а не дефект досье. В `journ
   секции `Кто запрашивает:` (allowlist-рендер его профиля) и `Знания запрашивающего:` (свежая сводка либо
   список фактов) после `Темы чата:`; КОГДА запрашивающий — бот или совпадает с целью, контекст не
   читается и секций нет; для группы контекст запрашивающего рендерится тем же правилом. Tests:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileDossierFormatterTest.kt)
   (`renders chat topics and the requester context after the target knowledge`,
   `renders requester context in a group dossier without statistics`),
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`readsRequesterProfileAndKnowledgeForAUser`, `doesNotReadRequesterContextForTheTarget`,
   `doesNotReadRequesterContextForTheBot`).
 - **AC-PROFILE-6** — КОГДА чтение сводки чата или контекста запрашивающего бросило `RuntimeException`,
@@ -339,7 +337,7 @@ forward от бота) — named gap, а не дефект досье. В `journ
   `Profile chat knowledge read failed for peerId=<peerId>` и
   `Profile requester read failed for peerId=<peerId> requesterId=<id>`) и опубликовать досье без
   соответствующей секции; `InterruptedException` восстанавливает флаг и пробрасывается. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`publishesTheProfileWithoutChatTopicsWhenTheReadFails`,
   `publishesTheProfileWithoutRequesterContextWhenTheReadFails`,
   `publishesTheProfileWithoutKnowledgeWhenTheReadFails`).
@@ -362,7 +360,8 @@ forward от бота) — named gap, а не дефект досье. В `journ
 - **В групповом чате запрос достижим только после `requiredAnswer=true`** (упоминание бота или forward от
   бота) — следствие решения «только интент decision-модели», а не дефект резолва.
 - **PII-egress:** профиль, история, статистика (включая активность из чужих чатов) и исходный вопрос уходят
-  в LLM-промпт и в INFO/OTLP-логи провайдера — принятый риск ADR 2026-11-10-profile-dossier.
+  в LLM-промпт — общий PII-контур (§«PII и логи» в [`docs/development/configuration.md`](../development/configuration.md); принятый риск
+  ADR 2026-11-10-profile-dossier); новый код значения не логирует.
 - **Наблюдаемость:** новых метрик и спанов нет; логи — ERROR при отказе LLM и WARNING при сбое чтения
   знаний (только `peerId`, `targetId` и простое имя класса исключения). Отдельного INFO-лога успеха нет.
 - **Контекст запрашивающего — это его собственные данные в чужом чате:** в групповом чате ответ читают

@@ -78,9 +78,9 @@ changeset `010`, jOOQ-объекты) — поставляется в этом �
   `knowledge.excluded-chat-ids` (`KNOWLEDGE_EXCLUDED_CHAT_IDS`, пусто) и top-level
   `aiKnowledgeSystemprompt` (`AI_KNOWLEDGE_SYSTEM_PROMPT`); новых обязательных env нет.
 - **Контракты R1a в этом же изменении.** 8 доменных типов `share/domain/model/knowledge/`, 6 портов
-  `share/port/output/persistence/`, changeset `010-create-user-knowledge-tables.yaml` (5 таблиц, UNIQUE,
+  `share/port/output/persistence/`, changeset [`010-create-user-knowledge-tables.yaml`](../../src/persistence/src/main/resources/db/changelog/changes/010-create-user-knowledge-tables.yaml) (5 таблиц, UNIQUE,
   индексы, FK, CHECK; второй нетранзакционный changeset с `DROP INDEX CONCURRENTLY IF EXISTS` + `CREATE
-  INDEX CONCURRENTLY` для `messages(peer_id, conversation_message_id)`), 5 объектов в `Tables.kt`, 4
+  INDEX CONCURRENTLY` для `messages(peer_id, conversation_message_id)`), 5 объектов в [`Tables.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt), 4
   теста контрактов. Схема аддитивна, `001–009` не меняются (байты пиннятся тестом), откат — предыдущий
   образ; удаление знаний после начала записи — только из бэкапа (Liquibase forward-only).
 

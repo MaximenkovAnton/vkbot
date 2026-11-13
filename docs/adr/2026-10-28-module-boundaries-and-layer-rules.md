@@ -24,9 +24,9 @@
 ### 12 модулей
 
 `share`, `receiver`, `persistence`, `processor`, `ai`, `vk-facade`, `infrastructure`, `app`, `greetings`,
-`testing:test-common`, `testing:test-fixtures`, `testing:arch-tests` (`settings.gradle.kts:22-33`).
+`testing:test-common`, `testing:test-fixtures`, `testing:arch-tests` ([`settings.gradle.kts:22-33`](../../settings.gradle.kts)).
 
-Разрешённый граф production-зависимостей (allowlist в `GradleDependenciesTest.kt:35-68`):
+Разрешённый граф production-зависимостей (allowlist в [`GradleDependenciesTest.kt:35-68`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/GradleDependenciesTest.kt)):
 
 ```
 share            -> (никого)
@@ -54,25 +54,25 @@ test, и не создаёт деплоев на фичу — деплой од�
 
 ### Правила слоёв (ArchUnit, один `@Test` на правило)
 
-`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt`:
+[`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt):
 
 | # | Правило | Что запрещено |
 |---|---|---|
-| L1 | `domain` чист | `..domain..` не зависит от `io.quarkus`, `jakarta`, `org.jooq`, `com.fasterxml`, `io.smallrye`, `org.eclipse`, `dev.langchain4j` и от слоёв `adapter`, `usecase`, `command`, `port`, `config` (`LayerDependenciesTest.kt:51-60`) |
+| L1 | `domain` чист | `..domain..` не зависит от `io.quarkus`, `jakarta`, `org.jooq`, `com.fasterxml`, `io.smallrye`, `org.eclipse`, `dev.langchain4j` и от слоёв `adapter`, `usecase`, `command`, `port`, `config` ([`LayerDependenciesTest.kt:51-60`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt)) |
 | L2 | `port` — только контракты | `..port..` не зависит от `adapter`, `usecase`, `command`, `config` и тех же фреймворков (`:62-73`) |
 | L3 | `usecase`/`command` не знают адаптеров и транспорта | нет `adapter.*`, `io.quarkus`, `org.jooq`, `com.fasterxml`, `jakarta.ws.rs`, `jakarta.json`, `dev.langchain4j`, `io.smallrye` (`:75-94`); DI-аннотации `jakarta.inject`/`jakarta.enterprise`/`jakarta.transaction`/`org.eclipse.microprofile.config.inject` разрешены |
 | L4 | входной адаптер зовёт только порт | `..adapter.input..` не зависит от `command`, `usecase`, `adapter.output` (`:96-105`) |
 | L5 | выходной адаптер не ходит во входной и в usecase | `..adapter.output..` не зависит от `adapter.input`, `usecase` (`:107-116`) |
-| L6 | `share` — ядро | `share` не зависит от пакетов других модулей (`ModuleDependenciesTest.kt:49-60`) |
+| L6 | `share` — ядро | `share` не зависит от пакетов других модулей ([`ModuleDependenciesTest.kt:49-60`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ModuleDependenciesTest.kt)) |
 
-Плюс модульные правила: каждый бизнес-модуль зависит только от `share` (`ModuleDependenciesTest.kt:62-137`)
-и build-граф соответствует allowlist (`GradleDependenciesTest.kt:85-115`).
+Плюс модульные правила: каждый бизнес-модуль зависит только от `share` ([`ModuleDependenciesTest.kt:62-137`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ModuleDependenciesTest.kt))
+и build-граф соответствует allowlist ([`GradleDependenciesTest.kt:85-115`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/GradleDependenciesTest.kt)).
 
 ### Composition root
 
 `@QuarkusMain` — `:src:app`. Связывание — CDI: реализации помечены `@ApplicationScoped`/`@Singleton`,
 порты `share` инжектятся по интерфейсу. Явные `@Produces` — только там, где нужна ручная сборка:
-`persistence/config/JooqConfig.kt:11-20` (`DSLContext`), `infrastructure/config/MapperConfig.kt:9-18`
+[`persistence/config/JooqConfig.kt:11-20`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/JooqConfig.kt) (`DSLContext`), [`infrastructure/config/MapperConfig.kt:9-18`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/MapperConfig.kt)
 (Jackson Kotlin module).
 
 ## Последствия
@@ -80,11 +80,11 @@ test, и не создаёт деплоев на фичу — деплой од�
 - Нарушение направления зависимости валит `./gradlew build` (L1–L6 + allowlist входят в `check`).
 - Новый модуль обязан войти в allowlist `GradleDependenciesTest` и в `ModuleDependenciesTest`.
 - `domain` persistence — это entity без фреймворка; jOOQ-типы живут в `adapter/output/persistence/jooq`
-  (`Tables.kt`, `*Table.kt`). Сериализация `forwardedMessages` ушла за порт
-  `persistence/port/output/ForwardedMessagesSerializationPort.kt`, реализация —
-  `persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt`.
+  ([`Tables.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt), `*Table.kt`). Сериализация `forwardedMessages` ушла за порт
+  [`persistence/port/output/ForwardedMessagesSerializationPort.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/output/ForwardedMessagesSerializationPort.kt), реализация —
+  [`persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt).
 - Логирование в бизнес-слое — `java.lang.System.Logger` (JDK), а не `io.quarkus.logging.Log`
-  (`ReceiveMessageUsecase.kt:15`, `ProcessSummaryCommandImpl.kt:26`, `FetchUserProfileCommandImpl.kt:24`);
+  ([`ReceiveMessageUsecase.kt:15`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecase.kt), [`ProcessSummaryCommandImpl.kt:26`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt), [`FetchUserProfileCommandImpl.kt:24`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt));
   Quarkus-логирование осталось только в адаптерах и инфраструктуре.
 - Слои остаются пакетами внутри модуля: семь отдельных layer-модулей умножили бы build-файлы без компиляторной
   выгоды сверх уже существующей модульной границы.

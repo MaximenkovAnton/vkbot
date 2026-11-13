@@ -22,13 +22,13 @@ in-process:
 
 | Порт (`share`) | Реализация | Делегирует в |
 |---|---|---|
-| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | `persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:24-149` (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-ресурса |
-| `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | `vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` (2 класса) | `VkProfileInputPort` |
+| `FindStoredMessagesBeforePort`, `FindStoredMessagesBetweenPort`, `FindLastStoredSummaryPort`, `HasStoredPendingSummaryPort`, `CreateStoredPendingSummaryPort`, `SaveStoredCompletedSummaryPort`, `MarkStoredSummaryFailedPort`, `FindStoredUserProfilesByIdsPort`, `FindStoredGroupProfilesByIdsPort` | [`persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt:24-149`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) (9 классов) | `PersistenceDataInputPort` — тот же use case, что у REST-ресурса |
+| `GetUserProfilesBatchPort`, `GetGroupProfilesBatchPort` | [`vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt) (2 класса) | `VkProfileInputPort` |
 
 Потребители держат только `share`-порты:
-`ai/adapter/output/context/ConversationContextRestAdapter.kt:22-26`,
-`ai/command/summary/GenerateSummaryCommandImpl.kt:7-12`,
-`persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:9-10,20-21`.
+[`ai/adapter/output/context/ConversationContextRestAdapter.kt:22-26`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt),
+[`ai/command/summary/GenerateSummaryCommandImpl.kt:7-12`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt),
+[`persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt:9-10,20-21`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt).
 
 Удалены: клиентские копии REST-контрактов (на тот момент `PersistenceService`/`VkFacadeService`),
 REST-адаптеры
@@ -36,31 +36,31 @@ REST-адаптеры
 портов `ai/port/output/persistence/*` и `quarkus.rest-client.persistence`/`vk-facade` из конфига.
 
 REST-эндпоинты остаются публичным API модулей и единственной копией контракта:
-`persistence/adapter/input/rest/PersistenceResource.kt:18-79` + `PersistenceDataResource.kt:21-126`;
-`vkFacade/adapter/input/rest/VkProfileResource.kt:14-32`. Контроллер и in-process адаптер — два входных
+[`persistence/adapter/input/rest/PersistenceResource.kt:18-79`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt) + [`PersistenceDataResource.kt:21-126`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt);
+[`vkFacade/adapter/input/rest/VkProfileResource.kt:14-32`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt). Контроллер и in-process адаптер — два входных
 адаптера к одному `port.input` (Information Expert: логика в use case, адаптеры только маппят).
 
 Асинхронный поток остаётся на RabbitMQ: приём событий VK не должен ждать AI. Публикация —
-`infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33` (Jackson-строка + routing key = имя
-события), потребление — `infrastructure/mq/adapter/input/EventDispatcher.kt:63-85` с retry-лестницей
+[`infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt:15-33`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt) (Jackson-строка + routing key = имя
+события), потребление — [`infrastructure/mq/adapter/input/EventDispatcher.kt:63-85`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt) с retry-лестницей
 (`:91-113`). Payload'ы событий — тоже контракт и переехали в `share`:
-`share/domain/event/SummaryRequestedPayload.kt:3-6`, `share/domain/event/SummaryReadyPayload.kt:3-8`.
+[`share/domain/event/SummaryRequestedPayload.kt:3-6`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/SummaryRequestedPayload.kt), [`share/domain/event/SummaryReadyPayload.kt:3-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/SummaryReadyPayload.kt).
 
 Версионирования схемы событий нет и не требуется: производитель и потребитель в одном деплое, меняются одним
 коммитом. Допустимы только аддитивные изменения; несовместимое изменение = новое имя события в `Event`
-(`share/domain/Event.kt:3-10` — закрытый enum из шести значений).
+([`share/domain/Event.kt:3-10`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt) — закрытый enum из шести значений).
 
 ## Последствия
 
 - Один контракт на вызов: изменение типа в `share` ломает компиляцию обеих сторон.
 - Проводка валидируется сборкой (ArC: injection point без реализации или с двумя реализациями валит
   `./gradlew build`) и полным интеграционным тестом
-  (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`).
+  ([`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt)).
 - Публичный REST остаётся; его удаление — отдельная задача при подтверждённом отсутствии внешних потребителей.
 - `CircuitBreaker` для VK API **не применён**: расширение `quarkus-smallrye-fault-tolerance` объявлено
-  (`src/vk-facade/build.gradle.kts:21`), пакет называется `adapter/output/vk/circuitbreaker`, но ни одной
+  ([`src/vk-facade/build.gradle.kts:21`](../../src/vk-facade/build.gradle.kts)), пакет называется `adapter/output/vk/circuitbreaker`, но ни одной
   аннотации `@CircuitBreaker`/`@Retry` в коде нет, а блок `circuit-breaker.vk-profile` в
-  `src/app/src/main/resources/application.yml:193-198` никем не читается. Это заявленный долг, а не
+  [`src/app/src/main/resources/application.yml:193-198`](../../src/app/src/main/resources/application.yml) никем не читается. Это заявленный долг, а не
   работающий механизм.
 
 ## Отклонённые альтернативы

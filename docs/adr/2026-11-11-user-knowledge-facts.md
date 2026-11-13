@@ -100,7 +100,7 @@ R1 добавляет хранение без пользовательского
 - **PII.** В таблицах знаний нет текста сообщений; код хранения R1 не логирует ни значения фактов, ни текст
   свидетельств. При этом дефолтный конфиг пишет промпт и ответ модели глобальными INFO-логами и
   OTLP-трассировкой LangChain4j (`quarkus.langchain4j.log-requests`/`log-responses`,
-  `tracing.include-prompt`/`include-completion` в `application.yml`); промпт извлечения несёт текст
+  `tracing.include-prompt`/`include-completion` в [`application.yml`](../../src/app/src/main/resources/application.yml)); промпт извлечения несёт текст
   сообщений, ответ модели — значения фактов, и это принятый риск ADR 2026-11-10-news-digest.
   `user_knowledge_summary`/`chat_knowledge_summary` — производные PII-стоки (пересказ личных высказываний),
   их текст уходит в LLM — тот же принятый риск.

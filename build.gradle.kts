@@ -16,7 +16,7 @@ repositories {
     mavenLocal()
 }
 
-val measuredLineCoverage = 0.5687
+val measuredLineCoverage = 0.6951
 val coverageMin = 0.40
 
 val coverageModules = listOf(

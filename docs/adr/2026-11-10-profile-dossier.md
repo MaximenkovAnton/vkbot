@@ -82,7 +82,7 @@
   aiProfileSystemprompt: ${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}
   ```
 
-  `AI_PROFILE_SYSTEM_PROMPT` опционален, дефолт в `application.yml`, новых обязательных env нет;
+  `AI_PROFILE_SYSTEM_PROMPT` опционален, дефолт в [`application.yml`](../../src/app/src/main/resources/application.yml), новых обязательных env нет;
   `vk.bot.id`, `vk.bot.mention`, `vk.group.id` и `statistics.timezone` только читаются.
 - **Always-on без kill-switch.** Как у `chat-news-digest`: отдельного ключа гашения ветки нет, откат —
   предыдущий образ; данные и схема при откате не меняются. Кэша ответов и rate limit нет: LLM-вызов (до

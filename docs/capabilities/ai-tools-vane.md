@@ -18,14 +18,14 @@
 
 | Точка входа | Где в коде |
 |---|---|
-| `@Tool search_web` / `search_academic` / `search_discussions` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt:10-32` |
-| регистрация инструментов в AI-сервисе ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-16` |
-| команда: источники, режим, формат ответа | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt:31-77` |
-| выходной адаптер: выбор провайдера, маппинг источников | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt:15-58` |
-| REST-клиент Vane: `POST /api/search`, `GET /api/providers` | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25` |
+| `@Tool search_web` / `search_academic` / `search_discussions` | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt:10-32`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapter.kt#L10-L32) |
+| регистрация инструментов в AI-сервисе ответа | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt:13-16`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt#L13-L16) |
+| команда: источники, режим, формат ответа | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt:31-77`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommand.kt#L31-L77) |
+| выходной адаптер: выбор провайдера, маппинг источников | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt:15-58`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapter.kt#L15-L58) |
+| REST-клиент Vane: `POST /api/search`, `GET /api/providers` | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt:11-25`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchClient.kt#L11-L25) |
 
 Конфигурация: `VANE_URL` (`quarkus.rest-client.vane.url`), таймауты Vane в
-`src/app/src/main/resources/application.yml`.
+[`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml).
 
 ## Данные
 
@@ -39,8 +39,8 @@
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| слот инструментов `UserAnswerGenerator.tools` | `ai-answer` | `ai-answer` |
-| контракт `VaneSearchOutputPort` (`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/vane/VaneSearchOutputPort.kt`) | только этот шаг | `ai-tools-vane` |
+| слот инструментов `tools` в `@RegisterAiService` у `UserAnswerGenerator` | `ai-answer` | `ai-answer` |
+| контракт `VaneSearchOutputPort` ([`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/vane/VaneSearchOutputPort.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/output/vane/VaneSearchOutputPort.kt)) | только этот шаг | `ai-tools-vane` |
 | `VANE_URL` и таймауты клиента | конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) | `ai-tools-vane` |
 
 ## Зависит от
@@ -59,21 +59,21 @@
   `Academic Sources`, Discussion → `["discussions"]`/`balanced`/`Discussion Sources`; отформатировать
   нумерованные источники; при ошибке порта вернуть строку `Search failed: <message>`, не пробрасывая
   исключение. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommandImplTest.kt`.
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/vane/VaneSearchCommandImplTest.kt).
 - **AC-ai-tools-vane-2** — КОГДА выполняется `VaneSearchOutputAdapter`, СИСТЕМА ДОЛЖНА выбрать первый
   провайдер, у которого есть и chat-, и embedding-модель, отправить поиск с его ключами, смапить `message` и
   `sources` (content/title/url); при отсутствии подходящего провайдера — бросить
   `VaneProviderNotConfiguredException` (`VkBotAppException`, статус `EXTERNAL_FAILURE`).
-  Test: `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest.kt`.
+  Test: [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest.kt).
 - **AC-ai-tools-vane-3** — КОГДА вызывается любой `@Tool`-метод, СИСТЕМА ДОЛЖНА делегировать в
   `VaneSearchCommand` с соответствующим типом запроса и вернуть его `result`. Test:
-  `src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapterTest.kt`.
+  [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapterTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/output/ai/tool/VaneSearchToolAdapterTest.kt).
 
 ## Пробелы приёмки
 
 - Выбор инструментов самой моделью не проверен: в `AiIntegrationTest` модель подменена WireMock-заглушкой,
   которая `@Tool`-методы не вызывает. Делегирование каждого `@Tool`-метода в команду проверено
-  `VaneSearchToolAdapterTest`; регистрация класса в `UserAnswerGenerator.tools` тестом не покрыта — её
+  `VaneSearchToolAdapterTest`; регистрация класса в слоте `tools` `@RegisterAiService` у `UserAnswerGenerator` тестом не покрыта — её
   проверяет только сборка/старт приложения.
 - Поведение, которого нет в AC, не тестировалось: форматирование пустого `message`, поля `history`/`stream`
   запроса клиента (адаптер их не заполняет) — названы пробелами, а не pass.

@@ -1,8 +1,8 @@
 # Конфигурация
 
-Источник истины — `src/app/src/main/resources/application.yml` и подключаемый
-`src/app/src/main/resources/application-queues.yml` (`quarkus.config.locations: application-queues.yml`,
-`application.yml`). Других production-конфигов в дереве нет; копии из `src/infrastructure` удалены
+Источник истины — [`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml) и подключаемый
+[`src/app/src/main/resources/application-queues.yml`](../../src/app/src/main/resources/application-queues.yml) (`quarkus.config.locations: application-queues.yml`,
+[`application.yml`](../../src/app/src/main/resources/application.yml)). Других production-конфигов в дереве нет; копии из [`src/infrastructure`](../../src/infrastructure) удалены
 ([ADR 2026-10-28-configuration-and-secrets](../adr/2026-10-28-configuration-and-secrets.md)).
 
 Значения `${VAR}` без дефолта обязательны: без них приложение не стартует.
@@ -12,11 +12,11 @@
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `vk.group.id` | `${VK_GROUP_ID}` | положительный id сообщества для `groups.getLongPollServer`; без него приложение не стартует | `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt` (`group_id` запроса), `receiver/adapter/input/vk/LongPollRunner.kt`, `vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt` (сообщество итога) |
-| `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | включает опрос Bots Long Poll при старте; `false` — цикл опроса не запускается (тестовый профиль) | `receiver/adapter/input/vk/LongPollRunner.kt` |
-| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | `vkFacade/adapter/output/vk/VkClient.kt:13`, `receiver/adapter/output/vk/VkLongPollOutputAdapter.kt:106` (`groups.getLongPollServer`) |
-| `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | `application.yml` |
-| `vk.bot.id` | `${VK_BOT_ID}` | id автора сообщений бота: правило «forward от бота → ответить» и автор итога саммаризации | `processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:17`, `vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt` |
+| `vk.group.id` | `${VK_GROUP_ID}` | положительный id сообщества для `groups.getLongPollServer`; без него приложение не стартует | [`receiver/adapter/output/vk/VkLongPollOutputAdapter.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapter.kt) (`group_id` запроса), [`receiver/adapter/input/vk/LongPollRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt), [`vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt) (сообщество итога) |
+| `vk.longpoll.enabled` | `${VK_LONGPOLL_ENABLED:true}` | включает опрос Bots Long Poll при старте; `false` — цикл опроса не запускается (тестовый профиль) | [`receiver/adapter/input/vk/LongPollRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt) |
+| `vk.api.version` | `5.199` | query-параметр `v` каждого запроса VK | [`vkFacade/adapter/output/vk/VkClient.kt:13`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt#L13), [`receiver/adapter/output/vk/VkLongPollOutputAdapter.kt:106`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapter.kt#L106) (`groups.getLongPollServer`) |
+| `vk.api.token` | `${VK_API_TOKEN}` | заголовок `Authorization: Bearer …` | [`application.yml`](../../src/app/src/main/resources/application.yml) |
+| `vk.bot.id` | `${VK_BOT_ID}` | id автора сообщений бота: правило «forward от бота → ответить» и автор итога саммаризации | [`processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:17`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L17), [`vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt) |
 | `vk.bot.mention` | `${VK_BOT_MENTION:@simarel}` | упоминание, включающее ответ в чате | там же `:19` |
 
 Ключей `vk.secret` и `vk.confirmation-code` больше нет: Callback-эндпоинт удалён, события приходят опросом
@@ -32,21 +32,21 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}` | system-сообщение сервиса ответов | `ai/adapter/output/ai/answer/UserAnswerGenerator.kt:17` |
-| `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | `ai/adapter/output/ai/summarization/ConversationSummarizer.kt:11` |
-| `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | `ai/adapter/output/ai/ocr/ImageDescriber.kt:13` |
-| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}` | system-сообщение сервиса поздравлений | `ai/adapter/output/ai/greeting/GreetingTextGenerator.kt` |
-| `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение сервиса сводки «что нового»; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/news/NewsDigestGenerator.kt` |
-| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение сервиса досье об участнике чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env, новых обязательных env нет | `ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt` |
-| `aiKnowledgeSystemprompt` | `${AI_KNOWLEDGE_SYSTEM_PROMPT:Ты — анализатор переписки. Извлекай факты только о людях из сообщений ниже. … Отвечай только JSON.}` (дословный дефолт — `application.yml`) | system-сообщение сервиса извлечения фактов из чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/knowledge/KnowledgeFactExtractor.kt` |
-| `aiChatKnowledgeSummarySystemprompt` | `${AI_CHAT_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — наблюдатель чата. Сделай связную сводку чата: темы и направления, манера общения, повторяющиеся групповые факты, мемы и шутки. Не пересказывай сообщения по одному, не списком сообщений, не выдумывай. Не более ~2000 символов. Пиши по-русски.}` (дословный дефолт — `application.yml`) | system-сообщение сервиса сводки чата; ключ объявлен в `application.yml`, поэтому старт не зависит от env | `ai/adapter/output/ai/knowledge/ChatKnowledgeSummarizer.kt` |
-| `aiKnowledgeSummarySystemprompt` | `${AI_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — составитель сводки профиля человека по фактам из чата. …}` (дословный дефолт — `application.yml`) | system-сообщение сервиса сводки профиля; требует связного текста, сведения синонимов, пометки гипотез словом «возможно» и лимита ~2000 символов; ключ объявлен в `application.yml`, старт не зависит от env | `ai/adapter/output/ai/knowledge/UserKnowledgeSummarizer.kt` |
-| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | `ai/command/summary/ProcessSummaryCommandImpl.kt:18-34` |
+| `aiUseranswerSystemprompt` | `${USER_ANSWER_SYSTEM_PROMPT:You are a helpful ai chatbot in a chat.}` | system-сообщение сервиса ответов | [`ai/adapter/output/ai/answer/UserAnswerGenerator.kt:17`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt#L17) |
+| `aiSumarizationSystemprompt` | `${SUMMARY_SYSTEM_PROMPT:You are a chat summarizer. …}` | system-сообщение саммаризации | [`ai/adapter/output/ai/summarization/ConversationSummarizer.kt:11`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/ConversationSummarizer.kt#L11) |
+| `aiOcrSystemPrompt` | `${OCR_SYSTEM_PROMPT:Describe every image in detail …}` | system-сообщение OCR | [`ai/adapter/output/ai/ocr/ImageDescriber.kt:13`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/ocr/ImageDescriber.kt#L13) |
+| `aiGreetingSystemprompt` | `${AI_GREETING_SYSTEM_PROMPT:Ты — дружелюбный бот сообщества VK. Поздравляй коротко, тепло и по-русски.}` | system-сообщение сервиса поздравлений | [`ai/adapter/output/ai/greeting/GreetingTextGenerator.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextGenerator.kt) |
+| `aiNewsDigestSystemprompt` | `${NEWS_DIGEST_SYSTEM_PROMPT:Ты — помощник, который кратко пересказывает, что происходило в чате. Пиши по-русски, структурировано, без выдумок.}` | system-сообщение сервиса сводки «что нового»; ключ объявлен в [`application.yml`](../../src/app/src/main/resources/application.yml), поэтому старт не зависит от env | [`ai/adapter/output/ai/news/NewsDigestGenerator.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/news/NewsDigestGenerator.kt) |
+| `aiProfileSystemprompt` | `${AI_PROFILE_SYSTEM_PROMPT:Ты — помощник, который собирает короткое человекочитаемое досье об участнике чата по данным ниже. Пиши по-русски, только по переданным данным, не выдумывай и не раскрывай служебные id, телефоны и контакты.}` | system-сообщение сервиса досье об участнике чата; ключ объявлен в [`application.yml`](../../src/app/src/main/resources/application.yml), поэтому старт не зависит от env, новых обязательных env нет | [`ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/profile/ProfileAnswerGenerator.kt) |
+| `aiKnowledgeSystemprompt` | `${AI_KNOWLEDGE_SYSTEM_PROMPT:Ты — анализатор переписки. Извлекай факты только о людях из сообщений ниже. … Отвечай только JSON.}` (дословный дефолт — [`application.yml`](../../src/app/src/main/resources/application.yml)) | system-сообщение сервиса извлечения фактов из чата; ключ объявлен в [`application.yml`](../../src/app/src/main/resources/application.yml), поэтому старт не зависит от env | [`ai/adapter/output/ai/knowledge/KnowledgeFactExtractor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/knowledge/KnowledgeFactExtractor.kt) |
+| `aiChatKnowledgeSummarySystemprompt` | `${AI_CHAT_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — наблюдатель чата. Сделай связную сводку чата: темы и направления, манера общения, повторяющиеся групповые факты, мемы и шутки. Не пересказывай сообщения по одному, не списком сообщений, не выдумывай. Не более ~2000 символов. Пиши по-русски.}` (дословный дефолт — [`application.yml`](../../src/app/src/main/resources/application.yml)) | system-сообщение сервиса сводки чата; ключ объявлен в [`application.yml`](../../src/app/src/main/resources/application.yml), поэтому старт не зависит от env | [`ai/adapter/output/ai/knowledge/ChatKnowledgeSummarizer.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/knowledge/ChatKnowledgeSummarizer.kt) |
+| `aiKnowledgeSummarySystemprompt` | `${AI_KNOWLEDGE_SUMMARY_SYSTEM_PROMPT:Ты — составитель сводки профиля человека по фактам из чата. …}` (дословный дефолт — [`application.yml`](../../src/app/src/main/resources/application.yml)) | system-сообщение сервиса сводки профиля; требует связного текста, сведения синонимов, пометки гипотез словом «возможно» и лимита ~2000 символов; ключ объявлен в [`application.yml`](../../src/app/src/main/resources/application.yml), старт не зависит от env | [`ai/adapter/output/ai/knowledge/UserKnowledgeSummarizer.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/knowledge/UserKnowledgeSummarizer.kt) |
+| `summary.enabled-chats` | `${SUMMARY_ENABLED_CHATS:}` | список peerId через запятую (чаты, где включена саммаризация). Ключ опционален: пустое/отсутствующее значение даёт пустой список и выключает саммаризацию, приложение стартует | [`ai/command/summary/ProcessSummaryCommandImpl.kt:18-34`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt#L18-L34) |
 | `summary.threshold` | `${SUMMARY_THRESHOLD:100}` | минимум сообщений для саммаризации (когда прошлое саммари есть) | там же `:20,72-79` |
-| `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке (у саммаризации) и лимит свежих сообщений сводки «что нового» | `ai/command/summary/ProcessSummaryCommandImpl.kt:22,108-125`; `ai/command/news/ProcessNewsDigestCommandImpl.kt` |
-| `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` (`application.yml`) | — |
+| `summary.batch-size` | `${SUMMARY_BATCH_SIZE:100}` | максимум сообщений в выборке (у саммаризации) и лимит свежих сообщений сводки «что нового» | [`ai/command/summary/ProcessSummaryCommandImpl.kt:22,108-125`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt); [`ai/command/news/ProcessNewsDigestCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt) |
+| `summary.system-prompt` | `${SUMMARY_SYSTEM_PROMPT:…}` | **никем не читается** — мёртвый дубль `aiSumarizationSystemprompt` ([`application.yml`](../../src/app/src/main/resources/application.yml)) | — |
 
-`summary.enabled-chats` биндится как `String` с `defaultValue = ""` (`ProcessSummaryCommandImpl.kt:18`),
+`summary.enabled-chats` биндится как `String` с `defaultValue = ""` ([`ProcessSummaryCommandImpl.kt:18`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt#L18)),
 поэтому пустая строка конвертером не отвергается: приложение стартует, `split(",")` даёт пустой набор
 чатов и саммаризация выключается. `SRCFG00040` на этом ключе не возникает — он появляется только у
 конвертеров, считающих пустую строку `null` (числа, списки).
@@ -55,33 +55,33 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `knowledge.enabled` | `${KNOWLEDGE_ENABLED:true}` | главный выключатель триггера извлечения фактов | `processor/command/knowledge/RequestKnowledgeExtractionCommand.kt` |
-| `knowledge.batch-size` | `${KNOWLEDGE_BATCH_SIZE:25}` | `minCount` политики батча (`HasPendingKnowledgeBatchPort`) и `limit` выборки сообщений | там же; `ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt` |
-| `knowledge.batch-interval` | `${KNOWLEDGE_BATCH_INTERVAL:30m}` | `minInterval` политики батча; читается как `java.time.Duration` (конвертер Quarkus понимает `30m`, `90s`, `1h30m`) | `processor/command/knowledge/RequestKnowledgeExtractionCommand.kt` |
+| `knowledge.enabled` | `${KNOWLEDGE_ENABLED:true}` | главный выключатель триггера извлечения фактов | [`processor/command/knowledge/RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt) |
+| `knowledge.batch-size` | `${KNOWLEDGE_BATCH_SIZE:25}` | `minCount` политики батча (`HasPendingKnowledgeBatchPort`) и `limit` выборки сообщений | там же; [`ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt) |
+| `knowledge.batch-interval` | `${KNOWLEDGE_BATCH_INTERVAL:30m}` | `minInterval` политики батча; читается как `java.time.Duration` (конвертер Quarkus понимает `30m`, `90s`, `1h30m`) | [`processor/command/knowledge/RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt) |
 | `knowledge.excluded-chat-ids` | `${KNOWLEDGE_EXCLUDED_CHAT_IDS:}` | peerId через запятую, чьи сообщения не запускают извлечение; пусто — никого не исключаем; кривой id валит старт, а не проглатывается fail-open | там же |
-| `knowledge.prompt-max-chars` | `${KNOWLEDGE_PROMPT_MAX_CHARS:12000}` | общий лимит символов промпта извлечения фактов и сводки чата: длинные сообщения усекаются поровну, чтобы окно не превысило контекст модели; `0` — без ограничения | `ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt`, `ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt` |
-| `knowledge.confirm-threshold` | `${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}` | порог `confidence`, при котором карточка факта становится `CONFIRMED`, иначе `CANDIDATE`; веса источников — SELF 0.8, OTHER/CONGRATULATION 0.6, INFERENCE 0.4 (ADR 2026-11-13-fact-confidence-lowered), поэтому одно самоописание даёт ровно порог, а чужие слова и выводы требуют подтверждений; читает `KnowledgeConfig` (`confirmThreshold: Double = 0.8`) | `persistence/config/KnowledgeConfig.kt` (`FactConfidenceCalculator.status`) |
-| `knowledge.evidence-refs-limit` | `${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}` | K — сколько последних свидетельств-ссылок хранить на карточку; читает `KnowledgeConfig` (`evidenceRefsLimit: Int = 20`) | `persistence/config/KnowledgeConfig.kt` (`UserKnowledgeTable.applyAggregatesAndTrim`) |
-| `knowledge.chat-summary-message-threshold` | `${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}` | `limit` окна сводки чата и порог сообщений, после которого LLM вызывается без оглядки на интервал | `ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt` |
+| `knowledge.prompt-max-chars` | `${KNOWLEDGE_PROMPT_MAX_CHARS:12000}` | общий лимит символов промпта извлечения фактов и сводки чата: длинные сообщения усекаются поровну, чтобы окно не превысило контекст модели; `0` — без ограничения | [`ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt), [`ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt) |
+| `knowledge.confirm-threshold` | `${KNOWLEDGE_CONFIRM_THRESHOLD:0.8}` | порог `confidence`, при котором карточка факта становится `CONFIRMED`, иначе `CANDIDATE`; веса источников — SELF 0.8, OTHER/CONGRATULATION 0.6, INFERENCE 0.4 (ADR 2026-11-13-fact-confidence-lowered), поэтому одно самоописание даёт ровно порог, а чужие слова и выводы требуют подтверждений; читает `KnowledgeConfig` (`confirmThreshold: Double = 0.8`) | [`persistence/config/KnowledgeConfig.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt) (`FactConfidenceCalculator.status`) |
+| `knowledge.evidence-refs-limit` | `${KNOWLEDGE_EVIDENCE_REFS_LIMIT:20}` | K — сколько последних свидетельств-ссылок хранить на карточку; читает `KnowledgeConfig` (`evidenceRefsLimit: Int = 20`) | [`persistence/config/KnowledgeConfig.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/KnowledgeConfig.kt) (`UserKnowledgeTable.applyAggregatesAndTrim`) |
+| `knowledge.chat-summary-message-threshold` | `${KNOWLEDGE_CHAT_SUMMARY_MESSAGE_THRESHOLD:100}` | `limit` окна сводки чата и порог сообщений, после которого LLM вызывается без оглядки на интервал | [`ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/GenerateChatKnowledgeSummaryCommandImpl.kt) |
 | `knowledge.chat-summary-interval` | `${KNOWLEDGE_CHAT_SUMMARY_INTERVAL:7d}` | интервал, после которого сводка чата обновляется даже ниже порога; читается как `java.time.Duration` (конвертер Quarkus понимает `7d`, `30m`, `1h30m`) | там же |
-| `knowledge.summary-fact-threshold` | `${KNOWLEDGE_SUMMARY_FACT_THRESHOLD:20}` | порог текущих фактов новее прошлой сводки, после которого сводка профиля обновляется без оглядки на интервал | `ai/command/knowledge/GenerateUserKnowledgeSummaryCommandImpl.kt` |
+| `knowledge.summary-fact-threshold` | `${KNOWLEDGE_SUMMARY_FACT_THRESHOLD:20}` | порог текущих фактов новее прошлой сводки, после которого сводка профиля обновляется без оглядки на интервал | [`ai/command/knowledge/GenerateUserKnowledgeSummaryCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/GenerateUserKnowledgeSummaryCommandImpl.kt) |
 | `knowledge.summary-interval` | `${KNOWLEDGE_SUMMARY_INTERVAL:14d}` | интервал, после которого сводка профиля обновляется даже ниже порога; читается как `java.time.Duration` (`14d` → `PT336H`) | там же |
-| `knowledge.news-personalization.enabled` | `${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}` | kill-switch персонализации «что нового»: `false` — ноль чтений `FindUserKnowledgePort`/`FindChatKnowledgeSummaryPort`, секции «Интересы автора запроса»/«Темы чата» не добавляются, промпт и ответ прежние; `true` — знания читаются на путь, где LLM и так вызывается | `ai/command/news/ProcessNewsDigestCommandImpl.kt` (`@ConfigProperty`) |
+| `knowledge.news-personalization.enabled` | `${KNOWLEDGE_NEWS_PERSONALIZATION_ENABLED:true}` | kill-switch персонализации «что нового»: `false` — ноль чтений `FindUserKnowledgePort`/`FindChatKnowledgeSummaryPort`, секции «Интересы автора запроса»/«Темы чата» не добавляются, промпт и ответ прежние; `true` — знания читаются на путь, где LLM и так вызывается | [`ai/command/news/ProcessNewsDigestCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/news/ProcessNewsDigestCommandImpl.kt) (`@ConfigProperty`) |
 
 `knowledge.excluded-chat-ids` биндится как `String` с `defaultValue = ""`, поэтому пустая строка не
 отвергается конвертером: приложение стартует, `split(",")` даёт пустой набор. Все ключи `knowledge.*`
-объявлены в `application.yml` со значениями по умолчанию и читаются своими потребителями; новых
+объявлены в [`application.yml`](../../src/app/src/main/resources/application.yml) со значениями по умолчанию и читаются своими потребителями; новых
 обязательных env нет.
 
 ## Поздравления
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | cron-расписание прогона в зоне `greetings.timezone`; дефолт — 00:00; `off`/`disabled` выключает расписание (тестовые профили) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt` (`@Scheduled`) |
+| `greetings.cron` | `${GREETINGS_CRON:0 0 0 * * ?}` | cron-расписание прогона в зоне `greetings.timezone`; дефолт — 00:00; `off`/`disabled` выключает расписание (тестовые профили) | [`src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt) (`@Scheduled`) |
 | `greetings.timezone` | `${GREETINGS_TIMEZONE:Europe/Minsk}` | зона cron-расписания; невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | там же |
-| `greetings.hidden-birthdays.enabled` | `${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}` | включает поздравление по подтверждённому birthday-факту из чата, когда VK-дата скрыта или пуста; `false` — порт `FindUserBirthdayFactsPort` не вызывается, VK-именинники и праздники остаются (операционный kill-switch без релиза) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt` (`@ConfigProperty`) |
-| `greetings.knowledge.enabled` | `${GREETINGS_KNOWLEDGE_ENABLED:true}` | включает знания в поздравлениях: сводка чата для всех планов и личные факты именинников; `false` — ноль чтений `FindChatKnowledgeSummaryPort`/`FindUserKnowledgePort`, промпт байт-идентичен прежнему (операционный kill-switch без релиза) | `src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt` (`@ConfigProperty`) |
-| `greetings.knowledge.max-facts-per-person` | `${GREETINGS_KNOWLEDGE_MAX_FACTS_PER_PERSON:5}` | сколько не-stale фактов именинника попадает в промпт поздравления (`CONFIRMED` раньше `CANDIDATE`, затем по `confidence`, без лимита на свежую сводку); `0` — без личных фактов | `src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt` (`@ConfigProperty`) |
+| `greetings.hidden-birthdays.enabled` | `${GREETINGS_HIDDEN_BIRTHDAYS_ENABLED:true}` | включает поздравление по подтверждённому birthday-факту из чата, когда VK-дата скрыта или пуста; `false` — порт `FindUserBirthdayFactsPort` не вызывается, VK-именинники и праздники остаются (операционный kill-switch без релиза) | [`src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/collect/CollectGreetingPlansCommand.kt) (`@ConfigProperty`) |
+| `greetings.knowledge.enabled` | `${GREETINGS_KNOWLEDGE_ENABLED:true}` | включает знания в поздравлениях: сводка чата для всех планов и личные факты именинников; `false` — ноль чтений `FindChatKnowledgeSummaryPort`/`FindUserKnowledgePort`, промпт байт-идентичен прежнему (операционный kill-switch без релиза) | [`src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt) (`@ConfigProperty`) |
+| `greetings.knowledge.max-facts-per-person` | `${GREETINGS_KNOWLEDGE_MAX_FACTS_PER_PERSON:5}` | сколько не-stale фактов именинника попадает в промпт поздравления (`CONFIRMED` раньше `CANDIDATE`, затем по `confidence`, без лимита на свежую сводку); `0` — без личных фактов | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/greeting/GreetingTextOutputAdapter.kt) (`@ConfigProperty`) |
 
 Дефолт `GREETINGS_CRON=0 0 0 * * ?` означает, что первый прогон после деплоя — живой; в тестовых
 ресурсах `greetings.cron: disabled`, иначе планировщик срабатывал бы в каждом `@QuarkusTest`.
@@ -94,7 +94,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 | Ключ | Значение / env | Эффект | Где читается |
 |---|---|---|---|
-| `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона, в которую конвертируются UTC-бакеты `user_hour_statistics` при чтении гистограмм активности по часу и дню недели (`GET /persistence/statistics/users/{id}`); невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt` |
+| `statistics.timezone` | `${STATISTICS_TIMEZONE:Europe/Minsk}` | зона, в которую конвертируются UTC-бакеты `user_hour_statistics` при чтении гистограмм активности по часу и дню недели (`GET /persistence/statistics/users/{id}`); невалидная зона валит старт при создании бина (`ZoneId.of`), тихого пропуска нет | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/config/StatisticsConfig.kt) |
 
 Агрегаты статистики хранятся в UTC (`user_hour_statistics.utc_date`/`utc_hour`): зона влияет только на
 конвертацию выбранного бакета при чтении, поэтому смена `STATISTICS_TIMEZONE` меняет бакеты следующего
@@ -112,7 +112,7 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `quarkus.datasource.jdbc.max-size` | `20` | максимальный размер пула |
 | `quarkus.datasource.jdbc.acquisition-timeout` | `30s` | таймаут получения соединения |
 | `quarkus.liquibase.migrate-at-start` | `true` | применять changesets при старте |
-| `quarkus.liquibase.change-log` | `db/changelog/db.changelog-master.yaml` | master-чейнджлог (`src/persistence/src/main/resources/db/changelog/`) |
+| `quarkus.liquibase.change-log` | [`db/changelog/db.changelog-master.yaml`](../../src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml) | master-чейнджлог ([`src/persistence/src/main/resources/db/changelog/`](../../src/persistence/src/main/resources/db/changelog)) |
 
 В prod DevServices выключены автоматически (они живут только в dev/test), поэтому соединение задаётся
 через `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD`
@@ -120,12 +120,12 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 ## RabbitMQ и очереди
 
-`application.yml` задаёт только DevServices (`quarkus.rabbitmq.devservices.image-name: rabbitmq:latest`);
+[`application.yml`](../../src/app/src/main/resources/application.yml) задаёт только DevServices (`quarkus.rabbitmq.devservices.image-name: rabbitmq:latest`);
 в prod параметры коннектора SmallRye RabbitMQ (`rabbitmq-host`, `rabbitmq-port`, `rabbitmq-username`,
-`rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем `application.yml` их нет,
+`rabbitmq-password`) задаются конфигурацией/переменными окружения — в текущем [`application.yml`](../../src/app/src/main/resources/application.yml) их нет,
 это делает деплой.
 
-Очереди (`mp.messaging.*`, `application.yml:92-186`):
+Очереди (`mp.messaging.*`, [`application.yml:134-228`](../../src/app/src/main/resources/application.yml#L134-L228)):
 
 | Канал | Тип | Exchange / queue | Особенности |
 |---|---|---|---|
@@ -135,17 +135,17 @@ Long Poll API с событием `message_new` и отключить Callback A
 | `events-exchange` | outgoing | `all-events` | публикация событий, routing key = имя события |
 | `retry-*-out`, `dlq-final-out` | outgoing | соответствующие exchange | перекладывание при retry |
 
-`dlq.levels[]` (`application-queues.yml:1-32`) связывает уровень retry с очередью и TTL; читается
-`infrastructure/config/DlqConfig.kt:6-16` и используется `EventDispatcher.kt:25-26,90-111`.
+`dlq.levels[]` ([`application-queues.yml:1-32`](../../src/app/src/main/resources/application-queues.yml#L1-L32)) связывает уровень retry с очередью и TTL; читается
+[`infrastructure/config/DlqConfig.kt:6-16`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/config/DlqConfig.kt#L6-L16) и используется [`EventDispatcher.kt:25-26,90-111`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt).
 
-`smallrye.messaging.observation.enabled: true` (`application.yml:188-191`) включает наблюдаемость брокера.
+`smallrye.messaging.observation.enabled: true` ([`application.yml:230-233`](../../src/app/src/main/resources/application.yml#L230-L233)) включает наблюдаемость брокера.
 
 ## REST-клиенты и LLM
 
 | Ключ | Значение | Эффект |
 |---|---|---|
 | `quarkus.rest-client.scope` | `jakarta.inject.Singleton` | один клиент на приложение |
-| `quarkus.rest-client.logging.scope` | `request-response` | логирование запрос/ответ всех REST-клиентов |
+| `quarkus.rest-client.logging.scope` | `request-response` | логирование запрос/ответ всех REST-клиентов (INFO, тело ≤100 символов, `Authorization`/`Cookie` маскируются) |
 | `quarkus.rest-client.vk.url` | `https://api.vk.ru/method` | база VK API (`configKey = "vk"`), в том числе для `groups.getLongPollServer` |
 | `quarkus.rest-client.vane.url` | `${VANE_URL}` | база Vane (`configKey = "vane"`); обязательна |
 | `quarkus.rest-client.vane.connect-timeout` | `30000` | таймаут соединения Vane |
@@ -166,11 +166,11 @@ Long Poll API с событием `message_new` и отключить Callback A
 
 LLM/LangChain4j: провайдер — OpenAI-совместимый endpoint, в деплое vLLM (ADR 2026-11-05-llm-provider-vllm-openai). Кроме провайдера в
 production-конфиге `quarkus.langchain4j.*` заданы логирование и трейсинг (`log-requests: true`,
-`log-responses: true`, `tracing.include-prompt/completion`, `application.yml`).
+`log-responses: true`, `tracing.include-prompt/completion`, [`application.yml`](../../src/app/src/main/resources/application.yml)).
 Ловушка миграции: `base-url` — корень OpenAI API вместе с `/v1`, расширение само дописывает
 `/chat/completions`; у прежнего провайдера это был голый корень сервера. DevServices LLM больше не
-поднимают. В тестах те же ключи заданы в `src/app/src/test/resources/application.yaml:26-33` и
-`src/app/src/test/resources/application-integration-test.yaml:89-97`, а HTTP-граница подменяется в `WireMockTestResource.kt:24-34`
+поднимают. В тестах ключи провайдера заданы в [`src/app/src/test/resources/application.yaml:26-37`](../../src/app/src/test/resources/application.yaml#L26-L37) и
+[`src/app/src/test/resources/application-integration-test.yaml:92-104`](../../src/app/src/test/resources/application-integration-test.yaml#L92-L104), а HTTP-граница подменяется в [`WireMockTestResource.kt:24-34`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/WireMockTestResource.kt#L24-L34)
 (`base-url` = `baseUrl()/v1`).
 
 Decision-модель ([ADR 2026-11-08-decision-model-langchain4j](../adr/2026-11-08-decision-model-langchain4j.md),
@@ -196,15 +196,36 @@ decision-сервера в runtime даёт fail-open: WARNING без текст
 Decision-логи **включены** наследованием глобального `true`: у ollama-конфига дефолт
 `@WithDefault("${quarkus.langchain4j.log-requests}")`/`...log-responses`, а рекордер читает
 `firstOrDefault(false, decision-model.*, ollama.*)`; поэтому нормализованный текст и ответ модели
-логируются на INFO и **экспортируются по OTLP** (`quarkus.otel.logs.enabled: true` — PII покидает
-процесс) — **PII, принятый риск** (решение Q1=B). Выключение — отдельное решение
-(провайдерские `log-requests: false` + `log-responses: false`). `cause.message` (тело HTTP-ошибки) не
-логировать выше DEBUG. В тестах заданы dummy `base-url: http://localhost:8089` и
+логируются на INFO и экспортируются по OTLP — это и есть решение Q1=B (PII, см. §«PII и логи»).
+Выключение — отдельное решение (провайдерские `log-requests: false` + `log-responses: false`).
+`cause.message` (тело HTTP-ошибки) не логировать выше DEBUG. В тестах заданы dummy `base-url: http://localhost:8089` и
 `model-id: test-decision`, а `WireMockTestResource` подменяет `base-url` на `baseUrl()`.
 `DECISION_URL` — обязательное значение контракта деплоя; поведение старта без переменной этой задачей
 **не проверялось**, поэтому здесь не утверждается, что старт без неё проходит (named gap ADR 2026-11-08-decision-model-langchain4j).
 Деплой выставляет переменную вручную, первый деплой проверяет позитивную половину (переменная задана →
 ключ резолвится); наблюдение M-1 — `impl.md` board-task `decision-integration`.
+
+### PII и логи — канон (решение Q1=B)
+
+Проект по дизайну обрабатывает переписку через LLM: текст сообщений, промпты, ответы и производные значения
+(профиль, факты, сводки) покидают процесс. `quarkus.langchain4j.log-requests/log-responses: true` +
+`tracing.include-prompt/completion: true` ([`application.yml:98-103`](../../src/app/src/main/resources/application.yml#L98-L103)) пишут промпт и ответ на INFO;
+`quarkus.otel.logs.enabled: true`, `logs.level: INFO` ([`application.yml:74-77`](../../src/app/src/main/resources/application.yml#L74-L77)) экспортируют INFO-логи по
+OTLP. Тот же INFO-канал получает тела REST-запросов/ответов (`quarkus.rest-client.logging.scope:
+request-response`, [`application.yml:84-85`](../../src/app/src/main/resources/application.yml#L84-L85), тело ≤100 символов): исходящий текст `messages.send` и начало
+промптов видны и без LangChain4j-логов; `Authorization`/`Cookie` маскируются дефолтом
+`RestClientsConfig.RestClientLoggingConfig`, поэтому токены и секреты в логи не попадают.
+Decision-логи наследуют глобальный `true` (provider-ключи `ollama.log-requests/log-responses` не добавлены);
+проверка — `DecisionModelIntegrationTest` (`decision model logging inherits the global log flags`).
+
+Свой код выше DEBUG пишет только id (`peerId`/`userId`/`messageId`), счётчики, номер попытки и простое имя
+класса исключения. Исключения: [`EventDispatcher.kt:89`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L89) — ERROR с полным payload на неизвестном routing key;
+[`EventDispatcher.kt:82`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L82), [`LongPollRunner.kt:131`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt#L131), [`SummarizationAiAdapter.kt:33`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt#L33),
+[`ProcessSummaryCommandImpl.kt:99-103`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt#L99-L103), [`GenerateGreetingTextCommand.kt:48`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/command/text/GenerateGreetingTextCommand.kt#L48),
+[`RunDailyGreetingsUsecase.kt:34-38,57-61`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/usecase/RunDailyGreetingsUsecase.kt) — throwable или `e.message`; [`VkUserProfileTable.kt:91-96`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/VkUserProfileTable.kt#L91-L96) —
+невалидный `birth_date`; TRACE-декораторы ([`CommandLoggingDecorator.kt:17-25`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/CommandLoggingDecorator.kt#L17-L25),
+[`UsecaseLoggingDecorator.kt:17-25`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/UsecaseLoggingDecorator.kt#L17-L25)) сериализуют весь request/response, но TRACE не включён. Новых sink'ов и
+повторных PII-абзацев не добавлять — ссылаться сюда.
 
 Long Poll использует тот же `configKey = "vk"` для `groups.getLongPollServer`, а `a_check` уходит на
 динамический `server` из ответа через `RestClientBuilder.baseUri`. Таймаут чтения клиента — 60 с: при
@@ -226,44 +247,44 @@ Long Poll использует тот же `configKey = "vk"` для `groups.get
 
 | Ключ | Почему мёртвый |
 |---|---|
-| `circuit-breaker.vk-profile` (`application.yml:193-198`) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
+| `circuit-breaker.vk-profile` ([`application.yml:236-240`](../../src/app/src/main/resources/application.yml#L236-L240)) | ни одной аннотации `@CircuitBreaker`/`@Retry` в коде нет; ключ никем не читается |
 | `summary.system-prompt` | не читается, см. выше |
 
 ## Профили и тестовая конфигурация
 
-- Production-профилей `%dev`/`%prod` в `src/app/src/main/resources` нет. Есть `%test` в
-  `src/app/src/test/resources/application.yml` (`hibernate-orm.enabled: false`, `liquibase.enabled: false`,
+- Production-профилей `%dev`/`%prod` в [`src/app/src/main/resources`](../../src/app/src/main/resources) нет. Есть `%test` в
+  [`src/app/src/test/resources/application.yml`](../../src/app/src/test/resources/application.yml) (`hibernate-orm.enabled: false`, `liquibase.enabled: false`,
   `greetings.cron: disabled`, `summary.enabled-chats: 1,2,3`).
-- `src/app/src/test/resources/application.yaml` — базовая тестовая конфигурация: `vk.group.id`,
+- [`src/app/src/test/resources/application.yaml`](../../src/app/src/test/resources/application.yaml) — базовая тестовая конфигурация: `vk.group.id`,
   `vk.longpoll.enabled` (у `InitTest` опрос выключен — `vk.longpoll.enabled: false`), `vk.bot.*`,
   `summary.enabled-chats: 1,2,3`, `greetings.cron: disabled`, DevServices вкл., observability off,
   `vane.url: http://localhost:8075`.
-- `src/app/src/test/resources/application-integration-test.yaml` — профиль `integration-test`: RabbitMQ 3.12
+- [`src/app/src/test/resources/application-integration-test.yaml`](../../src/app/src/test/resources/application-integration-test.yaml) — профиль `integration-test`: RabbitMQ 3.12
   DevServices (shared, timeout 120s), PostgreSQL DevServices с `SELECT 1`, graceful shutdown, `auto-bind-exchange: false`
   для всех каналов, LangChain4j DevServices off (LLM мокается WireMock), Liquibase вкл.; опрос Bots Long Poll
   включается для `VkLongPollIntegrationTest`; `greetings.cron: disabled` — расписание в тестах не срабатывает.
-- `src/testing/test-common/src/main/resources/application.yaml` — общие значения для модульных тестов:
+- [`src/testing/test-common/src/main/resources/application.yaml`](../../src/testing/test-common/src/main/resources/application.yaml) — общие значения для модульных тестов:
   `vk.group.id`, `vk.longpoll.enabled: false`, `vk.api.*`, `vk.bot.*`, DevServices off, observability off,
   `vane.url`.
 
 ## Health
 
-Расширение `quarkus-smallrye-health` подключено (`src/app/build.gradle.kts:37`), кастомных эндпоинтов нет —
+Расширение `quarkus-smallrye-health` подключено ([`src/app/build.gradle.kts:37`](../../src/app/build.gradle.kts#L37)), кастомных эндпоинтов нет —
 действуют умолчания Quarkus: `/q/health`, `/q/health/ready`, `/q/health/live`. Путей `/health` и `/metrics` нет.
 Messaging-проверка SmallRye Reactive Messaging исключает шесть retry/DLQ-каналов ключом
 `quarkus.messaging.health.<channel>.enabled: false` (`retry-5s-queue`, `retry-30s-queue`, `retry-1m-queue`,
-`retry-15m-queue`, `retry-1h-queue`, `dlq-final-queue`; `application.yml:77-90`): они объявлены ради TTL/DLX
+`retry-15m-queue`, `retry-1h-queue`, `dlq-final-queue`; [`application.yml:119-132`](../../src/app/src/main/resources/application.yml#L119-L132)): они объявлены ради TTL/DLX
 и downstream-консьюмера не имеют, без исключения проверка помечает их `[KO]` (`SRMSG00208: has no
 downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` остаётся под проверкой — у него есть консьюмер
 `EventDispatcher.dispatch`. `HealthTest` проверяет 200 UP на всех трёх эндпоинтах; подробности —
-`deployment.md`, раздел «Health и наблюдаемость».
+[`deployment.md`](./deployment.md), раздел «Health и наблюдаемость».
 
 ## jOOQ codegen (выключен)
 
 `./gradlew :src:persistence:generateJooq` существует, но выполняется только при заданном `JOOQ_JDBC_URL`
-(`src/persistence/build.gradle.kts:89-125`, `onlyIf { System.getenv("JOOQ_JDBC_URL") != null }`).
+([`src/persistence/build.gradle.kts:89-125`](../../src/persistence/build.gradle.kts#L89-L125), `onlyIf { System.getenv("JOOQ_JDBC_URL") != null }`).
 Переменные: `JOOQ_JDBC_URL`, `JOOQ_JDBC_USER`, `JOOQ_JDBC_PASSWORD`. Генерация не нужна для сборки:
-таблицы описаны вручную в `persistence/adapter/output/persistence/jooq/Tables.kt:6-82`.
+таблицы описаны вручную в [`persistence/adapter/output/persistence/jooq/Tables.kt:6-178`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt#L6-L178).
 
 ## Секреты
 

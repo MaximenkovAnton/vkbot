@@ -9,7 +9,7 @@
 сообщение `ANSWER_MESSAGE` с захардкоженным русским текстом, минуя `ai-answer` и `MESSAGE_REQUIRE_ANSWER`.
 Строки маршрутизации ниже действуют только при `requiredAnswer=true` (в групповом чате — упоминание бота
 в тексте или forward от бота,
-`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`).
+[`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33)).
 Спам-этап идёт раньше `requiredAnswer`: при `spamProbability >= decision.spam-threshold` публикуется
 спам-уведомление, а не справка, и это возможно даже при `requiresAnswer=false`. «Без вызова модели» ниже
 означает «без **дополнительного (ленивого)** вызова decision-модели для интента», а не «модель не
@@ -37,19 +37,19 @@
 
 | Точка входа | Где в коде |
 |---|---|
-| `MESSAGE_RECEIVED` из `all-events-queue` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22` |
-| маршрутизация после `requiredAnswer`: точная команда, ленивый вызов модели, публикация справки | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:75-115` |
-| правило точной команды: `/help`, `/помощь`, граница «с аргументами → `GENERAL`» | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` |
-| текст справки и подстановка `vk.bot.mention` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36` |
+| `MESSAGE_RECEIVED` из `all-events-queue` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22) |
+| маршрутизация после `requiredAnswer`: точная команда, ленивый вызов модели, публикация справки | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:75-115`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L75-L115) |
+| правило точной команды: `/help`, `/помощь`, граница «с аргументами → `GENERAL`» | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt:10-35`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt#L10-L35) |
+| текст справки и подстановка `vk.bot.mention` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt#L10-L36) |
 
 Конфигурация: `vk.bot.mention` (существующий ключ, дефолт `@simarel`) —
-`src/app/src/main/resources/application.yml`.
+[`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml).
 
 ## Данные
 
 Персистентных данных не владеет, в БД ничего не пишет. Текст справки — константа кода. Текст сообщения,
-ушедшего в decision-модель для интента, логируется провайдером на INFO и экспортируется по OTLP — PII,
-принятый риск ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy; новый код текст не логирует. `vk.bot.mention` — существующий ключ (ADR 2026-10-28-configuration-and-secrets).
+ушедшего в decision-модель для интента, уходит в LLM и общий INFO/OTLP-контур (§«PII и логи» в
+[`docs/development/configuration.md`](../development/configuration.md)); новый код текст не логирует. `vk.bot.mention` — существующий ключ (ADR 2026-10-28-configuration-and-secrets).
 
 ## Journey
 
@@ -61,7 +61,7 @@
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | `vk-message-send` (consumer); producers — `ai-answer`, `answer-decision` (спам и справка), `chat-news-digest` (сводка «что нового») | `ai-answer` (контракт/payload не меняется) |
-| `MessageIntent` | `answer-decision`, тесты `processor` и `src/app` | `processor` (ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy) |
+| `MessageIntent` | `answer-decision`, тесты `processor` и [`src/app`](../../src/app) | `processor` (ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy) |
 | `vk.bot.mention` | `IsRequireAnswerCommandImpl`, `BuildHelpTextCommandImpl` | composition root `:src:app` (ADR 2026-10-28-configuration-and-secrets) |
 
 ## Зависит от
@@ -82,26 +82,26 @@
   `/помощь`, СИСТЕМА ДОЛЖНА опубликовать ровно один `ANSWER_MESSAGE` со справкой; дополнительного
   (ленивого) вызова decision-модели для интента нет (в группе анализ мог быть получен спам-этапом);
   `/help` с аргументами или `@`-суффиксом — детерминированный `GENERAL`, справки нет. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`,
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommandTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt),
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommandTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommandTest.kt).
 - **AC-bot-help-2** — КОГДА `requiredAnswer=true`, текст не является точной командой и итоговый
   `DecisionAnalysis.intent = HELP` (из анализа спам-этапа или ленивого вызова), СИСТЕМА ДОЛЖНА
   опубликовать ровно один `ANSWER_MESSAGE` со справкой (`responseTo = Message`). Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt).
 - **AC-bot-help-3** — КОГДА `BuildHelpTextCommand.execute` вызван при настроенном `vk.bot.mention`,
   СИСТЕМА ДОЛЖНА вернуть текст справки дословно: 4 строки, разделитель `\n`, без завершающего `\n`,
   упоминание подставлено. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommandTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommandTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommandTest.kt).
 - **AC-bot-help-4** — КОГДА `requiredAnswer=true` и справка опубликована (по точной команде — без
   дополнительного (ленивого) вызова модели для интента; по интенту `HELP` — из анализа спам-этапа или из
   того же ленивого вызова, без дополнительного вызова), СИСТЕМА ДОЛЖНА не публиковать
   `MESSAGE_REQUIRE_ANSWER`/`NEWS_DIGEST_REQUESTED` и не запускать AI-ответ. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt).
 - **AC-bot-help-5** — КОГДА `requiresAnswer=false` (в группе нет упоминания или forward от бота),
   СИСТЕМА ДОЛЖНА не выполнять маршрутизацию по интенту: нет `ANSWER_MESSAGE` со справкой, нет
   `MESSAGE_REQUIRE_ANSWER` и `NEWS_DIGEST_REQUESTED`; спам-уведомление возможно, потому что спам-этап
   идёт до `requiredAnswer`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt).
 
 ## Пробелы приёмки
 
@@ -110,4 +110,3 @@
 - В групповом чате справка подчиняется `requiredAnswer`: нужно упоминание бота или forward от бота.
 - Спам-этап имеет приоритет над точной командой и может дать уведомление при `requiresAnswer=false`.
 - Доставка событий at-least-once: повторная доставка может дать повторную справку; дедупликации нет.
-- PII decision-логов — принятый риск ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy.

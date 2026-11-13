@@ -23,7 +23,7 @@
 
 1. **Правило L7 (ArchUnit).** В production-коде (`com.simarel.vkbot..`) запрещены типы, simple name которых
    оканчивается на `Controller`, `Service` или `Repository`. Правило — `NamingConventionsTest`
-   (`src/testing/arch-tests`): проверяет классы, интерфейсы, объекты и вложенные типы всех модулей,
+   ([`src/testing/arch-tests`](../../src/testing/arch-tests)): проверяет классы, интерфейсы, объекты и вложенные типы всех модулей,
    входит в `./gradlew build`, а сообщение о нарушении говорит, как назвать класс вместо этого.
 2. **Имя отвечает на «что делает», а не «где лежит».** `XxxUsecase`, `XxxAdapter`, `XxxCommand`,
    `XxxProcessor`, `XxxTable`, `XxxReader`, `XxxWriter`, `XxxGenerator`, `XxxFormatter`, `XxxPolicy`,
@@ -73,8 +73,8 @@
   новые SQL-операции добавляются отдельными адаптерами и портами, а не в него.
 - `Impl`, `Manager`, `Helper`, `Util` механически не запрещены, но дух правила на них распространяется:
   `*Impl` остаётся только у реализаций `Command`, где он уже есть.
-- Проверки: `NamingConventionsTest` в `src/testing/arch-tests`, документированное правило —
-  `docs/architecture/patterns.md` (раздел «Имя типа — ответственность»), конституция — `AGENTS.md`.
+- Проверки: `NamingConventionsTest` в [`src/testing/arch-tests`](../../src/testing/arch-tests), документированное правило —
+  [`docs/architecture/patterns.md`](../architecture/patterns.md) (раздел «Имя типа — ответственность»), конституция — [`AGENTS.md`](../../AGENTS.md).
 
 ## Отклонённые альтернативы
 

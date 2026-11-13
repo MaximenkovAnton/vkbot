@@ -9,13 +9,13 @@ VK Bot — **гексагональный монолит в одном депл�
 
 1. **Фреймворк — адаптер, не архитектура.** `domain` и `usecase`/`command` не импортируют Quarkus, jOOQ,
    Jackson, JAX-RS и LangChain4j. Это проверяют ArchUnit-правила L1–L3
-   (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt:51-94`) и
+   ([`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt:51-94`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/LayerDependenciesTest.kt#L51-L94)) и
    сборка падает на нарушении.
 2. **Один деплой.** Приложение — `:src:app`; корень — агрегатор конвенций
-   (`build.gradle.kts:1-8`, `src/app/build.gradle.kts:3`). Артефакт — `src/app/build/quarkus-app/quarkus-run.jar`.
+   ([`build.gradle.kts:1-8`](../../build.gradle.kts#L1-L8), [`src/app/build.gradle.kts:3`](../../src/app/build.gradle.kts#L3)). Артефакт — [`src/app/build/quarkus-app/quarkus-run.jar`](../../src/app/build/quarkus-app/quarkus-run.jar).
 3. **Контракты — в `share`.** Входящие/исходящие порты, `Command<REQ,RESP>`, `Event`, доменные модели и VO
-   лежат в `src/share` (`share/port/Port.kt:3-9`, `share/command/Command.kt:3-8`,
-   `share/domain/Event.kt:3-10`). Модули зависят только от них.
+   лежат в [`src/share`](../../src/share) ([`share/port/Port.kt:3-9`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/Port.kt#L3-L9), [`share/command/Command.kt:3-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/command/Command.kt#L3-L8),
+   [`share/domain/Event.kt:3-15`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt#L3-L15)). Модули зависят только от них.
 4. **Синхронные вызовы внутри деплоя — in-process.** `ai` и `persistence` общаются через порты `share`,
    реализованные модулем-поставщиком, а не через loopback HTTP
    ([ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md)).
@@ -68,9 +68,10 @@ In-process (без HTTP):
 
 ## Основной поток
 
-Событий ровно восемь — закрытый `enum class Event` (`share/domain/Event.kt:3-12`):
+Событий ровно одиннадцать — закрытый `enum class Event` ([`share/domain/Event.kt:3-15`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt#L3-L15)):
 `MESSAGE_NEW`, `MESSAGE_RECEIVED`, `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `SUMMARY_REQUESTED`,
-`SUMMARY_READY`, `NEWS_DIGEST_REQUESTED`, `PROFILE_REQUESTED`.
+`SUMMARY_READY`, `NEWS_DIGEST_REQUESTED`, `PROFILE_REQUESTED`, `USER_KNOWLEDGE_REQUESTED`,
+`USER_KNOWLEDGE_SUMMARY_REQUESTED`, `CHAT_KNOWLEDGE_SUMMARY_REQUESTED`.
 
 ```
 VK ──Bots Long Poll──> receiver
@@ -153,22 +154,25 @@ SUMMARY_READY ──> vk-facade/SummaryReadyEventProcessor
   confirmation-кода в конфигурации нет. Единственный вход событий VK — исходящий опрос Bots Long Poll
   ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)); токен VK уходит заголовком `Authorization`.
 - **DMZ**: VK JSON парсится в DTO в `receiver/adapter/input/dto/`, в домен маппится
-  `receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58`. `jakarta.json.JsonObject` не покидает входной
+  [`receiver/adapter/input/vk/mapper/MessageMapper.kt:13-58`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt#L13-L58). `jakarta.json.JsonObject` не покидает входной
   адаптер.
 - **Value objects** валидируют и нормализуют значения (`MessageText.of`, `PeerId.of`, `FromId.of`).
 - **Ошибки** — единственная иерархия `VkBotAppException` со статусом (`share/domain/exception/`): в
   production-коде бросаются только её наследники; `ValidationException` — база доменной валидации
   (`ValidationException → <ValueObject>ValidationException → <проверка>Exception`), а `require` и
   `requireNotNull` запрещены архитектурным тестом
-  (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`, [ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md));
+  ([`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/ExceptionHandlingTest.kt), [ADR 2026-11-09-exception-hierarchy](../adr/2026-11-09-exception-hierarchy.md));
   HTTP-маппинг в деплое остался только у REST-ресурсов `persistence` и `vk-facade`.
+- **PII и логи:** текст сообщений, промпты и ответы покидают процесс по дизайну (LangChain4j INFO-логи +
+  OTLP, REST request/response); секреты и токены не логируются. Канон —
+  [`docs/development/configuration.md`](../development/configuration.md) §«PII и логи».
 
 ## Что здесь не реализовано
 
 Документ не должен обещать того, чего нет в коде:
 
 - нет CQRS и event sourcing: события не сохраняются, event store отсутствует;
-- нет circuit breaker: расширение fault-tolerance объявлено (`src/vk-facade/build.gradle.kts:21`), но
+- нет circuit breaker: расширение fault-tolerance объявлено ([`src/vk-facade/build.gradle.kts:21`](../../src/vk-facade/build.gradle.kts#L21)), но
   аннотаций `@CircuitBreaker`/`@Retry` нет, блок `circuit-breaker.vk-profile` в конфиге никем не читается;
 - нет Prometheus-эндпоинта `/metrics` и пути `/health`; health — `/q/health`;
 - нет публичного HTTP-входа для VK: `/vk/callback` отсутствует, события приходят опросом Bots Long Poll;

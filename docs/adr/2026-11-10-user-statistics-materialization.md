@@ -48,7 +48,7 @@
   (`(utc_date + utc_hour * interval '1 hour') AT TIME ZONE 'UTC' AT TIME ZONE {zone}`). Смена
   `STATISTICS_TIMEZONE` не требует пересборки агрегатов. При отсутствии строк — нули и пустые списки.
 - **Backfill — ручной ops-шаг, не миграция и не рантайм-бин.**
-  `src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` не владеет транзакцией
+  [`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql) не владеет транзакцией
   (в файле нет `BEGIN`/`COMMIT`): вызывающий запускает его под
   `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f backfill-user-statistics.sql`, поэтому
   ошибка любой строки откатывает всё. Скрипт требует остановленного писателя, берёт
