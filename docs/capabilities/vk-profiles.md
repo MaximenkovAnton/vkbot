@@ -29,18 +29,18 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 | Точка входа | Где в коде |
 |---|---|
-| `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt:14-32` |
-| use case профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt:9-21` |
-| команда: пользователи и группы раздельно | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt:12-30` |
-| VK API: `users.get` (35 полей `USER_FIELDS`), `groups.getById`, отрицательный id группы | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:16-43` |
-| маппинг ответа VK в человеческие `details` | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapper.kt`, `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkJsonExtractors.kt` |
-| REST-клиент VK для профилей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt:27-38` |
-| in-process порты для других модулей | `src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36` |
-| контракт портов в `share` | `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`, `src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt` |
-| чтение сохранённых профилей (`message-storage`) | `src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt:108-126` |
+| `GET /api/profiles/users/batch`, `GET /api/profiles/groups/batch` | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt:14-32`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/rest/VkProfileResource.kt#L14-L32) |
+| use case профилей | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt:9-21`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/profile/VkProfileUsecase.kt#L9-L21) |
+| команда: пользователи и группы раздельно | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt:12-30`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/getProfile/GetProfileCommandImpl.kt#L12-L30) |
+| VK API: `users.get` (35 полей `USER_FIELDS`), `groups.getById`, отрицательный id группы | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt:16-43`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/GetProfileAdapter.kt#L16-L43) |
+| маппинг ответа VK в человеческие `details` | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapper.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapper.kt), [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkJsonExtractors.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkJsonExtractors.kt) |
+| REST-клиент VK для профилей | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt:27-38`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt#L27-L38) |
+| in-process порты для других модулей | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt:8-36`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapter.kt#L8-L36) |
+| контракт портов в `share` | [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetUserProfilesBatchPort.kt), [`src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/vk/GetGroupProfilesBatchPort.kt) |
+| чтение сохранённых профилей (`message-storage`) | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt:108-126`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L108-L126) |
 
 Конфигурация: `vk.api.token`, `vk.api.version`, `quarkus.rest-client.vk.*` в
-`src/app/src/main/resources/application.yml`.
+[`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml).
 
 ## Данные
 
@@ -60,7 +60,7 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
-| `VkUserProfile`, `VkGroupProfile` (`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`, `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена), `daily-greetings` (имя именинника) | `vk-profiles` |
+| `VkUserProfile`, `VkGroupProfile` ([`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/VkUserProfile.kt), `.../VkGroupProfile.kt`) | `message-storage` (сохранение), `ai-answer` и `conversation-summary` (имена), `daily-greetings` (имя именинника) | `vk-profiles` |
 | `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` | `message-storage` (`FetchUserProfileCommandImpl`) | `vk-profiles` |
 | таблицы `vk_user_profiles`/`vk_group_profiles` | `message-storage` пишет их своими портами | `message-storage` |
 | `VkClient.getUsers`/`getGroups` и токен VK | `vk-message-send` использует тот же клиент для `messages.send` | `vk-profiles` — методы профилей; общая часть клиента — конфигурация деплоя (ADR 2026-10-28-configuration-and-secrets) |
@@ -81,18 +81,18 @@ id: запрос уходит с `-id`, ответ возвращается ка
 
 - **AC-vk-profiles-1** — КОГДА in-process порт запрашивает профили пользователей батчем, СИСТЕМА ДОЛЖНА
   передать только пользовательские id и вернуть профили. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:16-34`.
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:16-34`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt#L16-L34).
 - **AC-vk-profiles-2** — КОГДА in-process порт запрашивает профили групп батчем, СИСТЕМА ДОЛЖНА передать
   только групповые id и вернуть профили. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:36-52`.
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt:36-52`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt#L36-L52).
 - **AC-vk-profiles-3** — КОГДА профиль пользователя запрашивается из VK, СИСТЕМА ДОЛЖНА передать ровно 35
   полей `USER_FIELDS` и вернуть `VkUserProfile.details` с человеческими значениями — русскими подписями
   кодов, title вместо объектов, без VK-id, пустых строк, неизвестных кодов и волатильных полей. Test:
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapperTest.kt`,
-  `src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkGetUserProfilesBatchAdapterTest.kt`.
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapperTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkUserProfileMapperTest.kt),
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkGetUserProfilesBatchAdapterTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/circuitbreaker/VkGetUserProfilesBatchAdapterTest.kt).
 - **AC-vk-profiles-4** — КОГДА `VkUserProfile` сериализуется Jackson, СИСТЕМА ДОЛЖНА отдавать `details` с
   человеческими значениями и не отдавать поле сырого снимка. Test:
-  `src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/VkUserProfileJsonTest.kt`.
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/VkUserProfileJsonTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/domain/profile/VkUserProfileJsonTest.kt).
 
 ## Пробелы приёмки
 

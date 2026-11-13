@@ -68,7 +68,7 @@ Bots Long Poll API решает все три: приложение само о�
   владением.
 - Переключение сообщества делает человек в настройках VK: сначала включить Bots Long Poll с событием
   `message_new`, затем отключить Callback API, затем выкатить образ без `VK_SECRET`/`VK_CONFIRMATION_CODE`
-  и с `VK_GROUP_ID` (порядок — `docs/development/deployment.md`).
+  и с `VK_GROUP_ID` (порядок — [`docs/development/deployment.md`](../development/deployment.md)).
 
 ## Отклонённые альтернативы
 

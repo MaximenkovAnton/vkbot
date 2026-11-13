@@ -21,10 +21,10 @@
 
 - **Транспорт — `quarkus-langchain4j-ollama:1.15.0`** (LangChain4j 1.23.0) в `:src:processor` как
   production-зависимость и в `:src:app`; собственного HTTP-клиента нет. Адаптер
-  `DecisionModelOutputAdapter` (`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt`)
+  `DecisionModelOutputAdapter` ([`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt))
   вызывает библиотечный `DecisionModel`, переводит `DecisionRequest`/`DecisionResponse` в доменный
   `DecisionAnalysis` и прячет LangChain4j за портом `AnalyzeMessageOutputPort`. Смена библиотеки или
-  апгрейд — правка адаптера и `gradle.properties` ([ADR 2026-10-28-stack-kotlin-quarkus-gradle](2026-10-28-stack-kotlin-quarkus-gradle.md)).
+  апгрейд — правка адаптера и [`gradle.properties`](../../gradle.properties) ([ADR 2026-10-28-stack-kotlin-quarkus-gradle](2026-10-28-stack-kotlin-quarkus-gradle.md)).
 - **Почему не `-openai`.** Decision-endpoint OpenAI-расширения — `/v1/decisions`; у System One API путь
   `/v1/systemone`, и тот же запрос OpenAI-провайдером не обслуживается. **Почему не `-typesafe`.**
   Typesafe-расширение — text-only и не даёт decision-модели с noul/choice-вопросами.
@@ -90,7 +90,7 @@
 ## Последствия
 
 - Смена адреса или модели decision-сервера — правка env ([ADR 2026-10-28-configuration-and-secrets](2026-10-28-configuration-and-secrets.md)),
-  а не кода; апгрейд LangChain4j — `gradle.properties` + адаптер.
+  а не кода; апгрейд LangChain4j — [`gradle.properties`](../../gradle.properties) + адаптер.
 - Контракт деплоя требует `DECISION_URL`; пока fail-fast на старте не enforced (AC-5 — named gap,
   см. выше), поэтому переменную нужно выставлять до раскатки, а не надеяться на отказ старта.
   Позитивная половина (старт с переменной) проверяется первым деплоем.

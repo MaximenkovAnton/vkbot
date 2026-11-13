@@ -20,7 +20,7 @@
 
 - **Расписание.** `:src:greetings` — гексагональный модуль, единственная production-зависимость `:src:share`;
   расширение `quarkus-scheduler` объявлено в модуле. `DailyGreetingRunner`
-  (`adapter/input/schedule/DailyGreetingRunner.kt`) — тонкий `@ApplicationScoped`-бин:
+  ([`adapter/input/schedule/DailyGreetingRunner.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt)) — тонкий `@ApplicationScoped`-бин:
   `@Scheduled(identity = "daily-greetings", cron = "{greetings.cron}", timeZone = "{greetings.timezone}")`
   вызывает `runOnce(LocalDate.now(zone))`. Cron задаётся ключом `greetings.cron` (дефолт `0 0 0 * * ?`,
   env `GREETINGS_CRON`); значение `off`/`disabled` выключает расписание. Зона — `greetings.timezone`
@@ -37,7 +37,7 @@
   с сохранённым флагом. Генерация тотальна: при любом другом исключении порта или пустом/пробельном ответе
   возвращается детерминированный шаблон и пишется WARN; `InterruptedException` не подменяется шаблоном.
 - **At-most-once.** `ClaimDailyGreetingPort` пишет строку `greeting_log` (PK `(greeting_date, peer_id)`,
-  changeset `006-create-greeting-log-table.yaml`) один раз на чат до отправки; `GreetingLogTable.claim`
+  changeset [`006-create-greeting-log-table.yaml`](../../src/persistence/src/main/resources/db/changelog/changes/006-create-greeting-log-table.yaml)) один раз на чат до отправки; `GreetingLogTable.claim`
   — один autocommit `INSERT … ON CONFLICT DO NOTHING`. Повторный прогон даты получает `claimed = false` и
   не отправляет ни одного сообщения этого чата; два экземпляра проигрывают конфликт. Цена: ошибка
   отправки не повторяется, оставшиеся сообщения чата теряются до следующих суток.
@@ -73,7 +73,7 @@
 ## Последствия
 
 - Новый модуль `:src:greetings` входит в allowlist arch-тестов и в `coverageModules`; `:src:app` —
-  composition root, ключи читаются из `src/app/src/main/resources/application.yml`.
+  composition root, ключи читаются из [`src/app/src/main/resources/application.yml`](../../src/app/src/main/resources/application.yml).
 - `quarkus-scheduler` — ещё одно расширение каркаса, но не второй деплой и не второй раннер: расписание
   живёт в `:src:app` (ADR 2026-10-28-single-deployable-app-module).
 - Первый прогон после деплоя — живой (дефолт `GREETINGS_CRON=0 0 0 * * ?`), его ограничивают at-most-once,

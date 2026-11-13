@@ -80,7 +80,7 @@ Read-модель R2b (ADR [2026-11-11-knowledge-read-model](2026-11-11-knowledg
 
 ## Последствия и откат
 
-- Миграции нет: `010` и `Tables.kt` не меняются. Стоимость — один read-only `SELECT` на каждый `MonthDay`
+- Миграции нет: `010` и [`Tables.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt) не меняются. Стоимость — один read-only `SELECT` на каждый `MonthDay`
   даты (1 обычно, 2 на 1 марта невисокосного года) плюс один `SELECT ... WHERE user_id IN (...)` по
   профилям только при непустом наборе knowledge-кандидатов; чаты — как раньше, по вызову на человека.
 - Образ аддитивен: старый образ о порте и ключе не знает, новая версия читает уже применённые таблицы

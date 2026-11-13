@@ -98,6 +98,6 @@ JSONB `profile_details`. Типизированные колонки профи�
 - **Откат образа после 008 — только с восстановлением БД из бэкапа до 008**: предыдущий образ читает и
   пишет `profile_data` (`VkUserProfileTable`) и падает на `findByIds`/`persist`
   (`FetchUserProfileCommandImpl`). Это осознанное исключение из правила аддитивности, зафиксированное в
-  `docs/development/deployment.md`.
+  [`docs/development/deployment.md`](../development/deployment.md).
 - Новых модулей, зависимостей, REST-эндпоинтов, событий, конфига и прав нет; состав PII в `details` тот же,
   что был в `profile_data`.

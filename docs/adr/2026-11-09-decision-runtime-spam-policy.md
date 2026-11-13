@@ -24,7 +24,7 @@ runtime он не вызывается: `MessageReceivedUsecaseInput` тольк
 ## Решение
 
 - **Decision-модель вызывается из runtime.** Единственная точка вызова — `MessageReceivedUsecaseInput`
-  (`src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt`),
+  ([`src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt)),
   до `requiredAnswer`. **Не более одного вызова на сообщение, для которого анализ запрошен.** В этом
   board-task анализ запрашивается только для сообщения человека (`fromId.isHuman()`) в групповом чате
   (`peerId.isGroupChat()`) при `decision.spam-reply.enabled = true`; для личных чатов и при выключенном
@@ -95,7 +95,7 @@ runtime он не вызывается: `MessageReceivedUsecaseInput` тольк
   «никогда», `<0` — «всегда». Новых зависимостей, модулей, событий, payload'ов, схемы БД и Liquibase
   changeset'ов нет.
 - **Совместимость и раскатка.** Сначала decision-сервер должен принимать и отвечать на третий вопрос,
-  затем выкатывается образ; новые env опциональны (дефолты в `application.yml`). Старый сервер даёт
+  затем выкатывается образ; новые env опциональны (дефолты в [`application.yml`](../../src/app/src/main/resources/application.yml)). Старый сервер даёт
   отказ на каждом применимом вызове → fail-open WARNING, спам-детект и `intent` недоступны, ответы
   работают как раньше. `DECISION_URL` обязателен по контракту деплоя, но **поведение старта без него
   этой задачей не проверялось** — named gap ADR 2026-11-08-decision-model-langchain4j сохраняется, доки это не утверждают.
@@ -120,8 +120,8 @@ runtime он не вызывается: `MessageReceivedUsecaseInput` тольк
 - Невалидный `intent` отличается от невалидного `class`/`spam` по тексту библиотечного
   `InvalidDecisionResponseException` (содержит имя вопроса); условие апгрейда — структурная причина в
   исключении или апгрейд LangChain4j.
-- Документы вне allowlist этой задачи (`docs/development/testing.md`, `docs/architecture/overview.md`,
-  `AGENTS.md`, `docs/capabilities/ai-answer.md`, `docs/capabilities/vk-message-send.md`) остаются
+- Документы вне allowlist этой задачи ([`docs/development/testing.md`](../development/testing.md), [`docs/architecture/overview.md`](../architecture/overview.md),
+  [`AGENTS.md`](../../AGENTS.md), [`docs/capabilities/ai-answer.md`](../capabilities/ai-answer.md), [`docs/capabilities/vk-message-send.md`](../capabilities/vk-message-send.md)) остаются
   неточными и перечислены в отчёте MITM.
 - Пункты о немаршрутизированном `intent` и личных чатах закрыты board-task
   `intent-routing-help-v2`: после `requiredAnswer=true` `HELP` → один `ANSWER_MESSAGE` со справкой

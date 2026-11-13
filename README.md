@@ -1,7 +1,14 @@
 # VK Bot Application
 
+[![CI](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml/badge.svg?branch=main)](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml)
+[![coverage](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/badges/coverage.svg)](https://github.com/MaximenkovAnton/vkbot/tree/badges)
+[![tests](https://raw.githubusercontent.com/MaximenkovAnton/vkbot/badges/tests.svg)](https://github.com/MaximenkovAnton/vkbot/actions/workflows/build-and-test.yml)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.3.0-7F52FF?logo=kotlin&logoColor=white)](#technology-stack)
+[![Quarkus](https://img.shields.io/badge/Quarkus-3.40.1.1-4695EB?logo=quarkus&logoColor=white)](#technology-stack)
+[![JDK](https://img.shields.io/badge/JDK-21-007396?logo=openjdk&logoColor=white)](#technology-stack)
+
 A VK community bot: one Quarkus/Kotlin deployable that receives VK events through the Bots Long Poll API,
-stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a vLLM
+stores messages, decides whether an AI answer is needed, generates answers with LangChain4j via a llama.cpp
 OpenAI-compatible API, sends them back to the VK API, and summarizes long conversations. The code follows
 hexagonal architecture: plain Kotlin behaviour behind ports, the framework at the edge (ADR 2026-10-28-module-boundaries-and-layer-rules).
 
@@ -10,9 +17,11 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - VK Bots Long Poll receiver (`groups.getLongPollServer` + `a_check`, `ts` position in PostgreSQL) with a DMZ mapper for VK JSON
 - Event-driven pipeline on RabbitMQ with a retry ladder and a final dead-letter queue
 - Message/profile/summary storage in PostgreSQL (Liquibase migrations, handwritten jOOQ tables)
-- AI answers via LangChain4j against a vLLM OpenAI-compatible API, with web-search tools from Vane
+- AI answers via LangChain4j against a llama.cpp OpenAI-compatible API, with web-search tools from Vane
 - Conversation summarization with a configurable threshold and enabled-chat list
 - Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
+- Decision stage: one System One call answers four questions (`spam`, `class`, `intent`, `jailbreak`); spam and prompt-injection notices are sent when their thresholds are reached, with per-branch kill-switches and fail-open behaviour
+- Chat knowledge: from incoming messages the bot extracts facts about people (category, key, value, source, date and confidence), stores them with dedup and a confirmation threshold, and keeps per-user and per-chat LLM summaries; the knowledge appears in answers, the profile dossier ("Из общения:"), the news digest and greetings (including a birthday known only from the chat)
 - The `profile` intent (a decision-model intent, not a slash command): "what do you know about ...", "about me" — the bot resolves the target deterministically (a mention id/club/public, a forwarded message, "обо мне"/"про меня", or a name among the participants of this chat), answers with one LLM dossier built from the stored VK profile (typed fields and human details), materialized statistics (including per-chat activity), the last 20 profile-history entries and the target's message count in this chat, and asks for clarification with at most 10 candidates without an LLM call; nothing is written to the database
 - Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 2026-10-28-in-process-ports-instead-of-loopback-rest)
@@ -36,7 +45,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 
 ## Module structure
 
-One deployable (`src/app`) and twelve Gradle modules (`settings.gradle.kts:22-33`):
+One deployable ([`src/app`](./src/app)) among twelve Gradle modules ([`settings.gradle.kts:22-33`](./settings.gradle.kts#L22-L33)):
 
 ```
 src/
@@ -57,19 +66,19 @@ src/
 ```
 
 Production dependency direction: every business module depends only on `share`; `app` depends on all of
-them; `share` depends on nobody. The build fails on a wrong import (`docs/adr/2026-10-28-module-boundaries-and-layer-rules.md`).
+them; `share` depends on nobody. The build fails on a wrong import ([`docs/adr/2026-10-28-module-boundaries-and-layer-rules.md`](./docs/adr/2026-10-28-module-boundaries-and-layer-rules.md)).
 
 ## Prerequisites
 
 - JDK 21 (the build pins a 21 toolchain)
 - Docker (DevServices for PostgreSQL and RabbitMQ; also required by `@QuarkusTest` app tests)
 - A VK community with the Bots Long Poll API enabled and an API token
-- A vLLM OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
+- A llama.cpp (`llama-server`) OpenAI-compatible endpoint for AI (`AI_BASE_URL`, `AI_CHAT_MODEL`)
 - Optional: a Vane (Perplexica) instance for web-search tools
 
 ## Configuration
 
-The production configuration is `src/app/src/main/resources/application.yml` (+ `application-queues.yml`).
+The production configuration is [`src/app/src/main/resources/application.yml`](./src/app/src/main/resources/application.yml) (+ [`application-queues.yml`](./src/app/src/main/resources/application-queues.yml)).
 Values come from environment variables — never commit secrets (`.env` is git-ignored).
 
 | Environment variable | Required | Description |
@@ -90,13 +99,13 @@ Values come from environment variables — never commit secrets (`.env` is git-i
 | `QUARKUS_DATASOURCE_JDBC_URL`, `QUARKUS_DATASOURCE_USERNAME`, `QUARKUS_DATASOURCE_PASSWORD` | in prod | PostgreSQL connection |
 | `RABBITMQ_HOST` (and `RABBITMQ_PORT/USERNAME/PASSWORD` if needed) | in prod | RabbitMQ connection |
 | `VK_BOT_MENTION` | no | Mention that triggers an answer (default `@simarel`) |
-| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT`, `AI_PROFILE_SYSTEM_PROMPT` | no | System prompts (defaults in `application.yml`) |
+| `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT`, `AI_PROFILE_SYSTEM_PROMPT` | no | System prompts (defaults in [`application.yml`](./src/app/src/main/resources/application.yml)) |
 | `SUMMARY_ENABLED_CHATS` | no | Comma-separated peer ids whose chats get summaries. An unset or empty value disables summarization and the app still starts; the tests use `1,2,3` |
 | `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE` | no | Summarization threshold and batch size (defaults `100`, `100`) |
 | `GREETINGS_CRON` | no | Cron of the greeting run (default `0 0 0 * * ?`, i.e. 00:00 in `GREETINGS_TIMEZONE`); `off`/`disabled` disables the schedule |
 | `GREETINGS_TIMEZONE` | no | Time zone of the greeting schedule (default `Europe/Minsk`) |
 
-Every key, its default and its consumer: `docs/development/configuration.md`.
+Every key, its default and its consumer: [`docs/development/configuration.md`](./docs/development/configuration.md).
 
 ## Building and running
 
@@ -111,7 +120,7 @@ export VK_GROUP_ID=... VK_API_TOKEN=... VK_BOT_ID=... VANE_URL=http://localhost:
 ./gradlew :src:app:quarkusDev
 ```
 
-The deployable artifact is `src/app/build/quarkus-app/quarkus-run.jar`; `./gradlew build` also checks that no
+The deployable artifact is [`src/app/build/quarkus-app/quarkus-run.jar`](./src/app/build/quarkus-app/quarkus-run.jar); `./gradlew build` also checks that no
 second runner is produced.
 
 ### Docker
@@ -128,8 +137,8 @@ docker run -p 8080:8080 \
   vkbot:jvm
 ```
 
-Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` currently whitelists only
-`src/app/build/quarkus-app/*` — see `docs/development/deployment.md` before building them.
+Native and legacy-jar images read from [`src/app/build`](./src/app/build) too, but `.dockerignore` currently whitelists only
+`src/app/build/quarkus-app/*` — see [`docs/development/deployment.md`](./docs/development/deployment.md) before building them.
 
 ## API endpoints
 
@@ -141,9 +150,11 @@ Native and legacy-jar images read from `src/app/build` too, but `.dockerignore` 
 
 `receiver` has no HTTP endpoint: VK events arrive through Bots Long Poll polling, and `POST /vk/callback`
 returns 404 (ADR 2026-11-05-bots-long-poll-transport). There is no `/metrics` endpoint and no `/health` (Quarkus uses the `/q` prefix). The
-health endpoints exist but currently report **DOWN** (503): seven retry/DLQ channels are declared without a
-downstream consumer and the messaging health check marks them `[KO]` (`SRMSG00208`); the polling loop itself
-runs independently of HTTP health probes. See `docs/development/deployment.md`.
+health endpoints report **200 UP** and are usable as Kubernetes readiness probes: the six retry/DLQ channels
+(`retry-5s-queue` … `retry-1h-queue`, `dlq-final-queue`) are excluded from the SmallRye Reactive Messaging
+check (`quarkus.messaging.health.<channel>.enabled: false`), because they exist for TTL/DLX and have no
+downstream consumer; `all-events-queue` stays under the check. `HealthTest` covers all three endpoints, and the
+polling loop runs independently of HTTP health probes. See [`docs/development/deployment.md`](./docs/development/deployment.md).
 
 ## Message flow
 
@@ -175,9 +186,10 @@ The processor computes the message intent (`help`/`news`/`general`) as the third
 and routes it after `requiredAnswer`; the intent-stage call (lazy, when the stage did not run) is not
 governed by the spam/jailbreak kill-switches. Exact `/help` and `/помощь` (no arguments) are recognised
 deterministically, without an extra model call. The `news` branch is served by the `chat-news-digest`
-capability (`docs/capabilities/chat-news-digest.md`): it reads stored summaries and messages through
+capability ([`docs/capabilities/chat-news-digest.md`](./docs/capabilities/chat-news-digest.md)): it reads stored summaries and messages through
 in-process ports and never writes to `summaries`, so `SUMMARY_REQUESTED`/`SUMMARY_READY` are not involved.
 
+```
 Summary flow:
   persistence → SUMMARY_REQUESTED → ai → SUMMARY_READY → vk-facade → VK API
 
@@ -185,8 +197,8 @@ Greetings flow (scheduler, not an event):
   greetings.cron → greetings → persistence (plans + claim per chat) → ai (text) → vk-facade (plain send) → VK API
 ```
 
-Events run on RabbitMQ with a five-step retry ladder and a final DLQ (`application-queues.yml`); synchronous
-calls inside the deployable go through `share` ports (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest). Details: `docs/architecture/data-flow.md`.
+Events run on RabbitMQ with a five-step retry ladder and a final DLQ ([`application-queues.yml`](./src/app/src/main/resources/application-queues.yml)); synchronous
+calls inside the deployable go through `share` ports (ADR 2026-10-28-in-process-ports-instead-of-loopback-rest). Details: [`docs/architecture/data-flow.md`](./docs/architecture/data-flow.md).
 
 ## Testing
 
@@ -197,13 +209,14 @@ calls inside the deployable go through `share` ports (ADR 2026-10-28-in-process-
 ./gradlew coverageReport coverageVerification   # aggregated report + threshold
 ```
 
-Fake Objects (not mocks) live in `src/testing/test-fixtures` and module-local `testFixtures`; the coverage
-threshold is `0.40` (measured `0.5687`, ratchet target `0.60`). Philosophy and examples:
-`docs/development/testing.md`.
+Fake Objects (not mocks) live in [`src/testing/test-fixtures`](./src/testing/test-fixtures) and module-local `testFixtures`; the coverage
+threshold is `0.40` — live line coverage and test count are the badges above, updated by the CI `coverage` job
+into the [`badges`](https://github.com/MaximenkovAnton/vkbot/tree/badges) branch. Philosophy and examples:
+[`docs/development/testing.md`](./docs/development/testing.md).
 
 ## Observability
 
-OpenTelemetry is enabled for traces, metrics and logs (`quarkus.otel.*` in `application.yml`); Quarkus exports
+OpenTelemetry is enabled for traces, metrics and logs (`quarkus.otel.*` in [`application.yml`](./src/app/src/main/resources/application.yml)); Quarkus exports
 via OTLP (default endpoint `localhost:4317`, so logs during tests show export errors when no collector runs).
 Logging decorators wrap every command and port at TRACE level. The only own trace is the `greetings.daily-run`
 span of the daily greeting run. No Prometheus scrape endpoint is configured.

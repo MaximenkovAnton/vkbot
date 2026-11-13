@@ -39,7 +39,7 @@
   один `POST /v1/systemone` не меняются. Детект остаётся критерием в тексте вопроса, без регэкспов и
   ключевых слов в коде.
 - **Дефолт `decision.jailbreak-threshold` — `0.85`** (`DECISION_JAILBREAK_THRESHOLD`), в
-  `IsJailbreakCommandImpl` и `application.yml`. Сравнение — по-прежнему `>=`. Порог вне `[0,1]` на
+  `IsJailbreakCommandImpl` и [`application.yml`](../../src/app/src/main/resources/application.yml). Сравнение — по-прежнему `>=`. Порог вне `[0,1]` на
   старте не валидируется (как раньше: `>1` — «никогда», `<0` — «всегда»).
 - **Корпус вариантов** зафиксирован тестом `DecisionModelOutputAdapterTest`:
   `execute asks the jailbreak question about every known probe phrasing` перечисляет 24 формулировки;
@@ -97,4 +97,4 @@
 - Откат: `DECISION_JAILBREAK_THRESHOLD=0.9` возвращает прежний порог без пересборки; полный откат
   фильтра — `DECISION_JAILBREAK_REPLY_ENABLED=false` или предыдущий образ.
 - Риск ложного срабатывания на технических вопросах про промпты/архитектуру остаётся и зафиксирован
-  в `docs/capabilities/answer-decision.md`.
+  в [`docs/capabilities/answer-decision.md`](../capabilities/answer-decision.md).

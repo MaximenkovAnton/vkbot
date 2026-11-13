@@ -2,13 +2,13 @@
 
 ## vkbot
 
-VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 12 Gradle modules, hexagonal — plain Kotlin behind `share` ports, framework at the edge. Runtime path: `VK long poll → receiver → RabbitMQ → persistence → processor → ai → vk-facade → VK API`; the `daily-greetings` scheduler runs `greetings.cron` (00:00 by default → persistence (plans + claim per chat) → ai (text) → vk-facade (plain send) → VK API). Docs index: `docs/README.md`; design in `docs/architecture/`, decisions in `docs/adr/`, product record in `docs/capabilities/`. Code is the source of truth: when this block and the code disagree, fix the block in the same change.
+VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 12 Gradle modules, hexagonal — plain Kotlin behind `share` ports, framework at the edge. Runtime path: `VK long poll → receiver → RabbitMQ → persistence → processor → ai → vk-facade → VK API`; the `daily-greetings` scheduler runs `greetings.cron` (00:00 by default → persistence (plans + claim per chat) → ai (text) → vk-facade (plain send) → VK API). Docs index: [`docs/README.md`](./docs/README.md); design in [`docs/architecture/`](./docs/architecture), decisions in [`docs/adr/`](./docs/adr), product record in [`docs/capabilities/`](./docs/capabilities). Code is the source of truth: when this block and the code disagree, fix the block in the same change.
 
 ## Policy
 
 - Never commit secrets or `.env`; runtime values come from environment variables (ADR 2026-10-28-configuration-and-secrets).
-- Never log secrets, tokens or full VK event payloads.
-- Never delete an accepted ADR — add a successor with `supersedes` and update `docs/README.md`.
+- Never log secrets or tokens; the REST client masks `Authorization`/`Cookie` by default. By design, message text, LLM prompts/completions and REST request/response bodies leave the process at INFO (LangChain4j logging, `quarkus.rest-client.logging`, OTLP log export) — accepted risk Q1=B; the canonical statement is in [`docs/development/configuration.md`](./docs/development/configuration.md) §«PII и логи». Above DEBUG, own code logs ids, counters and exception class names only.
+- Never delete an accepted ADR — add a successor with `supersedes` and update [`docs/README.md`](./docs/README.md).
 - Never edit an applied Liquibase changeset — add the next one.
 - Never add a second deployable or Quarkus runner; the artifact is `:src:app` (ADR 2026-10-28-single-deployable-app-module).
 - Never bump a version without updating its ADR (ADR 2026-10-28-stack-kotlin-quarkus-gradle).
@@ -17,10 +17,10 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 12 Gradle mo
 
 ## Where things are
 
-- Deployable and composition root: `src/app`; business modules and shared contracts: `src/*`, `src/share`.
-- Before editing a module, read its section in `docs/architecture/modules.md` — responsibility, public API, dependencies.
-- A behaviour change updates `docs/capabilities/` and the matching `docs/` page in the same change.
-- Architecture rules live as tests in `src/testing/arch-tests`; fakes live in `src/testing/test-fixtures` and in `src/<module>/src/testFixtures` for `ai`, `persistence`, `processor`, `receiver` and `greetings`.
+- Deployable and composition root: [`src/app`](./src/app); business modules and shared contracts: `src/*`, [`src/share`](./src/share).
+- Before editing a module, read its section in [`docs/architecture/modules.md`](./docs/architecture/modules.md) — responsibility, public API, dependencies.
+- A behaviour change updates [`docs/capabilities/`](./docs/capabilities) and the matching `docs/` page in the same change.
+- Architecture rules live as tests in [`src/testing/arch-tests`](./src/testing/arch-tests); fakes live in [`src/testing/test-fixtures`](./src/testing/test-fixtures) and in `src/<module>/src/testFixtures` for `ai`, `persistence`, `processor`, `receiver` and `greetings`.
 
 ## Running and verifying
 
@@ -43,7 +43,7 @@ VK community bot: one Quarkus/Kotlin deployable (`:src:app`) across 12 Gradle mo
 ## Known pitfalls
 
 - Bots Long Poll is single-instance by design: one `VK_API_TOKEN` and one saved `ts` per community — two replicas would share the position and lose events. `VK_GROUP_ID` must be the positive community id (ADR 2026-11-05-bots-long-poll-transport).
-- `GREETINGS_CRON` defaults to `0 0 0 * * ?` (00:00 in `GREETINGS_TIMEZONE`, default `Europe/Minsk`), so the first run after deploy is live; `GREETINGS_CRON=off`/`disabled` disables the schedule, and test profiles do that. The product record is `docs/capabilities/daily-greetings.md`.
+- `GREETINGS_CRON` defaults to `0 0 0 * * ?` (00:00 in `GREETINGS_TIMEZONE`, default `Europe/Minsk`), so the first run after deploy is live; `GREETINGS_CRON=off`/`disabled` disables the schedule, and test profiles do that. The product record is [`docs/capabilities/daily-greetings.md`](./docs/capabilities/daily-greetings.md).
 - `SUMMARY_ENABLED_CHATS` is optional: an unset or empty value starts the app with summarization silently off — set the peer ids whose chats get summarized.
-- `/q/health` reports DOWN because declared channels have no downstream consumer; the Long Poll receiver itself works — treat health as informational.
-- A behaviour change that skips the docs leaves the product record stale: `./scripts/check-capabilities.sh` catches broken paths and ADR ids, not stale prose.
+- `/q/health`, `/q/health/ready` and `/q/health/live` report **200 UP**: the six retry/DLQ channels are excluded from the SmallRye Reactive Messaging check (`quarkus.messaging.health.<channel>.enabled: false`) because they have no downstream consumer, while `all-events-queue` stays under the check; `HealthTest` covers all three endpoints. The Long Poll receiver itself works — treat health as informational.
+- A behaviour change that skips the docs leaves the product record stale: [`./scripts/check-capabilities.sh`](./scripts/check-capabilities.sh) catches broken paths and ADR ids, not stale prose.

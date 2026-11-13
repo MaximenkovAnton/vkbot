@@ -14,15 +14,15 @@ HTTP-граница отвечала на `/api/chat`, документация 
 
 ## Решение
 
-- Провайдер — `quarkus-langchain4j-openai` (та же версия из `gradle.properties:8`) в обоих модулях,
-  объявляющих расширение: `src/ai/build.gradle.kts:41` и `src/app/build.gradle.kts:40`. Второго
+- Провайдер — `quarkus-langchain4j-openai` (та же версия из [`gradle.properties:8`](../../gradle.properties)) в обоих модулях,
+  объявляющих расширение: [`src/ai/build.gradle.kts:41`](../../src/ai/build.gradle.kts) и [`src/app/build.gradle.kts:40`](../../src/app/build.gradle.kts). Второго
   провайдера и ветвлений по провайдеру в коде нет: домен и use case провайдера не знают (ADR 2026-10-28-module-boundaries-and-layer-rules).
 - **Область действия:** «один провайдер» в этом ADR относится к chat-модели (ответ, саммаризация, OCR);
   второй провайдер добавлен только для decision-модели ([ADR 2026-11-08-decision-model-langchain4j](2026-11-08-decision-model-langchain4j.md)) и
   это решение не пересматривает.
 - Код знает только «OpenAI-совместимый API», поэтому vLLM подключён как есть: `base-url` — корень
   OpenAI API вместе с `/v1`, расширение дописывает `/chat/completions`.
-- Контракт деплоя — env-ключи без вендорной привязки (`src/app/src/main/resources/application.yml:65-76`):
+- Контракт деплоя — env-ключи без вендорной привязки ([`src/app/src/main/resources/application.yml:65-76`](../../src/app/src/main/resources/application.yml)):
   `AI_BASE_URL` и `AI_CHAT_MODEL` обязательны (дефолт-URL не добавляется — ADR 2026-10-28-configuration-and-secrets: отказ на старте
   лучше запроса в неизвестный хост), `AI_API_KEY` опционален с дефолтом `dummy`: vLLM без `--api-key`
   его игнорирует, а при включённой на сервере авторизации ключ передаётся тем же env.
@@ -47,7 +47,7 @@ HTTP-граница отвечала на `/api/chat`, документация 
 - Старт без `AI_BASE_URL`/`AI_CHAT_MODEL` падает с именем неразрешённого ключа, а не уходит молча на
   дефолтный публичный URL расширения.
 - Главная ловушка миграции: у openai `base-url` — корень API с `/v1`, у ollama это был голый корень
-  сервера. Зафиксировано в `docs/development/configuration.md` и `docs/development/deployment.md`.
+  сервера. Зафиксировано в [`docs/development/configuration.md`](../development/configuration.md) и [`docs/development/deployment.md`](../development/deployment.md).
 - `max-tokens`/`max-completion-tokens` не задаются: лимит остаётся дефолтом модели, как было до
   миграции.
 - OCR на модели без vision возвращает ошибку провайдера: отдельного фолбэка нет, как и раньше.
@@ -63,3 +63,10 @@ HTTP-граница отвечала на `/api/chat`, документация 
 | Второй провайдер и выбор по конфигу | В деплое один провайдер; ветвление по провайдеру усложнило бы код без требования |
 | Дефолт-URL `api.openai.com` | Молчаливый запрос в публичный хост вместо явного отказа на старте |
 | `max-tokens`/`max-completion-tokens` сейчас | Лимит не задавался и раньше; менять поведение в проходе миграции не нужно |
+
+## Обновление 2026-11-13
+
+В деплое OpenAI-совместимый API основной модели обслуживает `llama.cpp` (`llama-server`), decision-модель —
+отдельный `llama-server` с System One API (`DECISION_URL`). Решение этого ADR не меняется:
+chat-модель — один OpenAI-совместимый провайдер с env-контрактом `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY`;
+имя файла ADR историческое, ссылки на него сохраняются.

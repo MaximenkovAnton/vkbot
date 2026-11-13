@@ -6,25 +6,25 @@
 
 ## События и их владельцы
 
-`Event` — закрытый enum из одиннадцати значений (`share/domain/Event.kt:3-15`). Routing key в RabbitMQ равен
-имени события (`PublishEventOutputAdapter.kt:20-30`), диспетчер строит карту `Event.name → EventProcessor`
-(`EventDispatcher.kt:21-24`).
+`Event` — закрытый enum из одиннадцати значений ([`share/domain/Event.kt:3-15`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt#L3-L15)). Routing key в RabbitMQ равен
+имени события ([`PublishEventOutputAdapter.kt:20-30`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt#L20-L30)), диспетчер строит карту `Event.name → EventProcessor`
+([`EventDispatcher.kt:21-25`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L21-L25)).
 
 | Событие | Публикует (код) | Потребляет (код) | Payload |
 |---|---|---|---|
-| `MESSAGE_NEW` | `PublishVkEventCommandImpl.kt:15-23` (receiver) | `MessageNewEventProcessor.kt:12-22` (persistence) | доменный `Message` |
-| `MESSAGE_RECEIVED` | `SaveMessageUsecase.kt:33-38` (persistence) | `MessageReceivedEventProcessor.kt:12-22` (processor) | доменный `Message` |
-| `SUMMARY_REQUESTED` | `SaveMessageUsecase.kt:39-49` (persistence) | `SummaryRequestedEventProcessor.kt:12-28` (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` (`share/domain/event/SummaryRequestedPayload.kt:3-6`) |
-| `MESSAGE_REQUIRE_ANSWER` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `general`) | `MessageRequireAnswerEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `ANSWER_MESSAGE` | `GenerateAnswerUsecase.kt:28-38` (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка (`MessageReceivedUsecaseInput.kt:64-73,112-115`) | `SendMessageEventProcessor.kt:12-22` (vk-facade) | `ResponseMessage(messageText, responseTo)` |
-| `NEWS_DIGEST_REQUESTED` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `news`) | `NewsDigestRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `PROFILE_REQUESTED` | `MessageReceivedUsecaseInput.kt:78-82` (processor, ветка `profile`) | `ProfileRequestedEventProcessor.kt:12-22` (ai) | доменный `Message` |
-| `USER_KNOWLEDGE_REQUESTED` | `RequestKnowledgeExtractionCommand.kt` (processor, триггер) | `UserKnowledgeRequestedEventProcessor.kt` (ai) | `UserKnowledgeRequestedPayload(peerId, upToConversationMessageId)` (`share/domain/event/UserKnowledgeRequestedPayload.kt`) |
-| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | `ProcessUserKnowledgeCommandImpl.kt` (ai, после успешного батча) | `UserKnowledgeSummaryRequestedEventProcessor.kt` (ai, R3a) | `UserKnowledgeSummaryRequestedPayload(userId)` (`share/domain/event/UserKnowledgeSummaryRequestedPayload.kt`) |
-| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | `ProcessUserKnowledgeCommandImpl.kt` (ai, после успешного батча) | `ChatKnowledgeSummaryRequestedEventProcessor.kt` (ai, R3b) | `ChatKnowledgeSummaryRequestedPayload(peerId)` (`share/domain/event/ChatKnowledgeSummaryRequestedPayload.kt`) |
-| `SUMMARY_READY` | `PersistenceDataUsecase.kt:238-269` (persistence) | `SummaryReadyEventProcessor.kt:18-57` (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` (`share/domain/event/SummaryReadyPayload.kt:3-8`) |
+| `MESSAGE_NEW` | [`PublishVkEventCommandImpl.kt:15-23`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/command/sendVkEvent/PublishVkEventCommandImpl.kt#L15-L23) (receiver) | [`MessageNewEventProcessor.kt:12-22`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22) (persistence) | доменный `Message` |
+| `MESSAGE_RECEIVED` | [`SaveMessageUsecase.kt:33-38`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L38) (persistence) | [`MessageReceivedEventProcessor.kt:12-22`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22) (processor) | доменный `Message` |
+| `SUMMARY_REQUESTED` | [`SaveMessageUsecase.kt:39-49`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L39-L49) (persistence) | [`SummaryRequestedEventProcessor.kt:12-28`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/SummaryRequestedEventProcessor.kt#L12-L28) (ai) | `SummaryRequestedPayload(peerId, conversationMessageId)` ([`share/domain/event/SummaryRequestedPayload.kt:3-6`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/SummaryRequestedPayload.kt#L3-L6)) |
+| `MESSAGE_REQUIRE_ANSWER` | [`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82) (processor, ветка `general`) | [`MessageRequireAnswerEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt#L12-L22) (ai) | доменный `Message` |
+| `ANSWER_MESSAGE` | [`GenerateAnswerUsecase.kt:28-38`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/message/requireAnswer/GenerateAnswerUsecase.kt#L28-L38) (ai); сводка «что нового» — `ProcessNewsDigestCommandImpl` (ai); процессор — спам-ветка, jailbreak-ветка и справка ([`MessageReceivedUsecaseInput.kt:64-73,112-115`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt)) | [`SendMessageEventProcessor.kt:12-22`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L12-L22) (vk-facade) | `ResponseMessage(messageText, responseTo)` |
+| `NEWS_DIGEST_REQUESTED` | [`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82) (processor, ветка `news`) | [`NewsDigestRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt#L12-L22) (ai) | доменный `Message` |
+| `PROFILE_REQUESTED` | [`MessageReceivedUsecaseInput.kt:78-82`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L78-L82) (processor, ветка `profile`) | [`ProfileRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22) (ai) | доменный `Message` |
+| `USER_KNOWLEDGE_REQUESTED` | [`RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt) (processor, триггер) | [`UserKnowledgeRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeRequestedEventProcessor.kt) (ai) | `UserKnowledgeRequestedPayload(peerId, upToConversationMessageId)` ([`share/domain/event/UserKnowledgeRequestedPayload.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/UserKnowledgeRequestedPayload.kt)) |
+| `USER_KNOWLEDGE_SUMMARY_REQUESTED` | [`ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt) (ai, после успешного батча) | [`UserKnowledgeSummaryRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/UserKnowledgeSummaryRequestedEventProcessor.kt) (ai, R3a) | `UserKnowledgeSummaryRequestedPayload(userId)` ([`share/domain/event/UserKnowledgeSummaryRequestedPayload.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/UserKnowledgeSummaryRequestedPayload.kt)) |
+| `CHAT_KNOWLEDGE_SUMMARY_REQUESTED` | [`ProcessUserKnowledgeCommandImpl.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/knowledge/ProcessUserKnowledgeCommandImpl.kt) (ai, после успешного батча) | [`ChatKnowledgeSummaryRequestedEventProcessor.kt`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ChatKnowledgeSummaryRequestedEventProcessor.kt) (ai, R3b) | `ChatKnowledgeSummaryRequestedPayload(peerId)` ([`share/domain/event/ChatKnowledgeSummaryRequestedPayload.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/ChatKnowledgeSummaryRequestedPayload.kt)) |
+| `SUMMARY_READY` | [`PersistenceDataUsecase.kt:326-357`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt#L326-L357) (persistence) | [`SummaryReadyEventProcessor.kt:18-57`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L18-L57) (vk-facade) | `SummaryReadyPayload(peerId, messageText, first/last msg id)` ([`share/domain/event/SummaryReadyPayload.kt:3-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/event/SummaryReadyPayload.kt#L3-L8)) |
 
-Payload сериализуется Jackson-строкой (`PublishEventOutputAdapter.kt:25-30`) и десериализуется в
+Payload сериализуется Jackson-строкой ([`PublishEventOutputAdapter.kt:25-30`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/adapter/output/mq/PublishEventOutputAdapter.kt#L25-L30)) и десериализуется в
 конкретный тип в processor'е; payload'ы событий лежат в `share`, поэтому дрейф формата ловится компиляцией.
 
 ## 1. Входящий Bots Long Poll (VK → receiver)
@@ -45,8 +45,8 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
   Если он есть, первый `a_check` идёт с ним — так доставляются сообщения, пришедшие за время простоя;
   если записи нет, опрос начинается с `ts` из ответа `groups.getLongPollServer`. `ts` сохраняется драйвером
   `LongPollRunner`, а не use case, и только после успешной публикации `MESSAGE_NEW`.
-- **Тип обновления.** `VkUpdateType` (`VkUpdateType.kt`): `MESSAGE_NEW`, `MESSAGE_REPLY`, иначе `UNKNOWN`.
-- **DMZ.** `MessageMapper.toDomain` (`MessageMapper.kt:13-37`) читает `object.message`, `fwd_messages`,
+- **Тип обновления.** `VkUpdateType` ([`VkUpdateType.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/domain/vo/VkUpdateType.kt)): `MESSAGE_NEW`, `MESSAGE_REPLY`, иначе `UNKNOWN`.
+- **DMZ.** `MessageMapper.toDomain` ([`MessageMapper.kt:13-37`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt#L13-L37)) читает `object.message`, `fwd_messages`,
   `reply_message` и `attachments` (wall-посты), собирает `List<Message>` и вызывает
   `Message.of(...)`; `jakarta.json.JsonObject` не покидает адаптер.
 - **Маршрутизация.** `ReceiveMessageUsecase`: обновление с сообщением → `PublishVkEventCommand` →
@@ -61,23 +61,23 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 ## 2. Event routing (RabbitMQ)
 
 - Обменник `all-events`; очередь `queue` (`mp.messaging.incoming.all-events-queue`,
-  `application.yml:92-101`); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
-- `EventDispatcher.dispatch` (`EventDispatcher.kt:63-85`) читает `routingKey`, находит
+  [`application.yml:136-143`](../../src/app/src/main/resources/application.yml#L136-L143)); при ошибке — `dead-letter-exchange: retry-5s-exchange`.
+- `EventDispatcher.dispatch` ([`EventDispatcher.kt:63-85`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L63-L85)) читает `routingKey`, находит
   `EventProcessor` и вызывает `process(payload)` на виртуальном потоке (`@RunOnVirtualThread`).
 - Неизвестный routing key логируется как ошибка, сообщение подтверждается (`:87-89`).
 - Исключение обработки → `handleRetry` (`:91-113`): сообщение уходит в очередь уровня
-  `x-retry-count`, заголовок увеличивается; уровни/TTL — `application-queues.yml:1-32`:
+  `x-retry-count`, заголовок увеличивается; уровни/TTL — [`application-queues.yml:1-32`](../../src/app/src/main/resources/application-queues.yml#L1-L32):
   `retry-5s` (5 с) → `retry-30s` (30 с) → `retry-1m` → `retry-15m` → `retry-1h` → `dlq-final` (без TTL).
   Все retry-очереди возвращают сообщение в `all-events` через `x-dead-letter-exchange`.
 
 ## 3. Сохранение нового сообщения (persistence)
 
-`MessageNewEventProcessor.process` (`MessageNewEventProcessor.kt:17-20`) читает `Message` из JSON и зовёт
+`MessageNewEventProcessor.process` ([`MessageNewEventProcessor.kt:17-20`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L17-L20)) читает `Message` из JSON и зовёт
 `SaveMessageInputPort`.
 
-`SaveMessageUsecase.execute` (`SaveMessageUsecase.kt:28-51`, `@Transactional`):
+`SaveMessageUsecase.execute` ([`SaveMessageUsecase.kt:30-54`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L30-L54), `@Transactional`):
 
-1. `FetchUserProfileCommand` (`FetchUserProfileCommandImpl.kt:31-60`): собирает `from_id` из сообщения и
+1. `FetchUserProfileCommand` ([`FetchUserProfileCommandImpl.kt:31-60`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L31-L60)): собирает `from_id` из сообщения и
    forward'ов; читает сохранённые профили через `FindUserProfilesByIdsPort`/`FindGroupProfilesByIdsPort` и
    считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
@@ -88,8 +88,8 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    в `vk_user_profiles.profile_details`
    ([ADR 2026-11-10-vk-profile-human-details](../adr/2026-11-10-vk-profile-human-details.md)).
    Ошибка получения профилей не валит сохранение: логируется WARNING.
-2. `SaveMessagePort` → `MessageTable.persist` (`MessageTable.kt:19-42`): insert в `messages`
-   с `forwarded_messages` как JSONB (сериализация — `JacksonForwardedMessagesAdapter.kt:7-21`).
+2. `SaveMessagePort` → `MessageTable.persist` ([`MessageTable.kt:23-46`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L23-L46)): insert в `messages`
+   с `forwarded_messages` как JSONB (сериализация — [`JacksonForwardedMessagesAdapter.kt:7-21`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt#L7-L21)).
 3. `UpdateUserStatisticsPort` → `UpdateUserStatisticsAdapter` (`@Transactional`) →
    `UserStatisticsWriter`: в той же транзакции, что и сообщение, три upsert'а в
    фиксированном порядке — `user_statistics` (итоги: `message_count + 1`, `total_length` + длина в
@@ -101,11 +101,11 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 
 ### Чтение истории профиля и статистики автора
 
-`GET /persistence/profiles/users/{id}/history` (`PersistenceDataResource.kt:134-143`) →
+`GET /persistence/profiles/users/{id}/history` ([`PersistenceDataResource.kt:134-143`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L134-L143)) →
 `PersistenceDataUsecase.findUserProfileHistory` → `FindUserProfileHistoryPort` →
 `VkUserProfileTable.findHistory` (сортировка `changed_at DESC`, `limit/offset`).
 
-`GET /persistence/statistics/users/{id}` (`PersistenceDataResource.kt:148-153`) →
+`GET /persistence/statistics/users/{id}` ([`PersistenceDataResource.kt:148-153`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L148-L153)) →
 `PersistenceDataUsecase.findUserStatistics` → `FindUserStatisticsPort` → `UserStatisticsReader`
 читает только материализованные агрегаты: итоги из `user_statistics` (`message_count`, `total_length`,
 `min/max`), разбивку по чатам из `user_chat_statistics` и гистограммы из `user_hour_statistics`,
@@ -115,7 +115,7 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 для статистики — агрегаты, а не `messages`: после материализации удаление строк журнала ответ не меняет.
 
 Накопленные `messages` переигрываются в агрегаты вручную скриптом
-`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql` — это отдельный ops-артефакт,
+[`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql) — это отдельный ops-артефакт,
 не миграция и не рантайм-бин. Транзакцией владеет вызывающий (в файле нет `BEGIN`/`COMMIT`; запуск —
 `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction -f backfill-user-statistics.sql`), поэтому
 ошибка любой строки откатывает всё. Скрипт требует остановленного писателя, берёт
@@ -126,8 +126,8 @@ IN ACCESS EXCLUSIVE MODE`, пересобирает агрегаты (`DELETE` +
 
 ## 4. Спам- и jailbreak-проверки, решение «нужен ли ответ» и маршрутизация интентов (processor)
 
-`MessageReceivedEventProcessor` (`MessageReceivedEventProcessor.kt:17-20`) → `MessageReceivedUsecaseInput`
-(`MessageReceivedUsecaseInput.kt:33-157`).
+`MessageReceivedEventProcessor` ([`MessageReceivedEventProcessor.kt:17-20`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L17-L20)) → `MessageReceivedUsecaseInput`
+([`MessageReceivedUsecaseInput.kt:33-157`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L33-L157)).
 
 Сначала — decision-этап. Для сообщения человека (`fromId.isHuman()`) в групповом чате
 (`peerId.isGroupChat()`) при включённой хотя бы одной ветке (`decision.spam-reply.enabled ||
@@ -163,7 +163,7 @@ decision.jailbreak-reply.enabled`) use case вызывает decision-модел
   полный откат decision-модели — предыдущий образ.
 
 Если ни одна ветка не сработала (или проверка неприменима), работает `IsRequireAnswerCommand`
-(`IsRequireAnswerCommand.kt:22-33`):
+([`IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33)):
 
 | Условие | Ответ |
 |---|---|
@@ -176,7 +176,7 @@ decision.jailbreak-reply.enabled`) use case вызывает decision-модел
 
 Если ответ нужен — маршрутизация по итоговому интенту, иначе поток завершается и ленивого вызова нет.
 Детект анализирует только `message.messageText`: `forwardedMessages` и вложения не проверяются (named gap
-в `answer-decision.md`); forward-блок в `vk-facade` — доставка, а не проверка содержимого.
+в [`answer-decision.md`](../capabilities/answer-decision.md)); forward-блок в `vk-facade` — доставка, а не проверка содержимого.
 
 ### Маршрутизация интентов
 
@@ -196,8 +196,8 @@ decision.jailbreak-reply.enabled`) use case вызывает decision-модел
 | `GENERAL` | ровно один `MESSAGE_REQUIRE_ANSWER` с доменным `Message` | `ai-answer` |
 
 Если routing key не имеет консюмера, диспетчер не находит `EventProcessor`, пишет ERROR
-`Unknown message (type: …): <payload>` (`EventDispatcher.kt:89`; весь payload — текст сообщения,
-PII/OTLP) и подтверждает сообщение (`:74-76`). Сейчас консюмер есть у всех восьми событий; эта ветка
+`Unknown message (type: …): <payload>` ([`EventDispatcher.kt:89`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L89); весь payload — текст сообщения,
+PII/OTLP) и подтверждает сообщение (`:74-76`). Сейчас консюмер есть у всех одиннадцати событий; эта ветка
 остаётся общим поведением диспетчера для будущих имён.
 
 ## 5. Сводка «что нового» (ai)
@@ -214,7 +214,7 @@ NEWS_DIGEST_REQUESTED → ai/NewsDigestRequestedEventProcessor
     → vk-facade/SendMessageEventProcessor → VK API messages.send
 ```
 
-- `NewsDigestRequestedEventProcessor.process` (`NewsDigestRequestedEventProcessor.kt:17-20`) читает
+- `NewsDigestRequestedEventProcessor.process` ([`NewsDigestRequestedEventProcessor.kt:17-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/NewsDigestRequestedEventProcessor.kt#L17-L20)) читает
   доменный `Message` из JSON и передаёт его в `ProcessNewsDigestInputPort`; use case — тонкий делегат
   команды.
 - **Период.** `NewsPeriodParser.parse(message.messageText.value, message.date.value)` — чистый домен:
@@ -264,7 +264,7 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
     → vk-facade/SendMessageEventProcessor → VK API messages.send
 ```
 
-- `ProfileRequestedEventProcessor.process` (`ProfileRequestedEventProcessor.kt:17-20`) читает доменный
+- `ProfileRequestedEventProcessor.process` ([`ProfileRequestedEventProcessor.kt:17-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L17-L20)) читает доменный
   `Message` из JSON и передаёт его в `ProcessProfileInputPort`; use case — тонкий делегат команды.
 - **Резолв адресата — детерминированный домен.** Приоритет строгий: один mention `id`/`club`/`public`,
   затем последнее пересланное сообщение с `fromId ≠ vk.bot.id`, затем «обо мне»/«про меня» (автор
@@ -311,7 +311,7 @@ MESSAGE_RECEIVED → processor/MessageReceivedUsecaseInput
     → USER_KNOWLEDGE_SUMMARY_REQUESTED(userId)* + CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId)
 ```
 
-- **Триггер** (`RequestKnowledgeExtractionCommand.kt`) стоит в `MessageReceivedUsecaseInput` сразу после
+- **Триггер** ([`RequestKnowledgeExtractionCommand.kt`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/knowledge/RequestKnowledgeExtractionCommand.kt)) стоит в `MessageReceivedUsecaseInput` сразу после
   `val message = request.message` и **до** `decisionStage`/`isRequireAnswer`: батч считает все входящие
   человеческие сообщения, а не только те, на которые бот отвечает. Политика: `knowledge.enabled` →
   `FromId.isHuman()` → `fromId != vk.bot.id` → `peerId !in knowledge.excluded-chat-ids` →
@@ -370,9 +370,9 @@ CHAT_KNOWLEDGE_SUMMARY_REQUESTED(peerId) → ai/ChatKnowledgeSummaryRequestedEve
   save не вызывается, прежняя сводка и курсор остаются, исключение уходит в retry-лестницу брокера.
 - **Чтение для потребителей.** `FindChatKnowledgeSummaryPort(peerId) → ChatKnowledge(peerId, summary,
   summarizedAt)?` — стабильная форма для R4c (темы в новостях), доставлен.
-- **PII.** INFO команды — `peerId`, `messages`, `length`; код команды не логирует текст сообщений и сводки,
-  но промпт с текстом окна и ответ модели попадают в глобальные INFO-логи и OTLP-трассировку LangChain4j —
-  принятый риск ADR 2026-11-10-news-digest. `chat_knowledge_summary` — производный PII-сток (пересказ
+- **PII.** INFO — `peerId`, `messages`, `length`; текст сообщений и сводки код команды не логирует.
+  Промпт с текстом окна и ответ модели уходят в LLM и общий INFO/OTLP-контур — §«PII и логи» в
+  [`docs/development/configuration.md`](../development/configuration.md). `chat_knowledge_summary` — производный PII-сток (пересказ
   личных высказываний).
 
 ### Сводка профиля (R3a)
@@ -410,10 +410,10 @@ USER_KNOWLEDGE_SUMMARY_REQUESTED(userId) → ai/UserKnowledgeSummaryRequestedEve
   now)` считает `KnowledgeSummaryTable.upsertUserSummary`, порт остаётся `(userId, summaryText)`;
   R2b читает `summaryFresh = summarized_at >= last_fact_at`. Сводка — производная read-модель, не источник
   истины.
-- **PII.** INFO команды — `userId`, число фактов, длина; WARNING адаптера — номер попытки и класс ошибки.
-  Ни значений фактов, ни текста сводки код R3a не логирует; промпт и ответ модели попадают в глобальные
-  INFO-логи и OTLP-трассировку LangChain4j — принятый риск ADR 2026-11-10-news-digest.
-  `user_knowledge_summary.summary_text` — производный PII-сток.
+- **PII.** INFO — `userId`, число фактов, длина; WARNING адаптера — номер попытки и класс ошибки.
+  Ни значений фактов, ни текста сводки код R3a не логирует; промпт и ответ модели уходят в LLM и общий
+  INFO/OTLP-контур — §«PII и логи» в [`docs/development/configuration.md`](../development/configuration.md). `user_knowledge_summary.summary_text` —
+  производный PII-сток.
 
 ## Хранение знаний (persistence)
 
@@ -506,7 +506,7 @@ FindUserKnowledgeSummaryStatePort(userId)
 - **Схема.** changeset `010-create-user-knowledge-tables` (5 таблиц, UNIQUE, индексы, FK, CHECK) и
   нетранзакционный `010-create-messages-knowledge-index` (`DROP INDEX CONCURRENTLY IF EXISTS` + `CREATE
   INDEX CONCURRENTLY` на `messages(peer_id, conversation_message_id)`); jOOQ-объекты —
-  `Tables.kt:113-178`.
+  [`Tables.kt:113-178`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt#L113-L178).
 - **Чтение.** `FindUserKnowledgePort` — единственный per-user вход: два batched `SELECT`
   (`user_knowledge_summary` первым, `user_facts` последним) и `stale`, посчитанный единственной
   `KnowledgeTemporalPolicy` на момент
@@ -522,15 +522,15 @@ FindUserKnowledgeSummaryStatePort(userId)
 - **PII.** В таблицах знаний нет текста сообщений, код хранения не логирует значения фактов; карточка
   хранит само значение факта в `user_facts.value`/`value_payload` (производные персональные данные) и
   ссылку на источник, а `user_knowledge_summary`/`chat_knowledge_summary` — производный PII-текст.
-  Глобальные INFO-логи и OTLP-трассировка LangChain4j пишут промпт и ответ модели (промпт извлечения
-  содержит текст сообщений, ответ — значения фактов) — принятый риск ADR 2026-11-10-news-digest.
+  Промпты и ответы модели уходят в LLM и общий INFO/OTLP-контур — §«PII и логи» в
+  [`docs/development/configuration.md`](../development/configuration.md).
 
 ## 8. Генерация ответа (ai)
 
-`MessageRequireAnswerEventProcessor` (`MessageRequireAnswerEventProcessor.kt:17-20`) → `GenerateAnswerUsecase`
-(`GenerateAnswerUsecase.kt:23-40`) → `GenerateAnswerCommand` (`GenerateAnswerCommand.kt:26-74`):
+`MessageRequireAnswerEventProcessor` ([`MessageRequireAnswerEventProcessor.kt:17-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessor.kt#L17-L20)) → `GenerateAnswerUsecase`
+([`GenerateAnswerUsecase.kt:23-40`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/message/requireAnswer/GenerateAnswerUsecase.kt#L23-L40)) → `GenerateAnswerCommand` ([`GenerateAnswerCommand.kt:26-74`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/answer/GenerateAnswerCommand.kt#L26-L74)):
 
-1. **Контекст** — `ConversationContextRestAdapter` (`ConversationContextRestAdapter.kt:28-67`):
+1. **Контекст** — `ConversationContextRestAdapter` ([`ConversationContextRestAdapter.kt:28-67`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt#L28-L67)):
    последние 20 сообщений чата через `FindStoredMessagesBeforePort`, `from_id` из истории и текущего
    сообщения (включая forward'ы), профили пользователей/групп через in-process persistence-порты;
    `forwardedMessages` парсится из JSONB здесь же (`:88-95`).
@@ -538,26 +538,26 @@ FindUserKnowledgeSummaryStatePort(userId)
    (`Request(listOf(fromId))`); нет записи — пустой `UserKnowledge`. Сбой чтения fail-open: один WARNING с
    `peerId` и классом ошибки, без текста сообщения и значений, ответ продолжается; `InterruptedException`
    восстанавливает флаг и пробрасывается (ADR 2026-11-11-knowledge-in-prompts).
-3. **LLM** — `GenerateAnswerOutputAdapter` (`GenerateAnswerOutputAdapter.kt:16-33`) форматирует профили,
+3. **LLM** — `GenerateAnswerOutputAdapter` ([`GenerateAnswerOutputAdapter.kt:16-33`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/GenerateAnswerOutputAdapter.kt#L16-L33)) форматирует профили,
    историю и текущее сообщение (с forward-блоками), рендерит блок `[USER_KNOWLEDGE] … [/USER_KNOWLEDGE]`
    из свежей сводки профиля (приоритет) или канонических фактов (знаний нет — блока нет, промпт прежний) и
    вызывает `UserAnswerGenerator`
-   (`UserAnswerGenerator.kt:13-46`, `@SystemMessage("{config:aiUseranswerSystemprompt}")`, плейсхолдер
+   ([`UserAnswerGenerator.kt:13-46`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/answer/UserAnswerGenerator.kt#L13-L46), `@SystemMessage("{config:aiUseranswerSystemprompt}")`, плейсхолдер
    `{userKnowledge}`, инструменты `VaneSearchToolAdapter`). Память чата — `TransientChatMemoryProvider`
    (10 сообщений, только в рамках запроса).
 4. **Публикация** — `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное сообщение)`.
 
 ## 9. Отправка в VK (vk-facade)
 
-`SendMessageEventProcessor` (`SendMessageEventProcessor.kt:17-20`) читает `ResponseMessage` →
-`MessageSendUsecase` (`MessageSendUsecase.kt:17-27`):
+`SendMessageEventProcessor` ([`SendMessageEventProcessor.kt:17-20`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L17-L20)) читает `ResponseMessage` →
+`MessageSendUsecase` ([`MessageSendUsecase.kt:17-27`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L17-L27)):
 
 - `peer_id` и текст — из `responseTo` и ответа;
 - forward: для группового чата, если явно не задан, формируется `ForwardedMessages` (reply на исходное
   сообщение) (`:29-35`);
 - `random_id` — детерминированный (SHA-256 от текста, `peer_id` и даты исходного сообщения, `:37-43`);
-- `SendVkMessageCommand` → `VkSendMessageOutputAdapter` (`VkSendMessageOutputAdapter.kt:18-29`) →
-  `VkClient.sendMessage` (`VkClient.kt:18-25`) `POST https://api.vk.ru/method/messages.send` с
+- `SendVkMessageCommand` → `VkSendMessageOutputAdapter` ([`VkSendMessageOutputAdapter.kt:18-29`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapter.kt#L18-L29)) →
+  `VkClient.sendMessage` ([`VkClient.kt:18-25`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkClient.kt#L18-L25)) `POST https://api.vk.ru/method/messages.send` с
   `v=${vk.api.version}`, `disable_mentions=1`, `dont_parse_links=1` (`:12-15`);
 - ошибка VK (`response.error != null`) → `VkException` → retry через `EventDispatcher`.
 
@@ -570,7 +570,7 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
    → vk-facade/SummaryReadyEventProcessor → VK API messages.send
 ```
 
-- `ProcessSummaryCommandImpl.execute` (`ProcessSummaryCommandImpl.kt:36-106`):
+- `ProcessSummaryCommandImpl.execute` ([`ProcessSummaryCommandImpl.kt:36-106`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/ProcessSummaryCommandImpl.kt#L36-L106)):
   - чат не в `summary.enabled-chats` → выход (`:37-40`);
   - уже есть pending-саммари → пропуск (`:42-51`);
   - последнее саммари зависло в `PENDING` → WARNING и пропуск (`:58-64`);
@@ -578,15 +578,15 @@ SUMMARY_REQUESTED → ai/ProcessSummaryCommand → GenerateSummaryCommand
     `findMessagesBetween(lastSummary.lastMessageId, currentMessageId, batchSize)` (`:108-125`);
   - меньше `summary.threshold` при наличии прошлого саммари → пропуск (`:72-79`);
   - иначе `GenerateSummaryCommand` (`:89-103`).
-- `GenerateSummaryCommandImpl.execute` (`GenerateSummaryCommandImpl.kt:23-60`): создаёт pending-запись,
+- `GenerateSummaryCommandImpl.execute` ([`GenerateSummaryCommandImpl.kt:23-60`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/summary/GenerateSummaryCommandImpl.kt#L23-L60)): создаёт pending-запись,
   читает до 1000 сообщений, форматирует их общим `MessageAuthorFormatter` (имена авторов из профилей
   in-process портов), вызывает
-  LLM (`SummarizationAiAdapter` — 3 попытки, `SummarizationAiAdapter.kt:18-41`), сохраняет completed;
+  LLM (`SummarizationAiAdapter` — 3 попытки, [`SummarizationAiAdapter.kt:18-41`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt#L18-L41)), сохраняет completed;
   при исключении помечает failed и пробрасывает дальше (`:56-59`).
 - Сохранение completed идёт через `SaveStoredCompletedSummaryPort` → in-process адаптер →
-  `PersistenceDataUsecase.handleSaveCompletedSummary` (`PersistenceDataUsecase.kt:238-269`), который и
+  `PersistenceDataUsecase.handleSaveCompletedSummary` ([`PersistenceDataUsecase.kt:326-357`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt#L326-L357)), который и
   публикует `SUMMARY_READY` с текстом «📋 Суммаризация обсуждения…».
-- `SummaryReadyEventProcessor` (`SummaryReadyEventProcessor.kt:23-54`) строит forward на диапазон
+- `SummaryReadyEventProcessor` ([`SummaryReadyEventProcessor.kt:23-54`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L23-L54)) строит forward на диапазон
   сообщений `[first, last]` и отправляет через тот же `MessageSendUsecase`.
 
 ## 11. Поздравления по расписанию (greetings)
@@ -656,17 +656,17 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 
 | Механизм | Где | Что гарантирует |
 |---|---|---|
-| At-least-once доставка | RabbitMQ + ack после `process` (`EventDispatcher.kt:77-83`) | сообщение не теряется при падении обработчика; возможны повторы |
+| At-least-once доставка | RabbitMQ + ack после `process` ([`EventDispatcher.kt:77-83`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L77-L83)) | сообщение не теряется при падении обработчика; возможны повторы |
 | Позиция `ts` после публикации | `LongPollRunner` | сбой между публикацией и сохранением даёт дубликат, но не потерю обновления |
 | Паузы опроса | `LongPollRunner` | 5 с при сбое публикации, нарастающая до 60 с при сетевых ошибках и 5xx; цикл не падает |
-| Retry-лестница | `EventDispatcher.kt:91-113`, `application-queues.yml` | 5 попыток с интервалами, затем финальный DLQ |
+| Retry-лестница | [`EventDispatcher.kt:91-113`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L91-L113), [`application-queues.yml`](../../src/app/src/main/resources/application-queues.yml) | 5 попыток с интервалами, затем финальный DLQ |
 | DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
-| Виртуальные потоки | `@RunOnVirtualThread` (`EventDispatcher.kt:64`) | I/O-обработчик не блокирует платформенный поток |
-| Изоляция профилей | `FetchUserProfileCommandImpl.kt:67-107` | сбой VK при получении профилей не отменяет сохранение сообщения |
-| Повтор AI-саммари | `SummarizationAiAdapter.kt:10-40` | 3 попытки внутри одного события |
+| Виртуальные потоки | `@RunOnVirtualThread` ([`EventDispatcher.kt:65`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L65)) | I/O-обработчик не блокирует платформенный поток |
+| Изоляция профилей | [`FetchUserProfileCommandImpl.kt:67-107`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L67-L107) | сбой VK при получении профилей не отменяет сохранение сообщения |
+| Повтор AI-саммари | [`SummarizationAiAdapter.kt:10-40`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt#L10-L40) | 3 попытки внутри одного события |
 | Повтор LLM-сводки «что нового» | `NewsDigestAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ, не retry брокера |
 | Повтор LLM-досье «профиль» | `ProfileAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ «Не удалось собрать профиль. Попробуйте позже.», не retry брокера |
-| Детерминированный `random_id` | `MessageSendUsecase.kt:37-43` | повторная отправка того же ответа даёт тот же `random_id` |
+| Детерминированный `random_id` | [`MessageSendUsecase.kt:37-43`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L37-L43) | повторная отправка того же ответа даёт тот же `random_id` |
 
 ## Известные ограничения (не скрывать)
 
@@ -696,7 +696,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
   вероятностный (состязательный текст может склонить модель к низкой вероятности), гарантий безопасности
   нет. Уведомление раскрывает точную вероятность и работает oracle'ом; модерации, бана и rate limit нет.
 - **Нет идемпотентности записи.** У `messages` нет уникального ключа, `MessageTable.persist` —
-  чистый insert (`MessageTable.kt:19-42`). Повторная доставка `MESSAGE_NEW` создаст дубль; при
+  чистый insert ([`MessageTable.kt:23-46`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L23-L46)). Повторная доставка `MESSAGE_NEW` создаст дубль; при
   Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.
   Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
   появятся в проде (в этом проходе не менялось, [ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) §Последствия).
@@ -706,35 +706,36 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 - **`failed: 1` теряет часть истории.** VK отбрасывает события, которые приложение не забрало; опрос
   продолжается с нового `ts`, потеря фиксируется WARN-логом и восстановлению не подлежит.
 - **Нет outbox.** Сохранение в БД и публикация в RabbitMQ не транзакционны относительно друг друга
-  (`SaveMessageUsecase.kt:28-51`): сбой публикации после записи оставляет сообщение без следующего шага.
+  ([`SaveMessageUsecase.kt:30-54`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L30-L54)): сбой публикации после записи оставляет сообщение без следующего шага.
   Ретраи на уровне брокера не покрывают этот случай.
 - **`forwardedMessages` — строка.** `StoredMessage.forwardedMessages: String?`
-  (`share/domain/model/StoredMessage.kt:13`); JSONB парсится на границе в
-  `ConversationContextRestAdapter.kt:77-95`. Типизация — отдельная задача.
+  ([`share/domain/model/StoredMessage.kt:13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt#L13)); JSONB парсится на границе в
+  [`ConversationContextRestAdapter.kt:77-95`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/context/ConversationContextRestAdapter.kt#L77-L95). Типизация — отдельная задача.
 - **Саммари-сообщение не идемпотентно по `random_id`:** синтетическое сообщение получает
-  `date = Instant.now()` (`SummaryReadyEventProcessor.kt:35-43`), поэтому повтор даёт другой `random_id`.
+  `date = Instant.now()` ([`SummaryReadyEventProcessor.kt:35-43`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SummaryReadyEventProcessor.kt#L35-L43)), поэтому повтор даёт другой `random_id`.
 - **OCR-команда не подключена:** `RecognizeImagesCommand` реализована, но ни один use case её не вызывает
-  (`RecognizeImagesCommandImpl.kt:8-27` — единственное использование). Это не поток данных.
-- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть (`application.yml:193-198`),
+  ([`RecognizeImagesCommandImpl.kt:8-27`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/ocr/RecognizeImagesCommandImpl.kt#L8-L27) — единственное использование). Это не поток данных.
+- **`circuit-breaker.vk-profile` не действует:** блок в конфиге есть ([`application.yml:236-240`](../../src/app/src/main/resources/application.yml#L236-L240)),
   аннотаций нет; защита VK API — только retry-лестница брокера.
 
 ## Observability
 
-- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, `application.yml`);
+- OpenTelemetry включён для логов, метрик и трейсов (`quarkus.otel.*`, [`application.yml`](../../src/app/src/main/resources/application.yml));
   экспорт — OTLP (по умолчанию `localhost:4317`; без коллектора в логах тестов видны ошибки экспорта).
-- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` (`application.yml:188-191`).
+- Брокерская наблюдаемость — `smallrye.messaging.observation.enabled: true` ([`application.yml:230-233`](../../src/app/src/main/resources/application.yml#L230-L233)).
 - Собственный трейс есть только у `daily-greetings`: спан `greetings.daily-run` в
-  `DailyGreetingRunner.kt` с атрибутами `date`/`planned`/`sent`/`failed` и статусом `OK`/`ERROR`; метрик,
+  [`DailyGreetingRunner.kt`](../../src/greetings/src/main/kotlin/com/simarel/vkbot/greetings/adapter/input/schedule/DailyGreetingRunner.kt) с атрибутами `date`/`planned`/`sent`/`failed` и статусом `OK`/`ERROR`; метрик,
   MDC и трейсов другого кода нет. Остальное — конфигурация расширений и logging-декораторы
-  (`CommandLoggingDecorator.kt:12-28`, `UsecaseLoggingDecorator.kt:12-28`, TRACE).
+  ([`CommandLoggingDecorator.kt:12-28`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/CommandLoggingDecorator.kt#L12-L28), [`UsecaseLoggingDecorator.kt:12-28`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/decorator/logging/UsecaseLoggingDecorator.kt#L12-L28), TRACE): TRACE сериализует весь
+  request/response, по умолчанию он выключен — §«PII и логи» в [`docs/development/configuration.md`](../development/configuration.md).
 
 ## Как добавить шаг в поток
 
-1. Новое значение в `Event` (`share/domain/Event.kt`) — если шаг асинхронный.
+1. Новое значение в `Event` ([`share/domain/Event.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/Event.kt)) — если шаг асинхронный.
 2. Новый `EventProcessor` в модуле-владельце шага; он сам попадёт в карту диспетчера по `event()`.
 3. Публикация события из предыдущего use case через `PublishEventCommand` (не напрямую из адаптера).
 4. Если шаг синхронный и внутри деплоя — новый порт в `share` + in-process адаптер у поставщика
    ([ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md)), без HTTP.
 
 Никакая карта процессоров не регистрируется вручную: `@All processors: MutableList<EventProcessor>`
-(`EventDispatcher.kt:20-24`) собирает бины CDI.
+([`EventDispatcher.kt:20-24`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L20-L24)) собирает бины CDI.

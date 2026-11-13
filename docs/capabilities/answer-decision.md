@@ -15,7 +15,7 @@
 `requiredAnswer`: если ответ не нужен, поток на этом шаге заканчивается; если нужен — итоговый интент
 выбирает ровно одно событие: `help` → `ANSWER_MESSAGE` со справкой, `news` → `NEWS_DIGEST_REQUESTED`,
 `profile` → `PROFILE_REQUESTED`, `general` → `MESSAGE_REQUIRE_ANSWER` с тем же доменным `Message`. Ветку `help` подробно описывает
-`bot-help.md`, ветку `news` — `chat-news-digest.md`, ветку `profile` — `profile-dossier.md`.
+[`bot-help.md`](./bot-help.md), ветку `news` — [`chat-news-digest.md`](./chat-news-digest.md), ветку `profile` — [`profile-dossier.md`](./profile-dossier.md).
 
 Спам-правило:
 
@@ -97,21 +97,21 @@ fail-open), интент-этап делает ровно один ленивы�
 
 | Точка входа | Где в коде |
 |---|---|
-| `MESSAGE_RECEIVED` из `all-events-queue` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22` |
-| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:33-157` |
-| правило порога спама | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt:9-23` |
-| правило порога jailbreak | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt:9-23` |
-| decision-порт | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt:9-13` |
-| клиент decision-модели: четыре вопроса, пустой вход, ошибки, маппинг | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:56-162` |
-| домен: `jailbreakProbability` и валидация `[0,1]` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt:7-43` |
-| правила решения | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33` |
-| справка: текст и подстановка `vk.bot.mention` | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36` |
-| точная команда `/help`/`/помощь` и граница «с аргументами → `GENERAL`» | `src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt:10-35` |
-| предикаты человека и группового чата | `src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/FromId.kt:16-18`, `src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/PeerId.kt:15-17` |
+| `MESSAGE_RECEIVED` из `all-events-queue` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt:12-22`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/input/event/messageReceived/MessageReceivedEventProcessor.kt#L12-L22) |
+| конструктор (обе ветки, оба kill-switch) и координация: decision-этап, jailbreak-ветка, `requiredAnswer`, ленивый интент-вызов, маршрутизация и публикация `ANSWER_MESSAGE`/`NEWS_DIGEST_REQUESTED`/`PROFILE_REQUESTED`/`MESSAGE_REQUIRE_ANSWER` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt:33-157`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInput.kt#L33-L157) |
+| правило порога спама | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt#L9-L23) |
+| правило порога jailbreak | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt#L9-L23) |
+| decision-порт | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt:9-13`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt#L9-L13) |
+| клиент decision-модели: четыре вопроса, пустой вход, ошибки, маппинг | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:56-162`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt#L56-L162) |
+| домен: `jailbreakProbability` и валидация `[0,1]` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt:7-43`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt#L7-L43) |
+| правила решения | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33) |
+| справка: текст и подстановка `vk.bot.mention` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt#L10-L36) |
+| точная команда `/help`/`/помощь` и граница «с аргументами → `GENERAL`» | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt:10-35`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/resolveIntent/ResolveMessageIntentCommand.kt#L10-L35) |
+| предикаты человека и группового чата | [`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/FromId.kt:16-18`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/FromId.kt#L16-L18), [`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/PeerId.kt:15-17`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/vo/PeerId.kt#L15-L17) |
 
 Конфигурация: `vk.bot.id`, `vk.bot.mention`, `decision.spam-threshold`, `decision.spam-reply.enabled`,
 `decision.jailbreak-threshold`, `decision.jailbreak-reply.enabled` в
-`src/app/src/main/resources/application.yml:25-31`. Env-имена — `DECISION_SPAM_THRESHOLD`,
+[`src/app/src/main/resources/application.yml:25-31`](../../src/app/src/main/resources/application.yml#L25-L31). Env-имена — `DECISION_SPAM_THRESHOLD`,
 `DECISION_SPAM_REPLY_ENABLED`, `DECISION_JAILBREAK_THRESHOLD` (дефолт `0.85`),
 `DECISION_JAILBREAK_REPLY_ENABLED` (дефолт `true`). Порог вне `[0,1]` на старте не валидируется: `>1` —
 «никогда», `<0` — «всегда».
@@ -138,7 +138,7 @@ decision-этап. WARNING при отказе содержит только `pe
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | доменное `Message` | `vk-long-poll` (producer), `message-storage`, `ai-answer` | `vk-long-poll` |
-| `DecisionAnalysis` (включая `jailbreakProbability`), `MessageClass`, `MessageIntent`, контракт четырёх вопросов | тесты `processor` и `src/app`, внешний System One | `processor` (decision-клиент, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-decision-jailbreak-detection) |
+| `DecisionAnalysis` (включая `jailbreakProbability`), `MessageClass`, `MessageIntent`, контракт четырёх вопросов | тесты `processor` и [`src/app`](../../src/app), внешний System One | `processor` (decision-клиент, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-decision-jailbreak-detection) |
 | событие `MESSAGE_REQUIRE_ANSWER` | `ai-answer` (consumer); producer — `answer-decision` (ветка `general`) | `answer-decision` |
 | событие `NEWS_DIGEST_REQUESTED` | consumer — `chat-news-digest` (сводка «что нового») | producer и payload — `answer-decision`; имя и routing key — `event-dispatch` |
 | событие `PROFILE_REQUESTED` | consumer — `profile-dossier` (досье об участнике чата) | producer и payload — `answer-decision` (ветка `profile`); имя и routing key — `event-dispatch` |
@@ -177,27 +177,27 @@ decision-этап. WARNING при отказе содержит только `pe
 
 - **AC-answer-decision-1** — КОГДА `requiredAnswer=true` и итоговый интент `general`, СИСТЕМА ДОЛЖНА
   опубликовать ровно один `MESSAGE_REQUIRE_ANSWER` с исходным `Message`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute routes general to exactly one MESSAGE_REQUIRE_ANSWER`).
 - **AC-answer-decision-2** — КОГДА решение «ответ не нужен», СИСТЕМА ДОЛЖНА не публиковать событие и
   вернуть `ok`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute does not publish event when requireAnswer is false`).
 - **AC-answer-decision-3** — КОГДА человек пишет в групповой чат, `decision.spam-reply.enabled = true` и
   `spamProbability >= decision.spam-threshold`, СИСТЕМА ДОЛЖНА опубликовать ровно один `ANSWER_MESSAGE`
   с текстом `Сработал автодетект спама. Вероятность спама: N%.`, `N = round(spamProbability * 100)`, и
   не публиковать `MESSAGE_REQUIRE_ANSWER`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute publishes exactly one spam answer for a human in a group chat`).
 - **AC-answer-decision-4** — КОГДА итоговый интент `news`, СИСТЕМА ДОЛЖНА опубликовать ровно один
   `NEWS_DIGEST_REQUESTED` с исходным `Message` и не публиковать `MESSAGE_REQUIRE_ANSWER`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute routes news to exactly one NEWS_DIGEST_REQUESTED`).
 - **AC-answer-decision-5** — КОГДА итоговый интент `help`, СИСТЕМА ДОЛЖНА опубликовать ровно один
   `ANSWER_MESSAGE` с фиксированным текстом справки и `responseTo = исходное Message`; точные `/help` и
   `/помощь` без аргументов — детерминированно, без вызова модели; `/help` с аргументами даёт
   детерминированный `general`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute answers the help intent from the spam stage analysis`,
   `execute answers an exact help command without calling the decision model`,
   `execute routes a help command with arguments to general without calling the model`).
@@ -207,12 +207,12 @@ decision-этап. WARNING при отказе содержит только `pe
   decision.jailbreak-threshold`), СИСТЕМА ДОЛЖНА завершить обработку по правилам `requiredAnswer`;
   КОГДА `decision.spam-reply.enabled = false`, а `decision.jailbreak-reply.enabled = true`, СИСТЕМА
   ДОЛЖНА вызвать decision-модель ровно один раз и применить jailbreak-ветку. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`,
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommandTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt),
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommandTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommandTest.kt).
 - **AC-answer-decision-7** — КОГДА обе ветки decision-этапа выключены, СИСТЕМА ДОЛЖНА не вызывать
   decision-модель на decision-этапе и не публиковать спам- или jailbreak-уведомление; итоговый интент
   при этом разрешается (детерминированный `/help` не требует вызова модели). Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt)
   (`execute does not run the decision stage when both kill-switches are off`).
 - **AC-answer-decision-8** — КОГДА человек в групповом чате, `decision.jailbreak-reply.enabled = true`,
   `jailbreakProbability >= decision.jailbreak-threshold` (дефолт `0.85`) И спам-ветка не сработала
@@ -220,72 +220,72 @@ decision-этап. WARNING при отказе содержит только `pe
   ДОЛЖНА опубликовать ровно один `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное
   Message)` и текстом `Сработал автодетект попытки взлома ИИ. Вероятность: N%.`,
   `N = Math.round(jailbreakProbability * 100)`, и не публиковать `MESSAGE_REQUIRE_ANSWER`. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`,
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommandTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt),
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommandTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommandTest.kt).
 - **AC-answer-decision-9** — КОГДА `decision.spam-reply.enabled = true` и
   `decision.jailbreak-reply.enabled = true` и `spamProbability`, и `jailbreakProbability` не ниже своих
   порогов, СИСТЕМА ДОЛЖНА опубликовать только спам-уведомление, не публиковать jailbreak-уведомление и
   вызвать decision-модель ровно один раз. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt)
   (`execute prefers the spam answer when both thresholds are exceeded`).
 - **AC-answer-decision-10** — КОГДА `decision.jailbreak-reply.enabled = false`, СИСТЕМА ДОЛЖНА не
   публиковать jailbreak-уведомление ни при какой вероятности; при `spamProbability >=
   decision.spam-threshold` — ровно один спам-`ANSWER_MESSAGE`, при спаме ниже порога — обработка по
   `requiredAnswer` (при `requiresAnswer = true` — ровно один `MESSAGE_REQUIRE_ANSWER`). Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest.kt)
   (`execute does not publish a jailbreak answer when the jailbreak kill-switch is off`,
   `execute requires an answer when the jailbreak kill-switch is off and spam is below the threshold`).
 - **AC-answer-decision-11** — КОГДА decision-модель вызвана с непустым нормализованным текстом, СИСТЕМА
   ДОЛЖНА отправить ровно один `DecisionRequest` с четырьмя вопросами в порядке `spam`, `class`,
   `intent`, `jailbreak`, где `jailbreak` — `YesNoQuestion` с дословным текстом (см. выше), и выполнить
   ровно один `POST /v1/systemone`. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt)
   (`execute asks the jailbreak question about every known probe phrasing`),
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`.
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt).
 - **AC-answer-decision-12** — КОГДА ответ на `jailbreak` отсутствует, невалиден по типу, отвергнут
   (`RefusalAnswer`) или значение вне `[0,1]`, СИСТЕМА ДОЛЖНА бросить `DecisionModelException` с
   литеральным сообщением `Decision model call failed` и cause, не возвращая частичный анализ; литерал
   `Decision model response is invalid` для `jailbreak` не используется. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`,
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt).
 - **AC-answer-decision-13** — КОГДА ответ модели получен, СИСТЕМА ДОЛЖНА положить вероятность ответа
   `jailbreak` в обязательное `DecisionAnalysis.jailbreakProbability`; КОГДА значение вне `[0,1]`,
   СИСТЕМА ДОЛЖНА бросить `DecisionAnalysisJailbreakProbabilityValidationException` с сообщением
   `jailbreakProbability must be in [0, 1], but was $jailbreakProbability`. Tests:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`,
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysisTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt),
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysisTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysisTest.kt).
 - **AC-answer-decision-14** — КОГДА нормализованный текст пуст, СИСТЕМА ДОЛЖНА не вызывать модель и
   вернуть `HAM`/`null`/пустую карту/`0.0`/`0.0`/`GENERAL`. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`.
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapterTest.kt).
 - **AC-answer-decision-15** — КОГДА decision-модель отказала (`RuntimeException`), СИСТЕМА ДОЛЖНА не
   пробрасывать исключение и записать ровно одно WARNING-сообщение без текста/PII на каждый отказ: при
   одном отказе — одну, при двух (decision-этап, затем интент-этап) — ровно две на сообщение, всего не
   более двух порт-вызовов; `InterruptedException` восстанавливает флаг и пробрасывается. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute fails open on a decision model failure`, `execute rethrows InterruptedException and keeps the
   interrupt flag`).
 - **AC-answer-decision-16** — КОГДА сообщение не от человека ИЛИ чат не групповой, СИСТЕМА ДОЛЖНА не
   выполнять спам- и jailbreak-проверки и не публиковать эти уведомления ни при какой вероятности; в
   личном чате после `requiredAnswer=true` модель вызывается ровно один раз для интента. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute resolves only the intent outside a group chat or for a non-human`,
   `execute does not check spam outside a group chat or for a non-human when no answer is required`).
 - **AC-answer-decision-17** — КОГДА конфигурация загружена, СИСТЕМА ДОЛЖНА иметь
   `decision.jailbreak-threshold = 0.85` и `decision.jailbreak-reply.enabled = true` по умолчанию;
   `IsJailbreakCommandImpl` ДОЛЖЕН читать настроенный порог. Tests:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt)
   (`decision config exposes the jailbreak policy defaults`,
   `configured threshold is read by the jailbreak command bean`).
 - **AC-answer-decision-18** — КОГДА изменение доставлено, СИСТЕМА ДОЛЖНА иметь обновлённую продуктовую
-  запись `docs/capabilities/answer-decision.md` и строку `answer-decision` в
-  `docs/capabilities/index.md`; `./scripts/check-capabilities.sh` ДОЛЖЕН завершиться с exit 0. Test:
-  `src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`
-  (в блоках AC — существующие тест-пути); команда `./scripts/check-capabilities.sh`.
+  запись [`docs/capabilities/answer-decision.md`](./answer-decision.md) и строку `answer-decision` в
+  [`docs/capabilities/index.md`](./index.md); [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) ДОЛЖЕН завершиться с exit 0. Test:
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/DecisionModelIntegrationTest.kt)
+  (в блоках AC — существующие тест-пути); команда [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh).
 - **AC-answer-decision-19** — КОГДА `requiredAnswer=true` и итоговый интент `profile`, СИСТЕМА ДОЛЖНА
   опубликовать ровно один `PROFILE_REQUESTED` с исходным доменным `Message` и не публиковать
   `MESSAGE_REQUIRE_ANSWER`, `ANSWER_MESSAGE`, `NEWS_DIGEST_REQUESTED`; КОГДА `requiredAnswer=false`,
   `PROFILE_REQUESTED` не публикуется. Test:
-  `src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`
+  [`src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt`](../../src/processor/src/test/kotlin/com/simarel/vkbot/processor/usecase/message/messageReceived/MessageReceivedUsecaseInputTest.kt)
   (`execute routes profile to exactly one PROFILE_REQUESTED`,
   `execute does not route a ready analysis when no answer is required`).
 
@@ -293,15 +293,15 @@ decision-этап. WARNING при отказе содержит только `pe
 
 - Сами правила `IsRequireAnswerCommandImpl` не покрыты ни одним тестом: в тесте use case подставлен
   `FakeIsRequireAnswerCommand`, поэтому все ветви таблицы выше держатся только на коде
-  (`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`).
-- Интент-вызов в личных чатах — новый PII-поток (решение человека по личным чатам, Q2=B); PII
-  decision-логов принят ADR 2026-11-08-decision-model-langchain4j; спам/jailbreak-kill-switch'и гасят только decision-этап, полный откат
-  decision-модели — предыдущий образ.
+  ([`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33)).
+- Интент-вызов в личных чатах — новый PII-поток (решение человека по личным чатам, Q2=B), общий контур —
+  §«PII и логи» в [`docs/development/configuration.md`](../development/configuration.md); спам/jailbreak-kill-switch'и гасят только decision-этап,
+  полный откат decision-модели — предыдущий образ.
 - `/help` с аргументами или `@`-суффиксом — детерминированный `general`: справки нет, аргументы не
   поддерживаются; `/start`, `!help` — не команды, интент решает модель.
 - «Что нового» отвечает сводкой только после `requiredAnswer=true` (в группе — упоминание бота или
   forward от бота). LLM-вызов на каждый запрос, rate limit и дедупликации нет; календарный день сводки
-  считается в offset-е сообщения (Long Poll отдаёт UTC) — подробности в `chat-news-digest.md`.
+  считается в offset-е сообщения (Long Poll отдаёт UTC) — подробности в [`chat-news-digest.md`](./chat-news-digest.md).
 - Спам- и jailbreak-ответы — только уведомления: модерации, удаления, бана и лимита ответов нет; доставка
   событий at-least-once, поэтому повторная доставка может дать повторный ответ.
 - Jailbreak-детект: анализируется только `message.messageText` (forward и вложения — нет); детектор

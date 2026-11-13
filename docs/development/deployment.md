@@ -22,10 +22,10 @@ test ! -e build/quarkus-app                          # второго ранне
 
 ## JVM-образ (подтверждённый путь)
 
-`src/docker/Dockerfile.jvm`:
+[`src/docker/Dockerfile.jvm`](../../src/docker/Dockerfile.jvm):
 
 - база `registry.access.redhat.com/ubi9/openjdk-21:1.23` (`:81`);
-- копирует **`src/app/build/quarkus-app`** (`:87-90`), не корневой `build`;
+- копирует **[`src/app/build/quarkus-app`](../../src/app/build/quarkus-app)** (`:87-90`), не корневой `build`;
 - `EXPOSE 8080` (`:92`), `USER 185` (`:93`);
 - `JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"`
   (`:94`), `JAVA_APP_JAR=/deployments/quarkus-run.jar`, entrypoint `run-java.sh` (`:95-97`).
@@ -49,8 +49,8 @@ docker run -p 8080:8080 \
 
 ## Native и legacy-jar
 
-- `Dockerfile.native` и `Dockerfile.native-micro` копируют `src/app/build/*-runner`
-  (`Dockerfile.native:24`, `Dockerfile.native-micro:27`); `Dockerfile.legacy-jar` — `src/app/build/lib/*` и
+- [`Dockerfile.native`](../../src/docker/Dockerfile.native) и [`Dockerfile.native-micro`](../../src/docker/Dockerfile.native-micro) копируют `src/app/build/*-runner`
+  ([`Dockerfile.native:24`](../../src/docker/Dockerfile.native#L24), [`Dockerfile.native-micro:27`](../../src/docker/Dockerfile.native-micro#L27)); [`Dockerfile.legacy-jar`](../../src/docker/Dockerfile.legacy-jar) — `src/app/build/lib/*` и
   `src/app/build/*-runner.jar` (`:86-87`).
 - **Ограничение:** `.dockerignore` сейчас пропускает только `src/app/build/quarkus-app/*` (и старые
   `build/*`), поэтому native/legacy-образы не получат файлы без расширения белого списка. Перед сборкой
@@ -69,7 +69,7 @@ docker run -p 8080:8080 \
 | `VK_API_TOKEN` | токен группы VK |
 | `VK_BOT_ID` | id бота для правила ответа |
 | `VANE_URL` | база Vane (search API) |
-| `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — vLLM) |
+| `AI_BASE_URL` | корень OpenAI-совместимого API LLM вместе с `/v1` (в деплое — llama.cpp, `llama-server`) |
 | `AI_CHAT_MODEL` | имя chat-модели; одна модель обслуживает ответ, саммари, OCR, поздравления и «что нового» |
 | `QUARKUS_DATASOURCE_JDBC_URL` | JDBC URL PostgreSQL |
 | `QUARKUS_DATASOURCE_USERNAME` / `QUARKUS_DATASOURCE_PASSWORD` | доступ к БД |
@@ -82,15 +82,15 @@ docker run -p 8080:8080 \
 
 | Переменная | Назначение |
 |---|---|
-| `DECISION_URL` | голый корень System One-сервера (без `/v1` и без `/v1/systemone`) |
+| `DECISION_URL` | голый корень System One-сервера `llama-server` (без `/v1` и без `/v1/systemone`) |
 
 Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
 `VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` (system-промпт сводки «что нового»; дефолт
-в `application.yml`), `AI_PROFILE_SYSTEM_PROMPT` (system-промпт досье об участнике чата; дефолт в
-`application.yml`, новых обязательных env нет), `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
+в [`application.yml`](../../src/app/src/main/resources/application.yml)), `AI_PROFILE_SYSTEM_PROMPT` (system-промпт досье об участнике чата; дефолт в
+[`application.yml`](../../src/app/src/main/resources/application.yml), новых обязательных env нет), `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`,
 `GREETINGS_CRON` (дефолт `0 0 0 * * ?`, то есть 00:00; `off`/`disabled` выключает расписание),
 `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`),
 `DECISION_SPAM_THRESHOLD` (дефолт `0.9` — порог спама),
@@ -109,7 +109,7 @@ PII-egress при включённой jailbreak-ветке продолжают
 Замечания:
 
 - `DECISION_URL` — обязательное значение контракта деплоя: `quarkus.langchain4j.ollama.base-url:
-  ${DECISION_URL}` (голый корень System One-сервера, без `/v1`). Порядок раскатки — **сначала env и
+  ${DECISION_URL}` (голый корень System One-сервера `llama-server`, без `/v1`). Порядок раскатки — **сначала env и
   decision-сервер, принимающий и отвечающий на четыре вопроса `spam`, `class`, `intent`, `jailbreak`,
   затем образ**. Старый образ (`DECISION_URL` он читает и шлёт туда трёхвопросный запрос) в окне между
   выкатами работает с новым сервером, поэтому новый сервер обязан принимать и старый трёхвопросный
@@ -128,8 +128,8 @@ PII-egress при включённой jailbreak-ветке продолжают
   `DECISION_JAILBREAK_REPLY_ENABLED=false`; двухключевой стоп гасит только decision-этап
   (спам/jailbreak), а ленивый интент-вызов после `requiredAnswer=true` остаётся; предыдущий образ —
   полный откат.
-- В `application.yml` prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
-  `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в `application.yml` есть, но читают env:
+- В [`application.yml`](../../src/app/src/main/resources/application.yml) prod-ключи RabbitMQ не заданы (только DevServices) — их должен задать деплой:
+  `rabbitmq-host`/`rabbitmq-port`/… для коннектора. Ключи LLM в [`application.yml`](../../src/app/src/main/resources/application.yml) есть, но читают env:
   `AI_BASE_URL` — это корень OpenAI API вместе с `/v1` (расширение дописывает `/chat/completions`),
   `AI_CHAT_MODEL` — имя модели (ADR 2026-11-05-llm-provider-vllm-openai).
 - `RABBITMQ_HOST` — стандартное отображение MicroProfile Config на `rabbitmq-host`; запуском prod-конфигурации
@@ -186,7 +186,7 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 ## Миграции и откат
 
 - Схема принадлежит `:src:persistence`; master-чейнджлог
-  `src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml` включает changesets
+  [`src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml`](../../src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml) включает changesets
   `001-create-messages-table`, `002-create-user-profiles-table`, `003-create-group-profiles-table`,
   `004-create-summaries-table`, `005-create-long-poll-position-table`, `006-create-greeting-log-table`,
   `007-add-user-profile-data-and-history`, `008-replace-profile-data-with-human-details`,
@@ -194,7 +194,7 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   `user_fact_evidence`, `user_knowledge_summary`, `chat_knowledge_summary`, `knowledge_extraction_cursors`
   и второй нетранзакционный changeset `010-create-messages-knowledge-index`).
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
-  `application.yml`). Liquibase-ключей в тестах — `enabled: false` в `%test`.
+  [`application.yml`](../../src/app/src/main/resources/application.yml)). Liquibase-ключей в тестах — `enabled: false` в `%test`.
 - Правило: **применённый changeset не редактируется**; следующий номер — 011.
 - Таблицы знаний `010` аддитивны: предыдущий образ их не читает и не пишет, откат образа на один релиз
   назад проходит без изменения схемы. Знания после начала записи откатываются только из бэкапа БД
@@ -216,12 +216,12 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   совместима на один релиз назад (аддитивные изменения). Откат данных — из бэкапа БД.
 - **Исключение — changeset `008-replace-profile-data-with-human-details`.** Он удаляет колонку
   `vk_user_profiles.profile_data` (и очищает старую историю), а предыдущий образ её читает и пишет
-  (`VkUserProfileTable.kt:41-63`) и падает на `findByIds`/`persist`
-  (`FetchUserProfileCommandImpl.kt:36`). Поэтому 008 применяется только вместе с новым образом; откат
+  ([`VkUserProfileTable.kt:41-63`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/VkUserProfileTable.kt#L41-L63)) и падает на `findByIds`/`persist`
+  ([`FetchUserProfileCommandImpl.kt:36`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L36)). Поэтому 008 применяется только вместе с новым образом; откат
   образа после 008 — только с восстановлением БД из бэкапа до 008, иначе сохранение сообщений ломается.
 - **Backfill статистики — ручной ops-шаг, не миграция.** Changeset 009 создаёт только пустые таблицы;
-  накопленные `messages` переносятся скриптом `backfill-user-statistics.sql`
-  (`src/persistence/src/main/resources/db/backfill/`). Скрипт не владеет транзакцией и требует
+  накопленные `messages` переносятся скриптом [`backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql)
+  ([`src/persistence/src/main/resources/db/backfill/`](../../src/persistence/src/main/resources/db/backfill)). Скрипт не владеет транзакцией и требует
   остановленного писателя, поэтому порядок такой: **остановить приложение** (единственный писатель
   агрегатов; при живой аппликации транзакции сохранения сообщений встают на upsert'ах до конца
   пересборки) → из каталога скрипта выполнить
@@ -234,16 +234,16 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   пересборки скрипт выполняет `ANALYZE` на трёх таблицах, отдельная команда не нужна.
 - **Окно дрейфа.** Между откатом на предыдущий образ (он пишет `messages`, но не агрегаты) и возвратом
   новой версии агрегаты расходятся с журналом: сообщения окна в статистику не попадут. Это named gap;
-  согласованность восстанавливает тот же ручной пересчёт `backfill-user-statistics.sql` (остановка
+  согласованность восстанавливает тот же ручной пересчёт [`backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql) (остановка
   писателя + `--single-transaction` + `ON_ERROR_STOP`); автоматического заполнения нет.
 - Порядок деплоя: сначала применить совместимую миграцию (новый образ при старте), затем переключить
   трафик; при откате — вернуть предыдущий образ. Для decision-клиента данных и миграций
   нет: откат — предыдущий образ; `DECISION_URL` остаётся в деплое, её читает и предыдущий образ
-  (`${DECISION_URL}` без дефолта, `application.yml:89`); повторная раскатка — тем же порядком
+  (`${DECISION_URL}` без дефолта, [`application.yml:115`](../../src/app/src/main/resources/application.yml#L115)); повторная раскатка — тем же порядком
   «env → образ».
 - **«Профиль» (`profile-dossier`) — always-on без kill-switch.** Схема и данные не меняются (новых
   changeset нет), новых обязательных env нет: `AI_PROFILE_SYSTEM_PROMPT` опционален, дефолт в
-  `application.yml`. Откат — предыдущий образ; откат возвращает потерю запросов «профиль» (unknown
+  [`application.yml`](../../src/app/src/main/resources/application.yml). Откат — предыдущий образ; откат возвращает потерю запросов «профиль» (unknown
   routing key → ERROR с payload), данные и схема при откате не страдают.
 
 ## Health и наблюдаемость
@@ -252,7 +252,7 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   **200 UP** и годятся в readiness-пробу Kubernetes. Шесть retry/DLQ-каналов (`retry-5s-queue` …
   `retry-1h-queue`, `dlq-final-queue`) объявлены ради TTL/DLX и downstream-консьюмера не имеют, поэтому
   исключены из проверки SmallRye Reactive Messaging ключом `quarkus.messaging.health.<channel>.enabled:
-  false` (`application.yml:77-90`); иначе она помечает их `[KO]` (`SRMSG00208: has no downstreams`) и health
+  false` ([`application.yml:119-132`](../../src/app/src/main/resources/application.yml#L119-L132)); иначе она помечает их `[KO]` (`SRMSG00208: has no downstreams`) и health
   отдаёт 503 DOWN. Под проверкой остаётся `all-events-queue` — единственный канал с консьюмером
   (`EventDispatcher.dispatch`). Health не связан с приёмом событий: опрос Bots Long Poll идёт своим циклом
   и от HTTP-проб не зависит.
@@ -262,15 +262,18 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
 
 ## CI
 
-`.github/workflows/build-and-test.yml` (push/pull_request в `main`, JDK 21 temurin):
+[`.github/workflows/build-and-test.yml`](../../.github/workflows/build-and-test.yml) (push/pull_request в `main`, JDK 21 temurin):
 
 | Job | Что проверяет |
 |---|---|
-| `build` | `./gradlew :src:app:quarkusBuild`, наличие `src/app/build/quarkus-app/quarkus-run.jar`, отсутствие `build/quarkus-app` |
-| `test` | `./gradlew test` (нужен Docker для DevServices) |
+| `build` | `./gradlew :src:app:quarkusBuild`, наличие [`src/app/build/quarkus-app/quarkus-run.jar`](../../src/app/build/quarkus-app/quarkus-run.jar), отсутствие `build/quarkus-app` |
 | `lint` | `./gradlew detekt ktlintCheck` |
-| `coverage` | `./gradlew test coverageReport coverageVerification` + upload HTML-отчёта |
-| `docs` | `./scripts/check-capabilities.sh` (карта возможностей существует, чек зелёный) |
+| `coverage` | `./gradlew test coverageReport coverageVerification` — единственный прогон тестов в CI (нужен Docker для DevServices), upload HTML-отчёта; на push в `main` — бейджи покрытия и тестов в ветку `badges` |
+| `docs` | [`./scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) (карта возможностей существует, чек зелёный) |
+
+Публикация бейджей — единственный шаг CI, который пишет в репозиторий: джобу `coverage` нужен
+`contents: write` (задано в workflow), а репозиторий должен разрешать GitHub Actions писать
+(`Settings → Actions → General → Workflow permissions`).
 
 ## Локальный запуск
 
@@ -285,12 +288,12 @@ DevServices поднимают PostgreSQL и RabbitMQ (нужен Docker); LLM �
 `AI_BASE_URL` (DevServices его больше не поднимают). В dev доступны dev-UI и hot reload. Публичного
 HTTP-входа у приложения нет: `/vk/callback` отвечает 404, события приходят опросом Bots Long Poll —
 приложение само обращается к VK (`VK_GROUP_ID` и `VK_API_TOKEN`). `SUMMARY_ENABLED_CHATS` опционален: без
-него (или с пустым значением) приложение стартует с выключенной саммаризацией (`application.yml`); в
+него (или с пустым значением) приложение стартует с выключенной саммаризацией ([`application.yml`](../../src/app/src/main/resources/application.yml)); в
 тестовых профилях задан `1,2,3`.
 
 ## Что не проверено в этом проходе
 
 - Сборка Docker-образов (JVM/native/legacy) — Dockerfile'ы прочитаны, `docker build` не запускался.
-- Production-конфигурация RabbitMQ — ключей в `application.yml` нет, деплой задаёт их сам; ключи LLM в
+- Production-конфигурация RabbitMQ — ключей в [`application.yml`](../../src/app/src/main/resources/application.yml) нет, деплой задаёт их сам; ключи LLM в
   конфиге есть, но их значения приходят из env `AI_BASE_URL`/`AI_CHAT_MODEL`/`AI_API_KEY`.
 - Native-сборка и её образ.

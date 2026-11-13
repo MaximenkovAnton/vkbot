@@ -16,7 +16,6 @@ repositories {
     mavenLocal()
 }
 
-val measuredLineCoverage = 0.5687
 val coverageMin = 0.40
 
 val coverageModules = listOf(
@@ -100,7 +99,7 @@ val coverageVerification = tasks.register<org.gradle.testing.jacoco.tasks.Jacoco
     "coverageVerification",
 ) {
     group = "verification"
-    description = "Fails the build when aggregated line coverage drops below $coverageMin (measured $measuredLineCoverage)."
+    description = "Fails the build when aggregated line coverage drops below $coverageMin."
     dependsOn(coverageReport)
     executionData.setFrom(coveredProjects.map { it.layout.buildDirectory.file("jacoco/test.exec") })
     classDirectories.setFrom(

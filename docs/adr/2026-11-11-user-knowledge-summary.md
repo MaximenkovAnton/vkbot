@@ -66,8 +66,8 @@ payload. Факты пользователя копятся, но связног
   ответ модели попадают в глобальные INFO-логи и OTLP-трассировку LangChain4j — принятый риск ADR
   [2026-11-10-news-digest](2026-11-10-news-digest.md). Инструментов и памяти у AI-сервиса нет, поэтому
   prompt injection не даёт действий.
-- **Совместимость и релиз.** Схема, changeset `010`, `Tables.kt`, `Event`, payload и R1-контракты не
-  меняются; три ключа конфига имеют дефолты в `application.yml`/аннотациях, новых обязательных env нет.
+- **Совместимость и релиз.** Схема, changeset `010`, [`Tables.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt), `Event`, payload и R1-контракты не
+  меняются; три ключа конфига имеют дефолты в [`application.yml`](../../src/app/src/main/resources/application.yml)/аннотациях, новых обязательных env нет.
   Откат на предыдущий образ безопасен (новые строки сводки старый образ не читает), но частичный откат
   «R2a есть, R3a нет» не поддержан: событие останется без консюмера, поэтому R2+R3 выходят одним
   релизом (ADR [2026-11-11-knowledge-extraction](2026-11-11-knowledge-extraction.md)).

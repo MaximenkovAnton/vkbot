@@ -29,35 +29,35 @@
 историю изменений и материализованную статистику (ADR 2026-11-10-vk-profile-history-and-statistics,
 ADR 2026-11-10-user-statistics-materialization) и доработку фильтра взлома ИИ
 (ADR 2026-11-10-jailbreak-rubric-and-threshold). Состав тестов по классам — в таблице «Где лежат тесты»;
-число классов и тестов печатает сам прогон (`./gradlew test`), отдельного сводного числа здесь не держим,
-чтобы инвентарь не расходился с прогоном.
+число классов и тестов печатает сам прогон (`./gradlew test`), общий счётчик публикует бейдж `tests`,
+отдельного сводного числа здесь не держим, чтобы инвентарь не расходился с прогоном.
 
-`./gradlew capabilitiesCheck` запускает `scripts/check-capabilities.sh` через bash; тот же скрипт
+`./gradlew capabilitiesCheck` запускает [`scripts/check-capabilities.sh`](../../scripts/check-capabilities.sh) через bash; тот же скрипт
 выполняется в CI-джобе `docs`.
 
-`src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt` —
+[`src/ai/src/test/.../adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest.kt) —
 известная точка: из-за длинного имени Gradle пишет его отчёт в `build/test-results` с префиксом
 `__TES-…`, поэтому число файлов `TEST-*.xml` занижает итог. Считать тесты по `testsuite` из всех XML
-(в этом проходе — 19 классов, 133 теста в `ai`) и сверять со сводкой Gradle.
+(в свежем прогоне 2026-11-13 — 37 классов, 304 теста в `ai`) и сверять со сводкой Gradle.
 
 ## Где лежат тесты
 
-| Модуль | Файлы |
+| Модуль | Классы |
 |---|---|
-| `app` | 13 классов: `InitTest` (1 — контекст поднимается; опрос Long Poll выключен — `vk.longpoll.enabled: false`), `HealthTest` (3 — 200 UP на `/q/health`, `/q/health/ready`, `/q/health/live`), `integration/VkLongPollIntegrationTest` (5 — приём через Bots Long Poll, WireMock-сценарий), `integration/LongPollPositionIntegrationTest` (1 — позиция `ts` читается из PostgreSQL на старте и сохраняется после пачки), `integration/AiIntegrationTest` (8 — проводка ai), `integration/DailyGreetingsIntegrationTest` (10 — поздравления: план по чатам, ИИ, claim, отправка), `integration/ProfileStorageIntegrationTest` (2 — профили из PostgreSQL и отрицательный id группы), `integration/ProfileHistoryAndStatisticsIntegrationTest` (2 — JSONB `profile_details` roundtrip, человеческая история изменений), `integration/UserStatisticsMaterializationIntegrationTest` (статистика из агрегатов: инкремент при сохранении, чтение в двух зонах, нули без агрегатов, независимость от журнала, backfill-скрипт, схема 009), `integration/ProfileMigrationIntegrationTest` (1 — схема 008 на PostgreSQL), `integration/DecisionModelIntegrationTest` (11 — decision-модель: Ollama, System One `/v1/systemone` и ошибки клиента), `integration/DecisionModelIntegrationTestSpamPolicy` (3 — спам-политика и kill-switch), `integration/NewsDigestIntegrationTest` (3 — read-порты против PostgreSQL, сводка end-to-end, «нет сообщений»); инфраструктура — `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
-| `ai` | 133 теста (19 классов): `usecase/message/requireAnswer/GenerateAnswerUsecaseTest` (1), `usecase/summary/ProcessSummaryUsecaseTest` (1), `usecase/summary/GenerateSummaryUsecaseTest` (1), `command/answer/GenerateAnswerCommandImplTest` (2), `command/summary/ProcessSummaryCommandImplTest` (11), `command/summary/GenerateSummaryCommandImplTest` (7), `command/vane/VaneSearchCommandImplTest` (8), `command/news/ProcessNewsDigestCommandTest` (18 — срок, сборка данных, фолбэк, «нет сообщений»), `domain/news/NewsPeriodParserTest` (43 — таблица форм срока), `adapter/input/event/messageRequireAnswer/MessageRequireAnswerEventProcessorTest` (2), `adapter/input/event/NewsDigestRequestedEventProcessorTest` (2), `adapter/input/event/SummaryRequestedEventProcessorTest` (2), `adapter/output/context/ConversationContextRestAdapterTest` (7), `adapter/output/ai/answer/GenerateAnswerOutputAdapterTest` (6), `adapter/output/ai/news/NewsDigestAiAdapterTest` (4 — 3 попытки), `adapter/output/ai/summarization/SummarizationAiAdapterTest` (3), `adapter/output/ai/tool/VaneSearchToolAdapterTest` (3), `adapter/output/ai/tool/vane/VaneSearchOutputAdapterTest` (8), `adapter/output/ai/greeting/GreetingTextOutputAdapterTest` (4) |
-| `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2 — сессия и ошибка VK), `VkLongPollCheckOutputAdapterTest` (3 — разбор `a_check`), `ReceiveMessageUsecaseTest`, `PublishVkEventCommandImplTest` |
-| `persistence` | `PersistenceDataInProcessAdapterTest` (18 тестов — маппинг всех in-process портов, включая три read-only чтения сводки «что нового»), `BirthDateMatcherTest` (17 — разбор `birth_date`), `domain/profile/ProfileFieldsMergerTest` (4 — слияние `details` и JSONB-diff истории), `domain/profile/VkUserProfileJsonTest` (1 — JSON `details` без сырого поля), `usecase/SaveMessageUsecaseTest` (инкремент статистики при сохранении: длина в code points, проброс ошибки порта), `adapter/output/persistence/migration/ProfileMigrationChangesetTest` (2 — разбор changeset 008), `adapter/output/persistence/migration/StatisticsMigrationChangesetTest` (разбор changeset 009: три таблицы, типы/NOT NULL/DEFAULT, CHECK `utc_hour`, порядок после 008, байты 008), `adapter/output/persistence/backfill/BackfillScriptContractTest` (форма backfill-скрипта: без `BEGIN`/`COMMIT`, `LOCK TABLE ... ACCESS EXCLUSIVE`, `lock_timeout`, `ANALYZE`, только `SET`/`LOCK`/`DELETE`/`INSERT`/`ANALYZE`), `command/fetchuserprofile/FetchUserProfileCommandImplTest` (8 — актуализация устаревших профилей, слияние полей и запись истории) |
-| `processor` | `usecase/message/messageReceived/MessageReceivedUsecaseInputTest` (37), `usecase/message/messageReceived/MessageReceivedUsecaseInputJailbreakTest` (13), `command/isSpam/IsSpamCommandTest` (7), `command/isJailbreak/IsJailbreakCommandTest` (7), `command/resolveIntent/ResolveMessageIntentCommandTest` (14), `command/help/BuildHelpTextCommandTest` (1), `domain/decision/DecisionAnalysisTest` (4 — листовые исключения валидации), `domain/decision/MessageTextNormalizerTest` (5), `adapter/output/decision/DecisionModelOutputAdapterTest` (52 — ответы и ошибки decision-модели, рубрика взлома и порог) |
-| `vk-facade` | `VkProfileInProcessAdapterTest` (2), `VkGetUserProfilesBatchAdapterTest` (3 — 35 полей, маппинг человеческого профиля, ошибка VK), `VkUserProfileMapperTest` (5 — человеческие значения, allowlist, пропуски), `SendGreetingMessageInProcessAdapterTest` (1), `VkSendMessageOutputAdapterTest` (2), `PublishEventCommandImplTest` (1), `SendVkMessageCommandImplTest` (1), `MessageSendUsecaseTest` (1), `PlainMessageSendUsecaseTest` (2 — плоская отправка), `RandomIdTest` (5 — детерминированный `random_id`), `SummaryReadyEventProcessorTest` (1) |
-| `greetings` | `domain/HolidaysTest` (7), `domain/BirthdayDatesTest` (4), `domain/NameFormatterTest` (5), `command/collect/CollectGreetingPlansCommandTest` (9), `command/text/GenerateGreetingTextCommandTest` (8), `usecase/RunDailyGreetingsUsecaseTest` (8), `adapter/input/schedule/DailyGreetingRunnerTest` (4) |
-| `share` | `MessageTextTest`, `ConversationMessageIdTest` |
+| `app` | `InitTest`, `HealthTest`, `integration/*` — Long Poll (`VkLongPollIntegrationTest`, `LongPollPositionIntegrationTest`), `AiIntegrationTest`, decision-модель, «что нового», досье «профиль», знания (извлечение, хранение, чтение, сводки), статистика, поздравления; инфраструктура — `WireMockTestResource`, `IntegrationTestProfile`, `LongPollPositionTestProfile`, `ProfileStorageTestProfile` |
+| `ai` | usecase/command (answer, summary, news, profile, knowledge, vane), домен (`NewsPeriodParserTest` — 43, `ProfileNameMatcherTest`, `UserKnowledgeValidatorTest`, форматтеры), адаптеры answer/news/summarization/greeting/profile/knowledge/Vane, event-процессоры |
+| `receiver` | `LongPollRunnerTest` (14), `VkLongPollOutputAdapterTest` (2), `VkLongPollCheckOutputAdapterTest` (3), `ReceiveMessageUsecaseTest` (2), `PublishVkEventCommandImplTest` (1) |
+| `persistence` | in-process адаптер, профили/история/статистика, знания (`KnowledgeTemporalPolicyTest`, `FactConfidenceCalculatorTest`, `UserKnowledgeReadModelTest`, `UserKnowledgeMigrationChangesetTest`), backfill, миграции 008/009/010, `BirthDateMatcherTest` (17), `FetchUserProfileCommandImplTest` (8) |
+| `processor` | `MessageReceivedUsecaseInputTest` (39), `DecisionModelOutputAdapterTest` (53 — ответы и ошибки decision-модели, рубрика взлома и порог), `IsSpamCommandTest`, `IsJailbreakCommandTest`, `ResolveMessageIntentCommandTest`, `BuildHelpTextCommandTest`, `DecisionAnalysisTest`, `MessageTextNormalizerTest`, `RequestKnowledgeExtractionCommandImplTest` |
+| `vk-facade` | профили VK (`VkGetUserProfilesBatchAdapterTest`, `VkUserProfileMapperTest`, `VkProfileInProcessAdapterTest`), отправка сообщений (`VkSendMessageOutputAdapterTest`, `MessageSendUsecaseTest`, `PlainMessageSendUsecaseTest`, `SendVkMessageCommandImplTest`, `RandomIdTest`), `SummaryReadyEventProcessorTest`, `SendGreetingMessageInProcessAdapterTest` |
+| `greetings` | `HolidaysTest` (7), `BirthdayDatesTest` (4), `NameFormatterTest` (5), `CollectGreetingPlansCommandTest` (18), `GenerateGreetingTextCommandTest` (13), `RunDailyGreetingsUsecaseTest` (8), `DailyGreetingRunnerTest` (4) |
+| `share` | `MessageTextTest`, `ConversationMessageIdTest`, `KnowledgeEnumLiteralsTest` |
 | `infrastructure` | `CommandLoggingDecoratorTest` |
 | `testing/arch-tests` | `ModuleDependenciesTest` (9), `LayerDependenciesTest` (5), `GradleDependenciesTest` (5), `TestDataFactoriesTest` (2), `DetektExcludesPathTest` (1), `NamingConventionsTest` (2 — L7: `*Controller`/`*Service`/`*Repository` запрещены), `ExceptionHandlingTest` (2 — бросаются только `VkBotAppException` и наследники; `require` запрещён) |
 
-Тестовые ресурсы: `src/app/src/test/resources/application.yaml` (базовый профиль `@QuarkusTest`),
-`application-integration-test.yaml` (профиль `integration-test`), `application.yml` (`%test`-настройки),
-`src/testing/test-common/src/main/resources/application.yaml` (общие значения для модульных тестов).
+Тестовые ресурсы: [`src/app/src/test/resources/application.yaml`](../../src/app/src/test/resources/application.yaml) (базовый профиль `@QuarkusTest`),
+[`src/app/src/test/resources/application-integration-test.yaml`](../../src/app/src/test/resources/application-integration-test.yaml) (профиль `integration-test`), [`src/app/src/test/resources/application.yml`](../../src/app/src/test/resources/application.yml) (`%test`-настройки),
+[`src/testing/test-common/src/main/resources/application.yaml`](../../src/testing/test-common/src/main/resources/application.yaml) (общие значения для модульных тестов).
 
 ## Fake Objects
 
@@ -78,7 +78,7 @@ class FakeVkClient(
 }
 ```
 
-См. `src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`,
+См. [`src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/adapter/output/vk/FakeVkClient.kt:9-41`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/adapter/output/vk/FakeVkClient.kt#L9-L41),
 `.../command/vkFacade/FakePublishEventCommand.kt:8-16`,
 `.../adapter/output/mq/FakePublishEventOutputPort.kt:8-16`.
 
@@ -149,38 +149,38 @@ src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/test/  # Fakes.kt (fak
 
 Фабрики (дерево — в «Раскладка fake-объектов и фабрик»):
 
-- `domain/FakeVoProvider.kt:18-69` — единая точка создания доменных значений: `createDate`, `createFromId`,
+- [`domain/FakeVoProvider.kt:18-69`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/domain/FakeVoProvider.kt#L18-L69) — единая точка создания доменных значений: `createDate`, `createFromId`,
   `createHumanFromId`, `createGroupFromId`, `createGroupChatFromId`, `createGroupId`, `createPeerId`,
   `createConversationMessageId`, `createMessageText`, `createMessage`, `createForwardedMessage`,
   `createMessageWithForwarded`. `FakeMessageProvider` — фабрика `Message` поверх него, `FakeEventProvider` —
   `createSummaryRequestedPayload`.
-- `domain/FakeModelProvider.kt` — `createStoredMessage`, `createSummary`, `createVkUserProfile`,
+- [`domain/FakeModelProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/domain/FakeModelProvider.kt) — `createStoredMessage`, `createSummary`, `createVkUserProfile`,
   `createVkGroupProfile`, `createResponseMessage`.
-- `port/FakeProfilePortProvider.kt` — `createGetUserProfilesBatchRequest`,
+- [`port/FakeProfilePortProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/port/FakeProfilePortProvider.kt) — `createGetUserProfilesBatchRequest`,
   `createGetGroupProfilesBatchRequest`.
-- `port/FakePersistencePortProvider.kt` — 9 request-фабрик `share`-портов persistence
+- [`port/FakePersistencePortProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/port/FakePersistencePortProvider.kt) — 9 request-фабрик `share`-портов persistence
   (`createFindMessagesBeforeRequest`, `createFindMessagesBetweenRequest`, `createFindLastSummaryRequest`,
   `createHasPendingSummaryRequest`, `createCreatePendingSummaryRequest`, `createSaveCompletedSummaryRequest`,
   `createMarkSummaryFailedRequest`, `createFindUserProfilesByIdsRequest`,
   `createFindGroupProfilesByIdsRequest`).
-- `port/FakeGreetingPortProvider.kt` — request/response-фабрики шести `share`-портов поздравлений
+- [`port/FakeGreetingPortProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/port/FakeGreetingPortProvider.kt) — request/response-фабрики шести `share`-портов поздравлений
   (`createFindUserProfilesByBirthDateRequest`, `createFindUserChatPeerIdsRequest`,
   `createFindGroupChatPeerIdsRequest`, `createClaimDailyGreetingRequest`, `createGenerateGreetingTextRequest`,
   `createSendGreetingMessageRequest` и соответствующие response).
-- `src/greetings/src/testFixtures/.../testfixtures/FakeGreetingProvider.kt` — контракты модуля
+- [`src/greetings/src/testFixtures/.../testfixtures/FakeGreetingProvider.kt`](../../src/greetings/src/testFixtures/kotlin/com/simarel/vkbot/greetings/testfixtures/FakeGreetingProvider.kt) — контракты модуля
   `daily-greetings`: `createGreetingPlan`, `createRunDailyGreetingsRequest/Response`,
   `createCollectGreetingPlansRequest/Response`, `createGenerateGreetingTextCommandRequest/Response`.
-- `vkFacade/FakeVkFacadeProvider.kt` — `createVkError`, `createVkResponseDto`, `createVkProfileRequest`,
+- [`vkFacade/FakeVkFacadeProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/vkFacade/FakeVkFacadeProvider.kt) — `createVkError`, `createVkResponseDto`, `createVkProfileRequest`,
   `createVkProfileResponse`, `createVkSendMessageInputRequest`.
-- `command/FakeCommandProvider.kt` — `createRequest`, `createResponse`.
+- [`command/FakeCommandProvider.kt`](../../src/testing/test-fixtures/src/main/kotlin/com/simarel/vkbot/testfixtures/command/FakeCommandProvider.kt) — `createRequest`, `createResponse`.
 - `src/ai/src/testFixtures/.../ai/testfixtures/` — `FakeAnswerProvider` (message/answer, контекст и
   request/response команд и портов `ai-answer`), `FakeSummaryProvider` (саммаризация и summary-команды),
   `FakeVaneProvider` (порт и REST-клиент Vane, одноимённые типы разведены именами фабрик),
   `FakeConversationContextPortProvider` (ответы persistence-портов контекста).
-- `PersistenceDataRequestProvider.kt` и `PersistenceDataResponseProvider.kt` в
-  `src/persistence/src/testFixtures` — 9 фабрик `PersistenceDataRequest.*` и 7 фабрик
+- [`PersistenceDataRequestProvider.kt`](../../src/persistence/src/testFixtures/kotlin/com/simarel/vkbot/persistence/testfixtures/PersistenceDataRequestProvider.kt) и [`PersistenceDataResponseProvider.kt`](../../src/persistence/src/testFixtures/kotlin/com/simarel/vkbot/persistence/testfixtures/PersistenceDataResponseProvider.kt) в
+  [`src/persistence/src/testFixtures`](../../src/persistence/src/testFixtures) — 9 фабрик `PersistenceDataRequest.*` и 7 фабрик
   `PersistenceDataResponse.*`.
-- `FakePublishVkEventCommandProvider.kt` в `src/receiver/src/testFixtures` — `createRequest`.
+- [`FakePublishVkEventCommandProvider.kt`](../../src/receiver/src/testFixtures/kotlin/com/simarel/vkbot/receiver/fixtures/FakePublishVkEventCommandProvider.kt) в [`src/receiver/src/testFixtures`](../../src/receiver/src/testFixtures) — `createRequest`.
 
 Пример «добавили поле в модель»: в `Summary` появилось поле `language`:
 
@@ -193,7 +193,7 @@ src/greetings/src/test/kotlin/com/simarel/vkbot/greetings/test/  # Fakes.kt (fak
 
 ### Сторож правила
 
-`TestDataFactoriesTest` (`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/TestDataFactoriesTest.kt`)
+`TestDataFactoriesTest` ([`src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/TestDataFactoriesTest.kt`](../../src/testing/arch-tests/src/test/kotlin/com/simarel/vkbot/arch/TestDataFactoriesTest.kt))
 — два теста:
 
 | Тест | Что проверяет |
@@ -222,9 +222,9 @@ default` FAILED с именем параметра. После отката об
 - **Именование:** backtick-предложение, описывающее проверку (`LongPollRunnerTest`, `ReceiveMessageUsecaseTest`).
   Стиль Given/When/Then — как в соседних тестах.
 - **Unit-тест** — обычный JUnit 5 без Quarkus: собрать объект с fake-зависимостями, вызвать, проверить
-  записи fake'а и результат (`ReceiveMessageUsecaseTest.kt:12-41`).
+  записи fake'а и результат ([`ReceiveMessageUsecaseTest.kt:12-41`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecaseTest.kt#L12-L41)).
 - **Адаптер in-process** — шаблон для новых адаптеров: записать запрос в `port.input` и проверить обратный
-  маппинг (`PersistenceDataInProcessAdapterTest.kt:27-49`, `VkProfileInProcessAdapterTest.kt:16-34`).
+  маппинг ([`PersistenceDataInProcessAdapterTest.kt:31-53`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt#L31-L53), [`VkProfileInProcessAdapterTest.kt:16-34`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/VkProfileInProcessAdapterTest.kt#L16-L34)).
 - **Fake с настраиваемым поведением** — параметр конструктора вместо `when(...)`:
   `FakeVkClient(vkResponseDto = ...)`.
 - **Thread safety** — `ConcurrentLinkedQueue` для записанных вызовов, не `mutableListOf`.
@@ -232,7 +232,7 @@ default` FAILED с именем параметра. После отката об
 
 ## Интеграционные тесты
 
-`VkLongPollIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`):
+`VkLongPollIntegrationTest` ([`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt)):
 
 - `@QuarkusTest` + `@TestProfile(IntegrationTestProfile::class)` (профиль `integration-test`) +
   `@QuarkusTestResource(WireMockTestResource::class)`; опрос Bots Long Poll включён;
@@ -249,7 +249,7 @@ default` FAILED с именем параметра. После отката об
 - неизвестный тип обновления пропускается, опрос продолжается с новым `ts`, `messages.send` не вызывается;
 - `POST /vk/callback` → 404: HTTP-входа у `receiver` нет.
 
-`AiIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`) — 8 тестов
+`AiIntegrationTest` ([`src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/AiIntegrationTest.kt)) — 8 тестов
 реальной проводки `ai` в единственном деплое: инжектятся CDI-бины `GenerateAnswerOutputPort`,
 `SummarizationOutputPort`, `ImageRecognitionOutputPort`, `VaneSearchOutputPort`, а OpenAI-совместимый endpoint
 LLM и Vane подменены WireMock-заглушками на HTTP-границе. Проверены ответ модели, тело промпта (профили,
@@ -258,7 +258,7 @@ LLM и Vane подменены WireMock-заглушками на HTTP-гран�
 `SummaryGenerationException` при отказе саммаризации, маппинг ответа Vane и
 `VaneProviderNotConfiguredException` при отсутствии провайдера с chat- и embedding-моделью.
 
-`DailyGreetingsIntegrationTest` (`src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`) —
+`DailyGreetingsIntegrationTest` ([`src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/DailyGreetingsIntegrationTest.kt)) —
 10 тестов реальной проводки `daily-greetings`: PostgreSQL (DevServices) с профилями и сообщениями,
 засиженными через `VkUserProfileTable`/`MessageTable`, LLM (`/v1/chat/completions`) и VK API
 (`/method/messages.send`) под WireMock, прогон вызывается напрямую через `RunDailyGreetingsInputPort` — ручного
@@ -269,7 +269,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 `random_id` и отсутствие forward.
 
 `WireMockTestResource` подменяет HTTP-границу трёх клиентов: VK API (`quarkus.rest-client.vk.url`), Vane
-(`quarkus.rest-client.vane.url`) и LLM (`quarkus.langchain4j.openai.base-url`, `WireMockTestResource.kt:24-34`).
+(`quarkus.rest-client.vane.url`) и LLM (`quarkus.langchain4j.openai.base-url`, [`WireMockTestResource.kt:24-34`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/WireMockTestResource.kt#L24-L34)).
 Этого достаточно и для Long Poll: `groups.getLongPollServer` идёт в `/method`, а `a_check` — на `server` из
 ответа заглушки, то есть на тот же базовый URL WireMock.
 Заглушек удалённых loopback-эндпоинтов `/profiles/*` и `/persistence/*` в нём нет, поэтому e2e не пройдёт при
@@ -277,7 +277,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 
 ## Архитектурные тесты
 
-`src/testing/arch-tests`:
+[`src/testing/arch-tests`](../../src/testing/arch-tests):
 
 | Тест | Что проверяет |
 |---|---|
@@ -286,7 +286,7 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 | `NamingConventionsTest` | L7: имя типа — ответственность, а не слой; `*Controller`/`*Service`/`*Repository` запрещены, правило видит production-типы всех модулей (ADR 2026-11-13-responsibility-type-names) |
 | `GradleDependenciesTest` | найдено 13 build-файлов; обязательные рёбра `:src:app`/`:src:testing:arch-tests` → `:src:greetings` и membership в `coverageModules`; production-рёбра соответствуют allowlist; testing-модули только в test-конфигурациях |
 | `TestDataFactoriesTest` | сторож правила тестовых данных: прямое создание в тестах и дефолты параметров фабрик (см. «Сторож правила») |
-| `DetektExcludesPathTest` | глобы `excludes` из `detekt-config.yml` не матчат main-исходники даже при чек-ауте в каталоге с именем `test` |
+| `DetektExcludesPathTest` | глобы `excludes` из [`detekt-config.yml`](../../detekt-config.yml) не матчат main-исходники даже при чек-ауте в каталоге с именем `test` |
 
 Негативная проверка (этот проход): класс пакета `receiver` в модуле `persistence`, зависящий от
 `persistence` → `ModuleDependenciesTest > receiver module should only depend on share() FAILED`, exit 1;
@@ -295,14 +295,16 @@ REST-триггера нет. Покрыты: дни рождения в гру�
 ## Покрытие
 
 - Агрегат по 9 модулям (`ai, app, greetings, infrastructure, persistence, processor, receiver, share,
-  vk-facade`), `src/testing/*` исключён (`build.gradle.kts:22-32`).
-- Измерено: **line ratio 0.5687** (1478 покрытых строк из 2599, 56.87% LINE);
-  `coverageMin = 0.40`, `measuredLineCoverage = 0.5687` (`build.gradle.kts:19-20`).
-- Порог включён в `check` → `build` (`build.gradle.kts:131-134`) и в CI-джоб `coverage`.
-- Политика: порог не понижается; ратчет 0.40 выполнен (было 0.2796 при пороге 0.25), следующий целевой
-  порог 0.60 — отдельная задача с новыми тестами (ADR 2026-10-28-quality-gates-and-ci). Покрытие меряется по бизнес-коду, а не по glue.
-- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: lines covered ratio is 0.56,
-  but expected minimum is 0.99`, exit 1.
+  vk-facade`), `src/testing/*` исключён ([`build.gradle.kts:21-31`](../../build.gradle.kts#L21-L31)).
+- Порог `coverageMin = 0.40` ([`build.gradle.kts:19`](../../build.gradle.kts#L19)) включён в `check` → `build`
+  ([`build.gradle.kts:130-133`](../../build.gradle.kts#L130-L133)) и в CI-джоб `coverage` — тот же прогон
+  остаётся единственным прогоном тестов, отчёта и порога в CI.
+- Живое покрытие и число тестов в документации не хардкодим: CI-джоб `coverage` публикует бейджи
+  ([`scripts/coverage-badges.py`](../../scripts/coverage-badges.py)) в ветку `badges` из этого же прогона,
+  README их показывает. Локально — `./gradlew coverageReport` → `build/reports/jacoco/coverageReport/html`.
+- Политика: порог не понижается; повышение порога — отдельное решение (ADR 2026-10-28-quality-gates-and-ci).
+  Покрытие меряется по бизнес-коду, а не по glue.
+- Негативная проверка: `coverageMin = 0.99` → `Rule violated for bundle vkbot: ...`, exit 1.
 
 ## Ограничения
 
@@ -311,4 +313,4 @@ REST-триггера нет. Покрыты: дни рождения в гру�
   проверяется Quarkus-тестом в единственном деплое — `AiIntegrationTest` в `:src:app`; юнит-тесты `ai` —
   plain JUnit 5 без Docker.
 - Для устойчивости к отсутствию тестов в модуле сборка ставит `failOnNoDiscoveredTests = false`
-  (`build.gradle.kts:70-73`) — новый модуль без тестов не упадёт, но и не будет проверен.
+  ([`build.gradle.kts:69-72`](../../build.gradle.kts#L69-L72)) — новый модуль без тестов не упадёт, но и не будет проверен.
