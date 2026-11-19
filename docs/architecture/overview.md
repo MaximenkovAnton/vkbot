@@ -99,6 +99,7 @@ PROFILE_REQUESTED ──> ai/ProfileRequestedEventProcessor
     ProcessProfileCommand: резолв адресата (mention → пересылка → «обо мне» → имя среди авторов чата)
     → in-process persistence (профиль VK, статистика, история) + live vk-порт при отсутствии профиля
     → LLM (досье) → ANSWER_MESSAGE
+    → адресат по имени не найден → MESSAGE_REQUIRE_ANSWER → ai/MessageRequireAnswerEventProcessor
 
 MESSAGE_REQUIRE_ANSWER ──> ai/MessageRequireAnswerEventProcessor
     GenerateAnswerUsecase: контекст (in-process persistence-порты) → LLM

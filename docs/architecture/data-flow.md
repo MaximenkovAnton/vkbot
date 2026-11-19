@@ -256,6 +256,7 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
     → ProcessProfileUsecase → ProcessProfileCommandImpl
     → ProfileTargetResolver: mention id/club/public → пересылка → «обо мне»/«про меня»
         → имя среди сохранённых профилей авторов этого peer_id
+        → имя не совпало → MESSAGE_REQUIRE_ANSWER → ai/MessageRequireAnswerEventProcessor → ANSWER_MESSAGE
     → in-process persistence: авторы чата, профиль VK, статистика, история (20 записей)
     → при отсутствии сохранённого профиля — live vk-порт (ответ VK не сохраняется)
     → FindUserKnowledgePort([цель]) — знания из чата; у группы чтения нет
@@ -269,8 +270,10 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
 - **Резолв адресата — детерминированный домен.** Приоритет строгий: один mention `id`/`club`/`public`,
   затем последнее пересланное сообщение с `fromId ≠ vk.bot.id`, затем «обо мне»/«про меня» (автор
   сообщения), затем фраза имени среди сохранённых профилей авторов этого `peer_id`. Один кандидат —
-  цель; несколько — одно уточнение со списком не больше 10 кандидатов и без LLM; ноль — «не нашёл».
-  Упоминание самого бота отбрасывается. Состояния уточнения нет: следующий запрос резолвится заново.
+  цель; несколько — одно уточнение со списком не больше 10 кандидатов и без LLM; ноль — публикация
+  `MESSAGE_REQUIRE_ANSWER` с исходным `Message` (обычный ответ `ai-answer`), а не «не нашёл»
+  (ADR 2026-11-19-profile-intent-false-positives). Упоминание самого бота отбрасывается. Состояния
+  уточнения нет: следующий запрос резолвится заново.
 - **Данные.** `FindChatAuthorsPort` даёт авторов чата и счётчик сообщений цели; сохранённый профиль —
   `FindStoredUserProfilesByIdsPort`/`FindStoredGroupProfilesByIdsPort`, при отсутствии —
   `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (live VK; ответ не сохраняется);
@@ -292,7 +295,8 @@ PROFILE_REQUESTED → ai/ProfileRequestedEventProcessor
   исключения (без текста/PII). Если профиль не получен ни из БД, ни из VK — «Профиль недоступен.» без
   LLM.
 - **Запись.** В БД ничего не пишется: у команды нет write-портов; live-профиль не сохраняется; знания в
-  `vk_user_profiles` не пишутся; ровно один `ANSWER_MESSAGE` с `responseTo = исходное Message`. Ошибки
+  `vk_user_profiles` не пишутся; ровно один `ANSWER_MESSAGE` с `responseTo = исходное Message` (или ровно
+  один `MESSAGE_REQUIRE_ANSWER` с исходным `Message` при нерезолвленном адресате). Ошибки
   чтения и публикации не перехватываются — уходят в retry-лестницу брокера; единственное исключение —
   опциональное чтение знаний: сбой `FindUserKnowledgePort` даёт WARNING без значений и досье без секции
   (ADR 2026-11-11-profile-knowledge-overlay, `Amends` ADR 2026-11-10-profile-dossier).

@@ -41,14 +41,11 @@ private const val LINE_SEPARATOR = "\n"
 private const val CANDIDATE_SEPARATOR = "; "
 private const val SCREEN_NAME_PREFIX = "@"
 private const val ID_HINT_TEMPLATE = "id%d"
-private const val PHRASE_PLACEHOLDER = "%s"
 private const val PROFILE_UNAVAILABLE_REPLY = "Профиль недоступен."
 private const val GENERATION_FAILED_REPLY = "Не удалось собрать профиль. Попробуйте позже."
 private const val NO_TARGET_REPLY = "Уточните, о ком речь: имя, @упоминание, id или пересланное сообщение."
 private const val CLARIFICATION_HEADER = "Уточните, о ком речь:"
 private const val CLARIFICATION_FOOTER = "Напишите полное имя или упоминание."
-private const val NOT_FOUND_TEMPLATE = "Среди участников этого чата не нашёл «%s». " +
-    "Напишите полное имя, @упоминание, id или перешлите сообщение."
 private const val TARGET_ID_LABEL = "targetId"
 private const val REQUESTER_ID_LABEL = "requesterId"
 private val EMPTY_KNOWLEDGE = UserKnowledge(emptyList(), null, false)
@@ -90,7 +87,7 @@ class ProcessProfileCommandImpl(
         when (val resolution = resolve(message, authors)) {
             is ProfileTargetResolver.Resolution.Resolved -> answer(message, resolution, authors)
             is ProfileTargetResolver.Resolution.Ambiguous -> publish(clarification(resolution.targets), message)
-            is ProfileTargetResolver.Resolution.NotFound -> publish(notFound(resolution.phrase), message)
+            is ProfileTargetResolver.Resolution.NotFound -> requestGeneralAnswer(message)
             ProfileTargetResolver.Resolution.NoTarget -> publish(NO_TARGET_REPLY, message)
         }
         return ProcessProfileCommand.ProcessProfileResponse
@@ -305,7 +302,14 @@ class ProcessProfileCommandImpl(
         ?.let { findStoredGroupProfilesByIdsPort.execute(FindStoredGroupProfilesByIdsPort.Request(it)).profiles }
         .orEmpty()
 
-    private fun notFound(phrase: String): String = NOT_FOUND_TEMPLATE.replace(PHRASE_PLACEHOLDER, phrase)
+    private fun requestGeneralAnswer(message: Message) {
+        publishEventCommand.execute(
+            PublishEventRequest(
+                event = Event.MESSAGE_REQUIRE_ANSWER,
+                payload = Payload(message),
+            ),
+        )
+    }
 
     private fun publish(text: String, message: Message) {
         publishEventCommand.execute(

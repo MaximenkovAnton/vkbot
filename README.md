@@ -22,7 +22,7 @@ hexagonal architecture: plain Kotlin behaviour behind ports, the framework at th
 - Intent routing: exact `/help`/`/помощь` and the `help` intent get a fixed help text; the `news` intent ("what happened in the chat") gets an LLM digest over a period parsed from the request text, with a fixed refusal for periods longer than a week and a fixed answer when there is nothing for the period
 - Decision stage: one System One call answers four questions (`spam`, `class`, `intent`, `jailbreak`); spam and prompt-injection notices are sent when their thresholds are reached, with per-branch kill-switches and fail-open behaviour
 - Chat knowledge: from incoming messages the bot extracts facts about people (category, key, value, source, date and confidence), stores them with dedup and a confirmation threshold, and keeps per-user and per-chat LLM summaries; the knowledge appears in answers, the profile dossier ("Из общения:"), the news digest and greetings (including a birthday known only from the chat)
-- The `profile` intent (a decision-model intent, not a slash command): "what do you know about ...", "about me" — the bot resolves the target deterministically (a mention id/club/public, a forwarded message, "обо мне"/"про меня", or a name among the participants of this chat), answers with one LLM dossier built from the stored VK profile (typed fields and human details), materialized statistics (including per-chat activity), the last 20 profile-history entries and the target's message count in this chat, and asks for clarification with at most 10 candidates without an LLM call; nothing is written to the database
+- The `profile` intent (a decision-model intent, not a slash command): "what do you know about ...", "about me" — the bot resolves the target deterministically (a mention id/club/public, a forwarded message, "обо мне"/"про меня", or a name among the participants of this chat), answers with one LLM dossier built from the stored VK profile (typed fields and human details), materialized statistics (including per-chat activity), the last 20 profile-history entries and the target's message count in this chat, and asks for clarification with at most 10 candidates without an LLM call; when a name matches no participant, the message is handed to the regular answer path (`MESSAGE_REQUIRE_ANSWER`) instead of a "not found" dossier reply; nothing is written to the database
 - Daily greetings on a cron schedule (`greetings.cron`, 00:00 by default; New Year, Programmer Day, birthdays) with AI text, template fallback and an at-most-once claim per chat
 - In-process ports between modules of the same deployable (no loopback HTTP, ADR 2026-10-28-in-process-ports-instead-of-loopback-rest)
 - OpenTelemetry traces/metrics/logs
@@ -174,6 +174,7 @@ VK long poll → receiver → MESSAGE_NEW → persistence (save + fetch profiles
               → profile: PROFILE_REQUESTED → ai (deterministic target → stored profile/statistics/history
                 + live VK profile when missing → LLM dossier)
                 → ANSWER_MESSAGE → vk-facade → VK API
+                (target name not found → MESSAGE_REQUIRE_ANSWER → ai → regular answer)
               → general: MESSAGE_REQUIRE_ANSWER → ai → ANSWER_MESSAGE → vk-facade → VK API
 ```
 
