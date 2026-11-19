@@ -74,6 +74,13 @@ Kill-switch'и останавливают вызов decision-модели и PI
 | `PROFILE` | ровно один `PROFILE_REQUESTED` с доменным `Message` | `profile-dossier` — досье из сохранённого профиля VK, статистики и истории |
 | `GENERAL` | ровно один `MESSAGE_REQUIRE_ANSWER` с доменным `Message` | `ai-answer` |
 
+Критерии интента сформулированы в тексте вопроса (`ChoiceQuestion` с опциями
+`help`/`news`/`profile`/`general`): `profile` требует просьбы сведений о конкретном человеке или группе
+этого чата и прямо исключает вопросы о боте и о явлениях, вещах, программах, событиях, погоде и новостях
+чата; `general` описывает обычный вопрос, мнение и болтовню. Если модель всё же выбрала `profile`, а
+`profile-dossier` не нашёл адресата по имени, capability публикует `MESSAGE_REQUIRE_ANSWER` — отвечает
+обычная ветка `ai-answer` (ADR 2026-11-19-profile-intent-false-positives).
+
 Точные `/help` и `/помощь` (trim, без учёта регистра, без аргументов) распознаются детерминированно на
 интент-этапе — после `requiredAnswer`, до ленивого вызова модели; `/help` и `/помощь` с аргументами или
 `@`-суффиксом дают детерминированный `general`. Если анализа ещё нет (личный чат, обе ветки off,
@@ -102,7 +109,7 @@ fail-open), интент-этап делает ровно один ленивы�
 | правило порога спама | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isSpam/IsSpamCommand.kt#L9-L23) |
 | правило порога jailbreak | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt:9-23`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isJailbreak/IsJailbreakCommand.kt#L9-L23) |
 | decision-порт | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt:9-13`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/port/output/decision/AnalyzeMessageOutputPort.kt#L9-L13) |
-| клиент decision-модели: четыре вопроса, пустой вход, ошибки, маппинг | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:56-162`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt#L56-L162) |
+| клиент decision-модели: четыре вопроса, критерии интентов, пустой вход, ошибки, маппинг | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt:75-172`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/adapter/output/decision/DecisionModelOutputAdapter.kt#L75-L172) |
 | домен: `jailbreakProbability` и валидация `[0,1]` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt:7-43`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/domain/decision/DecisionAnalysis.kt#L7-L43) |
 | правила решения | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt:22-33`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/isRequireAnswer/IsRequireAnswerCommand.kt#L22-L33) |
 | справка: текст и подстановка `vk.bot.mention` | [`src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt:10-36`](../../src/processor/src/main/kotlin/com/simarel/vkbot/processor/command/help/BuildHelpTextCommand.kt#L10-L36) |
@@ -139,7 +146,7 @@ decision-этап. WARNING при отказе содержит только `pe
 |---|---|---|
 | доменное `Message` | `vk-long-poll` (producer), `message-storage`, `ai-answer` | `vk-long-poll` |
 | `DecisionAnalysis` (включая `jailbreakProbability`), `MessageClass`, `MessageIntent`, контракт четырёх вопросов | тесты `processor` и [`src/app`](../../src/app), внешний System One | `processor` (decision-клиент, ADR 2026-11-08-decision-model-langchain4j, ADR 2026-11-09-decision-runtime-spam-policy, ADR 2026-11-10-decision-jailbreak-detection) |
-| событие `MESSAGE_REQUIRE_ANSWER` | `ai-answer` (consumer); producer — `answer-decision` (ветка `general`) | `answer-decision` |
+| событие `MESSAGE_REQUIRE_ANSWER` | `ai-answer` (consumer); producer — `answer-decision` (ветка `general`), `profile-dossier` (fallback при нерезолвленном адресате) | `answer-decision` (событие), `profile-dossier` (fallback) |
 | событие `NEWS_DIGEST_REQUESTED` | consumer — `chat-news-digest` (сводка «что нового») | producer и payload — `answer-decision`; имя и routing key — `event-dispatch` |
 | событие `PROFILE_REQUESTED` | consumer — `profile-dossier` (досье об участнике чата) | producer и payload — `answer-decision` (ветка `profile`); имя и routing key — `event-dispatch` |
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | `vk-message-send` (consumer); producers — `ai-answer` и `answer-decision` (спам, jailbreak и справка) | `ai-answer` (контракт/payload не меняется) |
@@ -172,6 +179,10 @@ decision-этап. WARNING при отказе содержит только `pe
   вместо инфинитивных требований, удалено «сделать другое», добавлен отрицательный пример для бытовых
   просьб; порог `0.85` и область (все сообщения чата) не меняются; `Amends` ADR
   2026-11-10-jailbreak-rubric-and-threshold.
+- ADR 2026-11-19-profile-intent-false-positives — рубрика `intent` ужесточена: `profile` — только
+  просьба сведений о конкретном участнике чата, вопросы о боте и о явлениях отнесены к `general`;
+  нерезолвленный в `profile-dossier` адресат уходит в `MESSAGE_REQUIRE_ANSWER`; `Amends`
+  ADR 2026-11-09-decision-runtime-spam-policy и ADR 2026-11-10-profile-dossier.
 
 ## Acceptance criteria
 
@@ -321,3 +332,7 @@ decision-этап. WARNING при отказе содержит только `pe
   валидируется.
 - Ленивый интент-вызов достижим любому человеку в личном чате: rate limit и анти-флуда нет, на сообщение
   до двух порт-вызовов (OWASP API4:2023, CWE-770).
+- Рубрика `intent` уточнена без замера на живом `d1` (`DECISION_URL` в окружении разработки нет);
+  ложную маршрутизацию в `profile` страхует детерминированный fallback `profile-dossier` —
+  `MESSAGE_REQUIRE_ANSWER` вместо «не нашёл» (ADR 2026-11-19-profile-intent-false-positives). Замер
+  доли `profile` на обычном корпусе — следующий шаг, как это сделано для jailbreak.

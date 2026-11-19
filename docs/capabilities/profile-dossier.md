@@ -9,7 +9,9 @@
 `profile`: `answer-decision` публикует `PROFILE_REQUESTED` с доменным `Message`, `profile-dossier`
 детерминированно определяет адресата, читает сохранённые данные, один раз просит LLM русский текст досье и
 публикует ровно один `ANSWER_MESSAGE` с `ResponseMessage(messageText, responseTo = исходное Message)`;
-доставляет его `vk-message-send`. В БД ничего не пишется: у команды нет ни одного write-порта.
+доставляет его `vk-message-send`. Если адресат по имени не найден, команда публикует ровно один
+`MESSAGE_REQUIRE_ANSWER` с исходным `Message`, и отвечает обычная ветка `ai-answer` (ADR
+2026-11-19-profile-intent-false-positives). В БД ничего не пишется: у команды нет ни одного write-порта.
 
 1. **Адресат определяется детерминированным доменом**, не моделью. Порядок строгий, первый сработавший шаг
    выигрывает:
@@ -19,7 +21,12 @@
    | 1. Упоминания | `[idN\|label]`, `[clubN\|label]`, `[publicN\|label]` и отдельные токены `idN`/`clubN`/`publicN` (N > 0) | `User(N)` для `id`, `Group(-N)` для `club`/`public`; упоминание самого бота (его id, id сообщества или `vk.bot.mention`) отбрасывается; один id — цель, несколько — уточнение |
    | 2. Пересылка | `forwardedMessages` с конца списка | первое пересланное сообщение с `fromId ≠ vk.bot.id`: `User` при `fromId > 0`, `Group` при `fromId < 0`; все пересылки от бота — следующий шаг |
    | 3. «Обо мне» | нормализованный текст содержит `обо мне` или `про меня` | `User(message.fromId)` |
-   | 4. Имя | остаток текста после вырезания триггеров и служебных слов | ровно один участник этого `peer_id` по сохранённому профилю — цель; несколько — уточнение; ноль — «не нашёл» |
+   | 4. Имя | остаток текста после вырезания триггеров и служебных слов | ровно один участник этого `peer_id` по сохранённому профилю — цель; несколько — уточнение; ноль — `MESSAGE_REQUIRE_ANSWER` (обычный ответ) |
+
+   Ноль совпадений по имени при отсутствии mention, пересылки и «обо мне»/«про меня» означает, что
+   запрос, вероятно, не про профиль: команда публикует `MESSAGE_REQUIRE_ANSWER` с исходным `Message`,
+   и отвечает `ai-answer`. LLM досье в этой ветке не вызывается. Так классификатор не может отправить
+   обычный вопрос в ответ «не нашёл»; уточнения `Ambiguous` и `NoTarget` остаются.
 
 2. **Досье собирается из сохранённых источников** и передаётся LLM детерминированным русским текстом:
    профиль VK (typed-поля и человеческие `details`), знания о человеке из чата, сводка этого чата
@@ -62,7 +69,8 @@
    фиксированный фолбэк и пишет ERROR только с `peerId` и простым именем класса исключения.
 7. **Запись отсутствует.** Live-профиль, запрошенный через `GetUserProfilesBatchPort`/
    `GetGroupProfilesBatchPort`, не сохраняется; `messages`, профили, история, статистика и знания только
-   читаются. `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются.
+   читаются. `SUMMARY_REQUESTED`/`SUMMARY_READY` не публикуются. При нерезолвленном адресате публикуется
+   `MESSAGE_REQUIRE_ANSWER` (fallback в `ai-answer`) вместо `ANSWER_MESSAGE`.
 
 Неоднозначность решается одним сообщением, состояние «жду уточнение» не запоминается: следующий запрос
 резолвится заново. Уточнение перечисляет не больше 10 кандидатов в порядке первого появления или
@@ -71,17 +79,19 @@
 | Случай | Дословный текст (без LLM) |
 |---|---|
 | Несколько кандидатов | `Уточните, о ком речь: 1) Имя Фамилия (@screen, id7600001); 2) …. Напишите полное имя или упоминание.` — не больше 10; без профиля — `N) id<fromId>` |
-| Никого не нашли | `Среди участников этого чата не нашёл «<фраза>». Напишите полное имя, @упоминание, id или перешлите сообщение.` |
 | Цель не определена | `Уточните, о ком речь: имя, @упоминание, id или пересланное сообщение.` |
 | Профиль недоступен | `Профиль недоступен.` |
 | LLM отказал | `Не удалось собрать профиль. Попробуйте позже.` |
+
+Если фраза имени не совпала ни с кем, досье не отвечает вовсе: команда публикует ровно один
+`MESSAGE_REQUIRE_ANSWER` с исходным `Message`, и обычный ответ строит `ai-answer`.
 
 ## Точки входа
 
 | Точка входа | Где в коде |
 |---|---|
 | `PROFILE_REQUESTED` из `all-events-queue`: разбор `Message` и вызов входного порта | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt:12-22`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/input/event/ProfileRequestedEventProcessor.kt#L12-L22) |
-| сценарий, резолв адресата, сборка досье и ровно одна публикация `ANSWER_MESSAGE` | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt:52-247`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt#L52-L247) |
+| сценарий, резолв адресата, сборка досье (или fallback в `ai-answer`) и ровно одна публикация | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt:82-334`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImpl.kt#L82-L334) |
 | входной порт и тонкий use case | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt:8-18`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/port/input/profile/ProcessProfileInputPort.kt#L8-L18), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/profile/ProcessProfileUsecase.kt:10-20`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/usecase/profile/ProcessProfileUsecase.kt#L10-L20) |
 | резолв адресата: mentions, пересылка, «обо мне» | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt:15-111`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileTargetResolver.kt#L15-L111) |
 | вырезание фразы имени и сопоставление с участниками | [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt:3-59`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameNormalizer.kt#L3-L59), [`src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt:11-45`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/domain/profile/ProfileNameMatcher.kt#L11-L45) |
@@ -132,13 +142,16 @@
 `journey-profile`, шаг `profile-dossier`: триггер — ветка `profile` шага `answer-decision` (событие
 `PROFILE_REQUESTED` после `requiredAnswer=true`), дальше — `vk-message-send`; транспорт событий —
 `event-dispatch`. В групповом чате запрос достижим только после `requiredAnswer=true` (упоминание бота или
-forward от бота) — named gap, а не дефект досье. В `journey-answer` ветка ответа не перестраивается.
+forward от бота) — named gap, а не дефект досье. Если адресат по имени не найден, шаг не отвечает досье, а
+возвращает сообщение в `journey-answer` событием `MESSAGE_REQUIRE_ANSWER`; в остальном `journey-answer` не
+перестраивается.
 
 ## Общие данные и контракты
 
 | Общее | Кто ещё использует | Владелец |
 |---|---|---|
 | событие `PROFILE_REQUESTED` и payload — доменный `Message` | producer — `answer-decision`; имя и routing key — `event-dispatch` | `answer-decision` (producer), `event-dispatch` (каталог `Event`) |
+| событие `MESSAGE_REQUIRE_ANSWER` с исходным `Message` | producer — `profile-dossier` при нерезолвленном адресате; consumer — `ai-answer` | `answer-decision` (событие), `profile-dossier` (fallback-ветка) |
 | событие `ANSWER_MESSAGE`, payload `ResponseMessage` | consumer — `vk-message-send`; producers — `ai-answer`, `answer-decision`, `chat-news-digest`, `profile-dossier` | `ai-answer` (контракт/payload не меняется) |
 | `PublishEventCommand`/`PublishEventOutputPort` | все публикующие возможности | `event-dispatch` |
 | `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | реализация — `persistence`, потребитель — `ai` | `message-storage` (реализация и схема) |
@@ -162,7 +175,10 @@ forward от бота) — named gap, а не дефект досье. В `journ
   и сводка только читаются, в VK-профиль не пишутся).
 - `vk-profiles` — live-порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` для отсутствующего
   сохранённого профиля (ответ не сохраняется).
-- `event-dispatch` — доставка события и публикация `ANSWER_MESSAGE`.
+- `event-dispatch` — доставка события и публикация `ANSWER_MESSAGE`; при нерезолвленном адресате —
+  публикация `MESSAGE_REQUIRE_ANSWER`.
+- `ai-answer` — consumer `MESSAGE_REQUIRE_ANSWER` в fallback-ветке: обычный ответ строит `ai-answer`, а
+  не `profile-dossier`.
 - внешний LLM — через LangChain4j AI-сервис (ADR 2026-11-05-llm-provider-vllm-openai).
 
 ## ADR
@@ -182,6 +198,9 @@ forward от бота) — named gap, а не дефект досье. В `journ
   запрашивающего (`Кто запрашивает:`, `Знания запрашивающего:`) с правилом «только человек, не бот, не
   цель» и fail-open каждого чтения; `Amends` ADR 2026-11-10-profile-dossier и ADR
   2026-11-11-profile-knowledge-overlay.
+- ADR 2026-11-19-profile-intent-false-positives — fallback ветки `profile` при нерезолвленном адресате:
+  `MESSAGE_REQUIRE_ANSWER` вместо «не нашёл», уточнения `Ambiguous`/`NoTarget` не меняются; `Amends`
+  ADR 2026-11-10-profile-dossier и рубрику `intent` ADR 2026-11-09-decision-runtime-spam-policy.
 
 ## Acceptance criteria
 
@@ -222,12 +241,14 @@ forward от бота) — named gap, а не дефект досье. В `journ
 - **AC-profile-dossier-6** — КОГДА фраза имени совпадает с 2 и более участниками, СИСТЕМА ДОЛЖНА
   опубликовать ровно одно уточнение со списком не более 10 кандидатов в формате
   `N) Имя Фамилия (@screen_name, id<fromId>)` и НЕ вызывать LLM; КОГДА фраза имени не совпала ни с кем —
-  «Среди участников этого чата не нашёл «<фраза>». Напишите полное имя, @упоминание, id или перешлите
-  сообщение.»; КОГДА цели нет вообще — «Уточните, о ком речь: имя, @упоминание, id или пересланное
-  сообщение.»; оба раза без LLM. Test:
+  опубликовать ровно один `MESSAGE_REQUIRE_ANSWER` с исходным `Message` и не публиковать `ANSWER_MESSAGE`
+  (fallback в обычный ответ `ai-answer`); КОГДА цели нет вообще — «Уточните, о ком речь: имя, @упоминание,
+  id или пересланное сообщение.»; все ветки — без LLM досье. Test:
   [`src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt`](../../src/ai/src/test/kotlin/com/simarel/vkbot/ai/command/profile/ProcessProfileCommandImplTest.kt)
   (`asks to clarify when several participants match`, `lists at most ten candidates`,
-  `reports not found for an unknown name`, `asks for a target when nothing is resolvable`).
+  `routes an unknown name to the general answer`,
+  `routes an ordinary chat message that mentioned the bot to the general answer`,
+  `asks for a target when nothing is resolvable`).
 - **AC-profile-dossier-7** — КОГДА цель определена и профиль есть, СИСТЕМА ДОЛЖНА собрать LLM-вход из
   профиля (typed + `details`), статистики, последних 20 записей истории и числа сообщений цели в этом чате,
   вызвать LLM один раз, опубликовать ровно один `ANSWER_MESSAGE` и не писать в БД (в команде нет
@@ -359,6 +380,11 @@ forward от бота) — named gap, а не дефект досье. В `journ
   нему короче, а следующий запрос повторит вызов VK.
 - **В групповом чате запрос достижим только после `requiredAnswer=true`** (упоминание бота или forward от
   бота) — следствие решения «только интент decision-модели», а не дефект резолва.
+- **Fallback в `general` — новая граница:** запрос досье о человеке, которого нет среди сохранённых
+  авторов чата, теперь отвечает обычная модель `ai-answer`, а не «не нашёл»; это осознанный размен
+  (ADR 2026-11-19-profile-intent-false-positives). Замер рубрики `intent` на живом `d1` в этом изменении
+  не выполнялся — `DECISION_URL` в окружении разработки нет; от ложной маршрутизации защищает
+  детерминированный fallback, а не только текст критериев.
 - **PII-egress:** профиль, история, статистика (включая активность из чужих чатов) и исходный вопрос уходят
   в LLM-промпт — общий PII-контур (§«PII и логи» в [`docs/development/configuration.md`](../development/configuration.md); принятый риск
   ADR 2026-11-10-profile-dossier); новый код значения не логирует.

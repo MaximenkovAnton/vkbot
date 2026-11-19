@@ -309,7 +309,7 @@ class ProcessProfileCommandImplTest {
     }
 
     @Test
-    fun `reports not found for an unknown name`() {
+    fun `routes an unknown name to the general answer`() {
         val message = message("кто такой Вася Пупкин")
         val publish = FakePublishEventCommand()
         val generation = RecordingProfileAnswerGenerationPort()
@@ -327,11 +327,32 @@ class ProcessProfileCommandImplTest {
             generation = generation,
         ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
 
-        assertEquals(
-            "Среди участников этого чата не нашёл «Вася Пупкин». " +
-                "Напишите полное имя, @упоминание, id или перешлите сообщение.",
-            publishedText(publish),
+        assertSingleGeneralAnswerRequest(publish, message)
+        assertNoGeneration(generation)
+    }
+
+    @Test
+    fun `routes an ordinary chat message that mentioned the bot to the general answer`() {
+        val message = message(
+            "@simarel кто @simarel? То есть Андрей Иванов любит гороховый суп с копчёностями?",
         )
+        val publish = FakePublishEventCommand()
+        val generation = RecordingProfileAnswerGenerationPort()
+        val chatAuthors = RecordingFindChatAuthorsPort(
+            listOf(FakeModelProvider.createChatAuthor(fromId = 7600001)),
+        )
+        val storedUserProfiles = RecordingFindStoredUserProfilesByIdsPort(
+            listOf(userProfile(7600001, firstName = "Паша", lastName = "Селезнев", screenName = "pasha")),
+        )
+
+        command(
+            publish = publish,
+            chatAuthors = chatAuthors,
+            storedUserProfiles = storedUserProfiles,
+            generation = generation,
+        ).execute(FakeProfileProvider.createProcessProfileCommandRequest(message))
+
+        assertSingleGeneralAnswerRequest(publish, message)
         assertNoGeneration(generation)
     }
 
@@ -816,6 +837,12 @@ class ProcessProfileCommandImplTest {
         val response = request.payload.value as ResponseMessage
         assertEquals(text, response.messageText.value)
         assertSame(message, response.responseTo)
+    }
+
+    private fun assertSingleGeneralAnswerRequest(publish: FakePublishEventCommand, message: Message) {
+        val request = publish.executeCalls.single()
+        assertEquals(Event.MESSAGE_REQUIRE_ANSWER, request.event)
+        assertSame(message, request.payload.value)
     }
 
     private fun assertNoGeneration(generation: RecordingProfileAnswerGenerationPort) {
