@@ -8,6 +8,7 @@ import com.simarel.vkbot.persistence.domain.knowledge.UserKnowledgeReadModel
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
+import com.simarel.vkbot.persistence.port.output.persistence.AcquireLongPollLeasePort
 import com.simarel.vkbot.persistence.port.output.persistence.CheckPendingKnowledgeBatchPort
 import com.simarel.vkbot.persistence.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.persistence.port.output.persistence.FindChatAuthorsByPeerIdPort
@@ -36,6 +37,9 @@ import com.simarel.vkbot.persistence.port.output.persistence.FindUserSummaryStat
 import com.simarel.vkbot.persistence.port.output.persistence.HasPendingSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.InsertSummaryPort
 import com.simarel.vkbot.persistence.port.output.persistence.PersistUserFactsPort
+import com.simarel.vkbot.persistence.port.output.persistence.PurgeIncomingMessagesPort
+import com.simarel.vkbot.persistence.port.output.persistence.RegisterIncomingMessagePort
+import com.simarel.vkbot.persistence.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveKnowledgeExtractionCursorPort
 import com.simarel.vkbot.persistence.port.output.persistence.SaveLongPollTsPort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateSummaryStatusAndSummariesPort
@@ -95,6 +99,10 @@ open class PersistenceDataUsecase(
     private val findUserBirthdayFactsPort: FindUserBirthdayFactsPort,
     private val findUserKnowledgeSummariesByUserIdsPort: FindUserKnowledgeSummariesByUserIdsPort,
     private val findUserSummaryStatePort: FindUserSummaryStatePort,
+    private val registerIncomingMessagePort: RegisterIncomingMessagePort,
+    private val purgeIncomingMessagesPort: PurgeIncomingMessagesPort,
+    private val acquireLongPollLeasePort: AcquireLongPollLeasePort,
+    private val releaseLongPollLeasePort: ReleaseLongPollLeasePort,
     private val publishEventCommand: PublishEventCommand,
 ) : PersistenceDataInputPort {
 
@@ -228,6 +236,44 @@ open class PersistenceDataUsecase(
     override fun findUserKnowledgeSummaryState(
         request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
     ): PersistenceDataResponse.UserKnowledgeSummaryState = handleFindUserKnowledgeSummaryState(request)
+
+    override fun registerIncomingMessage(
+        request: PersistenceDataRequest.RegisterIncomingMessage,
+    ): PersistenceDataResponse.RegisteredInboxMessage {
+        val inboxMessageId = registerIncomingMessagePort.execute(
+            RegisterIncomingMessagePort.RegisterIncomingMessageRequest(
+                request.peerId,
+                request.conversationMessageId,
+                request.payload,
+            ),
+        ).inboxMessageId
+        return PersistenceDataResponse.RegisteredInboxMessage(inboxMessageId)
+    }
+
+    override fun purgeIncomingMessages(
+        request: PersistenceDataRequest.PurgeIncomingMessages,
+    ): PersistenceDataResponse.PurgedIncomingMessages = PersistenceDataResponse.PurgedIncomingMessages(
+        purgeIncomingMessagesPort.execute(
+            PurgeIncomingMessagesPort.PurgeIncomingMessagesRequest(request.until),
+        ).deleted,
+    )
+
+    override fun acquireLongPollLease(
+        request: PersistenceDataRequest.AcquireLongPollLease,
+    ): PersistenceDataResponse.LongPollLeaseAcquired = PersistenceDataResponse.LongPollLeaseAcquired(
+        acquireLongPollLeasePort.execute(
+            AcquireLongPollLeasePort.AcquireLongPollLeaseRequest(request.owner, request.ttl),
+        ).acquired,
+    )
+
+    override fun releaseLongPollLease(
+        request: PersistenceDataRequest.ReleaseLongPollLease,
+    ): PersistenceDataResponse.Empty {
+        releaseLongPollLeasePort.execute(
+            ReleaseLongPollLeasePort.ReleaseLongPollLeaseRequest(request.owner),
+        )
+        return PersistenceDataResponse.Empty
+    }
 
     private fun handleFindMessagesBefore(request: PersistenceDataRequest.FindMessagesBefore): PersistenceDataResponse.Messages {
         val messages = findMessagesBeforePort.execute(

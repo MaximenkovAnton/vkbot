@@ -5,6 +5,7 @@ import com.simarel.vkbot.share.domain.model.knowledge.ChatKnowledge
 import com.simarel.vkbot.share.domain.model.knowledge.UserFactCandidate
 import com.simarel.vkbot.share.domain.model.knowledge.UserKnowledge
 import com.simarel.vkbot.share.domain.vo.FromId
+import com.simarel.vkbot.share.port.output.persistence.AcquireLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.AdvanceExtractionCursorPort
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.FindChatAuthorsPort
@@ -26,6 +27,9 @@ import com.simarel.vkbot.share.port.output.persistence.FindUserKnowledgeSummaryS
 import com.simarel.vkbot.share.port.output.persistence.HasPendingKnowledgeBatchPort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
+import com.simarel.vkbot.share.port.output.persistence.PurgeIncomingMessagesPort
+import com.simarel.vkbot.share.port.output.persistence.RegisterIncomingMessagePort
+import com.simarel.vkbot.share.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.SaveChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.SaveUserFactsPort
@@ -43,6 +47,45 @@ private val FIXED_TO: OffsetDateTime = OffsetDateTime.parse("2026-11-07T23:59:59
 
 @Suppress("TooManyFunctions")
 object FakePersistencePortProvider {
+
+    fun createRegisterIncomingMessageRequest(
+        peerId: Long = 101,
+        conversationMessageId: Long = 202,
+        payload: String = """{"type":"message_new"}""",
+    ) = RegisterIncomingMessagePort.Request(
+        peerId = FakeVoProvider.createPeerId(peerId),
+        conversationMessageId = FakeVoProvider.createConversationMessageId(conversationMessageId),
+        payload = payload,
+    )
+
+    fun createRegisterIncomingMessageResponse(
+        inboxMessageId: Long = 9,
+    ) = RegisterIncomingMessagePort.Response(
+        inboxMessageId = FakeVoProvider.createInboxMessageId(inboxMessageId),
+    )
+
+    fun createPurgeIncomingMessagesRequest(
+        until: OffsetDateTime = FIXED_FROM,
+    ) = PurgeIncomingMessagesPort.Request(until = until)
+
+    fun createPurgeIncomingMessagesResponse(
+        deleted: Int = 2,
+    ) = PurgeIncomingMessagesPort.Response(deleted = deleted)
+
+    fun createAcquireLongPollLeaseRequest(
+        owner: String = "owner-1",
+        ttl: Duration = Duration.ofSeconds(40),
+    ) = AcquireLongPollLeasePort.Request(owner = owner, ttl = ttl)
+
+    fun createAcquireLongPollLeaseResponse(
+        acquired: Boolean = true,
+    ) = AcquireLongPollLeasePort.Response(acquired = acquired)
+
+    fun createReleaseLongPollLeaseRequest(
+        owner: String = "owner-1",
+    ) = ReleaseLongPollLeasePort.Request(owner = owner)
+
+    fun createReleaseLongPollLeaseResponse() = ReleaseLongPollLeasePort.Response
 
     fun createFindMessagesBeforeRequest(
         peerId: Long = 1,

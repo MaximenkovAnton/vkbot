@@ -3,6 +3,8 @@ package com.simarel.vkbot.persistence.adapter.output.persistence.jooq
 import org.jooq.impl.DSL
 import org.jooq.impl.SQLDataType
 
+private const val OWNER_LENGTH = 64
+
 object Tables {
 
     object Messages {
@@ -16,6 +18,7 @@ object Tables {
         val CONVERSATION_MESSAGE_ID = DSL.field("conversation_message_id")
         val MESSAGE_TEXT = DSL.field("message_text")
         val FORWARDED_MESSAGES = DSL.field("forwarded_messages", SQLDataType.JSONB)
+        val INBOX_ID = DSL.field("inbox_id", SQLDataType.BIGINT)
     }
 
     object VkUserProfiles {
@@ -70,6 +73,24 @@ object Tables {
 
         val ID = DSL.field("id")
         val TS = DSL.field("ts")
+    }
+
+    object IncomingMessages {
+        val TABLE = DSL.table("incoming_messages")
+
+        val ID = DSL.field("id", SQLDataType.BIGINT)
+        val PEER_ID = DSL.field("peer_id", SQLDataType.BIGINT)
+        val CONVERSATION_MESSAGE_ID = DSL.field("conversation_message_id", SQLDataType.BIGINT)
+        val PAYLOAD = DSL.field("payload", SQLDataType.JSONB)
+        val RECEIVED_AT = DSL.field("received_at", SQLDataType.TIMESTAMPWITHTIMEZONE)
+    }
+
+    object LongPollLease {
+        val TABLE = DSL.table("long_poll_lease")
+
+        val ID = DSL.field("id", SQLDataType.SMALLINT)
+        val OWNER = DSL.field("owner", SQLDataType.VARCHAR(OWNER_LENGTH))
+        val LEASE_UNTIL = DSL.field("lease_until", SQLDataType.TIMESTAMPWITHTIMEZONE)
     }
 
     object UserStatisticsTable {

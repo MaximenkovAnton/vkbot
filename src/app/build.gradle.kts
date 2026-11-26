@@ -46,6 +46,7 @@ dependencies {
     // Testing
     testImplementation("io.quarkus:quarkus-junit5")
     testImplementation("io.rest-assured:rest-assured")
+    testImplementation("org.jooq:jooq:3.19.10")
     testImplementation(kotlin("test"))
     testImplementation(testFixtures(project(":src:ai")))
     testImplementation(testFixtures(project(":src:greetings")))

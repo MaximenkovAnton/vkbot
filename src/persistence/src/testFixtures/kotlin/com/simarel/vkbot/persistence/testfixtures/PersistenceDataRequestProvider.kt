@@ -216,4 +216,27 @@ object PersistenceDataRequestProvider {
     fun createFindUserBirthdayFactsRequest(
         monthDay: MonthDay = MonthDay.of(5, 14),
     ) = PersistenceDataRequest.FindUserBirthdayFacts(monthDay = monthDay)
+
+    fun createRegisterIncomingMessageRequest(
+        peerId: Long = 101,
+        conversationMessageId: Long = 202,
+        payload: String = """{"type":"message_new"}""",
+    ) = PersistenceDataRequest.RegisterIncomingMessage(
+        peerId = peerId,
+        conversationMessageId = conversationMessageId,
+        payload = payload,
+    )
+
+    fun createPurgeIncomingMessagesRequest(
+        until: OffsetDateTime = FIXED_FROM,
+    ) = PersistenceDataRequest.PurgeIncomingMessages(until = until)
+
+    fun createAcquireLongPollLeaseRequest(
+        owner: String = "owner-1",
+        ttl: Duration = Duration.ofSeconds(40),
+    ) = PersistenceDataRequest.AcquireLongPollLease(owner = owner, ttl = ttl)
+
+    fun createReleaseLongPollLeaseRequest(
+        owner: String = "owner-1",
+    ) = PersistenceDataRequest.ReleaseLongPollLease(owner = owner)
 }
