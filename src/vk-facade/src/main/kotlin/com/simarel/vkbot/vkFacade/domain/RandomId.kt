@@ -1,6 +1,7 @@
 package com.simarel.vkbot.vkFacade.domain
 
 import com.simarel.vkbot.share.domain.exception.ValidationException
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import java.nio.ByteBuffer
@@ -17,6 +18,8 @@ value class RandomId private constructor(val value: Int) {
         private const val SMALLEST_RANDOM_ID = 1
 
         fun of(peerId: PeerId, messageText: MessageText): RandomId = of(hash(peerId, messageText))
+
+        fun ofInbox(id: InboxMessageId): RandomId = of((((id.value - 1) % Int.MAX_VALUE) + 1).toInt())
 
         fun of(value: Int): RandomId = RandomId(if (value == 0) SMALLEST_RANDOM_ID else value)
 

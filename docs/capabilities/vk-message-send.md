@@ -7,8 +7,9 @@
 
 Доставляет готовый текст в чат VK: `peer_id`, текст, опциональный forward-блок и `random_id`. Forward
 формируется детерминированно: если он не задан явно и чат не личный — это reply на исходное сообщение;
-`random_id` — SHA-256 от текста, peer_id и даты исходного сообщения, поэтому повторная отправка того же
-ответа даёт тот же id.
+`random_id` — id записи inbox исходного сообщения, приведённый к положительному int32 (`RandomId.ofInbox`),
+поэтому повторная отправка того же ответа даёт тот же id. Для synthetic-сообщений (саммари) и старых
+событий без inbox id — прежний детерминированный SHA-256 от текста и peer_id.
 
 Веток две: ответ/саммари с forward-блоком (`MessageSendUsecase`) и плоская отправка без forward
 (`PlainMessageSendUsecase`, `forwardedMessages = null`); плоский `random_id` — SHA-256 от текста и peer_id
@@ -26,7 +27,7 @@
 | Точка входа | Где в коде |
 |---|---|
 | `ANSWER_MESSAGE` из `all-events-queue` | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt:12-22`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/event/SendMessageEventProcessor.kt#L12-L22) |
-| use case: peer_id, forward, random_id | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt:15-44`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L15-L44) |
+| use case: peer_id, forward, random_id | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt:14-39`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L14-L39) |
 | входной контракт для обоих потребителей | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/input/vk/VkSendMessageInputPort.kt:9-16`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/input/vk/VkSendMessageInputPort.kt#L9-L16) |
 | команда отправки | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/sendVkMessage/SendVkMessageCommandImpl.kt:8-20`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/command/sendVkMessage/SendVkMessageCommandImpl.kt#L8-L20) |
 | выходной порт и HTTP-адаптер к VK | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/output/vk/VkSendMessageOutputPort.kt:10-17`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/output/vk/VkSendMessageOutputPort.kt#L10-L17), [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapter.kt:18-29`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/VkSendMessageOutputAdapter.kt#L18-L29) |
@@ -35,7 +36,7 @@
 | плоская отправка без forward (потребитель `daily-greetings`) | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/PlainMessageSendUsecase.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/PlainMessageSendUsecase.kt) |
 | входной порт плоской отправки | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/input/vk/VkSendPlainMessageInputPort.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/port/input/vk/VkSendPlainMessageInputPort.kt) |
 | in-process адаптер `SendGreetingMessagePort` | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/input/inprocess/SendGreetingMessageInProcessAdapter.kt) |
-| детерминированный `random_id`: SHA-256 от текста и peer_id | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/domain/RandomId.kt:14-25`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/domain/RandomId.kt#L14-L25) |
+| `random_id`: inbox id → положительный int32, иначе SHA-256 от текста и peer_id | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/domain/RandomId.kt:20-24`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/domain/RandomId.kt#L20-L24) |
 | ошибка VK | [`src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/exception/VkException.kt:6-8`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/adapter/output/vk/exception/VkException.kt#L6-L8) |
 
 Конфигурация: `vk.api.token`, `vk.api.version`, `quarkus.rest-client.vk.*` в
@@ -44,7 +45,7 @@
 ## Данные
 
 Персистентных данных не владеет. Владеет двумя контрактами: формой forward-блока `ForwardedMessages` и
-правилом детерминированного `random_id`.
+правилом `random_id`: inbox id → положительный int32, иначе SHA-256 от текста и peer_id.
 
 ## Journey
 
@@ -93,11 +94,15 @@
   смене peer или текста — другой; `0` заменяется на `1`. Test:
   [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt),
   [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/PlainMessageSendUsecaseTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/PlainMessageSendUsecaseTest.kt).
+- **AC-vk-message-send-6** — КОГДА исходное сообщение несёт `inboxMessageId`, СИСТЕМА ДОЛЖНА взять
+  `random_id` из него по формуле `((id - 1) mod 2_147_483_647) + 1` — положительный int32, `0` невозможен,
+  повтор даёт тот же id; без inbox id (synthetic-сообщение, старое событие) — детерминированный SHA-256 от
+  текста и peer_id. Test:
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt),
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt).
 
 ## Пробелы приёмки
 
-- `MessageSendUsecaseTest` не смотрит на `rand` forward-ветки; формула `RandomId` покрыта `RandomIdTest`
-  и `PlainMessageSendUsecaseTest` (плоская ветка поздравлений).
 - Forward для группового чата (`forwardMessagesIfNeeded`) не покрыт тестом.
 - Ошибка VK на уровне сквозного сценария не покрыта: теста, который подставляет 500 на `messages.send` и
   проверяет retry/DLQ, нет ([`src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/VkLongPollIntegrationTest.kt)

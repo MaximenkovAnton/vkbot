@@ -4,12 +4,11 @@ import com.simarel.vkbot.share.domain.model.Message
 import com.simarel.vkbot.vkFacade.command.sendVkMessage.SendVkMessageCommand
 import com.simarel.vkbot.vkFacade.command.sendVkMessage.SendVkMessageCommandRequest
 import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
+import com.simarel.vkbot.vkFacade.domain.RandomId
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputPort
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputRequest
 import com.simarel.vkbot.vkFacade.port.input.vk.VkSendMessageInputResponse
 import jakarta.enterprise.context.ApplicationScoped
-import java.nio.ByteBuffer
-import java.security.MessageDigest
 
 @ApplicationScoped
 class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand) : VkSendMessageInputPort {
@@ -20,7 +19,7 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
                 peerId = request.responseMessage.responseTo.peerId,
                 message = request.responseMessage.messageText,
                 forwardedMessages = forwardMessagesIfNeeded(request.responseMessage.responseTo, request.forwardedMessages),
-                rand = countRand(request.responseMessage.responseTo),
+                rand = randomId(request.responseMessage.responseTo),
             ),
         )
         return response
@@ -34,11 +33,7 @@ class MessageSendUsecase(private val sendVkMessageCommand: SendVkMessageCommand)
         return ForwardedMessages(responseTo)
     }
 
-    private fun countRand(responseTo: Message): Int {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val uniqueString = responseTo.messageText.value + responseTo.peerId.value + responseTo.date.value.toEpochSecond()
-        val hashBytes = digest.digest(uniqueString.toByteArray(Charsets.UTF_8))
-        val res = ByteBuffer.wrap(hashBytes).getInt()
-        return if (res == 0) 1 else res
-    }
+    private fun randomId(responseTo: Message): Int = responseTo.inboxMessageId
+        ?.let { RandomId.ofInbox(it).value }
+        ?: RandomId.of(responseTo.peerId, responseTo.messageText).value
 }
