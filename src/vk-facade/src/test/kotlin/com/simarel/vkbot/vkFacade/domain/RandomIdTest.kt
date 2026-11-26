@@ -31,4 +31,18 @@ class RandomIdTest {
     fun `zero random id is replaced with one`(value: Int, expected: Int) {
         assertEquals(expected, RandomId.of(value).value)
     }
+
+    @ParameterizedTest
+    @CsvSource(
+        "1, 1",
+        "2, 2",
+        "2147483647, 2147483647",
+        "2147483648, 1",
+        "4294967294, 2147483647",
+        "4294967295, 1",
+        "9223372036854775807, 1",
+    )
+    fun `inbox id gives the expected positive int32`(value: Long, expected: Int) {
+        assertEquals(expected, RandomId.ofInbox(FakeVoProvider.createInboxMessageId(value)).value)
+    }
 }
