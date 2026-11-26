@@ -267,7 +267,9 @@ incoming_messages`, UNIQUE `uq_incoming_messages_peer_id_conversation_message_id
   `false` на дубле и `true` на новой вставке, в том числе при одновременной вставке из двух потоков.
   Test:
   [`src/app/src/test/kotlin/com/simarel/vkbot/integration/MessageDedupIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/MessageDedupIntegrationTest.kt),
-  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt).
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальные RabbitMQ/Postgres: две доставки `MESSAGE_NEW` с одним inbox id дают одну
+  строку `messages`, статистику +1 и один `ANSWER_MESSAGE`).
 
 ## Пробелы приёмки
 

@@ -133,15 +133,20 @@ changeset `012-create-long-poll-lease`); схема этих таблиц — в
   после этого опубликовать `MESSAGE_NEW` с `Message.inboxMessageId`; сбой регистрации публикацию не делает
   и `ts` не сохраняет. Test:
   [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecaseTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecaseTest.kt),
-  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt).
+  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальные Postgres/RabbitMQ: `messages.inbox_id` = id записи inbox, сбой регистрации не
+  сохраняет `ts` и обновление повторяется).
 - **AC-vk-long-poll-8** — КОГДА реплик несколько, СИСТЕМА ДОЛЖНА опрашивать VK только под лидер-лизом:
   acquire перед `a_check`, standby без опроса, release на shutdown, takeover с `ts` из `long_poll_position`,
   логи переходов без PII. Test:
-  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt).
+  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunnerTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальные Postgres/лиз: standby не опрашивает VK, takeover после истечения лиза идёт с
+  сохранённым `ts`, shutdown освобождает лиз).
 - **AC-vk-long-poll-9** — КОГДА cron очистки сработал, СИСТЕМА ДОЛЖНА удалить записи inbox старше ретенции
   (`cutoff = now - vk.inbox.retention`) и залогировать счётчик удалённых записей. Test:
   [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/usecase/RunInboxCleanupUsecaseTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/usecase/RunInboxCleanupUsecaseTest.kt),
-  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunnerTest.kt).
+  [`src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunnerTest.kt`](../../src/receiver/src/test/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunnerTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальные Postgres: запись старше 24 ч удалена, свежая и `messages` целы).
 - **AC-vk-long-poll-10** — КОГДА `vk.inbox.cleanup-cron` равен `off`, СИСТЕМА ДОЛЖНА не регистрировать задачу
   планировщика `inbox-cleanup`, а при валидном cron — регистрировать её. Test:
   [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxCleanupScheduleTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxCleanupScheduleTest.kt),

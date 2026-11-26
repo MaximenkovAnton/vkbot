@@ -99,7 +99,9 @@
   повтор даёт тот же id; без inbox id (synthetic-сообщение, старое событие) — детерминированный SHA-256 от
   текста и peer_id. Test:
   [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/domain/RandomIdTest.kt),
-  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt).
+  [`src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt`](../../src/vk-facade/src/test/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecaseTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальный HTTP-вызов VK API: `random_id` в теле `messages.send` = формула от inbox id,
+  повтор отправки даёт тот же `random_id`).
 
 ## Пробелы приёмки
 
