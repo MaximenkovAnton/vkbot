@@ -79,5 +79,8 @@
   ([`src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt:91-113`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L91-L113)).
 - Routing key = `Event.name` на публикации не проверен: тест команды смотрит только на переданный event.
 - Неизвестный routing key (лог + ack) не проверен.
-- At-least-once без идемпотентности: повторная доставка `MESSAGE_NEW` создаст дубль сообщения; outbox нет —
-  известное ограничение, отмеченное в [`docs/architecture/data-flow.md`](../architecture/data-flow.md).
+- Дедуп ограничен ретенцией inbox: повторное `MESSAGE_NEW` с `inboxMessageId` гасится UNIQUE-ключом
+  `messages.inbox_id`, пока жива строка inbox (24 ч); повтор старше ретенции, событие без `inboxMessageId`
+  и накопленные до релиза повторы дают дубль. Outbox по-прежнему нет — границы и ограничения в
+  [`docs/architecture/data-flow.md`](../architecture/data-flow.md) и
+  [ADR 2026-11-23-inbox-and-poller-lease](../adr/2026-11-23-inbox-and-poller-lease.md).

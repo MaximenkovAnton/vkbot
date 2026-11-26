@@ -10,6 +10,7 @@ import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 
 object FakeMessageProvider {
+    @Suppress("LongParameterList")
     fun createMessage(
         date: Date = FakeVoProvider.createDate(),
         fromId: FromId = FakeVoProvider.createHumanFromId(),

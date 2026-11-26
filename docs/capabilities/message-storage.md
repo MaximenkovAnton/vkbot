@@ -182,6 +182,7 @@ incoming_messages`, UNIQUE `uq_incoming_messages_peer_id_conversation_message_id
 - ADR 2026-11-10-vk-profile-human-details — `profile_details` вместо сырого снимка, typed + человеческий diff истории, changeset 008.
 - ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики автора: три таблицы, upsert в транзакции сообщения, ручной backfill-скрипт, конвертация UTC-бакетов на чтении.
 - ADR 2026-11-11-user-knowledge-facts — пять таблиц знаний: карточка на `(user_id, category, fact_key, value_hash)` без `peer_id`, свидетельства-ссылки без текста, агрегаты `evidence_count`/`max_evidence_confidence` и K=20, доверие и временная политика, changeset `010` и нетранзакционный индекс `messages`.
+- ADR 2026-11-23-inbox-and-poller-lease — inbox: `incoming_messages`, nullable `messages.inbox_id` с UNIQUE без FK, insert-first дедуп повторной доставки, `long_poll_lease`; changesets 011/012.
 
 ## Acceptance criteria
 

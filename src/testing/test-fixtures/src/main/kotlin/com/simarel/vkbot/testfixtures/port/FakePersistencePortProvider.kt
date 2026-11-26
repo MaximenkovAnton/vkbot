@@ -42,6 +42,7 @@ import java.util.UUID
 
 private val FIXED_FROM: OffsetDateTime = OffsetDateTime.parse("2026-11-01T00:00:00Z")
 private const val KNOWLEDGE_BATCH_INTERVAL_MINUTES = 30L
+private const val DEFAULT_LEASE_TTL_SECONDS = 40L
 private const val DEFAULT_USER_ID = 10L
 private val FIXED_TO: OffsetDateTime = OffsetDateTime.parse("2026-11-07T23:59:59.999999999Z")
 
@@ -74,7 +75,7 @@ object FakePersistencePortProvider {
 
     fun createAcquireLongPollLeaseRequest(
         owner: String = "owner-1",
-        ttl: Duration = Duration.ofSeconds(40),
+        ttl: Duration = Duration.ofSeconds(DEFAULT_LEASE_TTL_SECONDS),
     ) = AcquireLongPollLeasePort.Request(owner = owner, ttl = ttl)
 
     fun createAcquireLongPollLeaseResponse(
