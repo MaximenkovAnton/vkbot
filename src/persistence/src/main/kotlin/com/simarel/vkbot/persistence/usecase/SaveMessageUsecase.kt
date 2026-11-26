@@ -27,11 +27,22 @@ open class SaveMessageUsecase(
     private val fetchUserProfileCommand: FetchUserProfileCommand,
     private val updateUserStatisticsPort: UpdateUserStatisticsPort,
 ) : SaveMessageInputPort {
+
+    private val logger = System.getLogger(SaveMessageUsecase::class.java.name)
+
     @Transactional
     override fun execute(request: SaveMessageInputPortRequest): SaveMessageInputPortResponse {
         val message = request.message
+        if (!saveMessage(message)) {
+            logger.log(
+                System.Logger.Level.INFO,
+                "MESSAGE_NEW duplicate suppressed: peerId=${message.peerId.value}, " +
+                    "conversationMessageId=${message.conversationMessageId.value}, " +
+                    "inboxId=${message.inboxMessageId?.value}",
+            )
+            return SaveMessageInputPortResponse
+        }
         fetchUserProfileCommand.execute(FetchUserProfileRequest(message))
-        saveMessage(message)
         updateStatistics(message)
         publishEventCommand.execute(
             PublishEventRequest(
@@ -65,7 +76,7 @@ open class SaveMessageUsecase(
         )
     }
 
-    private fun saveMessage(message: Message) {
+    private fun saveMessage(message: Message): Boolean {
         val entity = MessageEntity().apply {
             id = UUID.randomUUID()
             date = message.date.value
@@ -77,7 +88,8 @@ open class SaveMessageUsecase(
             forwardedMessages = forwardedMessagesSerializationPort.execute(
                 ForwardedMessagesSerializationPort.Request(message.forwardedMessages),
             ).json
+            inboxId = message.inboxMessageId?.value
         }
-        saveMessagePort.execute(SaveMessagePort.SaveMessageRequest(entity))
+        return saveMessagePort.execute(SaveMessagePort.SaveMessageRequest(entity)).inserted
     }
 }

@@ -11,8 +11,7 @@ open class SaveMessageAdapter(
 ) : SaveMessagePort {
 
     @Transactional
-    override fun execute(request: SaveMessagePort.SaveMessageRequest): SaveMessagePort.SaveMessageResponse {
-        table.persist(request.message)
-        return SaveMessagePort.SaveMessageResponse()
-    }
+    override fun execute(
+        request: SaveMessagePort.SaveMessageRequest,
+    ): SaveMessagePort.SaveMessageResponse = SaveMessagePort.SaveMessageResponse(table.persist(request.message))
 }

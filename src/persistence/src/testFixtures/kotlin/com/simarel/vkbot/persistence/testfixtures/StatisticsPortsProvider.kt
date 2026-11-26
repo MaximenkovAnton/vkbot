@@ -9,6 +9,7 @@ import com.simarel.vkbot.persistence.port.output.ForwardedMessagesSerializationP
 import com.simarel.vkbot.persistence.port.output.persistence.SaveMessagePort
 import com.simarel.vkbot.persistence.port.output.persistence.UpdateUserStatisticsPort
 import com.simarel.vkbot.share.domain.model.Message
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.testfixtures.domain.FakeMessageProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import java.time.OffsetDateTime
@@ -28,12 +29,16 @@ object StatisticsPortsProvider {
         peerId: Long = DEFAULT_PEER_ID,
         text: String = DEFAULT_MESSAGE_TEXT,
         forwardedMessages: List<Message> = emptyList(),
+        conversationMessageId: Long = 1,
+        inboxMessageId: InboxMessageId? = null,
     ): Message = FakeMessageProvider.createMessage(
         date = FakeVoProvider.createDate(date),
         fromId = FakeVoProvider.createFromId(fromId),
         peerId = FakeVoProvider.createPeerId(peerId),
+        conversationMessageId = FakeVoProvider.createConversationMessageId(conversationMessageId),
         messageText = FakeVoProvider.createMessageText(text),
         forwardedMessages = forwardedMessages,
+        inboxMessageId = inboxMessageId,
     )
 
     fun createSaveMessageRequest(
@@ -70,13 +75,15 @@ class FakeUpdateUserStatisticsPort(
     }
 }
 
-class FakeSaveMessagePort : SaveMessagePort {
+class FakeSaveMessagePort(
+    private val inserted: Boolean = true,
+) : SaveMessagePort {
 
     val requests = ConcurrentLinkedQueue<SaveMessagePort.SaveMessageRequest>()
 
     override fun execute(request: SaveMessagePort.SaveMessageRequest): SaveMessagePort.SaveMessageResponse {
         requests.add(request)
-        return SaveMessagePort.SaveMessageResponse()
+        return SaveMessagePort.SaveMessageResponse(inserted)
     }
 }
 
