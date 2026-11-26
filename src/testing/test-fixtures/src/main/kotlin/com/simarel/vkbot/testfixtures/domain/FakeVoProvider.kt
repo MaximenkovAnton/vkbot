@@ -35,6 +35,7 @@ object FakeVoProvider {
 
     fun createMessageText(value: String? = null) = MessageText.of(value ?: "Тестовое сообщение для @simarel")
 
+    @Suppress("LongParameterList")
     fun createMessage(
         date: Date? = null,
         fromId: FromId? = null,

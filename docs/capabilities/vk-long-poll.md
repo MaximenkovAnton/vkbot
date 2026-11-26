@@ -102,7 +102,9 @@ changeset `012-create-long-poll-lease`); схема этих таблиц — в
 - ADR 2026-10-28-configuration-and-secrets — `vk.group.id` и `vk.longpoll.enabled` читаются из одного production-конфига, секретов в дереве
   нет.
 - ADR 2026-11-05-bots-long-poll-transport — транспорт Bots Long Poll, `ts` в PostgreSQL, дубликат вместо потери;
-  ограничение «один экземпляр» снято лидер-лизом (superseding ADR — задача `inbox-docs`).
+  ограничение «один экземпляр» снято лидер-лизом (ADR 2026-11-23-inbox-and-poller-lease).
+- ADR 2026-11-23-inbox-and-poller-lease — inbox `incoming_messages` (сырой JSON, ретенция 24 ч),
+  лидер-лиз `long_poll_lease`, реплики и rolling update после перехода, `random_id` из inbox id.
 
 ## Acceptance criteria
 

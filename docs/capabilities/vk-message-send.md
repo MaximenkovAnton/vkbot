@@ -73,6 +73,7 @@
 - ADR 2026-10-28-module-boundaries-and-layer-rules — HTTP-клиент VK — только `adapter/output`; use case и команда не видят JAX-RS.
 - ADR 2026-10-28-in-process-ports-instead-of-loopback-rest — `ANSWER_MESSAGE` идёт событием, а не синхронным вызовом из `ai`.
 - ADR 2026-10-28-configuration-and-secrets — токен и версия API в конфигурации, заголовок `Authorization: Bearer` — в конфиге клиента.
+- ADR 2026-11-23-inbox-and-poller-lease — источник `random_id`: inbox id входящего с fallback на SHA-256 для synthetic и старых событий.
 
 ## Acceptance criteria
 

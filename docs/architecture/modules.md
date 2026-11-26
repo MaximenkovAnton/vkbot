@@ -46,7 +46,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
   - контракты: [`share/port/Port.kt:3-9`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/Port.kt#L3-L9), [`share/port/input/InputPort.kt:7-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/InputPort.kt#L7-L13), [`share/port/output/OutputPort.kt:7-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/OutputPort.kt#L7-L13),
     [`share/command/Command.kt:3-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/command/Command.kt#L3-L8), [`share/command/publishEvent/PublishEventCommand.kt:9-13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/command/publishEvent/PublishEventCommand.kt#L9-L13),
     [`share/port/input/EventProcessor.kt:5-8`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/input/EventProcessor.kt#L5-L8), [`share/port/output/PublishEventOutputPort.kt:6-10`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/port/output/PublishEventOutputPort.kt#L6-L10);
-  - исходящие порты: 32 `persistence`-порта (сообщения, саммари, чаты, профили по дате рождения, claim
+  - исходящие порты: 36 `persistence`-портов (сообщения, саммари, чаты, профили по дате рождения, claim
     поздравления, три read-only порта сводки «что нового», три read-порта команды «профиль» —
     `FindChatAuthorsPort`, `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort`, шесть
     портов знаний R1 — четыре write `SaveUserFactsPort`, `AdvanceExtractionCursorPort`,
@@ -54,9 +54,10 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort` — и два read-порта сводки чата
     `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`, read-порт знаний
     `FindUserKnowledgePort`, read-порт состояния сводки профиля
-    `FindUserKnowledgeSummaryStatePort` и read-порт birthday-фактов на месяц/день
-    `FindUserBirthdayFactsPort`), 2 — для позиции Long Poll
-    (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai (`GenerateGreetingTextPort`) и 3 vk
+    `FindUserKnowledgeSummaryStatePort`, read-порт birthday-фактов на месяц/день
+    `FindUserBirthdayFactsPort` и четыре операции inbox/лиза — `RegisterIncomingMessagePort`,
+    `PurgeIncomingMessagesPort`, `AcquireLongPollLeasePort`, `ReleaseLongPollLeasePort`), 2 — для позиции
+    Long Poll (`FindLongPollTsPort`, `SaveLongPollTsPort`), 1 ai (`GenerateGreetingTextPort`) и 3 vk
     (`share/port/output/vk/`, включая `SendGreetingMessagePort`) — каждый `OutputPort<REQ,RESP>` с одной
     операцией;
   - ошибки: `share/domain/exception/{VkBotAppException,ExceptionStatus,ValidationException}.kt` — единая
@@ -68,19 +69,24 @@ Test-scope рёбра (не входят в production-граф, разреше�
 ## `receiver` — вход событий VK (Bots Long Poll)
 
 - **Ответственность:** владелец входящего транспорта VK: опрашивает Bots Long Poll API
-  (`groups.getLongPollServer` → `a_check`), парсит VK JSON в DMZ-DTO, маппит в доменное `Message`,
-  публикует `MESSAGE_NEW` и сохраняет позицию опроса `ts`. HTTP-эндпоинта у модуля нет: `POST /vk/callback`
+  (`groups.getLongPollServer` → `a_check`) под лидер-лизом в PostgreSQL (остальные реплики — standby),
+  парсит VK JSON в DMZ-DTO, маппит в доменное `Message`, регистрирует обновление в inbox
+  (`incoming_messages`), публикует `MESSAGE_NEW` с `inboxMessageId`, сохраняет позицию опроса `ts` и
+  чистит inbox старше ретенции по cron. HTTP-эндпоинта у модуля нет: `POST /vk/callback`
   отвечает 404. Исходящие вызовы VK API (`messages.send`, профили) остаются за `vk-facade`
-  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
+  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md),
+  [ADR 2026-11-23-inbox-and-poller-lease](../adr/2026-11-23-inbox-and-poller-lease.md)).
 - **Публичный API:**
   - цикл опроса — [`receiver/adapter/input/vk/LongPollRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt) (виртуальный поток, старт по
-    `StartupEvent`, стоп по `ShutdownEvent`, включение ключом `vk.longpoll.enabled`);
+    `StartupEvent`, стоп по `ShutdownEvent`, включение ключом `vk.longpoll.enabled`, acquire/release лиза);
   - `ReceiveMessageInputPort` — [`receiver/port/input/ReceiveMessageInputPort.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/port/input/ReceiveMessageInputPort.kt)
-    (`VkUpdateInputPortRequest(type, message)`);
+    (`VkUpdateInputPortRequest(type, message, rawUpdate)`);
   - порты Long Poll — [`receiver/port/output/LongPollPort.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/port/output/LongPollPort.kt) (сессия и `a_check`), выходной адаптер —
     [`receiver/adapter/output/vk/VkLongPollOutputAdapter.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/output/vk/VkLongPollOutputAdapter.kt) (REST-клиент `configKey = "vk"`,
-    read-timeout 60 с).
-- **Ключевые классы:** [`ReceiveMessageUsecase.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecase.kt) (тип обновления → `MESSAGE_NEW`),
+    read-timeout 60 с);
+  - очистка inbox по cron — [`receiver/adapter/input/schedule/InboxCleanupRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunner.kt)
+    (`@Scheduled(identity = "inbox-cleanup")`) → `PurgeInboxInputPort`/`RunInboxCleanupUsecase`.
+- **Ключевые классы:** [`ReceiveMessageUsecase.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/ReceiveMessageUsecase.kt) (тип обновления → inbox-регистрация → `MESSAGE_NEW`),
   [`PublishVkEventCommandImpl.kt:10-23`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/command/sendVkEvent/PublishVkEventCommandImpl.kt#L10-L23) (публикует `MESSAGE_NEW`), [`MessageMapper.kt:13-58`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt#L13-L58) (DMZ, включая
   forward/reply/wall), [`VkUpdateType.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/domain/vo/VkUpdateType.kt) (`MESSAGE_NEW`, `MESSAGE_REPLY`, `UNKNOWN`), DTO
   `adapter/input/dto/{MessageDto,WallAttachmentDto}.kt`.
@@ -89,8 +95,9 @@ Test-scope рёбра (не входят в production-граф, разреше�
 ## `persistence` — хранение и запросы
 
 - **Ответственность:** владелец схемы PostgreSQL и Liquibase; хранение сообщений/профилей/саммари,
-  истории изменений профиля, материализованной статистики автора и позиции Long Poll
-  (`long_poll_position`); хранение знаний из чата — карточки фактов, свидетельства-ссылки, сводки профиля и
+  истории изменений профиля, материализованной статистики автора, позиции Long Poll
+  (`long_poll_position`), inbox входящих (`incoming_messages`), лидер-лиза (`long_poll_lease`) и дедупа
+  сообщений по `messages.inbox_id`; хранение знаний из чата — карточки фактов, свидетельства-ссылки, сводки профиля и
   чата, курсор извлечения (`user_facts`, `user_fact_evidence`, `user_knowledge_summary`,
   `chat_knowledge_summary`, `knowledge_extraction_cursors`; доверие, окна и `value_hash` считаются здесь);
   публичный REST запросов
@@ -101,7 +108,7 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `GET /persistence/statistics/users/{id}` — [`PersistenceDataResource.kt:21-154`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L21-L154), контракт —
     [`PersistenceResource.kt:24-97`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt#L24-L97) (+ DTO `CreatePendingSummaryRequest`/`CompleteSummaryRequest`, `:99-108`);
   - MQ-вход: [`MessageNewEventProcessor.kt:12-22`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22) (`MESSAGE_NEW`);
-  - in-process: [`PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) — 32 класса-адаптера share-портов
+  - in-process: [`PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) — 36 классов-адаптеров share-портов
     (9 прежних + `FindLongPollTsPort`/`SaveLongPollTsPort`, `FindUserProfilesByBirthDatePort`,
     `FindUserChatPeerIdsPort`, `FindGroupChatPeerIdsPort`, `ClaimDailyGreetingPort`, три read-only порта
     сводки «что нового» — `FindLastStoredMessageByAuthorPort`, `FindStoredMessagesBetweenDatesPort`,
@@ -112,13 +119,17 @@ Test-scope рёбра (не входят в production-граф, разреше�
     `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort` — и два read-порта сводки чата
     `FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`, read-порт знаний
     `FindUserKnowledgePort`, read-порт состояния сводки профиля `FindUserKnowledgeSummaryStatePort` и
-    read-порт birthday-фактов `FindUserBirthdayFactsPort`), делегируют в `PersistenceDataInputPort`;
+    read-порт birthday-фактов `FindUserBirthdayFactsPort`, четыре операции inbox/лиза
+    `RegisterIncomingMessagePort`, `PurgeIncomingMessagesPort`, `AcquireLongPollLeasePort`,
+    `ReleaseLongPollLeasePort`), делегируют в `PersistenceDataInputPort`;
   - вход сохранения: `SaveMessageInputPort` ([`persistence/port/input/SaveMessageInputPort.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt)).
-- **Ключевые классы:** [`SaveMessageUsecase.kt:22-68`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L22-L68) (профили → сохранение → три upsert'а статистики →
-  `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`), [`PersistenceDataUsecase.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt) (32 операции, включая три чтения для сводки «что
+- **Ключевые классы:** [`SaveMessageUsecase.kt:33-65`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L65) (insert-first `ON CONFLICT (inbox_id) DO NOTHING`;
+  дубль пропускает профили, три upsert'а статистики, `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED`),
+  [`PersistenceDataUsecase.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt) (36 операций, включая три чтения для сводки «что
   нового», авторов чата, историю профиля, статистику автора, шесть операций знаний, два чтения сводки
-  чата, чтение знаний `findUserKnowledge`, состояние сводки профиля `findUserKnowledgeSummaryState` и
-  чтение birthday-фактов на месяц/день `findUserBirthdayFacts`;
+  чата, чтение знаний `findUserKnowledge`, состояние сводки профиля `findUserKnowledgeSummaryState`,
+  чтение birthday-фактов на месяц/день `findUserBirthdayFacts` и четыре операции inbox/лиза
+  (`registerIncomingMessage`, `purgeIncomingMessages`, `acquireLongPollLease`, `releaseLongPollLease`);
   публикует `SUMMARY_READY` при сохранении завершённого
   саммари), [`FetchUserProfileCommandImpl.kt:18-153`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L18-L153) (читает сохранённые профили; отсутствующие и
   устаревшие старше месяца обновляет через in-process vk-порты, typed-поля и `details` сливает с

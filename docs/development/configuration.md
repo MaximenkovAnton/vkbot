@@ -41,6 +41,17 @@ Long Poll API с событием `message_new` и отключить Callback A
 (`40s`, `2s`, `24h`, `0 0 * * * ?`), поэтому новых обязательных env нет; `40s`/`2s`/`24h` читаются как
 `java.time.Duration` конвертером Quarkus.
 
+Расписание очистки держит `quarkus-scheduler` (расширение `quarkus-scheduler` в `:src:receiver`, как в
+поздравлениях): `@Scheduled(identity = "inbox-cleanup", cron = "{vk.inbox.cleanup-cron}")` вызывает
+`PurgeInboxInputPort`, а `vk.inbox.cleanup-cron: off` регистрацию задачи выключает. Очистку выполняет
+каждая реплика независимо, один `DELETE` за прогон; в `%test` cron `off`, поэтому расписание не
+срабатывает в `@QuarkusTest`.
+
+`incoming_messages.payload` — сырой JSON события VK, включая текст сообщения: это тот же PII-класс, что и
+`messages`, принятый риск Q1=B (канон — §«PII и логи» ниже). Строки удаляются на ближайшем прогоне
+cron-очистки после `vk.inbox.retention` (24 ч + до часа при дефолтном расписании), read-API у inbox нет;
+собственные логи лиза и очистки пишут только owner/id и счётчики, без текста.
+
 ## Промпты и саммаризация
 
 | Ключ | Значение / env | Эффект | Где читается |

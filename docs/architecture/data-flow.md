@@ -31,9 +31,11 @@ Payload сериализуется Jackson-строкой ([`PublishEventOutputA
 
 ```
 LongPollRunner (виртуальный поток, старт по StartupEvent)
+  → AcquireLongPollLeasePort: лидер → опрос, не лидер → standby 2 с
   → groups.getLongPollServer (REST-клиент configKey "vk")
   → a_check: {server}?act=a_check&key=…&ts=…&wait=25
-  → MessageMapper (DMZ) → ReceiveMessageUsecase → PublishVkEventCommand → MESSAGE_NEW
+  → MessageMapper (DMZ) → ReceiveMessageUsecase → RegisterIncomingMessage (inbox id)
+  → PublishVkEventCommand → MESSAGE_NEW с Message.inboxMessageId
   → SaveLongPollTsPort: ts сохраняется только после успешной публикации
 ```
 
@@ -45,6 +47,16 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
   Если он есть, первый `a_check` идёт с ним — так доставляются сообщения, пришедшие за время простоя;
   если записи нет, опрос начинается с `ts` из ответа `groups.getLongPollServer`. `ts` сохраняется драйвером
   `LongPollRunner`, а не use case, и только после успешной публикации `MESSAGE_NEW`.
+- **Лидер-лиз.** Активный поллер один: перед каждым `a_check` реплика берёт лиз в `long_poll_lease`
+  (`AcquireLongPollLeasePort`, owner — UUID инстанса, TTL `vk.inbox.lease-ttl`); не получив лиз — стоит в
+  standby с паузой `vk.inbox.standby-pause` и VK не трогает. После пересменки `ts` читается из
+  `long_poll_position`, на `ShutdownEvent` лиз освобождается. Переходы логируются INFO/WARN с owner, без
+  PII ([ADR 2026-11-23-inbox-and-poller-lease](../adr/2026-11-23-inbox-and-poller-lease.md)).
+- **Inbox.** `ReceiveMessageUsecase` до публикации регистрирует обновление через
+  `RegisterIncomingMessagePort`: сырой JSON события в `incoming_messages` (UNIQUE `peer_id` +
+  `conversation_message_id`), возвращённый id едет в `Message.inboxMessageId`. Сбой регистрации —
+  сбой публикации: `ts` не сохраняется. Записи старше `vk.inbox.retention` (24 ч) удаляет cron
+  `InboxCleanupRunner` → `PurgeIncomingMessagesPort`, один `DELETE` на прогон.
 - **Тип обновления.** `VkUpdateType` ([`VkUpdateType.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/domain/vo/VkUpdateType.kt)): `MESSAGE_NEW`, `MESSAGE_REPLY`, иначе `UNKNOWN`.
 - **DMZ.** `MessageMapper.toDomain` ([`MessageMapper.kt:13-37`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/mapper/MessageMapper.kt#L13-L37)) читает `object.message`, `fwd_messages`,
   `reply_message` и `attachments` (wall-посты), собирает `List<Message>` и вызывает
@@ -75,9 +87,16 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
 `MessageNewEventProcessor.process` ([`MessageNewEventProcessor.kt:17-20`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L17-L20)) читает `Message` из JSON и зовёт
 `SaveMessageInputPort`.
 
-`SaveMessageUsecase.execute` ([`SaveMessageUsecase.kt:30-54`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L30-L54), `@Transactional`):
+`SaveMessageUsecase.execute` ([`SaveMessageUsecase.kt:33-65`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L65), `@Transactional`):
 
-1. `FetchUserProfileCommand` ([`FetchUserProfileCommandImpl.kt:31-60`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L31-L60)): собирает `from_id` из сообщения и
+1. `saveMessage` → `MessageTable.persist` ([`MessageTable.kt:23-49`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L23-L49)):
+   `INSERT … ON CONFLICT (inbox_id) DO NOTHING` с `forwarded_messages` как JSONB (сериализация —
+   [`JacksonForwardedMessagesAdapter.kt:7-21`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt#L7-L21))
+   возвращает `inserted`. При `false` use case логирует подавленный дубль одной строкой INFO (`peerId`,
+   `conversationMessageId`, `inboxId`, без текста) и возвращается, не трогая профили, статистику и
+   события. Событие без `inboxMessageId` вставляет строку как раньше: NULL в уникальном индексе не
+   конфликтует.
+2. `FetchUserProfileCommand` ([`FetchUserProfileCommandImpl.kt:31-60`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/command/fetchuserprofile/FetchUserProfileCommandImpl.kt#L31-L60)): собирает `from_id` из сообщения и
    forward'ов; читает сохранённые профили через `FindUserProfilesByIdsPort`/`FindGroupProfilesByIdsPort` и
    считает устаревшими отсутствующие и те, у кого `last_updated` старше месяца; устаревшие получает через
    in-process порты `GetUserProfilesBatchPort`/`GetGroupProfilesBatchPort` (реализация —
@@ -88,8 +107,6 @@ LongPollRunner (виртуальный поток, старт по StartupEvent)
    в `vk_user_profiles.profile_details`
    ([ADR 2026-11-10-vk-profile-human-details](../adr/2026-11-10-vk-profile-human-details.md)).
    Ошибка получения профилей не валит сохранение: логируется WARNING.
-2. `SaveMessagePort` → `MessageTable.persist` ([`MessageTable.kt:23-46`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L23-L46)): insert в `messages`
-   с `forwarded_messages` как JSONB (сериализация — [`JacksonForwardedMessagesAdapter.kt:7-21`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/json/JacksonForwardedMessagesAdapter.kt#L7-L21)).
 3. `UpdateUserStatisticsPort` → `UpdateUserStatisticsAdapter` (`@Transactional`) →
    `UserStatisticsWriter`: в той же транзакции, что и сообщение, три upsert'а в
    фиксированном порядке — `user_statistics` (итоги: `message_count + 1`, `total_length` + длина в
@@ -662,6 +679,8 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 |---|---|---|
 | At-least-once доставка | RabbitMQ + ack после `process` ([`EventDispatcher.kt:77-83`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L77-L83)) | сообщение не теряется при падении обработчика; возможны повторы |
 | Позиция `ts` после публикации | `LongPollRunner` | сбой между публикацией и сохранением даёт дубликат, но не потерю обновления |
+| Лидер-лиз | `LongPollRunner` + `long_poll_lease` | VK опрашивает одна реплика; standby VK не трогает, пересменка не дольше TTL лиза |
+| Дедуп повторной доставки | [`SaveMessageUsecase.kt:33-65`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L65) + `messages.inbox_id` | повтор с тем же inbox id не пишет `messages`/статистику и не публикует события, пока жива строка inbox |
 | Паузы опроса | `LongPollRunner` | 5 с при сбое публикации, нарастающая до 60 с при сетевых ошибках и 5xx; цикл не падает |
 | Retry-лестница | [`EventDispatcher.kt:91-113`](../../src/infrastructure/src/main/kotlin/com/simarel/vkbot/infrastructure/mq/adapter/input/EventDispatcher.kt#L91-L113), [`application-queues.yml`](../../src/app/src/main/resources/application-queues.yml) | 5 попыток с интервалами, затем финальный DLQ |
 | DLQ | `dlq-final-queue` / `dlq-final-exchange` | сообщение сохранено для ручного разбора |
@@ -670,7 +689,7 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 | Повтор AI-саммари | [`SummarizationAiAdapter.kt:10-40`](../../src/ai/src/main/kotlin/com/simarel/vkbot/ai/adapter/output/ai/summarization/SummarizationAiAdapter.kt#L10-L40) | 3 попытки внутри одного события |
 | Повтор LLM-сводки «что нового» | `NewsDigestAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ, не retry брокера |
 | Повтор LLM-досье «профиль» | `ProfileAiAdapter` | 3 попытки внутри одного события; финальный отказ — фолбэк-ответ «Не удалось собрать профиль. Попробуйте позже.», не retry брокера |
-| Детерминированный `random_id` | [`MessageSendUsecase.kt:37-43`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L37-L43) | повторная отправка того же ответа даёт тот же `random_id` |
+| Детерминированный `random_id` | [`MessageSendUsecase.kt:36-38`](../../src/vk-facade/src/main/kotlin/com/simarel/vkbot/vkFacade/usecase/message/MessageSendUsecase.kt#L36-L38) | ответ на входящее получает `random_id` из inbox id, поэтому повторная отправка того же ответа даёт тот же `random_id`; synthetic и старые события — прежний SHA-256 |
 
 ## Известные ограничения (не скрывать)
 
@@ -699,18 +718,25 @@ greetings.cron (по умолчанию 0 0 0 * * ?), зона greetings.timezon
 - **Jailbreak-детект смотрит только `message.messageText`:** forward и вложения не проверяются; детектор
   вероятностный (состязательный текст может склонить модель к низкой вероятности), гарантий безопасности
   нет. Уведомление раскрывает точную вероятность и работает oracle'ом; модерации, бана и rate limit нет.
-- **Нет идемпотентности записи.** У `messages` нет уникального ключа, `MessageTable.persist` —
-  чистый insert ([`MessageTable.kt:23-46`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L23-L46)). Повторная доставка `MESSAGE_NEW` создаст дубль; при
-  Long Poll это осознанный размен: сбой между публикацией и сохранением `ts` повторяет обновление.
-  Условие апгрейда: уникальный `(peer_id, conversation_message_id)` + upsert, затем outbox — если дубли
-  появятся в проде (в этом проходе не менялось, [ADR 2026-10-28-in-process-ports-instead-of-loopback-rest](../adr/2026-10-28-in-process-ports-instead-of-loopback-rest.md) §Последствия).
-- **Приём рассчитан на один экземпляр.** Токен сообщества и позиция `ts` одни на деплой: второй экземпляр
-  опрашивал бы VK с тем же `ts` и мешал первому. Горизонтальное масштабирование приёма не поддерживается
-  ([ADR 2026-11-05-bots-long-poll-transport](../adr/2026-11-05-bots-long-poll-transport.md)).
+- **Дедуп ограничен ретенцией inbox.** Повторный `MESSAGE_NEW` с тем же `inboxMessageId` не создаёт
+  строку `messages`, не меняет статистику и не публикует события (`INSERT … ON CONFLICT (inbox_id) DO
+  NOTHING`), но гарантия живёт, пока живёт строка `incoming_messages` (24 ч, `vk.inbox.retention`) и
+  событие нового образца несёт `inboxMessageId`. Событие без id (накопленное в очереди до релиза) не
+  дедуплицируется: NULL в уникальном индексе не конфликтует. Повторная доставка старше ретенции получит
+  новый inbox id и даст дубль; накопленные до релиза дубли не чистятся, отдельного уникального ключа
+  `(peer_id, conversation_message_id)` у `messages` нет
+  ([ADR 2026-11-23-inbox-and-poller-lease](../adr/2026-11-23-inbox-and-poller-lease.md)).
+- **Лидер-лиз без fencing.** TTL лиза (40 с) меньше read-timeout `a_check` (60 с), поэтому живой лидер
+  изредка переживает свой TTL и коротко опрашивает параллельно новому; дубли этого окна гасит inbox,
+  регресс `ts` принят решением. При недоступной БД опрос не идёт (VK копит очередь), `ts` не теряется.
+- **PII в inbox.** `incoming_messages.payload` — сырой JSON события VK, включая текст сообщения; это
+  принятый риск Q1=B (текст уже хранится в `messages`), строки удаляются на ближайшем прогоне
+  cron-очистки после ретенции (24 ч + до часа при дефолтном расписании). Read-API у inbox нет, логи
+  лиза и очистки — только owner/id и счётчики.
 - **`failed: 1` теряет часть истории.** VK отбрасывает события, которые приложение не забрало; опрос
   продолжается с нового `ts`, потеря фиксируется WARN-логом и восстановлению не подлежит.
 - **Нет outbox.** Сохранение в БД и публикация в RabbitMQ не транзакционны относительно друг друга
-  ([`SaveMessageUsecase.kt:30-54`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L30-L54)): сбой публикации после записи оставляет сообщение без следующего шага.
+  ([`SaveMessageUsecase.kt:33-65`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L33-L65)): сбой публикации после записи оставляет сообщение без следующего шага.
   Ретраи на уровне брокера не покрывают этот случай.
 - **`forwardedMessages` — строка.** `StoredMessage.forwardedMessages: String?`
   ([`share/domain/model/StoredMessage.kt:13`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt#L13)); JSONB парсится на границе в
