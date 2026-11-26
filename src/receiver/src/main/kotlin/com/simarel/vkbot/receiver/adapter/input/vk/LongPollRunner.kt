@@ -10,7 +10,9 @@ import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortRequest
 import com.simarel.vkbot.receiver.port.output.CheckLongPollPort
 import com.simarel.vkbot.receiver.port.output.GetLongPollServerPort
 import com.simarel.vkbot.share.domain.vo.LongPollTs
+import com.simarel.vkbot.share.port.output.persistence.AcquireLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.FindLongPollTsPort
+import com.simarel.vkbot.share.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.SaveLongPollTsPort
 import io.quarkus.logging.Log
 import io.quarkus.runtime.ShutdownEvent
@@ -21,8 +23,10 @@ import jakarta.json.Json
 import jakarta.json.JsonException
 import org.eclipse.microprofile.config.inject.ConfigProperty
 import java.io.StringReader
+import java.time.Duration
+import java.util.UUID
 
-@Suppress("LongParameterList")
+@Suppress("LongParameterList", "TooManyFunctions")
 @ApplicationScoped
 open class LongPollRunner(
     private val getLongPollServerPort: GetLongPollServerPort,
@@ -30,10 +34,16 @@ open class LongPollRunner(
     private val receiveMessageInputPort: ReceiveMessageInputPort,
     private val findLongPollTsPort: FindLongPollTsPort,
     private val saveLongPollTsPort: SaveLongPollTsPort,
+    private val acquireLongPollLeasePort: AcquireLongPollLeasePort,
+    private val releaseLongPollLeasePort: ReleaseLongPollLeasePort,
     private val messageMapper: MessageMapper,
     @ConfigProperty(name = "vk.group.id") private val groupId: Long,
     @ConfigProperty(name = "vk.longpoll.enabled", defaultValue = "true") private val enabled: Boolean,
+    @ConfigProperty(name = "vk.inbox.lease-ttl", defaultValue = "40s") private val leaseTtl: Duration,
+    @ConfigProperty(name = "vk.inbox.standby-pause", defaultValue = "2s") private val standbyPause: Duration,
 ) {
+    private val owner: String = UUID.randomUUID().toString()
+
     @Volatile
     var pollThread: Thread? = null
         private set
@@ -46,6 +56,9 @@ open class LongPollRunner(
 
     @Volatile
     private var ts: String? = null
+
+    @Volatile
+    private var leadership = Leadership.STARTING
 
     @Suppress("UnusedParameter")
     fun start(@Observes event: StartupEvent) {
@@ -62,6 +75,7 @@ open class LongPollRunner(
     fun stop(@Observes event: ShutdownEvent) {
         running = false
         pollThread?.interrupt()
+        releaseLease()
     }
 
     open fun pollOnce() {
@@ -102,8 +116,12 @@ open class LongPollRunner(
         var failures = 0
         while (running) {
             try {
-                pollOnce()
-                failures = 0
+                if (acquireLeadership()) {
+                    pollOnce()
+                    failures = 0
+                } else {
+                    pause(standbyPause.toMillis())
+                }
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 return
@@ -143,9 +161,59 @@ open class LongPollRunner(
             return
         }
         try {
-            receiveMessageInputPort.execute(VkUpdateInputPortRequest(type = type, message = message))
+            receiveMessageInputPort.execute(
+                VkUpdateInputPortRequest(type = type, message = message, rawUpdate = rawUpdate),
+            )
         } catch (e: Exception) {
             throw VkEventPublishException(e)
+        }
+    }
+
+    private fun acquireLeadership(): Boolean {
+        val acquired = acquireLongPollLeasePort.execute(
+            AcquireLongPollLeasePort.Request(owner = owner, ttl = leaseTtl),
+        ).acquired
+        if (acquired) {
+            onLeaseAcquired()
+        } else {
+            onLeaseLost()
+        }
+        return acquired
+    }
+
+    private fun onLeaseAcquired() {
+        when (leadership) {
+            Leadership.STARTING -> Log.info("VK long poll lease acquired, polling as leader (owner=$owner)")
+            Leadership.STANDBY -> Log.warn("VK long poll lease taken over, polling as leader (owner=$owner)")
+            Leadership.LEADER -> Unit
+        }
+        leadership = Leadership.LEADER
+    }
+
+    private fun onLeaseLost() {
+        when (leadership) {
+            Leadership.LEADER -> {
+                ts = null
+                Log.warn("VK long poll lease lost, standing by (owner=$owner)")
+            }
+
+            Leadership.STARTING ->
+                Log.info("VK long poll lease is held by another instance, standing by (owner=$owner)")
+
+            Leadership.STANDBY -> Unit
+        }
+        leadership = Leadership.STANDBY
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun releaseLease() {
+        try {
+            releaseLongPollLeasePort.execute(ReleaseLongPollLeasePort.Request(owner = owner))
+            if (leadership == Leadership.LEADER) {
+                Log.info("VK long poll lease released (owner=$owner)")
+            }
+        } catch (e: Exception) {
+            Log.warn("VK long poll lease release failed (${e.javaClass.name})")
         }
     }
 
@@ -179,6 +247,8 @@ open class LongPollRunner(
             Thread.currentThread().interrupt()
         }
     }
+
+    private enum class Leadership { STARTING, LEADER, STANDBY }
 
     private companion object {
         const val POLL_THREAD_NAME = "vk-long-poll"

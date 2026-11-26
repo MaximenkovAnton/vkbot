@@ -5,5 +5,8 @@
     liquibase:
       enabled: false
   greetings.cron: disabled
+  vk:
+    inbox:
+      cleanup-cron: "off"
 summary:
   enabled-chats: 1,2,3

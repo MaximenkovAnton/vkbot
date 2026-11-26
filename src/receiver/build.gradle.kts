@@ -26,6 +26,7 @@ dependencies {
 
     // Quarkus dependencies
     implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-scheduler")
     implementation("io.quarkus:quarkus-jackson")
     implementation("io.quarkus:quarkus-rest")
     implementation("io.quarkus:quarkus-rest-client-jackson")
