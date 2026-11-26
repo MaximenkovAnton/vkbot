@@ -28,6 +28,19 @@ Long Poll API с событием `message_new` и отключить Callback A
 `groups.getLongPollServer` ключом без него) и правами на сообщения. Порядок переключения —
 [deployment.md](deployment.md).
 
+### Inbox, лидер-лиз и очистка
+
+| Ключ | Значение / env | Эффект | Где читается |
+|---|---|---|---|
+| `vk.inbox.lease-ttl` | `${VK_INBOX_LEASE_TTL:40s}` | TTL лидер-лиза в PostgreSQL: реплика, не продлившая лиз, перестаёт опрашивать VK, пересменка занимает не больше TTL | [`receiver/adapter/input/vk/LongPollRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/vk/LongPollRunner.kt) |
+| `vk.inbox.standby-pause` | `${VK_INBOX_STANDBY_PAUSE:2s}` | пауза между попытками получить лиз, пока реплика в standby | там же |
+| `vk.inbox.retention` | `${VK_INBOX_RETENTION:24h}` | сколько хранятся записи inbox: очистка удаляет `received_at < now - retention` | [`receiver/usecase/RunInboxCleanupUsecase.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/usecase/RunInboxCleanupUsecase.kt) |
+| `vk.inbox.cleanup-cron` | `${VK_INBOX_CLEANUP_CRON:0 0 * * * ?}` | cron автоочистки inbox (дефолт — раз в час); `off`/`disabled` выключает расписание; очистку выполняет каждая реплика независимо, один `DELETE` за прогон | [`receiver/adapter/input/schedule/InboxCleanupRunner.kt`](../../src/receiver/src/main/kotlin/com/simarel/vkbot/receiver/adapter/input/schedule/InboxCleanupRunner.kt) (`@Scheduled`) |
+
+Все четыре объявлены в [`application.yml`](../../src/app/src/main/resources/application.yml) с дефолтами
+(`40s`, `2s`, `24h`, `0 0 * * * ?`), поэтому новых обязательных env нет; `40s`/`2s`/`24h` читаются как
+`java.time.Duration` конвертером Quarkus.
+
 ## Промпты и саммаризация
 
 | Ключ | Значение / env | Эффект | Где читается |
@@ -254,15 +267,16 @@ Long Poll использует тот же `configKey = "vk"` для `groups.get
 
 - Production-профилей `%dev`/`%prod` в [`src/app/src/main/resources`](../../src/app/src/main/resources) нет. Есть `%test` в
   [`src/app/src/test/resources/application.yml`](../../src/app/src/test/resources/application.yml) (`hibernate-orm.enabled: false`, `liquibase.enabled: false`,
-  `greetings.cron: disabled`, `summary.enabled-chats: 1,2,3`).
+  `greetings.cron: disabled`, `vk.inbox.cleanup-cron: off`, `summary.enabled-chats: 1,2,3`).
 - [`src/app/src/test/resources/application.yaml`](../../src/app/src/test/resources/application.yaml) — базовая тестовая конфигурация: `vk.group.id`,
   `vk.longpoll.enabled` (у `InitTest` опрос выключен — `vk.longpoll.enabled: false`), `vk.bot.*`,
-  `summary.enabled-chats: 1,2,3`, `greetings.cron: disabled`, DevServices вкл., observability off,
+  `summary.enabled-chats: 1,2,3`, `greetings.cron: disabled`, `vk.inbox.cleanup-cron: off`, DevServices вкл., observability off,
   `vane.url: http://localhost:8075`.
 - [`src/app/src/test/resources/application-integration-test.yaml`](../../src/app/src/test/resources/application-integration-test.yaml) — профиль `integration-test`: RabbitMQ 3.12
   DevServices (shared, timeout 120s), PostgreSQL DevServices с `SELECT 1`, graceful shutdown, `auto-bind-exchange: false`
   для всех каналов, LangChain4j DevServices off (LLM мокается WireMock), Liquibase вкл.; опрос Bots Long Poll
-  включается для `VkLongPollIntegrationTest`; `greetings.cron: disabled` — расписание в тестах не срабатывает.
+  включается для `VkLongPollIntegrationTest`; `greetings.cron: disabled` и `vk.inbox.cleanup-cron: off` —
+  расписания в тестах не срабатывают.
 - [`src/testing/test-common/src/main/resources/application.yaml`](../../src/testing/test-common/src/main/resources/application.yaml) — общие значения для модульных тестов:
   `vk.group.id`, `vk.longpoll.enabled: false`, `vk.api.*`, `vk.bot.*`, DevServices off, observability off,
   `vane.url`.
@@ -294,6 +308,8 @@ downstreams`) и эндпоинты отдают 503 DOWN. `all-events-queue` о
 `dummy`), `VK_BOT_MENTION`, `VK_LONGPOLL_ENABLED` (дефолт `true`),
 `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`, `AI_GREETING_SYSTEM_PROMPT`,
 `NEWS_DIGEST_SYSTEM_PROMPT`, `AI_PROFILE_SYSTEM_PROMPT`, `SUMMARY_THRESHOLD`, `SUMMARY_BATCH_SIZE`, `GREETINGS_CRON` (дефолт
-`0 0 0 * * ?`; `off`/`disabled` выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`).
+`0 0 0 * * ?`; `off`/`disabled` выключает расписание), `GREETINGS_TIMEZONE` (дефолт `Europe/Minsk`),
+`VK_INBOX_LEASE_TTL` (дефолт `40s`), `VK_INBOX_STANDBY_PAUSE` (дефолт `2s`), `VK_INBOX_RETENTION` (дефолт
+`24h`), `VK_INBOX_CLEANUP_CRON` (дефолт `0 0 * * * ?`; `off`/`disabled` выключает очистку).
 `VK_SECRET` и `VK_CONFIRMATION_CODE` удалены вместе с Callback-эндпоинтом (ADR 2026-11-05-bots-long-poll-transport).
 Для RabbitMQ prod-параметры коннектора задаёт деплой (см. выше).

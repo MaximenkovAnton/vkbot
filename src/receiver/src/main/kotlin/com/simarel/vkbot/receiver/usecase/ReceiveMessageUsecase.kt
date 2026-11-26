@@ -5,16 +5,27 @@ import com.simarel.vkbot.receiver.command.sendVkEvent.PublishVkEventCommandReque
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortRequest
 import com.simarel.vkbot.receiver.port.input.VkUpdateInputPortResponse
+import com.simarel.vkbot.share.port.output.persistence.RegisterIncomingMessagePort
 import jakarta.enterprise.context.ApplicationScoped
 
 @ApplicationScoped
 class ReceiveMessageUsecase(
+    private val registerIncomingMessagePort: RegisterIncomingMessagePort,
     private val publishVkEventCommand: PublishVkEventCommand,
 ) : ReceiveMessageInputPort {
 
     override fun execute(request: VkUpdateInputPortRequest): VkUpdateInputPortResponse {
         request.message?.let { message ->
-            publishVkEventCommand.execute(PublishVkEventCommandRequest(message))
+            val registered = registerIncomingMessagePort.execute(
+                RegisterIncomingMessagePort.Request(
+                    peerId = message.peerId,
+                    conversationMessageId = message.conversationMessageId,
+                    payload = request.rawUpdate,
+                ),
+            )
+            publishVkEventCommand.execute(
+                PublishVkEventCommandRequest(message.copy(inboxMessageId = registered.inboxMessageId)),
+            )
         }
         return VkUpdateInputPortResponse
     }

@@ -6,8 +6,11 @@ import com.simarel.vkbot.share.domain.model.Message
 
 object FakeVkUpdateInputPortProvider {
 
+    const val RAW_UPDATE = """{"type":"message_new","object":{"message":{"text":"hello"}},"group_id":1}"""
+
     fun createRequest(
         type: VkUpdateType = VkUpdateType.MESSAGE_NEW,
         message: Message? = null,
-    ) = VkUpdateInputPortRequest(type = type, message = message)
+        rawUpdate: String = RAW_UPDATE,
+    ) = VkUpdateInputPortRequest(type = type, message = message, rawUpdate = rawUpdate)
 }

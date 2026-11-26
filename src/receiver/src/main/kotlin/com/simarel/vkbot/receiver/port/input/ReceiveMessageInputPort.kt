@@ -8,6 +8,10 @@ import com.simarel.vkbot.share.port.input.InputPortResponse
 
 interface ReceiveMessageInputPort : InputPort<VkUpdateInputPortRequest, VkUpdateInputPortResponse>
 
-data class VkUpdateInputPortRequest(val type: VkUpdateType, val message: Message? = null) : InputPortRequest
+data class VkUpdateInputPortRequest(
+    val type: VkUpdateType,
+    val message: Message? = null,
+    val rawUpdate: String,
+) : InputPortRequest
 
 data object VkUpdateInputPortResponse : InputPortResponse

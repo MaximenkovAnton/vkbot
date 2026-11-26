@@ -11,7 +11,9 @@ import com.simarel.vkbot.receiver.adapter.input.vk.mapper.MessageMapper
 import com.simarel.vkbot.receiver.port.input.ReceiveMessageInputPort
 import com.simarel.vkbot.receiver.port.output.CheckLongPollPort
 import com.simarel.vkbot.receiver.port.output.GetLongPollServerPort
+import com.simarel.vkbot.share.port.output.persistence.AcquireLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.FindLongPollTsPort
+import com.simarel.vkbot.share.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.SaveLongPollTsPort
 import io.quarkus.test.common.QuarkusTestResource
 import io.quarkus.test.junit.QuarkusTest
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.sql.ResultSet
+import java.time.Duration
 import javax.sql.DataSource
 
 class LongPollPositionTestProfile : QuarkusTestProfile {
@@ -54,6 +57,12 @@ class LongPollPositionIntegrationTest {
     lateinit var saveLongPollTsPort: SaveLongPollTsPort
 
     @Inject
+    lateinit var acquireLongPollLeasePort: AcquireLongPollLeasePort
+
+    @Inject
+    lateinit var releaseLongPollLeasePort: ReleaseLongPollLeasePort
+
+    @Inject
     lateinit var messageMapper: MessageMapper
 
     @BeforeEach
@@ -81,9 +90,13 @@ class LongPollPositionIntegrationTest {
         receiveMessageInputPort = receiveMessageInputPort,
         findLongPollTsPort = findLongPollTsPort,
         saveLongPollTsPort = saveLongPollTsPort,
+        acquireLongPollLeasePort = acquireLongPollLeasePort,
+        releaseLongPollLeasePort = releaseLongPollLeasePort,
         messageMapper = messageMapper,
         groupId = GROUP_ID,
         enabled = false,
+        leaseTtl = LEASE_TTL,
+        standbyPause = STANDBY_PAUSE,
     )
 
     private fun seedSavedTs(ts: String) {
@@ -127,6 +140,8 @@ class LongPollPositionIntegrationTest {
     private companion object {
         const val GROUP_ID = 232142875L
         const val POLL_PATH = "/whp/1"
+        val LEASE_TTL: Duration = Duration.ofSeconds(40)
+        val STANDBY_PAUSE: Duration = Duration.ofSeconds(2)
         const val SAVE_TS_SQL =
             "INSERT INTO long_poll_position (id, ts) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET ts = ?"
     }
