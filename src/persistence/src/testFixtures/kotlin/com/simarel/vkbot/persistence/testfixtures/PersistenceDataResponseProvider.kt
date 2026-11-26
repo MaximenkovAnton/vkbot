@@ -99,4 +99,16 @@ object PersistenceDataResponseProvider {
     fun createUserFactsResponse(
         facts: List<UserFact> = emptyList(),
     ) = PersistenceDataResponse.UserFacts(facts = facts)
+
+    fun createRegisteredInboxMessageResponse(
+        inboxMessageId: Long = 9,
+    ) = PersistenceDataResponse.RegisteredInboxMessage(inboxMessageId = inboxMessageId)
+
+    fun createPurgedIncomingMessagesResponse(
+        deleted: Int = 2,
+    ) = PersistenceDataResponse.PurgedIncomingMessages(deleted = deleted)
+
+    fun createLongPollLeaseAcquiredResponse(
+        acquired: Boolean = true,
+    ) = PersistenceDataResponse.LongPollLeaseAcquired(acquired = acquired)
 }

@@ -6,6 +6,7 @@ import com.simarel.vkbot.persistence.port.input.PersistenceDataResponse
 import com.simarel.vkbot.persistence.testfixtures.LongPollTsPortProvider
 import com.simarel.vkbot.persistence.testfixtures.PersistenceDataRequestProvider
 import com.simarel.vkbot.persistence.testfixtures.PersistenceDataResponseProvider
+import com.simarel.vkbot.share.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.testfixtures.domain.FakeModelProvider
 import com.simarel.vkbot.testfixtures.domain.FakeVoProvider
 import com.simarel.vkbot.testfixtures.port.FakeGreetingPortProvider
@@ -365,6 +366,99 @@ class PersistenceDataInProcessAdapterTest {
             PersistenceDataRequestProvider.createSaveLongPollTsRequest(ts = "ts-2"),
             port.requests.single(),
         )
+    }
+
+    @Test
+    fun `register incoming message adapter maps the request and returns the id`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun registerIncomingMessage(
+                request: PersistenceDataRequest.RegisterIncomingMessage,
+            ): PersistenceDataResponse.RegisteredInboxMessage {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createRegisteredInboxMessageResponse(inboxMessageId = 9)
+            }
+        }
+        val adapter = RegisterIncomingMessageInProcessAdapter(port)
+
+        val response = adapter.execute(FakePersistencePortProvider.createRegisterIncomingMessageRequest())
+
+        assertEquals(
+            PersistenceDataRequestProvider.createRegisterIncomingMessageRequest(
+                peerId = 101,
+                conversationMessageId = 202,
+                payload = """{"type":"message_new"}""",
+            ),
+            port.requests.single(),
+        )
+        assertEquals(9L, response.inboxMessageId.value)
+    }
+
+    @Test
+    fun `purge incoming messages adapter maps the cutoff and returns the deleted count`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun purgeIncomingMessages(
+                request: PersistenceDataRequest.PurgeIncomingMessages,
+            ): PersistenceDataResponse.PurgedIncomingMessages {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createPurgedIncomingMessagesResponse(deleted = 2)
+            }
+        }
+        val adapter = PurgeIncomingMessagesInProcessAdapter(port)
+
+        val response = adapter.execute(FakePersistencePortProvider.createPurgeIncomingMessagesRequest())
+
+        assertEquals(PersistenceDataRequestProvider.createPurgeIncomingMessagesRequest(), port.requests.single())
+        assertEquals(2, response.deleted)
+    }
+
+    @Test
+    fun `acquire long poll lease adapter maps owner and ttl and returns acquired`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun acquireLongPollLease(
+                request: PersistenceDataRequest.AcquireLongPollLease,
+            ): PersistenceDataResponse.LongPollLeaseAcquired {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createLongPollLeaseAcquiredResponse(acquired = true)
+            }
+        }
+        val adapter = AcquireLongPollLeaseInProcessAdapter(port)
+
+        val response = adapter.execute(
+            FakePersistencePortProvider.createAcquireLongPollLeaseRequest(
+                owner = "owner-1",
+                ttl = Duration.ofSeconds(40),
+            ),
+        )
+
+        assertEquals(
+            PersistenceDataRequestProvider.createAcquireLongPollLeaseRequest(
+                owner = "owner-1",
+                ttl = Duration.ofSeconds(40),
+            ),
+            port.requests.single(),
+        )
+        assertEquals(true, response.acquired)
+    }
+
+    @Test
+    fun `release long poll lease adapter delegates the owner`() {
+        val port = object : RecordingPersistenceDataInputPort() {
+            override fun releaseLongPollLease(
+                request: PersistenceDataRequest.ReleaseLongPollLease,
+            ): PersistenceDataResponse.Empty {
+                requests.add(request)
+                return PersistenceDataResponseProvider.createEmptyResponse()
+            }
+        }
+        val adapter = ReleaseLongPollLeaseInProcessAdapter(port)
+
+        val response = adapter.execute(FakePersistencePortProvider.createReleaseLongPollLeaseRequest(owner = "owner-1"))
+
+        assertEquals(
+            PersistenceDataRequestProvider.createReleaseLongPollLeaseRequest(owner = "owner-1"),
+            port.requests.single(),
+        )
+        assertEquals(ReleaseLongPollLeasePort.Response, response)
     }
 
     @Test
@@ -976,6 +1070,22 @@ class PersistenceDataInProcessAdapterTest {
         override fun findUserBirthdayFacts(
             request: PersistenceDataRequest.FindUserBirthdayFacts,
         ): PersistenceDataResponse.UserFacts = unsupported()
+
+        override fun registerIncomingMessage(
+            request: PersistenceDataRequest.RegisterIncomingMessage,
+        ): PersistenceDataResponse.RegisteredInboxMessage = unsupported()
+
+        override fun purgeIncomingMessages(
+            request: PersistenceDataRequest.PurgeIncomingMessages,
+        ): PersistenceDataResponse.PurgedIncomingMessages = unsupported()
+
+        override fun acquireLongPollLease(
+            request: PersistenceDataRequest.AcquireLongPollLease,
+        ): PersistenceDataResponse.LongPollLeaseAcquired = unsupported()
+
+        override fun releaseLongPollLease(
+            request: PersistenceDataRequest.ReleaseLongPollLease,
+        ): PersistenceDataResponse.Empty = unsupported()
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }

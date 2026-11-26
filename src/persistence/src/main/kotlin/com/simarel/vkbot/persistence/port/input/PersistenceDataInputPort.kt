@@ -121,6 +121,22 @@ interface PersistenceDataInputPort {
     fun findUserKnowledgeSummaryState(
         request: PersistenceDataRequest.FindUserKnowledgeSummaryState,
     ): PersistenceDataResponse.UserKnowledgeSummaryState
+
+    fun registerIncomingMessage(
+        request: PersistenceDataRequest.RegisterIncomingMessage,
+    ): PersistenceDataResponse.RegisteredInboxMessage
+
+    fun purgeIncomingMessages(
+        request: PersistenceDataRequest.PurgeIncomingMessages,
+    ): PersistenceDataResponse.PurgedIncomingMessages
+
+    fun acquireLongPollLease(
+        request: PersistenceDataRequest.AcquireLongPollLease,
+    ): PersistenceDataResponse.LongPollLeaseAcquired
+
+    fun releaseLongPollLease(
+        request: PersistenceDataRequest.ReleaseLongPollLease,
+    ): PersistenceDataResponse.Empty
 }
 
 sealed interface PersistenceDataRequest : InputPortRequest {
@@ -214,6 +230,15 @@ sealed interface PersistenceDataRequest : InputPortRequest {
     data class FindUserKnowledge(val userIds: List<Long>) : PersistenceDataRequest
     data class FindUserBirthdayFacts(val monthDay: MonthDay) : PersistenceDataRequest
     data class FindUserKnowledgeSummaryState(val userId: Long) : PersistenceDataRequest
+    data class RegisterIncomingMessage(
+        val peerId: Long,
+        val conversationMessageId: Long,
+        val payload: String,
+    ) : PersistenceDataRequest
+
+    data class PurgeIncomingMessages(val until: OffsetDateTime) : PersistenceDataRequest
+    data class AcquireLongPollLease(val owner: String, val ttl: Duration) : PersistenceDataRequest
+    data class ReleaseLongPollLease(val owner: String) : PersistenceDataRequest
 }
 
 sealed interface PersistenceDataResponse : InputPortResponse {
@@ -240,4 +265,8 @@ sealed interface PersistenceDataResponse : InputPortResponse {
         val summarizedAt: OffsetDateTime?,
         val factsSinceSummary: Int,
     ) : PersistenceDataResponse
+
+    data class RegisteredInboxMessage(val inboxMessageId: Long) : PersistenceDataResponse
+    data class PurgedIncomingMessages(val deleted: Int) : PersistenceDataResponse
+    data class LongPollLeaseAcquired(val acquired: Boolean) : PersistenceDataResponse
 }
