@@ -4,6 +4,7 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.GroupId
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import java.time.OffsetDateTime
@@ -16,8 +17,10 @@ data class Message(
     val conversationMessageId: ConversationMessageId,
     val messageText: MessageText,
     val forwardedMessages: List<Message> = emptyList(),
+    val inboxMessageId: InboxMessageId? = null,
 ) {
     companion object {
+        @Suppress("LongParameterList")
         fun of(
             date: OffsetDateTime?,
             fromId: Long?,
@@ -26,6 +29,7 @@ data class Message(
             conversationMessageId: Long?,
             messageText: String?,
             forwardedMessages: List<Message>? = null,
+            inboxMessageId: InboxMessageId? = null,
         ): Message = Message(
             date = Date.of(date),
             fromId = FromId.of(fromId),
@@ -34,6 +38,7 @@ data class Message(
             conversationMessageId = ConversationMessageId.of(conversationMessageId),
             messageText = MessageText.of(messageText),
             forwardedMessages = forwardedMessages ?: emptyList(),
+            inboxMessageId = inboxMessageId,
         )
     }
 

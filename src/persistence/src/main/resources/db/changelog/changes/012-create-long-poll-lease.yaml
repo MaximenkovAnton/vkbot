@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-create-long-poll-lease
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: long_poll_lease
+            columns:
+              - column:
+                  name: id
+                  type: SMALLINT
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: lease_until
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false

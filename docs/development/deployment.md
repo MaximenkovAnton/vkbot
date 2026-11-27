@@ -85,7 +85,10 @@ docker run -p 8080:8080 \
 | `DECISION_URL` | голый корень System One-сервера `llama-server` (без `/v1` и без `/v1/systemone`) |
 
 Опциональные: `AI_API_KEY` (дефолт `dummy`; нужен при включённой на сервере авторизации),
-`VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_BOT_MENTION`,
+`VK_LONGPOLL_ENABLED` (дефолт `true`; `false` выключает опрос), `VK_INBOX_LEASE_TTL` (дефолт `40s`),
+`VK_INBOX_STANDBY_PAUSE` (дефолт `2s`), `VK_INBOX_RETENTION` (дефолт `24h`),
+`VK_INBOX_CLEANUP_CRON` (дефолт `0 0 * * * ?`; `off`/`disabled` выключает очистку inbox),
+`VK_BOT_MENTION`,
 `SUMMARY_ENABLED_CHATS` (список peerId через запятую; пусто — саммаризация
 выключена), `USER_ANSWER_SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`, `OCR_SYSTEM_PROMPT`,
 `AI_GREETING_SYSTEM_PROMPT`, `NEWS_DIGEST_SYSTEM_PROMPT` (system-промпт сводки «что нового»; дефолт
@@ -154,13 +157,25 @@ PII-egress при включённой jailbreak-ветке продолжают
 поэтому опрос начинается с `ts` из ответа VK. Дальше `ts` переживает рестарты в таблице
 `long_poll_position`.
 
-Требование: **один экземпляр приложения**. Токен и позиция `ts` одни на сообщество; два экземпляра с
-одним токеном и одной позицией не поддерживаются — они делили бы `ts` и теряли события. По той же
-причине rolling update с двумя одновременно живыми экземплярами не подходит: сначала останавливается
-старый, затем поднимается новый (стратегия `Recreate`).
+После релиза inbox и лидер-лиза реплики разрешены: экземпляров может быть несколько, но VK опрашивает
+только держатель лиза в `long_poll_lease`. Остальные реплики — standby: раз в `VK_INBOX_STANDBY_PAUSE`
+(2 с) они пытаются получить лиз и VK не трогают. Лиз живёт `VK_INBOX_LEASE_TTL` (40 с) и продлевается
+перед каждым `a_check`; реплика, не продлившая лиз, перестаёт опрашивать, а после истечения TTL его
+забирает standby. После пересменки `ts` читается из `long_poll_position`, а не из памяти реплики. На
+`ShutdownEvent` лиз освобождается, поэтому штатный рестарт отдаёт лидерство сразу. `a_check` может держать
+соединение до 60 с (read-timeout), поэтому живой лидер изредка переживает свой TTL и коротко опрашивает
+параллельно второму — дубли этого окна гасит inbox, отдельного fencing нет
+([ADR 2026-11-23-inbox-and-poller-lease](../adr/2026-11-23-inbox-and-poller-lease.md)).
 
-Откат: вернуть предыдущий образ, снова включить Callback API и передать прежние `VK_SECRET` и
-`VK_CONFIRMATION_CODE`; сохранённый `ts` остаётся в таблице и откату не мешает.
+Переход с версии до inbox выполняется один раз — **остановить старый образ, затем поднять новый**: прежний
+образ не знает ни inbox, ни лиза, поэтому вместе с новым он опрашивал бы VK с тем же `ts` и плодил дубли.
+После перехода допустимы и несколько реплик, и rolling update (`RollingUpdate`): новый экземпляр встаёт в
+standby и принимает лидерство после release старого или истечения TTL, опрос не простаивает дольше TTL.
+`Recreate` больше не требуется.
+
+Откат транспорта на Callback (до ADR 2026-11-05): вернуть предыдущий образ, снова включить Callback API и
+передать прежние `VK_SECRET` и `VK_CONFIRMATION_CODE`; сохранённый `ts` остаётся в таблице и откату не
+мешает.
 
 ## Проверка токена и Long Poll перед выкаткой
 
@@ -192,10 +207,23 @@ curl -s "https://api.vk.com/method/groups.getLongPollSettings?group_id=$VK_GROUP
   `007-add-user-profile-data-and-history`, `008-replace-profile-data-with-human-details`,
   `009-create-user-statistics-tables`, `010-create-user-knowledge-tables` (пять таблиц знаний: `user_facts`,
   `user_fact_evidence`, `user_knowledge_summary`, `chat_knowledge_summary`, `knowledge_extraction_cursors`
-  и второй нетранзакционный changeset `010-create-messages-knowledge-index`).
+  и второй нетранзакционный changeset `010-create-messages-knowledge-index`),
+  `011-create-incoming-messages` (таблица `incoming_messages`, UNIQUE
+  `uq_incoming_messages_peer_id_conversation_message_id`, индекс `idx_incoming_messages_received_at`,
+  nullable `messages.inbox_id` с UNIQUE-индексом `uq_messages_inbox_id`; FK нет) и
+  `012-create-long-poll-lease` (таблица `long_poll_lease` — одна строка лидера).
 - Миграции применяются на старте (`quarkus.liquibase.migrate-at-start: true`,
   [`application.yml`](../../src/app/src/main/resources/application.yml)). Liquibase-ключей в тестах — `enabled: false` в `%test`.
-- Правило: **применённый changeset не редактируется**; следующий номер — 011.
+- Правило: **применённый changeset не редактируется**; следующий номер — 013.
+- **Inbox и лиз: changesets 011/012 аддитивны.** Новый образ читает и пишет `incoming_messages`,
+  `long_poll_lease` и `messages.inbox_id`; предыдущий (до inbox) образ их не знает и работает со схемой
+  как раньше, поэтому откат на один релиз назад проходит без изменения схемы. После отката дедуп
+  повторной доставки не работает (старый образ не заполняет `inbox_id`), а `incoming_messages` не
+  чистится: таблица перестаёт расти и ждёт возврата нового образа или ручного
+  `DELETE FROM incoming_messages WHERE received_at < now() - interval '24 hours'`. Данные `messages` не
+  затрагиваются. В `incoming_messages.payload` лежит сырой JSON события VK, включая текст сообщения —
+  принятый риск Q1=B (канон — §«PII и логи» в [`configuration.md`](configuration.md)); строки удаляет
+  cron-очистка по `vk.inbox.retention`.
 - Таблицы знаний `010` аддитивны: предыдущий образ их не читает и не пишет, откат образа на один релиз
   назад проходит без изменения схемы. Знания после начала записи откатываются только из бэкапа БД
   (Liquibase forward-only).

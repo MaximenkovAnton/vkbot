@@ -13,4 +13,5 @@ open class MessageEntity {
     open var conversationMessageId: Long? = null
     open var messageText: String? = null
     open var forwardedMessages: String? = null
+    open var inboxId: Long? = null
 }

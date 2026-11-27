@@ -5,10 +5,12 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.GroupId
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 
 object FakeMessageProvider {
+    @Suppress("LongParameterList")
     fun createMessage(
         date: Date = FakeVoProvider.createDate(),
         fromId: FromId = FakeVoProvider.createHumanFromId(),
@@ -17,6 +19,7 @@ object FakeMessageProvider {
         conversationMessageId: ConversationMessageId = FakeVoProvider.createConversationMessageId(),
         messageText: MessageText = FakeVoProvider.createMessageText(),
         forwardedMessages: List<Message> = emptyList(),
+        inboxMessageId: InboxMessageId? = null,
     ): Message = Message(
         date = date,
         fromId = fromId,
@@ -25,5 +28,6 @@ object FakeMessageProvider {
         conversationMessageId = conversationMessageId,
         messageText = messageText,
         forwardedMessages = forwardedMessages,
+        inboxMessageId = inboxMessageId,
     )
 }

@@ -29,3 +29,9 @@ databaseChangeLog:
   - include:
       file: changes/010-create-user-knowledge-tables.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/011-create-incoming-messages.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/012-create-long-poll-lease.yaml
+      relativeToChangelogFile: true

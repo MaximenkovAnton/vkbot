@@ -20,30 +20,32 @@ open class MessageTable {
     @Inject
     lateinit var dsl: DSLContext
 
-    open fun persist(entity: MessageEntity) {
-        dsl.insertInto(Messages.TABLE)
-            .columns(
-                Messages.ID,
-                Messages.DATE,
-                Messages.FROM_ID,
-                Messages.GROUP_ID,
-                Messages.PEER_ID,
-                Messages.CONVERSATION_MESSAGE_ID,
-                Messages.MESSAGE_TEXT,
-                Messages.FORWARDED_MESSAGES,
-            )
-            .values(
-                entity.id,
-                entity.date?.let { Timestamp.from(it.toInstant()) },
-                entity.fromId,
-                entity.groupId,
-                entity.peerId,
-                entity.conversationMessageId,
-                entity.messageText,
-                entity.forwardedMessages?.let { JSONB.valueOf(it) }, // ?: DSL.inline(null, SQLDataType.JSONB)
-            )
-            .execute()
-    }
+    open fun persist(entity: MessageEntity): Boolean = dsl.insertInto(Messages.TABLE)
+        .columns(
+            Messages.ID,
+            Messages.DATE,
+            Messages.FROM_ID,
+            Messages.GROUP_ID,
+            Messages.PEER_ID,
+            Messages.CONVERSATION_MESSAGE_ID,
+            Messages.MESSAGE_TEXT,
+            Messages.FORWARDED_MESSAGES,
+            Messages.INBOX_ID,
+        )
+        .values(
+            entity.id,
+            entity.date?.let { Timestamp.from(it.toInstant()) },
+            entity.fromId,
+            entity.groupId,
+            entity.peerId,
+            entity.conversationMessageId,
+            entity.messageText,
+            entity.forwardedMessages?.let { JSONB.valueOf(it) }, // ?: DSL.inline(null, SQLDataType.JSONB)
+            entity.inboxId,
+        )
+        .onConflict(Messages.INBOX_ID)
+        .doNothing()
+        .execute() > 0
 
     open fun findMessagesBefore(peerIdValue: Long, beforeConversationMessageId: Long, limit: Int): List<MessageEntity> {
         val records = dsl.select()

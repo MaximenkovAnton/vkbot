@@ -13,6 +13,11 @@
   прежними; перед обновлением пишет старые значения изменившихся typed-полей и `details` в
   `vk_user_profile_history` (JSONB-diff); сохраняет сообщение вместе с
   пересланными как JSONB и публикует `MESSAGE_RECEIVED` и `SUMMARY_REQUESTED`;
+- дедуплицирует повторную доставку по `inbox id`: пишет сообщение одним
+  `INSERT … ON CONFLICT (inbox_id) DO NOTHING` (`messages.inbox_id` = id записи `incoming_messages`).
+  Если строка уже есть, сохранение, профили, статистика и обе публикации пропускаются, а подавленный
+  дубль попадает в лог одной строкой `INFO`: `MESSAGE_NEW duplicate suppressed: peerId=…,
+  conversationMessageId=…, inboxId=…` без текста сообщения;
 - по запросу отдаёт сохранённые сообщения, последнее саммари, признак pending-саммари, профили и авторов
   чата по `peer_id` с числом сообщений (порядок `from_id asc`); ведёт
   записи саммари по lifecycle (`PENDING` → `COMPLETED`/`FAILED`);
@@ -41,11 +46,11 @@
 | Точка входа | Где в коде |
 |---|---|
 | `MESSAGE_NEW` из `all-events-queue` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt:12-22`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/event/MessageNewEventProcessor.kt#L12-L22) |
-| сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L28-L67) |
+| сохранение сообщения и публикация `MESSAGE_RECEIVED` + `SUMMARY_REQUESTED` (insert-first: `ON CONFLICT (inbox_id) DO NOTHING`, дубль не публикует события) | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt:28-67`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecase.kt#L28-L67) |
 | `GET /persistence/messages/*`, `/summaries/*`, `/profiles/*`, `/profiles/users/{id}/history`, `/statistics/users/{id}`; `POST /persistence/summaries/*` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt:21-154`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceDataResource.kt#L21-L154) |
 | контракт REST-ресурса и DTO | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt:24-97`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/rest/PersistenceResource.kt#L24-L97) |
-| 32 in-process адаптера `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`), истории профиля (`FindStoredUserProfileHistoryPort`), знаний из чата (шесть портов R1: четыре write — `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort`; два read — `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`) и чтения сводки чата/окна сообщений (`FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`) | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) |
-| реализация 32 операции (включая три чтения сводки «что нового», авторов чата, историю профиля, статистику автора, шесть операций знаний и два чтения сводки чата) и публикация `SUMMARY_READY` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt) |
+| 36 in-process адаптеров `share`-портов чтения/записи сообщений, саммари, позиции `ts`, профилей по дате рождения, чатов человека, claim поздравления, трёх read-only чтений сводки «что нового», авторов чата (`FindChatAuthorsPort`), материализованной статистики (`FindStoredUserStatisticsPort`), истории профиля (`FindStoredUserProfileHistoryPort`), знаний из чата (шесть портов R1: четыре write — `SaveUserFactsPort`, `AdvanceExtractionCursorPort`, `SaveUserKnowledgeSummaryPort`, `SaveChatKnowledgeSummaryPort`; два read — `HasPendingKnowledgeBatchPort`, `FindPendingKnowledgeBatchPort`), чтения сводки чата/окна сообщений (`FindChatKnowledgeSummaryPort`, `FindChatSummaryMessagesPort`) и inbox/лиза (`RegisterIncomingMessagePort`, `PurgeIncomingMessagesPort`, `AcquireLongPollLeasePort`, `ReleaseLongPollLeasePort`) | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapter.kt) |
+| реализация 36 операций (включая три чтения сводки «что нового», авторов чата, историю профиля, статистику автора, шесть операций знаний, два чтения сводки чата и четыре операции inbox/лиза) и публикация `SUMMARY_READY` | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/usecase/PersistenceDataUsecase.kt) |
 | вход сохранения сообщения | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt:8-17`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/SaveMessageInputPort.kt#L8-L17) |
 | запросы и ответы читающего контракта | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt:78-154`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/port/input/PersistenceDataInputPort.kt#L78-L154) |
 | jOOQ: таблицы и доступ к ним | [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt:6-178`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/Tables.kt#L6-L178), [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt:14-149`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/MessageTable.kt#L14-L149), [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/SummaryTable.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/SummaryTable.kt), [`src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsReader.kt`](../../src/persistence/src/main/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/jooq/UserStatisticsReader.kt) |
@@ -94,7 +99,14 @@
 - `chat_knowledge_summary` — сводка чата: PK `peer_id`, `summary_text`, `messages_covered`,
   `first_conversation_message_id`, `last_conversation_message_id`, `summarized_at`;
 - `knowledge_extraction_cursors` — курсор извлечения: PK `peer_id`, `last_conversation_message_id`,
-  `last_completed_at`, `updated_at`.
+  `last_completed_at`, `updated_at`;
+- `incoming_messages` — inbox входящих запросов: `id BIGSERIAL`, `peer_id`, `conversation_message_id`,
+  UNIQUE `uq_incoming_messages_peer_id_conversation_message_id` (ключ дедупа), `payload JSONB`,
+  `received_at` с индексом `idx_incoming_messages_received_at` под очистку по ретенции;
+- `long_poll_lease` — строка лидера (id=1): `id SMALLINT` PK, `owner VARCHAR(64)`, `lease_until`;
+  захват/перехват/продление — условный `INSERT … ON CONFLICT DO UPDATE`, время считает БД;
+- `messages.inbox_id` — nullable `BIGINT` с UNIQUE-индексом `uq_messages_inbox_id`: ссылка на строку
+  `incoming_messages` для дедупа сообщений, FK нет.
 
 Миграции: [`src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml`](../../src/persistence/src/main/resources/db/changelog/db.changelog-master.yaml),
 [`src/persistence/src/main/resources/db/changelog/changes/001-create-messages-table.yaml`](../../src/persistence/src/main/resources/db/changelog/changes/001-create-messages-table.yaml),
@@ -110,7 +122,12 @@
 `max_evidence_confidence`); changeset `010-create-messages-knowledge-index`: `runInTransaction: false`,
 `DROP INDEX CONCURRENTLY IF EXISTS
 idx_messages_peer_id_conversation_message_id` + `CREATE INDEX CONCURRENTLY
-idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_message_id)`).
+idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_message_id)`),
+`.../011-create-incoming-messages.yaml` (changeset `011-create-incoming-messages`: `createTable
+incoming_messages`, UNIQUE `uq_incoming_messages_peer_id_conversation_message_id`, индекс
+`idx_incoming_messages_received_at`, `addColumn messages.inbox_id BIGINT NULL` и UNIQUE-индекс
+`uq_messages_inbox_id`; FK нет),
+`.../012-create-long-poll-lease.yaml` (changeset `012-create-long-poll-lease`: `createTable long_poll_lease`).
 Переигровка накопленных `messages` в агрегаты —
 отдельный ручной ops-скрипт [`src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql)
 (не миграция и не рантайм-бин: в файле нет `BEGIN`/`COMMIT`, запускается под `psql --single-transaction
@@ -142,7 +159,8 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
 | читающая модель `StoredMessage` ([`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/StoredMessage.kt)) | `ai-answer`, `conversation-summary`, `chat-news-digest` | `message-storage` |
 | таблица `vk_user_profiles`/`vk_group_profiles` | `vk-profiles` (заполняет через свои порты), `ai-answer`, `conversation-summary`, `daily-greetings` (профили по дате рождения) | `message-storage` — схема, jOOQ, Liquibase |
 | таблица `summaries` и статусы | `conversation-summary` (создаёт pending, завершает, помечает failed); `chat-news-digest` читает только `COMPLETED` | `message-storage` — схема, jOOQ, Liquibase |
-| `PersistenceDataInputPort` | REST-ресурс и 32 in-process адаптера | `message-storage` |
+| `PersistenceDataInputPort` | REST-ресурс и 36 in-process адаптеров | `message-storage` |
+| таблицы `incoming_messages`, `long_poll_lease` и `messages.inbox_id` | `vk-long-poll` — register/purge/acquire/release через `RegisterIncomingMessagePort`, `PurgeIncomingMessagesPort`, `AcquireLongPollLeasePort`, `ReleaseLongPollLeasePort`; `message-dedup` — `messages.inbox_id`/`Tables.Messages.INBOX_ID` как ключ дедупа | `message-storage` — схема, jOOQ, Liquibase |
 | читающие модели `UserStatistics`, `ProfileHistoryEntry`, `ChatAuthor` ([`src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model/`](../../src/share/src/main/kotlin/com/simarel/vkbot/share/domain/model)) | `profile-dossier` читает статистику, историю профиля и авторов чата | `message-storage` |
 | read-порты `FindChatAuthorsPort` (авторы чата по `peer_id`, порядок `from_id asc`), `FindStoredUserStatisticsPort`, `FindStoredUserProfileHistoryPort` | `profile-dossier` — авторы чата, материализованная статистика и последние записи истории профиля | `message-storage` |
 | таблица `greeting_log` и семантика claim | `daily-greetings` (вызывает `ClaimDailyGreetingPort`) | `message-storage` — схема, jOOQ, Liquibase |
@@ -164,6 +182,7 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
 - ADR 2026-11-10-vk-profile-human-details — `profile_details` вместо сырого снимка, typed + человеческий diff истории, changeset 008.
 - ADR 2026-11-10-user-statistics-materialization — материализованные агрегаты статистики автора: три таблицы, upsert в транзакции сообщения, ручной backfill-скрипт, конвертация UTC-бакетов на чтении.
 - ADR 2026-11-11-user-knowledge-facts — пять таблиц знаний: карточка на `(user_id, category, fact_key, value_hash)` без `peer_id`, свидетельства-ссылки без текста, агрегаты `evidence_count`/`max_evidence_confidence` и K=20, доверие и временная политика, changeset `010` и нетранзакционный индекс `messages`.
+- ADR 2026-11-23-inbox-and-poller-lease — inbox: `incoming_messages`, nullable `messages.inbox_id` с UNIQUE без FK, insert-first дедуп повторной доставки, `long_poll_lease`; changesets 011/012.
 
 ## Acceptance criteria
 
@@ -219,12 +238,45 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
   сохранённых сообщений — пустой список. Test:
   [`src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileDataPortsIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/ProfileDataPortsIntegrationTest.kt),
   [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt).
+- **AC-message-storage-11** — КОГДА in-process порт `RegisterIncomingMessagePort` получает (peerId,
+  conversationMessageId, payload), СИСТЕМА ДОЛЖНА вернуть положительный `InboxMessageId`, а повторная
+  регистрация той же пары — тот же id с обновлёнными payload и `received_at`. Test:
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt),
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt).
+- **AC-message-storage-12** — КОГДА `PurgeIncomingMessagesPort` получает `until`, СИСТЕМА ДОЛЖНА удалить
+  только строки `received_at < until` и вернуть их число (повтор — 0, пустая таблица — 0). Test:
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt).
+- **AC-message-storage-13** — КОГДА `AcquireLongPollLeasePort` вызывается на пустом, занятом живом и
+  протухшем `long_poll_lease`, а `ReleaseLongPollLeasePort` — своим и чужим owner, СИСТЕМА ДОЛЖНА
+  выдавать лидерство ровно одному owner (включая одновременный acquire из двух потоков), продлевать
+  свой lease, освобождать только своим owner и перехватывать протухший lease. Test:
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt).
+- **AC-message-storage-14** — КОГДА changesets 011/012 применены, СИСТЕМА ДОЛЖНА объявлять
+  `incoming_messages`, `long_poll_lease`, nullable `messages.inbox_id` с UNIQUE-индексом и принимать
+  много NULL в `messages.inbox_id`, отклоняя второй не-NULL (SQLState `23505`). Test:
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/migration/InboxMigrationChangesetTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/output/persistence/migration/InboxMigrationChangesetTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxStorageIntegrationTest.kt).
+- **AC-message-storage-15** — КОГДА `InboxMessageId.of` получает null/0/отрицательное значение,
+  СИСТЕМА ДОЛЖНА бросить `InboxMessageIdValidationException`, а четыре in-process адаптера inbox/лиза —
+  без искажений передать запрос в `PersistenceDataInputPort` и вернуть ответ порта. Test:
+  [`src/share/src/test/kotlin/com/simarel/vkbot/share/domain/vo/InboxMessageIdTest.kt`](../../src/share/src/test/kotlin/com/simarel/vkbot/share/domain/vo/InboxMessageIdTest.kt),
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/adapter/input/inprocess/PersistenceDataInProcessAdapterTest.kt).
+
+- **AC-message-storage-16** — КОГДА `MESSAGE_NEW` доставлен повторно с тем же `inbox id`, СИСТЕМА
+  ДОЛЖНА записать `messages` и статистику один раз, не публиковать `MESSAGE_RECEIVED`/`SUMMARY_REQUESTED`
+  и залогировать подавленный дубль на `INFO` без текста сообщения; `MessageTable.persist` возвращает
+  `false` на дубле и `true` на новой вставке, в том числе при одновременной вставке из двух потоков.
+  Test:
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/MessageDedupIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/MessageDedupIntegrationTest.kt),
+  [`src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt`](../../src/persistence/src/test/kotlin/com/simarel/vkbot/persistence/usecase/SaveMessageUsecaseTest.kt),
+  [`src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt`](../../src/app/src/test/kotlin/com/simarel/vkbot/integration/InboxE2eIntegrationTest.kt) (реальные RabbitMQ/Postgres: две доставки `MESSAGE_NEW` с одним inbox id дают одну
+  строку `messages`, статистику +1 и один `ANSWER_MESSAGE`).
 
 ## Пробелы приёмки
 
 - Сохранение сообщения в `messages` проверяется косвенно: `UserStatisticsMaterializationIntegrationTest`
-  сеет сообщения production-путём и сверяет агрегаты и `count(messages)`, отдельного теста
-  `MessageTable.persist` нет.
+  сеет сообщения production-путём и сверяет агрегаты и `count(messages)`; прямой тест
+  `MessageTable.persist` — `MessageDedupIntegrationTest`.
 - REST `/persistence/*` не покрыт ни одним HTTP-тестом; новые `/profiles/users/{id}/history` и
   `/statistics/users/{id}` проверены на уровне таблиц/БД, не HTTP.
 - `profile_details` у старых профилей пуст до первой актуализации (backfill нет); при пустом прежнем
@@ -235,8 +287,16 @@ idx_messages_peer_id_conversation_message_id ON messages (peer_id, conversation_
   сообщения этого окна в агрегаты не попадут, согласованность восстанавливает ручной запуск
   [`backfill-user-statistics.sql`](../../src/persistence/src/main/resources/db/backfill/backfill-user-statistics.sql) (остановка писателя, `ACCESS EXCLUSIVE` + `lock_timeout`, `ANALYZE`);
   автоматического заполнения и рантайм-бина нет.
-- У `messages` нет уникального ключа, поэтому повторная доставка `MESSAGE_NEW` создаёт дубль сообщения и
-  дубль в агрегатах; дедупликации нет.
+- Дедуп повторной доставки по `inbox id` действует, пока жива запись `incoming_messages` (ретенция 24 ч,
+  `vk.inbox.retention`) и событие нового образца несёт `inboxMessageId`; событие без inbox id сохраняется
+  каждый раз (NULL в уникальном индексе не конфликтует), накопленные до релиза дубли не чистятся, а ручное
+  удаление строки `messages` снимает дедуп. Конкурентный дубль ждёт коммита транзакции-победителя: внешнего
+  fetch профилей, статистики и обеих публикаций. Fallback-уникальность `(peer_id, conversation_message_id)` —
+  отдельная задача: требует changeset и очистки накопленных данных.
+- Ретенция `incoming_messages` в storage не выполняется: строки старше 24 ч удаляет `vk-long-poll`
+  через `PurgeIncomingMessagesPort`; FK между `incoming_messages` и `messages` нет, поэтому очистка
+  inbox не трогает сохранённые сообщения.
+- `incoming_messages` — write-only: replay/read-порта нет, payload читается только тестом.
 - Ретенции нет: `user_hour_statistics` растёт ≤ 24 строк на автора в сутки, `user_chat_statistics` —
   ≤ числа чатов автора; удаление строк `messages` агрегаты не пересчитывает (статистика от журнала не
   зависит).

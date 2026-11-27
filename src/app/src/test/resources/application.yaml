@@ -8,6 +8,8 @@ vk:
   bot:
     id: ${VK_BOT_ID:123456789}
     mention: ${VK_BOT_MENTION:@simarel}
+  inbox:
+    cleanup-cron: "off"
 
 summary:
   enabled-chats: 1,2,3

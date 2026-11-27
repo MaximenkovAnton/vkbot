@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-incoming-messages
+      author: vk-bot
+      changes:
+        - createTable:
+            tableName: incoming_messages
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: peer_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: conversation_message_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: payload
+                  type: JSONB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: received_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: incoming_messages
+            columnNames: peer_id, conversation_message_id
+            constraintName: uq_incoming_messages_peer_id_conversation_message_id
+        - createIndex:
+            tableName: incoming_messages
+            indexName: idx_incoming_messages_received_at
+            columns:
+              - column:
+                  name: received_at
+        - addColumn:
+            tableName: messages
+            columns:
+              - column:
+                  name: inbox_id
+                  type: BIGINT
+                  constraints:
+                    nullable: true
+        - createIndex:
+            tableName: messages
+            indexName: uq_messages_inbox_id
+            unique: true
+            columns:
+              - column:
+                  name: inbox_id

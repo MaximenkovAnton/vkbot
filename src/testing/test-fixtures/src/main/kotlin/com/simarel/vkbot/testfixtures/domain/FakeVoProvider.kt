@@ -5,6 +5,7 @@ import com.simarel.vkbot.share.domain.vo.ConversationMessageId
 import com.simarel.vkbot.share.domain.vo.Date
 import com.simarel.vkbot.share.domain.vo.FromId
 import com.simarel.vkbot.share.domain.vo.GroupId
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.share.domain.vo.MessageText
 import com.simarel.vkbot.share.domain.vo.PeerId
 import com.simarel.vkbot.vkFacade.domain.ForwardedMessages
@@ -30,8 +31,11 @@ object FakeVoProvider {
         value ?: Random.nextLong(),
     )
 
+    fun createInboxMessageId(value: Long = 1) = InboxMessageId.of(value)
+
     fun createMessageText(value: String? = null) = MessageText.of(value ?: "Тестовое сообщение для @simarel")
 
+    @Suppress("LongParameterList")
     fun createMessage(
         date: Date? = null,
         fromId: FromId? = null,
@@ -40,6 +44,7 @@ object FakeVoProvider {
         conversationMessageId: ConversationMessageId? = null,
         messageText: MessageText? = null,
         forwardedMessages: List<Message>? = null,
+        inboxMessageId: InboxMessageId? = null,
     ) = Message(
         date = date ?: createDate(),
         fromId = fromId ?: createHumanFromId(),
@@ -48,6 +53,7 @@ object FakeVoProvider {
         conversationMessageId = conversationMessageId ?: createConversationMessageId(),
         messageText = messageText ?: createMessageText(),
         forwardedMessages = forwardedMessages ?: emptyList(),
+        inboxMessageId = inboxMessageId,
     )
 
     fun createForwardedMessage(message: Message? = null) = ForwardedMessages(message ?: createMessage())

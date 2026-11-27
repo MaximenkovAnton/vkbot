@@ -5,19 +5,25 @@ import com.simarel.vkbot.receiver.domain.vo.LongPollFailure
 import com.simarel.vkbot.receiver.domain.vo.VkUpdateType
 import com.simarel.vkbot.receiver.fixtures.FakeLongPollPortProvider
 import com.simarel.vkbot.receiver.fixtures.FakeMessageMapper
+import com.simarel.vkbot.receiver.fixtures.port.FakeAcquireLongPollLeasePort
 import com.simarel.vkbot.receiver.fixtures.port.FakeCheckLongPollPort
 import com.simarel.vkbot.receiver.fixtures.port.FakeFindLongPollTsPort
 import com.simarel.vkbot.receiver.fixtures.port.FakeGetLongPollServerPort
 import com.simarel.vkbot.receiver.fixtures.port.FakeReceiveMessageInputPort
+import com.simarel.vkbot.receiver.fixtures.port.FakeReleaseLongPollLeasePort
 import com.simarel.vkbot.receiver.fixtures.port.FakeSaveLongPollTsPort
+import com.simarel.vkbot.receiver.test.SystemLoggerCapture
 import io.quarkus.runtime.ShutdownEvent
 import io.quarkus.runtime.StartupEvent
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.Duration
+import java.util.logging.Level
 
 class LongPollRunnerTest {
 
@@ -63,6 +69,26 @@ class LongPollRunnerTest {
         assertEquals(VkUpdateType.MESSAGE_NEW, request.type)
         assertNotNull(request.message)
         assertEquals("ts-next", saveTs.executeCalls.single().ts.value)
+    }
+
+    @Test
+    fun `the raw update is passed to the use case`() {
+        val checks = FakeCheckLongPollPort(
+            listOf(
+                FakeLongPollPortProvider.createCheckResponse(
+                    ts = "ts-raw",
+                    updates = listOf(MESSAGE_NEW_UPDATE),
+                ),
+            ),
+        )
+        val receiveMessage = FakeReceiveMessageInputPort()
+
+        runner(checks = checks, receiveMessage = receiveMessage).pollOnce()
+
+        val request = receiveMessage.executeCalls.single()
+        assertEquals(MESSAGE_NEW_UPDATE, request.rawUpdate)
+        assertEquals(VkUpdateType.MESSAGE_NEW, request.type)
+        assertNotNull(request.message)
     }
 
     @Test
@@ -253,6 +279,180 @@ class LongPollRunnerTest {
     }
 
     @Test
+    fun `loop acquires the lease with a 40 second ttl before every check`() {
+        val journal = mutableListOf<String>()
+        val acquire = FakeAcquireLongPollLeasePort(journal = journal)
+        val checks = FakeCheckLongPollPort(journal = journal)
+        checks.failure = IllegalStateException("network is down")
+        val runner = runner(
+            checks = checks,
+            acquireLease = acquire,
+            pauses = mutableListOf(),
+            stopAfterPauses = 1,
+        )
+
+        runner.start(StartupEvent())
+        runner.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+        assertEquals(listOf("acquire", "check"), journal)
+        assertEquals(Duration.ofSeconds(40), acquire.executeCalls.single().ttl)
+        assertTrue(OWNER_PATTERN.matches(acquire.executeCalls.single().owner))
+        assertEquals(1, checks.executeCalls.size)
+    }
+
+    @Test
+    fun `standby pauses two seconds and never polls`() {
+        val acquire = FakeAcquireLongPollLeasePort(acquiredSequence = listOf(false))
+        val checks = FakeCheckLongPollPort()
+        val saveTs = FakeSaveLongPollTsPort()
+        val pauses = mutableListOf<Long>()
+        val runner = runner(
+            checks = checks,
+            saveTs = saveTs,
+            acquireLease = acquire,
+            pauses = pauses,
+            stopAfterPauses = 1,
+        )
+
+        runner.start(StartupEvent())
+        runner.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+        assertEquals(listOf(2_000L), pauses)
+        assertTrue(checks.executeCalls.isEmpty())
+        assertTrue(saveTs.executeCalls.isEmpty())
+        assertTrue(!acquire.executeCalls.isEmpty())
+    }
+
+    @Test
+    fun `stop releases the lease of the owner`() {
+        val acquire = FakeAcquireLongPollLeasePort()
+        val release = FakeReleaseLongPollLeasePort()
+        val checks = FakeCheckLongPollPort()
+        checks.failure = IllegalStateException("network is down")
+        val runner = runner(
+            checks = checks,
+            acquireLease = acquire,
+            releaseLease = release,
+            pauses = mutableListOf(),
+            stopAfterPauses = 1,
+        )
+
+        runner.start(StartupEvent())
+        runner.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+        assertEquals(1, release.executeCalls.size)
+        assertEquals(acquire.executeCalls.first().owner, release.executeCalls.single().owner)
+        assertTrue(OWNER_PATTERN.matches(release.executeCalls.single().owner))
+    }
+
+    @Test
+    fun `takeover reads the ts from the stored position`() {
+        val acquire = FakeAcquireLongPollLeasePort(acquiredSequence = listOf(true, false, true, false))
+        val checks = FakeCheckLongPollPort(
+            listOf(
+                FakeLongPollPortProvider.createCheckResponse(ts = "ts-own"),
+                FakeLongPollPortProvider.createCheckResponse(ts = null),
+            ),
+        )
+        val findTs = FakeFindLongPollTsPort(FakeLongPollPortProvider.createLongPollTs("ts-saved"))
+        val saveTs = FakeSaveLongPollTsPort()
+        val runner = runner(
+            checks = checks,
+            findTs = findTs,
+            saveTs = saveTs,
+            acquireLease = acquire,
+            pauses = mutableListOf(),
+            stopAfterPauses = 2,
+        )
+
+        runner.start(StartupEvent())
+        runner.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+        assertEquals(2, checks.executeCalls.size)
+        assertEquals("ts-saved", checks.executeCalls.toList()[1].ts)
+        assertEquals("ts-own", saveTs.executeCalls.single().ts.value)
+        assertEquals(2, findTs.executeCalls.size)
+    }
+
+    @Test
+    fun `leadership transitions are logged without pii`() {
+        SystemLoggerCapture(LongPollRunner::class.java.name).use { capture ->
+            val leaderAcquire = FakeAcquireLongPollLeasePort()
+            val leaderChecks = FakeCheckLongPollPort(
+                listOf(FakeLongPollPortProvider.createCheckResponse(updates = listOf(MESSAGE_NEW_UPDATE))),
+            )
+            leaderChecks.failure = IllegalStateException("network is down")
+            val leader = runner(
+                checks = leaderChecks,
+                acquireLease = leaderAcquire,
+                pauses = mutableListOf(),
+                stopAfterPauses = 1,
+            )
+            leader.start(StartupEvent())
+            leader.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+            val standbyAcquire = FakeAcquireLongPollLeasePort(acquiredSequence = listOf(false))
+            val standby = runner(
+                acquireLease = standbyAcquire,
+                pauses = mutableListOf(),
+                stopAfterPauses = 1,
+            )
+            standby.start(StartupEvent())
+            standby.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+            val transitionsAcquire = FakeAcquireLongPollLeasePort(acquiredSequence = listOf(false, true, false))
+            val transitions = runner(
+                checks = FakeCheckLongPollPort(
+                    listOf(
+                        FakeLongPollPortProvider.createCheckResponse(updates = listOf(MESSAGE_NEW_UPDATE)),
+                        FakeLongPollPortProvider.createCheckResponse(updates = listOf(MESSAGE_NEW_UPDATE)),
+                    ),
+                ),
+                acquireLease = transitionsAcquire,
+                pauses = mutableListOf(),
+                stopAfterPauses = 2,
+            )
+            transitions.start(StartupEvent())
+            transitions.pollThread?.join(POLL_THREAD_TIMEOUT_MILLIS)
+
+            val owner = leaderAcquire.executeCalls.first().owner
+            val standbyOwner = standbyAcquire.executeCalls.first().owner
+            val transitionsOwner = transitionsAcquire.executeCalls.first().owner
+            assertLogged(capture, Level.INFO, "VK long poll lease acquired, polling as leader (owner=$owner)")
+            assertLogged(
+                capture,
+                Level.INFO,
+                "VK long poll lease is held by another instance, standing by (owner=$standbyOwner)",
+            )
+            assertLogged(capture, Level.WARNING, "VK long poll lease lost, standing by (owner=$transitionsOwner)")
+            assertLogged(
+                capture,
+                Level.WARNING,
+                "VK long poll lease taken over, polling as leader (owner=$transitionsOwner)",
+            )
+            assertLogged(capture, Level.INFO, "VK long poll lease released (owner=$owner)")
+            assertTrue(capture.records.none { it.message?.contains("hello") == true })
+        }
+    }
+
+    @Test
+    fun `release failure is logged and shutdown continues`() {
+        val release = FakeReleaseLongPollLeasePort()
+        release.failure = IllegalStateException("datasource is closed")
+        val runner = runner(releaseLease = release)
+        SystemLoggerCapture(LongPollRunner::class.java.name).use { capture ->
+            assertDoesNotThrow { runner.stop(ShutdownEvent()) }
+
+            assertEquals(
+                Level.WARNING,
+                capture.records.single {
+                    it.message == "VK long poll lease release failed (java.lang.IllegalStateException)"
+                }.level,
+            )
+        }
+    }
+
+    @Test
     fun `disabled runner does not start polling`() {
         val sessions = FakeGetLongPollServerPort()
         val runner = runner(sessions = sessions, enabled = false)
@@ -316,6 +516,10 @@ class LongPollRunnerTest {
         assertTrue(saveTs.executeCalls.isEmpty())
     }
 
+    private fun assertLogged(capture: SystemLoggerCapture, level: Level, message: String) {
+        assertEquals(level, capture.records.single { it.message == message }.level)
+    }
+
     @Suppress("LongParameterList")
     private fun runner(
         sessions: FakeGetLongPollServerPort = FakeGetLongPollServerPort(),
@@ -323,8 +527,12 @@ class LongPollRunnerTest {
         receiveMessage: FakeReceiveMessageInputPort = FakeReceiveMessageInputPort(),
         findTs: FakeFindLongPollTsPort = FakeFindLongPollTsPort(),
         saveTs: FakeSaveLongPollTsPort = FakeSaveLongPollTsPort(),
+        acquireLease: FakeAcquireLongPollLeasePort = FakeAcquireLongPollLeasePort(),
+        releaseLease: FakeReleaseLongPollLeasePort = FakeReleaseLongPollLeasePort(),
         messageMapper: FakeMessageMapper = FakeMessageMapper(),
         enabled: Boolean = true,
+        leaseTtl: Duration = Duration.ofSeconds(40),
+        standbyPause: Duration = Duration.ofSeconds(2),
         pauses: MutableList<Long>? = null,
         stopAfterPauses: Int = Int.MAX_VALUE,
     ): LongPollRunner = object : LongPollRunner(
@@ -333,9 +541,13 @@ class LongPollRunnerTest {
         receiveMessageInputPort = receiveMessage,
         findLongPollTsPort = findTs,
         saveLongPollTsPort = saveTs,
+        acquireLongPollLeasePort = acquireLease,
+        releaseLongPollLeasePort = releaseLease,
         messageMapper = messageMapper,
         groupId = GROUP_ID,
         enabled = enabled,
+        leaseTtl = leaseTtl,
+        standbyPause = standbyPause,
     ) {
         override fun pause(millis: Long) {
             val recorded = pauses ?: return
@@ -349,5 +561,7 @@ class LongPollRunnerTest {
         const val POLL_THREAD_TIMEOUT_MILLIS = 5_000L
         const val MESSAGE_NEW_UPDATE =
             """{"type":"message_new","object":{"message":{"text":"hello"}},"group_id":1}"""
+        val OWNER_PATTERN =
+            Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
     }
 }

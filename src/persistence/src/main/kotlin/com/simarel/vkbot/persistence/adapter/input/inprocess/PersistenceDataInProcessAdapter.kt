@@ -3,8 +3,10 @@ package com.simarel.vkbot.persistence.adapter.input.inprocess
 import com.simarel.vkbot.persistence.port.input.PersistenceDataInputPort
 import com.simarel.vkbot.persistence.port.input.PersistenceDataRequest
 import com.simarel.vkbot.share.domain.vo.FromId
+import com.simarel.vkbot.share.domain.vo.InboxMessageId
 import com.simarel.vkbot.share.domain.vo.LongPollTs
 import com.simarel.vkbot.share.domain.vo.PeerId
+import com.simarel.vkbot.share.port.output.persistence.AcquireLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.AdvanceExtractionCursorPort
 import com.simarel.vkbot.share.port.output.persistence.ClaimDailyGreetingPort
 import com.simarel.vkbot.share.port.output.persistence.CreateStoredPendingSummaryPort
@@ -32,6 +34,9 @@ import com.simarel.vkbot.share.port.output.persistence.FindUserProfilesByBirthDa
 import com.simarel.vkbot.share.port.output.persistence.HasPendingKnowledgeBatchPort
 import com.simarel.vkbot.share.port.output.persistence.HasStoredPendingSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.MarkStoredSummaryFailedPort
+import com.simarel.vkbot.share.port.output.persistence.PurgeIncomingMessagesPort
+import com.simarel.vkbot.share.port.output.persistence.RegisterIncomingMessagePort
+import com.simarel.vkbot.share.port.output.persistence.ReleaseLongPollLeasePort
 import com.simarel.vkbot.share.port.output.persistence.SaveChatKnowledgeSummaryPort
 import com.simarel.vkbot.share.port.output.persistence.SaveLongPollTsPort
 import com.simarel.vkbot.share.port.output.persistence.SaveStoredCompletedSummaryPort
@@ -495,5 +500,55 @@ class FindUserKnowledgeSummaryStateInProcessAdapter(
             summarizedAt = state.summarizedAt,
             factsSinceSummary = state.factsSinceSummary,
         )
+    }
+}
+
+@ApplicationScoped
+class RegisterIncomingMessageInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : RegisterIncomingMessagePort {
+    override fun execute(request: RegisterIncomingMessagePort.Request): RegisterIncomingMessagePort.Response {
+        val response = persistenceDataInputPort.registerIncomingMessage(
+            PersistenceDataRequest.RegisterIncomingMessage(
+                request.peerId.value,
+                request.conversationMessageId.value,
+                request.payload,
+            ),
+        )
+        return RegisterIncomingMessagePort.Response(InboxMessageId.of(response.inboxMessageId))
+    }
+}
+
+@ApplicationScoped
+class PurgeIncomingMessagesInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : PurgeIncomingMessagesPort {
+    override fun execute(request: PurgeIncomingMessagesPort.Request): PurgeIncomingMessagesPort.Response {
+        val deleted = persistenceDataInputPort.purgeIncomingMessages(
+            PersistenceDataRequest.PurgeIncomingMessages(request.until),
+        ).deleted
+        return PurgeIncomingMessagesPort.Response(deleted)
+    }
+}
+
+@ApplicationScoped
+class AcquireLongPollLeaseInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : AcquireLongPollLeasePort {
+    override fun execute(request: AcquireLongPollLeasePort.Request): AcquireLongPollLeasePort.Response {
+        val acquired = persistenceDataInputPort.acquireLongPollLease(
+            PersistenceDataRequest.AcquireLongPollLease(request.owner, request.ttl),
+        ).acquired
+        return AcquireLongPollLeasePort.Response(acquired)
+    }
+}
+
+@ApplicationScoped
+class ReleaseLongPollLeaseInProcessAdapter(
+    private val persistenceDataInputPort: PersistenceDataInputPort,
+) : ReleaseLongPollLeasePort {
+    override fun execute(request: ReleaseLongPollLeasePort.Request): ReleaseLongPollLeasePort.Response {
+        persistenceDataInputPort.releaseLongPollLease(PersistenceDataRequest.ReleaseLongPollLease(request.owner))
+        return ReleaseLongPollLeasePort.Response
     }
 }
